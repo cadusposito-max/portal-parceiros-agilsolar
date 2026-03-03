@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -196,7 +195,7 @@
 
 <!-- MODAL POPUP: MONTAR PROPOSTA CRM -->
 <div id="proposal-builder-modal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-md p-2 md:p-6 hidden transition-opacity duration-300">
-  <div class="bg-neutral-950 border border-neutral-800 w-full max-w-5xl h-full md:h-[90vh] flex flex-col shadow-[0_0_50px_rgba(234,88,12,0.1)] relative">
+  <div class="bg-neutral-950 border border-neutral-800 w-full max-w-6xl h-full md:h-[90vh] flex flex-col shadow-[0_0_50px_rgba(234,88,12,0.1)] relative">
 
     <!-- Modal Header -->
     <div class="flex justify-between items-center p-4 md:p-6 border-b border-neutral-800 bg-black">
@@ -224,10 +223,16 @@
         <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors"></i>
         <input type="text" id="pb-search" placeholder="BUSCAR POR POTÊNCIA OU GERAÇÃO EST. (ex: 500)..." class="relative w-full pl-12 pr-4 py-3 bg-black border border-neutral-700 text-white focus:outline-none focus:border-orange-500 transition-all font-bold uppercase text-xs md:text-sm">
       </div>
+
+      <!-- BOTÃO TOGGLE GRID/LIST -->
+      <div class="flex bg-black p-1 border border-neutral-800 rounded shrink-0">
+        <button onclick="setPBViewMode('list')" id="pb-btn-list" class="p-2 md:p-3 transition-all bg-orange-500 text-black shadow-md" title="Modo Lista"><i data-lucide="list" class="w-5 h-5"></i></button>
+        <button onclick="setPBViewMode('grid')" id="pb-btn-grid" class="p-2 md:p-3 transition-all text-neutral-500 hover:text-white" title="Modo Grade"><i data-lucide="grid" class="w-5 h-5"></i></button>
+      </div>
     </div>
 
     <!-- Modal Content (Lista de Produtos) -->
-    <div id="pb-products-container" class="flex-1 overflow-y-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-[#050505] content-start">
+    <div id="pb-products-container" class="flex-1 overflow-y-auto p-4 md:p-6 bg-[#050505] content-start">
       <!-- Injetado via JS -->
     </div>
 
@@ -351,10 +356,10 @@
 
     pbActiveClient: null,
     pbCategory: 'kitsInversor',
-    pbSearch: ''
+    pbSearch: '',
+    pbViewMode: 'list' // NOVO: Definido como 'list' por padrão
   };
 
-  // REMOVIDO ABA DE INVERSORES E MICROINVERSORES
   const TABS = [
     { id: 'clientes', label: 'MEUS CLIENTES', icon: 'users' }
   ];
@@ -443,7 +448,6 @@
   // 3. BUSCAR DADOS
   // ==========================================
   async function fetchProducts() {
-    // Adicionamos o .order('power', { ascending: true }) para ordenar da menor para a maior potência
     const { data, error } = await supabaseClient
             .from('produtos')
             .select('*')
@@ -680,7 +684,7 @@
                         <div class="absolute -left-1 top-4 z-10"><div class="bg-red-600 text-white text-xs font-black px-3 py-1 shadow-lg flex items-center gap-1 skew-x-[-10deg] border-2 border-red-800"><span class="skew-x-[10deg]">-${discount}% OFF</span></div></div>
                         <div class="p-6 relative z-10 flex flex-col h-full">
                             <div class="flex justify-end mb-4"><span class="px-2 py-0.5 rounded-none skew-x-[-10deg] text-[10px] font-black uppercase tracking-tighter border-l-4 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${badgeClass}"><span class="skew-x-[10deg] inline-block">${item.tag}</span></span></div>
-                            <div class="mb-1"><span class="text-[10px] text-neutral-500 font-black uppercase tracking-[0.2em]">${item.brand}</span></div>
+                            <div class="mb-1"><span class="text-[10px] text-neutral-500 font-bold uppercase tracking-[0.2em]">${item.brand}</span></div>
                             <h3 class="text-white font-black text-xl leading-none uppercase tracking-tight mb-4">${item.name}</h3>
                             <div class="bg-black/50 border border-neutral-800 p-3 mb-6 grid grid-cols-2 gap-2">
                                 <div class="flex flex-col"><span class="text-[10px] text-neutral-500 font-bold uppercase">Potência</span><span class="text-orange-500 font-black text-lg flex items-center gap-1"><i data-lucide="zap" class="w-4 h-4 fill-orange-500"></i> ${item.power} <span class="text-xs">kWp</span></span></div>
@@ -748,6 +752,22 @@
     renderModalProducts();
   }
 
+  // NOVA FUNÇÃO: Alternar visualização Grid / Lista no Modal
+  function setPBViewMode(mode) {
+    state.pbViewMode = mode;
+    const btnGrid = document.getElementById('pb-btn-grid');
+    const btnList = document.getElementById('pb-btn-list');
+
+    if(mode === 'grid') {
+      btnGrid.className = "p-2 md:p-3 transition-all bg-orange-500 text-black shadow-md";
+      btnList.className = "p-2 md:p-3 transition-all text-neutral-500 hover:text-white";
+    } else {
+      btnList.className = "p-2 md:p-3 transition-all bg-orange-500 text-black shadow-md";
+      btnGrid.className = "p-2 md:p-3 transition-all text-neutral-500 hover:text-white";
+    }
+    renderModalProducts();
+  }
+
   function updatePBTabsUI() {
     const btnInv = document.getElementById('pb-tab-inversor');
     const btnMic = document.getElementById('pb-tab-micro');
@@ -802,49 +822,93 @@
       emptyEl.classList.remove('flex');
       container.classList.remove('hidden');
 
+      // Aplica a classe ao container dependendo do modo selecionado
+      if (state.pbViewMode === 'list') {
+        container.className = "flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-3 bg-[#050505] content-start";
+      } else {
+        container.className = "flex-1 overflow-y-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-[#050505] content-start";
+      }
+
       container.innerHTML = list.map(item => {
         const estGeneration = (item.power * 120).toFixed(0);
         const formattedPrice = formatCurrency(item.price);
         const formattedListPrice = formatCurrency(item.list_price);
 
-        // ALTERAÇÃO: Botão modificado para "COPIAR LINK"
-        return `
-                    <div class="bg-[#0f0f0f] border border-neutral-800 hover:border-orange-500 p-5 flex flex-col gap-4 group transition-all rounded-sm shadow-xl">
-                        <div class="flex justify-between items-start">
+        // MODO GRADE (GRID) - Como era antes
+        if (state.pbViewMode === 'grid') {
+          return `
+                <div class="bg-[#0f0f0f] border border-neutral-800 hover:border-orange-500 p-5 flex flex-col gap-4 group transition-all rounded-sm shadow-xl">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[10px] bg-orange-600/20 text-orange-500 px-2 py-0.5 font-bold uppercase tracking-widest border border-orange-500/30">${item.brand}</span>
+                        <span class="text-[10px] text-neutral-500 line-through decoration-red-500 font-bold">DE: ${formattedListPrice}</span>
+                    </div>
+
+                    <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors">${item.name}</h3>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-black p-2 border border-neutral-800 flex flex-col items-center justify-center">
+                            <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Potência</span>
+                            <span class="text-orange-500 font-black flex items-center gap-1 mt-1 text-sm"><i data-lucide="zap" class="w-3 h-3"></i> ${item.power} kWp</span>
+                        </div>
+                        <div class="bg-neutral-900 p-2 border border-neutral-800 flex flex-col items-center justify-center shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]">
+                            <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Geração Est.</span>
+                            <span class="text-blue-400 font-black flex items-center gap-1 mt-1 text-sm"><i data-lucide="sun" class="w-3 h-3"></i> ${estGeneration} kWh</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto pt-4 border-t border-neutral-800 flex items-center justify-between gap-3">
+                        <div class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-1 pr-1 inline-block">${formattedPrice}</div>
+
+                        <button onclick='copyProposalLink(${JSON.stringify(item)}, event)' class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] text-[10px] font-black uppercase tracking-widest min-w-[110px]">
+                            <i data-lucide="link" class="w-4 h-4"></i> COPIAR LINK
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        // MODO LISTA (LIST) - Novo design compacto (linha)
+        else {
+          return `
+                <div class="bg-[#0f0f0f] border border-neutral-800 hover:border-orange-500 p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group transition-all rounded-sm shadow-xl">
+                    <!-- Info Esquerda -->
+                    <div class="flex-1 min-w-0 flex flex-col gap-2">
+                        <div class="flex items-center gap-2">
                             <span class="text-[10px] bg-orange-600/20 text-orange-500 px-2 py-0.5 font-bold uppercase tracking-widest border border-orange-500/30">${item.brand}</span>
-                            <span class="text-[10px] text-neutral-500 line-through decoration-red-500 font-bold">DE: ${formattedListPrice}</span>
+                            <span class="text-[10px] text-neutral-500 line-through decoration-red-500 font-bold hidden md:inline-block">DE: ${formattedListPrice}</span>
                         </div>
+                        <h3 class="text-white font-black text-sm md:text-base uppercase leading-tight group-hover:text-orange-400 transition-colors truncate" title="${item.name}">${item.name}</h3>
+                    </div>
 
-                        <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors">${item.name}</h3>
-
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div class="bg-black p-2 border border-neutral-800 flex flex-col items-center justify-center">
-                                <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Potência</span>
-                                <span class="text-orange-500 font-black flex items-center gap-1 mt-1 text-sm"><i data-lucide="zap" class="w-3 h-3"></i> ${item.power} kWp</span>
-                            </div>
-                            <div class="bg-neutral-900 p-2 border border-neutral-800 flex flex-col items-center justify-center shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]">
-                                <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Geração Est.</span>
-                                <span class="text-blue-400 font-black flex items-center gap-1 mt-1 text-sm"><i data-lucide="sun" class="w-3 h-3"></i> ${estGeneration} kWh</span>
-                            </div>
+                    <!-- Info Meio (Specs) -->
+                    <div class="flex items-center gap-4 md:px-6 md:border-x border-neutral-800 shrink-0">
+                        <div class="flex flex-col items-center justify-center">
+                            <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Potência</span>
+                            <span class="text-orange-500 font-black flex items-center gap-1 text-sm"><i data-lucide="zap" class="w-3 h-3"></i> ${item.power} kWp</span>
                         </div>
-
-                        <div class="mt-auto pt-4 border-t border-neutral-800 flex items-center justify-between gap-3">
-                            <div class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-1 pr-1 inline-block">${formattedPrice}</div>
-
-                            <button onclick='copyProposalLink(${JSON.stringify(item)}, event)' class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] text-[10px] font-black uppercase tracking-widest min-w-[110px]">
-                                <i data-lucide="link" class="w-4 h-4"></i> COPIAR LINK
-                            </button>
+                        <div class="flex flex-col items-center justify-center">
+                            <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Geração Est.</span>
+                            <span class="text-blue-400 font-black flex items-center gap-1 text-sm"><i data-lucide="sun" class="w-3 h-3"></i> ${estGeneration} kWh</span>
                         </div>
-                    </div>`;
+                    </div>
+
+                    <!-- Info Direita (Preço + Botão) -->
+                    <div class="flex items-center justify-between w-full md:w-auto md:justify-end gap-4 shrink-0 mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-0 border-neutral-800">
+                        <div class="text-right">
+                           <span class="text-[10px] text-neutral-500 line-through decoration-red-500 font-bold md:hidden block">DE: ${formattedListPrice}</span>
+                           <div class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-1 pr-1 inline-block">${formattedPrice}</div>
+                        </div>
+                        <button onclick='copyProposalLink(${JSON.stringify(item)}, event)' class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] text-[10px] font-black uppercase tracking-widest min-w-[110px]">
+                            <i data-lucide="link" class="w-4 h-4"></i> COPIAR
+                        </button>
+                    </div>
+                </div>`;
+        }
       }).join('');
       lucide.createIcons();
     }
   }
   // ==========================================
-  // 7. GERAR LINK NO SUPABASE E COPIAR/COMPARTILHAR
-  // ==========================================
-  // ==========================================
-  // 7. GERAR LINK NO SUPABASE E COPIAR (SILENCIOSO PARA IOS/PC)
+  // 7. GERAR LINK, ABRIR ABA E COPIAR (MÉTODO DEFINITIVO)
   // ==========================================
   async function copyProposalLink(kit, event) {
     const client = state.pbActiveClient;
@@ -855,73 +919,46 @@
     btnCopiar.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> GERANDO...';
     lucide.createIcons();
 
+    // 1. Abre a aba vazia imediatamente no clique
+    const novaAba = window.open('', '_blank');
+
     try {
-      // No Safari/iOS, para copiar DEPOIS de um "await", exigem o uso do ClipboardItem com uma Promise
-      if (navigator.clipboard && window.ClipboardItem) {
-        const linkPromise = new Promise(async (resolve, reject) => {
-          try {
-            const { data, error } = await supabaseClient.from('propostas').insert([{
-              vendedor_email: state.currentUser.email,
-              cliente_nome: client.nome,
-              cliente_telefone: client.telefone,
-              cliente_cidade: client.cidade,
-              kit_nome: kit.name,
-              kit_brand: kit.brand,
-              kit_power: kit.power,
-              kit_price: kit.price,
-              kit_list_price: kit.list_price
-            }]).select();
+      // 2. Salva a proposta no banco de dados
+      const { data, error } = await supabaseClient.from('propostas').insert([{
+        vendedor_email: state.currentUser.email,
+        cliente_nome: client.nome,
+        cliente_telefone: client.telefone,
+        cliente_cidade: client.cidade,
+        kit_nome: kit.name,
+        kit_brand: kit.brand,
+        kit_power: kit.power,
+        kit_price: kit.price,
+        kit_list_price: kit.list_price
+      }]).select();
 
-            if (error) throw error;
+      if (error) throw error;
 
-            const propostaId = data[0].id;
-            const baseUrl = window.location.href.split('index.html')[0].replace(/\/$/, "");
-            const linkProposta = `${baseUrl}/proposta.html?id=${propostaId}`;
+      // 3. Monta o link bonitinho
+      const baseUrl = window.location.href.split('index.html')[0].replace(/\/$/, "");
+      const linkFinal = `${baseUrl}/proposta.html?id=${data[0].id}`;
 
-            // Salva o log em segundo plano
-            supabaseClient.from('logs_propostas').insert([{ vendedor_email: state.currentUser.email, kit_nome: kit.name, valor_kit: kit.price, acao: 'LINK_COPIADO' }]);
+      // 4. Manda a aba que já estava aberta carregar a proposta
+      novaAba.location.href = linkFinal;
 
-            resolve(new Blob([linkProposta], { type: 'text/plain' }));
-          } catch (err) {
-            reject(err);
-          }
-        });
+      // 5. CHAMA A FUNÇÃO NINJA DE COPIAR (Logo abaixo)
+      copiarTextoBlindado(linkFinal);
 
-        // Executa a cópia silenciosa
-        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': linkPromise })]);
+      // 6. Registra no Log (silencioso)
+      supabaseClient.from('logs_propostas').insert([{ vendedor_email: state.currentUser.email, kit_nome: kit.name, valor_kit: kit.price, acao: 'LINK_GERADO' }]);
 
-      } else {
-        // Método tradicional para Android e PC
-        const { data, error } = await supabaseClient.from('propostas').insert([{
-          vendedor_email: state.currentUser.email,
-          cliente_nome: client.nome,
-          cliente_telefone: client.telefone,
-          cliente_cidade: client.cidade,
-          kit_nome: kit.name,
-          kit_brand: kit.brand,
-          kit_power: kit.power,
-          kit_price: kit.price,
-          kit_list_price: kit.list_price
-        }]).select();
-
-        if (error) throw error;
-
-        const propostaId = data[0].id;
-        const baseUrl = window.location.href.split('index.html')[0].replace(/\/$/, "");
-        const linkProposta = `${baseUrl}/proposta.html?id=${propostaId}`;
-
-        await navigator.clipboard.writeText(linkProposta);
-        supabaseClient.from('logs_propostas').insert([{ vendedor_email: state.currentUser.email, kit_nome: kit.name, valor_kit: kit.price, acao: 'LINK_COPIADO' }]);
-      }
-
-      // Feedback Visual no botão
-      btnCopiar.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> COPIADO!';
+      // 7. Mostra que deu tudo certo na tela
+      btnCopiar.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> ABERTO E COPIADO!';
       btnCopiar.classList.remove('bg-blue-600', 'hover:bg-blue-500');
       btnCopiar.classList.add('bg-green-600', 'hover:bg-green-500');
       lucide.createIcons();
       showToast('LINK DA PROPOSTA COPIADO!');
 
-      // Restaura o botão após 3 segundos
+      // Restaura o botão original depois de 3 segundos
       setTimeout(() => {
         btnCopiar.innerHTML = originalText;
         btnCopiar.classList.remove('bg-green-600', 'hover:bg-green-500');
@@ -930,11 +967,64 @@
       }, 3000);
 
     } catch (err) {
-      console.error("Erro ao gerar link:", err);
-      alert("Erro ao gerar link da proposta. Tente novamente.");
+      console.error("Erro na geração:", err);
+      alert("Erro ao gerar a proposta. Tente novamente.");
+      novaAba.close(); // Fecha a aba em branco se der erro
       btnCopiar.innerHTML = originalText;
       lucide.createIcons();
     }
+  }
+
+  // --- AS DUAS FUNÇÕES NINJAS QUE GARANTEM A CÓPIA ---
+  function copiarTextoBlindado(texto) {
+    // Tenta o método moderno primeiro
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(texto).catch(() => fallbackCopiar(texto));
+    } else {
+      // Se o navegador for chato, vai pro plano B direto
+      fallbackCopiar(texto);
+    }
+  }
+
+  function fallbackCopiar(texto) {
+    // Cria um campo de texto no HTML
+    const textArea = document.createElement("textarea");
+    textArea.value = texto;
+
+    // Esconde o campo lá na "caixa prego" para não estragar o visual
+    textArea.style.position = "fixed";
+    textArea.style.top = "-9999px";
+    textArea.style.left = "-9999px";
+
+    // Bota na tela, seleciona o texto e aperta "Copiar"
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      document.execCommand('copy');
+    } catch (err) {
+      console.error("Nem o fallback conseguiu copiar:", err);
+    }
+
+    // Limpa a bagunça apagando o campo
+    document.body.removeChild(textArea);
+  }
+
+  // Funçãozinha para não repetirmos o código de sucesso 3 vezes
+  function sucessoVisual(btn, originalText) {
+    btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> ABERTO E COPIADO!';
+    btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+    btn.classList.add('bg-green-600', 'hover:bg-green-500');
+    lucide.createIcons();
+    showToast('LINK DA PROPOSTA COPIADO!');
+
+    setTimeout(() => {
+      btn.innerHTML = originalText;
+      btn.classList.remove('bg-green-600', 'hover:bg-green-500');
+      btn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+      lucide.createIcons();
+    }, 3000);
   }
 
   // ==========================================

@@ -1,9 +1,33 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proposta - Ágil Solar</title>
+    <title>Projeto Exclusivo - Ágil Solar</title>
+
+    <!-- ========================================== -->
+    <!-- META TAGS PARA PREVIEW DE LINKS (WHATSAPP) -->
+    <!-- ========================================== -->
+    <meta name="description" content="Confira o seu estudo de viabilidade solar e descubra o quanto você pode economizar gerando a sua própria energia.">
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://portal-parceiros-agilsolar.vercel.app/">
+    <meta property="og:title" content="Projeto Exclusivo - Ágil Solar">
+    <meta property="og:description" content="Confira o seu estudo de viabilidade solar e descubra o quanto você pode economizar gerando a sua própria energia.">
+    <!-- ATENÇÃO: É altamente recomendado usar um link absoluto aqui para o WhatsApp não falhar -->
+    <meta property="og:image" content="https://portal-parceiros-agilsolar.vercel.app/banner-share.jpg">
+
+    <!-- Twitter / Telegram -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://portal-parceiros-agilsolar.vercel.app/">
+    <meta property="twitter:title" content="Projeto Exclusivo - Ágil Solar">
+    <meta property="twitter:description" content="Confira o seu estudo de viabilidade solar e descubra o quanto você pode economizar gerando a sua própria energia.">
+    <meta property="twitter:image" content="https://portal-parceiros-agilsolar.vercel.app/banner-share.jpg">
+
+    <!-- Cor da aba no navegador mobile -->
+    <meta name="theme-color" content="#f97316">
+    <!-- ========================================== -->
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,7 +37,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="assets/img/icon.png">
+    <link rel="icon" type="image/png" href="logo.png">
 
     <script>
         tailwind.config = {
@@ -22,31 +46,79 @@
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
                         orange: { 500: '#f97316', 600: '#ea580c' },
-                        yellow: { 400: '#facc15', 500: '#eab308' }
+                        yellow: { 400: '#facc15', 500: '#eab308' },
+                        blue: { 600: '#2563eb', 700: '#1d4ed8' }
                     }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: #050505; color: #e5e5e5; padding-bottom: 100px; }
+        body { background-color: #050505; color: #e5e5e5; }
         .gradient-border { position: relative; background: #050505; background-clip: padding-box; border: solid 2px transparent; border-radius: 1rem; }
         .gradient-border:before { content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; margin: -2px; border-radius: inherit; background: linear-gradient(to right, #ea580c, #eab308); }
+
+        /* Personalização da scrollbar do modal */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #171717; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f97316; }
     </style>
 </head>
-<body class="selection:bg-orange-500 selection:text-white min-h-screen flex flex-col items-center">
+<body class="selection:bg-orange-500 selection:text-white min-h-screen flex flex-col items-center relative">
 
 <!-- Loading State -->
 <div id="loading" class="fixed inset-0 z-50 bg-[#050505] flex flex-col items-center justify-center">
     <i data-lucide="sun" class="w-12 h-12 text-orange-500 animate-[spin_3s_linear_infinite] mb-4"></i>
-    <p class="text-neutral-500 font-bold uppercase tracking-widest text-sm animate-pulse">A calcular o seu projeto...</p>
+    <p class="text-neutral-500 font-bold uppercase tracking-widest text-sm animate-pulse">A preparar o seu projeto...</p>
 </div>
 
 <!-- Error State -->
 <div id="error-state" class="hidden flex-col items-center justify-center min-h-screen p-4 text-center">
     <i data-lucide="file-warning" class="w-16 h-16 text-red-500 mb-4"></i>
     <h1 class="text-2xl font-black text-white uppercase mb-2">Proposta indisponível</h1>
-    <p class="text-neutral-500 max-w-md">Este link é inválido ou a proposta já expirou. Por favor, contacte o seu vendedor.</p>
+    <p class="text-neutral-500 max-w-md">Este link é inválido ou a proposta expirou. Por favor, contacte o seu consultor.</p>
+</div>
+
+<!-- Modal de Parcelamento -->
+<div id="modal-parcelamento" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
+    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-md md:max-w-2xl overflow-hidden shadow-2xl transform transition-all shadow-[0_0_40px_rgba(234,88,12,0.1)]">
+
+        <!-- Header do Modal -->
+        <div class="p-5 border-b border-neutral-800 flex justify-between items-center bg-black/50">
+            <div class="flex items-center gap-3">
+                <div class="bg-orange-500/20 p-2 rounded-lg">
+                    <i data-lucide="credit-card" class="w-5 h-5 text-orange-500"></i>
+                </div>
+                <h3 class="text-lg font-black text-white uppercase tracking-tight">Opções no Cartão</h3>
+            </div>
+            <button id="btn-close-modal" class="text-neutral-500 hover:text-white transition-colors p-1">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- Lista de Parcelas -->
+        <div class="p-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <!-- Aviso Importante sobre +12x -->
+            <div class="mb-4 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl flex items-start gap-3 shadow-[0_0_15px_rgba(234,179,8,0.05)]">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-500 shrink-0 mt-0.5"></i>
+                <p class="text-xs text-yellow-500/90 leading-relaxed">
+                    <strong class="text-yellow-500 font-bold">Atenção:</strong> Nem todos os cartões de crédito autorizam parcelamentos acima de 12x. Verifique com o seu banco a disponibilidade de dividir em até 18 vezes no seu cartão.
+                </p>
+            </div>
+
+            <!-- Grid em 2 colunas para o Desktop, 1 coluna no Mobile -->
+            <div id="installments-list" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Javascript vai preencher aqui -->
+            </div>
+        </div>
+
+        <!-- Footer do Modal -->
+        <div class="p-4 bg-neutral-950 border-t border-neutral-800 text-xs text-neutral-500 text-center flex items-center justify-center gap-2">
+            <i data-lucide="info" class="w-4 h-4"></i>
+            Valores sujeitos a taxas da operadora do cartão.
+        </div>
+    </div>
 </div>
 
 <!-- Main Proposal Content -->
@@ -54,16 +126,16 @@
 
     <!-- Header / Logo -->
     <div class="flex justify-center mb-4">
-        <img src="logo.png" alt="Mega Feirão Ágil Solar" class="w-48 md:w-64 h-auto drop-shadow-[0_0_20px_rgba(249,115,22,0.3)]" onerror="this.style.display='none'">
+        <img src="logo.png" alt="Ágil Solar" class="w-48 md:w-64 h-auto drop-shadow-[0_0_20px_rgba(249,115,22,0.3)]" onerror="this.style.display='none'">
     </div>
 
     <!-- Greeting -->
     <div class="text-center">
-        <p class="text-orange-500 font-black uppercase tracking-widest text-xs md:text-sm mb-2">PROPOSTA ÁGIL SOLAR</p>
+        <p class="text-orange-500 font-black uppercase tracking-widest text-xs md:text-sm mb-2">ESTUDO DE VIABILIDADE SOLAR</p>
         <h1 class="text-3xl md:text-4xl font-black text-white leading-tight">
             Olá, <span id="client-name" class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">...</span>!
         </h1>
-        <p class="text-neutral-400 mt-3 text-sm md:text-base max-w-lg mx-auto">Aqui está um dimensionamento ideal para você com condições exclusivas!</p>
+        <p class="text-neutral-400 mt-3 text-sm md:text-base max-w-lg mx-auto">Aqui está o dimensionamento ideal para a sua casa com as nossas melhores condições.</p>
     </div>
 
     <!-- 1. O KIT PRINCIPAL (Preço e Especificações) -->
@@ -100,6 +172,33 @@
                 <p class="text-[10px] text-orange-500 font-black uppercase tracking-widest mb-1">Investimento à Vista</p>
                 <div class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter" id="kit-price">
                     ...
+                </div>
+            </div>
+
+            <!-- BLOCO DE PAGAMENTO E FINANCIAMENTO -->
+            <div class="bg-gradient-to-r from-orange-900/20 to-yellow-900/10 border border-orange-500/30 rounded-xl p-5 shadow-lg flex flex-col gap-4 mt-4 relative">
+                <div class="flex items-center gap-3 border-b border-orange-500/20 pb-3">
+                    <i data-lucide="wallet" class="w-6 h-6 text-orange-400"></i>
+                    <h3 class="text-base font-black text-white uppercase tracking-tight">Facilidades de Pagamento</h3>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    <!-- Cartão de Crédito com Botão de Modal -->
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="credit-card" class="w-5 h-5 text-neutral-400 shrink-0 mt-0.5"></i>
+                        <div class="flex flex-col items-start gap-1">
+                            <p class="text-neutral-300 text-sm"><span class="text-white font-bold">Cartão de Crédito:</span> Parcele o seu sistema no cartão.</p>
+                            <button id="btn-show-installments" class="text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors flex items-center gap-1.5 mt-1 bg-orange-500/10 hover:bg-orange-500/20 py-1.5 px-3 rounded-lg border border-orange-500/20">
+                                <i data-lucide="calculator" class="w-3.5 h-3.5"></i> Ver opções de parcelas
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Financiamento -->
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="landmark" class="w-5 h-5 text-neutral-400 shrink-0 mt-0.5"></i>
+                        <p class="text-neutral-300 text-sm"><span class="text-white font-bold">Financiamento (Boleto):</span> Consulte opções de financiamento de <span class="text-orange-400 font-bold">100%</span> em até <span class="text-orange-400 font-bold">84 meses</span> com carência de <span class="text-orange-400 font-bold">120 dias</span>.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -139,52 +238,123 @@
         </div>
     </div>
 
-    <!-- 3. O QUE ESTÁ INCLUSO (Chave na mão) -->
+    <!-- 3. QUEM SOMOS E VALIDAÇÃO DA EMPRESA -->
+    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-lg">
+        <div class="p-6 md:p-8 text-center border-b border-neutral-800 bg-neutral-950 relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent pointer-events-none"></div>
+            <h3 class="text-2xl md:text-3xl font-black text-blue-500 uppercase tracking-widest mb-4 relative z-10">Quem Somos</h3>
+            <p class="text-neutral-300 text-sm md:text-base leading-relaxed max-w-4xl mx-auto relative z-10">
+                Somos a Ágil Solar, uma empresa especializada em soluções inteligentes em energia. Desde 2020, já atendemos milhares de clientes em todo o Brasil, oferecendo economia, eficiência e segurança por meio de projetos personalizados, tecnologia de ponta e equipe altamente capacitada. Muito além de transformar o sol em energia, nós transformamos vidas: gerando lucros de verdade para os nossos clientes e sustentabilidade para o planeta.
+            </p>
+        </div>
+        <div class="bg-[#0a0a0a] p-6 md:p-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4 text-center">
+                <div class="flex flex-col items-center">
+                    <div class="bg-yellow-500 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-black shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+                        <i data-lucide="map-pin" class="w-7 h-7 md:w-8 md:h-8"></i>
+                    </div>
+                    <p class="text-neutral-400 font-bold uppercase text-[10px] md:text-xs">Presente em</p>
+                    <p class="text-white font-black uppercase text-sm md:text-base mt-0.5">8 Estados</p>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div class="bg-yellow-500 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-black shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+                        <i data-lucide="store" class="w-7 h-7 md:w-8 md:h-8"></i>
+                    </div>
+                    <p class="text-white font-black uppercase text-sm md:text-base mt-0.5">+35</p>
+                    <p class="text-neutral-400 font-bold uppercase text-[10px] md:text-xs">Unidades</p>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div class="bg-yellow-500 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-black shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+                        <i data-lucide="hard-hat" class="w-7 h-7 md:w-8 md:h-8"></i>
+                    </div>
+                    <p class="text-white font-black uppercase text-sm md:text-base mt-0.5">+ de 4.000</p>
+                    <p class="text-neutral-400 font-bold uppercase text-[10px] md:text-xs">Projetos Instalados</p>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div class="bg-yellow-500 w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-3 text-black shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+                        <i data-lucide="globe" class="w-7 h-7 md:w-8 md:h-8"></i>
+                    </div>
+                    <p class="text-white font-black uppercase text-sm md:text-base mt-0.5">+ de 150</p>
+                    <p class="text-neutral-400 font-bold uppercase text-[10px] md:text-xs">Municípios Atendidos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. VÍDEO DAS NOSSAS OBRAS (CARROSSEL YOUTUBE) -->
+    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-lg">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="bg-red-600/20 p-2 rounded-lg"><i data-lucide="youtube" class="w-6 h-6 text-red-500"></i></div>
+            <h3 class="text-xl font-black text-white uppercase tracking-tight">Conheça o nosso trabalho</h3>
+        </div>
+
+        <!-- Área do Vídeo -->
+        <div class="relative w-full group">
+            <div class="relative w-full overflow-hidden rounded-xl pt-[56.25%] bg-black border border-neutral-800 shadow-[0_0_20px_rgba(0,0,0,0.5)]" id="video-wrapper">
+                <!-- Iframes serão injetados aqui pelo Javascript para pré-carregamento imediato -->
+            </div>
+
+            <!-- Setas de Navegação (Aparecem no hover ou em mobile) -->
+            <button id="btn-prev-vid" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-orange-600 text-white p-2 rounded-full backdrop-blur-sm transition-all shadow-lg md:opacity-0 group-hover:opacity-100 z-10 border border-neutral-700">
+                <i data-lucide="chevron-left" class="w-6 h-6"></i>
+            </button>
+            <button id="btn-next-vid" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-orange-600 text-white p-2 rounded-full backdrop-blur-sm transition-all shadow-lg md:opacity-0 group-hover:opacity-100 z-10 border border-neutral-700">
+                <i data-lucide="chevron-right" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- Bolinhas Indicadoras (Dots) -->
+        <div class="flex items-center justify-center gap-2 mt-4" id="video-dots">
+            <!-- Injetado pelo JS -->
+        </div>
+    </div>
+
+    <!-- 5. O QUE ESTÁ INCLUSO (Chave na mão) -->
     <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-lg">
         <div class="flex items-center gap-3 mb-6">
             <div class="bg-orange-600/20 p-2 rounded-lg"><i data-lucide="package-check" class="w-6 h-6 text-orange-500"></i></div>
             <h3 class="text-xl font-black text-white uppercase tracking-tight">Projeto Chave na Mão</h3>
         </div>
-        <p class="text-neutral-400 text-sm mb-6">Não se preocupe com nada. Nós tratamos de todas as etapas do processo para si:</p>
+        <p class="text-neutral-400 text-sm mb-6">Não se preocupe com nada. Nós cuidamos de todas as etapas do processo para você:</p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="flex items-start gap-3 bg-black/50 p-3 rounded-lg border border-neutral-800/50">
                 <i data-lucide="check-circle-2" class="w-5 h-5 text-orange-500 shrink-0 mt-0.5"></i>
                 <div>
                     <p class="text-white font-bold text-sm">Equipamentos Premium</p>
-                    <p class="text-neutral-500 text-xs mt-1">Painéis, Inversores e Estruturas de fixação das melhores marcas.</p>
+                    <p class="text-neutral-500 text-xs mt-1">Painéis, Inversores e Estruturas de fixação das melhores marcas globais.</p>
                 </div>
             </div>
             <div class="flex items-start gap-3 bg-black/50 p-3 rounded-lg border border-neutral-800/50">
                 <i data-lucide="check-circle-2" class="w-5 h-5 text-orange-500 shrink-0 mt-0.5"></i>
                 <div>
                     <p class="text-white font-bold text-sm">Instalação Especializada</p>
-                    <p class="text-neutral-500 text-xs mt-1">Equipa técnica própria e qualificada seguindo normas de segurança.</p>
+                    <p class="text-neutral-500 text-xs mt-1">Equipe técnica própria e qualificada seguindo rigorosas normas de segurança.</p>
                 </div>
             </div>
             <div class="flex items-start gap-3 bg-black/50 p-3 rounded-lg border border-neutral-800/50">
                 <i data-lucide="check-circle-2" class="w-5 h-5 text-orange-500 shrink-0 mt-0.5"></i>
                 <div>
                     <p class="text-white font-bold text-sm">Homologação</p>
-                    <p class="text-neutral-500 text-xs mt-1">Tratamos de toda a burocracia do projeto com a distribuidora de energia.</p>
+                    <p class="text-neutral-500 text-xs mt-1">Tratamos de toda a burocracia do projeto junto à distribuidora de energia.</p>
                 </div>
             </div>
             <div class="flex items-start gap-3 bg-black/50 p-3 rounded-lg border border-neutral-800/50">
                 <i data-lucide="check-circle-2" class="w-5 h-5 text-orange-500 shrink-0 mt-0.5"></i>
                 <div>
-                    <p class="text-white font-bold text-sm">Aplicação de Monitorização</p>
-                    <p class="text-neutral-500 text-xs mt-1">Acompanhe a geração de energia em tempo real no seu telemóvel.</p>
+                    <p class="text-white font-bold text-sm">Aplicativo de Monitoramento</p>
+                    <p class="text-neutral-500 text-xs mt-1">Acompanhe a geração de energia em tempo real direto do seu celular.</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 4. IMPACTO AMBIENTAL -->
-    <div class="flex flex-col md:flex-row items-center justify-between bg-[url('https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center border border-neutral-800 rounded-2xl p-6 shadow-lg relative overflow-hidden">
+    <!-- 6. IMPACTO AMBIENTAL -->
+    <div class="flex flex-col md:flex-row items-center justify-between bg-[url('https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center border border-neutral-800 rounded-2xl p-6 shadow-lg relative overflow-hidden mb-12">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm z-0"></div>
         <div class="relative z-10 text-center md:text-left mb-6 md:mb-0">
             <h3 class="text-xl font-black text-white uppercase tracking-tight">Impacto Ambiental</h3>
-            <p class="text-neutral-300 text-sm mt-1 max-w-sm">Ao gerar a sua própria energia limpa, ajuda a preservar o planeta e reduz a emissão de CO2.</p>
+            <p class="text-neutral-300 text-sm mt-1 max-w-sm">Ao gerar a sua própria energia limpa, você ajuda a preservar o planeta e reduz a emissão de CO2.</p>
         </div>
         <div class="relative z-10 flex gap-6">
             <div class="text-center">
@@ -201,54 +371,179 @@
 
 <script>
     // ==========================================
-    // CONFIGURAÇÃO SUPABASE
+    // CONFIGURAÇÃO SUPABASE E VARIÁVEIS GLOBAIS
     // ==========================================
     const SUPABASE_URL = 'https://tzwjxgprhorqrmpqudgg.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6d2p4Z3ByaG9ycXJtcHF1ZGdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjczNTksImV4cCI6MjA4NzcwMzM1OX0.hwfzCb9FGVXX7Uf0pY7zFS6SZHrh0pzWk1gKFVq2DX4';
-
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ==========================================
+    // LINKS DOS VÍDEOS DO CARROSSEL
+    // -> COLOQUE AQUI OS 3 LINKS DE INCORPORAÇÃO (EMBED)
+    // ==========================================
+    const VIDEOS_YOUTUBE = [
+        "https://www.youtube.com/embed/a-3d90O2u60?si=3F89_VFQmDptzcxp", // Vídeo 1 (o original que estava bloqueado)
+        "https://www.youtube.com/embed/YvyIMNlm0q8?si=hJw5gToEMUEYU2LQ", // Vídeo 2 (exemplo, alterar)
+        "https://www.youtube.com/embed/SOotdCvJAkc?si=KHc78sgr9qrvwHDp" // Vídeo 3 (exemplo, alterar)
+    ];
+
+    // ==========================================
+    // TABELA DE TAXAS DA MÁQUINA (Mastercard/Visa)
+    // ==========================================
+    const TAXAS_CARTAO = {
+        1: 2.99, 2: 4.09, 3: 4.78, 4: 5.47, 5: 6.14, 6: 6.81,
+        7: 7.67, 8: 8.33, 9: 8.98, 10: 9.63, 11: 10.26, 12: 10.90,
+        13: 12.32, 14: 12.94, 15: 13.56, 16: 14.17, 17: 14.77, 18: 15.37
+    };
+    const MAX_PARCELAS = 18;
 
     lucide.createIcons();
 
-    // CORREÇÃO AQUI: Estava 'newSearchParams', o correto é 'new URLSearchParams'
+    // ==========================================
+    // LÓGICA DO CARROSSEL DE VÍDEOS
+    // ==========================================
+    let videoAtual = 0;
+    const playerContainer = document.getElementById('video-wrapper');
+    const dotsContainer = document.getElementById('video-dots');
+
+    // Pré-carrega todos os iframes invisíveis no fundo para evitar "piscar" e gargalos
+    VIDEOS_YOUTUBE.forEach((link, index) => {
+        // Adiciona enablejsapi=1 para conseguirmos pausar o vídeo escondido via código
+        const finalUrl = link + (link.includes('?') ? '&' : '?') + 'enablejsapi=1';
+
+        const iframe = document.createElement('iframe');
+        iframe.className = `absolute top-0 left-0 w-full h-full transition-opacity duration-500 ease-in-out ${index === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`;
+        iframe.src = finalUrl;
+        iframe.title = `YouTube video player ${index + 1}`;
+        iframe.setAttribute('frameborder', '0');
+        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+        iframe.setAttribute('allowfullscreen', '');
+        iframe.id = `yt-iframe-${index}`;
+
+        playerContainer.appendChild(iframe);
+    });
+
+    function atualizarCarrossel() {
+        VIDEOS_YOUTUBE.forEach((_, index) => {
+            const iframe = document.getElementById(`yt-iframe-${index}`);
+
+            if (index === videoAtual) {
+                // Revela o vídeo que deve aparecer de forma suave
+                iframe.classList.remove('opacity-0', 'z-0', 'pointer-events-none');
+                iframe.classList.add('opacity-100', 'z-10');
+            } else {
+                // Esconde os vídeos não selecionados
+                iframe.classList.remove('opacity-100', 'z-10');
+                iframe.classList.add('opacity-0', 'z-0', 'pointer-events-none');
+
+                // Força a pausa do vídeo que foi escondido para não tocar som duplo
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+                }
+            }
+        });
+
+        // Atualiza as bolinhas indicadoras
+        dotsContainer.innerHTML = '';
+        VIDEOS_YOUTUBE.forEach((_, index) => {
+            const dot = document.createElement('button');
+            const isActive = index === videoAtual;
+            dot.className = `h-2.5 rounded-full transition-all duration-300 ${isActive ? 'bg-orange-500 w-8' : 'bg-neutral-600 hover:bg-neutral-400 w-2.5'}`;
+            dot.onclick = () => {
+                videoAtual = index;
+                atualizarCarrossel();
+            };
+            dotsContainer.appendChild(dot);
+        });
+    }
+
+    document.getElementById('btn-prev-vid').addEventListener('click', () => {
+        videoAtual = (videoAtual - 1 + VIDEOS_YOUTUBE.length) % VIDEOS_YOUTUBE.length;
+        atualizarCarrossel();
+    });
+
+    document.getElementById('btn-next-vid').addEventListener('click', () => {
+        videoAtual = (videoAtual + 1) % VIDEOS_YOUTUBE.length;
+        atualizarCarrossel();
+    });
+
+    // Inicializa os indicadores UI
+    atualizarCarrossel();
+
+    // ==========================================
+    // LÓGICA DO MODAL E CÁLCULOS
+    // ==========================================
     const urlParams = new URLSearchParams(window.location.search);
     const propostaId = urlParams.get('id');
+
+    const modalParcelamento = document.getElementById('modal-parcelamento');
+    const btnShowInstallments = document.getElementById('btn-show-installments');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+
+    function openModal() {
+        modalParcelamento.classList.remove('hidden');
+        modalParcelamento.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeModal() {
+        modalParcelamento.classList.add('hidden');
+        modalParcelamento.classList.remove('flex');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    btnShowInstallments.addEventListener('click', openModal);
+    btnCloseModal.addEventListener('click', closeModal);
+    modalParcelamento.addEventListener('click', (e) => {
+        if (e.target === modalParcelamento) closeModal();
+    });
 
     async function carregarProposta() {
         if (!propostaId) {
             showError();
             return;
         }
-
         try {
             const { data, error } = await supabaseClient.from('propostas').select('*').eq('id', propostaId).single();
-
             if (error || !data) {
                 showError();
                 return;
             }
-
             renderData(data);
-
+            gerarOpcoesParcelamento(data.kit_price);
         } catch (err) {
             showError();
+        }
+    }
+
+    function gerarOpcoesParcelamento(valorBase) {
+        const formatter = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
+        const installmentsContainer = document.getElementById('installments-list');
+        installmentsContainer.innerHTML = '';
+
+        for (let i = 1; i <= MAX_PARCELAS; i++) {
+            const taxa = TAXAS_CARTAO[i] || 0;
+            const valorTotalComRepasse = valorBase / (1 - (taxa / 100));
+            const valorParcela = valorTotalComRepasse / i;
+
+            const row = document.createElement('div');
+            row.className = 'flex justify-center items-center p-3 rounded-lg border border-neutral-800 bg-black/40 hover:bg-neutral-800/80 transition-colors';
+            row.innerHTML = `<span class="text-white font-bold text-sm md:text-base">${i}x de ${formatter.format(valorParcela)}</span>`;
+            installmentsContainer.appendChild(row);
         }
     }
 
     function renderData(data) {
         const formatter = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
 
-        // CÁLCULOS MATEMÁTICOS PARA GERAR VALOR
-        const TARIFA_MEDIA = 0.95; // Valor médio de R$ 0.95 por kWh (Pode ajustar se quiser)
-        const estGeneration = (data.kit_power * 120); // ~120kWh gerados por mês por cada 1kWp
+        const TARIFA_MEDIA = 0.95;
+        const estGeneration = (data.kit_power * 120);
 
         const economiaMensal = estGeneration * TARIFA_MEDIA;
         const economiaAnual = economiaMensal * 12;
-        const economia25Anos = economiaAnual * 25; // Vida útil
-        const arvoresPlantadas = Math.round(data.kit_power * 3); // Média de equivalência ambiental
+        const economia25Anos = economiaAnual * 25;
+        const arvoresPlantadas = Math.round(data.kit_power * 3);
 
-        // --- CÁLCULO DO PAYBACK ---
-        // Pega o valor do kit e divide pela economia mensal, arredondando para cima
         const mesesTotaisPayback = Math.ceil(data.kit_price / economiaMensal);
         const anosPayback = Math.floor(mesesTotaisPayback / 12);
         const mesesRestantes = mesesTotaisPayback % 12;
@@ -258,35 +553,26 @@
         if (anosPayback > 0 && mesesRestantes > 0) textoPayback += ' e ';
         if (mesesRestantes > 0) textoPayback += `${mesesRestantes} mês${mesesRestantes > 1 ? 'es' : ''}`;
         if (textoPayback === '') textoPayback = 'Menos de 1 mês';
-        // --------------------------
 
-        // Injeção de Dados do Kit
         document.getElementById('client-name').innerText = data.cliente_nome.split(' ')[0];
         document.getElementById('kit-brand').innerText = data.kit_brand;
         document.getElementById('kit-name').innerText = data.kit_nome;
         document.getElementById('kit-power').innerText = data.kit_power + ' kWp';
         document.getElementById('kit-generation').innerText = estGeneration.toFixed(0) + ' kWh/mês';
         document.getElementById('kit-list-price').innerText = 'De: ' + formatter.format(data.kit_list_price);
-
-        // NOVO: Injeção do valor ideal da conta (A linha que faltava!)
         document.getElementById('kit-ideal-bill').innerText = formatter.format(economiaMensal);
 
-        // Preço com Estilo
         const priceParts = formatter.format(data.kit_price).split(',');
         document.getElementById('kit-price').innerHTML = `
                 <span class="text-xl align-top text-neutral-500 mr-1">R$</span>${priceParts[0].replace('R$', '').trim()}<span class="text-xl align-top text-neutral-500">,${priceParts[1]}</span>
             `;
 
-        // Injeção dos Cálculos de Economia, Ambiente e Payback
         document.getElementById('eco-month').innerText = formatter.format(economiaMensal);
         document.getElementById('eco-year').innerText = formatter.format(economiaAnual);
         document.getElementById('eco-25years').innerText = formatter.format(economia25Anos);
         document.getElementById('env-trees').innerText = '+' + arvoresPlantadas;
-
-        // Injeta o texto do payback no novo HTML
         document.getElementById('eco-payback').innerText = textoPayback;
 
-        // Troca de Telas
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('proposal-content').classList.remove('hidden');
     }
@@ -297,7 +583,6 @@
         document.getElementById('error-state').classList.add('flex');
     }
 
-    // Iniciar
     carregarProposta();
 </script>
 </body>
