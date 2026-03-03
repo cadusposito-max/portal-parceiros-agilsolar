@@ -3,27 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Projeto Exclusivo - Ágil Solar</title>
+    <title>Proposta - Ágil Solar</title>
 
     <!-- ========================================== -->
     <!-- META TAGS PARA PREVIEW DE LINKS (WHATSAPP) -->
     <!-- ========================================== -->
-    <meta name="description" content="Confira o seu estudo de viabilidade solar e descubra o quanto você pode economizar gerando a sua própria energia.">
+    <meta name="description" content="Confira o sua proposta e descubra o quanto você pode economizar gerando a sua própria energia.">
 
     <!-- Open Graph / Facebook / WhatsApp -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://portal-parceiros-agilsolar.vercel.app/">
-    <meta property="og:title" content="Projeto Exclusivo - Ágil Solar">
-    <meta property="og:description" content="Confira o seu estudo de viabilidade solar e descubra o quanto você pode economizar gerando a sua própria energia.">
+    <meta property="og:title" content="Proposta - Ágil Solar">
+    <meta property="og:description" content="Confira o sua proposta e descubra o quanto você pode economizar gerando a sua própria energia.">
     <!-- ATENÇÃO: É altamente recomendado usar um link absoluto aqui para o WhatsApp não falhar -->
-    <meta property="og:image" content="https://portal-parceiros-agilsolar.vercel.app/banner-share.jpg">
+    <meta property="og:image" content="banner-share.jpg">
 
     <!-- Twitter / Telegram -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://portal-parceiros-agilsolar.vercel.app/">
-    <meta property="twitter:title" content="Projeto Exclusivo - Ágil Solar">
-    <meta property="twitter:description" content="Confira o seu estudo de viabilidade solar e descubra o quanto você pode economizar gerando a sua própria energia.">
-    <meta property="twitter:image" content="https://portal-parceiros-agilsolar.vercel.app/banner-share.jpg">
+    <meta property="twitter:title" content="Proposta - Ágil Solar">
+    <meta property="twitter:description" content="Confira o sua proposta e descubra o quanto você pode economizar gerando a sua própria energia.">
+    <meta property="twitter:image" content="banner-share.jpg">
 
     <!-- Cor da aba no navegador mobile -->
     <meta name="theme-color" content="#f97316">
@@ -37,7 +37,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="assets/img/icon.png">
+    <link rel="icon" type="image/png" href="assets/img/logo.png">
 
     <script>
         tailwind.config = {
@@ -131,7 +131,7 @@
 
     <!-- Greeting -->
     <div class="text-center">
-        <p class="text-orange-500 font-black uppercase tracking-widest text-xs md:text-sm mb-2">PROPOSTA ÁGIL SOLAR</p>
+        <p class="text-orange-500 font-black uppercase tracking-widest text-xs md:text-sm mb-2">ESTUDO DE VIABILIDADE SOLAR</p>
         <h1 class="text-3xl md:text-4xl font-black text-white leading-tight">
             Olá, <span id="client-name" class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">...</span>!
         </h1>
@@ -197,7 +197,7 @@
                     <!-- Financiamento -->
                     <div class="flex items-start gap-3">
                         <i data-lucide="landmark" class="w-5 h-5 text-neutral-400 shrink-0 mt-0.5"></i>
-                        <p class="text-neutral-300 text-sm"><span class="text-white font-bold">Financiamento (Boleto):</span> Consulte opções de financiamento de <span class="text-orange-400 font-bold">100%</span> em até <span class="text-orange-400 font-bold">84 meses</span> com carência de <span class="text-orange-400 font-bold">120 dias</span>.</p>
+                        <p class="text-neutral-300 text-sm"><span class="text-white font-bold">Financiamento (Boleto):</span> Consulte opções de financiamento de <span class="text-orange-400 font-bold">100%</span> em até <span class="text-orange-400 font-bold">84 meses</span> com carência de <span class="text-orange-400 font-bold">90 dias</span>.</p>
                     </div>
                 </div>
             </div>
@@ -208,9 +208,9 @@
     <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-lg">
         <div class="flex items-center gap-3 mb-6">
             <div class="bg-green-600/20 p-2 rounded-lg"><i data-lucide="trending-up" class="w-6 h-6 text-green-500"></i></div>
-            <h3 class="text-xl font-black text-white uppercase tracking-tight">Projeção de Economia</h3>
+            <h3 class="text-xl font-black text-white uppercase tracking-tight">Projeção de Economia Real</h3>
         </div>
-        <p class="text-neutral-400 text-sm mb-6">Baseado numa tarifa média estimada de <span class="text-white font-bold">R$ 0,95/kWh</span>, veja o quanto deixará de pagar à companhia elétrica:</p>
+        <p class="text-neutral-400 text-sm mb-6">Baseado numa tarifa média estimada de <span class="text-white font-bold">R$ 0,95/kWh</span>, veja a sua estimativa de economia (já prevendo descontos de taxas mínimas da concessionária):</p>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-black border border-neutral-800 p-4 rounded-xl text-center">
@@ -382,9 +382,9 @@
     // -> COLOQUE AQUI OS 3 LINKS DE INCORPORAÇÃO (EMBED)
     // ==========================================
     const VIDEOS_YOUTUBE = [
-        "https://www.youtube.com/embed/a-3d90O2u60?si=3F89_VFQmDptzcxp", // Vídeo 1 (o original que estava bloqueado)
-        "https://www.youtube.com/embed/YvyIMNlm0q8?si=hJw5gToEMUEYU2LQ", // Vídeo 2 (exemplo, alterar)
-        "https://www.youtube.com/embed/SOotdCvJAkc?si=KHc78sgr9qrvwHDp" // Vídeo 3 (exemplo, alterar)
+        "https://www.youtube.com/embed/a-3d90O2u60?si=3F89_VFQmDptzcxp",
+        "https://www.youtube.com/embed/YvyIMNlm0q8?si=hJw5gToEMUEYU2LQ",
+        "https://www.youtube.com/embed/SOotdCvJAkc?si=KHc78sgr9qrvwHDp"
     ];
 
     // ==========================================
@@ -406,9 +406,7 @@
     const playerContainer = document.getElementById('video-wrapper');
     const dotsContainer = document.getElementById('video-dots');
 
-    // Pré-carrega todos os iframes invisíveis no fundo para evitar "piscar" e gargalos
     VIDEOS_YOUTUBE.forEach((link, index) => {
-        // Adiciona enablejsapi=1 para conseguirmos pausar o vídeo escondido via código
         const finalUrl = link + (link.includes('?') ? '&' : '?') + 'enablejsapi=1';
 
         const iframe = document.createElement('iframe');
@@ -428,22 +426,18 @@
             const iframe = document.getElementById(`yt-iframe-${index}`);
 
             if (index === videoAtual) {
-                // Revela o vídeo que deve aparecer de forma suave
                 iframe.classList.remove('opacity-0', 'z-0', 'pointer-events-none');
                 iframe.classList.add('opacity-100', 'z-10');
             } else {
-                // Esconde os vídeos não selecionados
                 iframe.classList.remove('opacity-100', 'z-10');
                 iframe.classList.add('opacity-0', 'z-0', 'pointer-events-none');
 
-                // Força a pausa do vídeo que foi escondido para não tocar som duplo
                 if (iframe.contentWindow) {
                     iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
                 }
             }
         });
 
-        // Atualiza as bolinhas indicadoras
         dotsContainer.innerHTML = '';
         VIDEOS_YOUTUBE.forEach((_, index) => {
             const dot = document.createElement('button');
@@ -467,11 +461,10 @@
         atualizarCarrossel();
     });
 
-    // Inicializa os indicadores UI
     atualizarCarrossel();
 
     // ==========================================
-    // LÓGICA DO MODAL E CÁLCULOS
+    // LÓGICA DO MODAL DE PARCELAS E INICIAÇÃO
     // ==========================================
     const urlParams = new URLSearchParams(window.location.search);
     const propostaId = urlParams.get('id');
@@ -536,14 +529,25 @@
     function renderData(data) {
         const formatter = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
 
+        // =========================================================
+        // MATEMÁTICA ATUALIZADA (85% de Economia Real)
+        // =========================================================
         const TARIFA_MEDIA = 0.95;
         const estGeneration = (data.kit_power * 120);
 
-        const economiaMensal = estGeneration * TARIFA_MEDIA;
+        // 1. O valor total da fatura (100%) que ele deixa de consumir
+        const valorFaturaIdeal = estGeneration * TARIFA_MEDIA;
+
+        // 2. A economia REAL dele (tirando média de 15% de taxas da concessionária)
+        const economiaMensal = valorFaturaIdeal * 0.85;
+
+        // 3. Projeções baseadas na economia real (os 85%)
         const economiaAnual = economiaMensal * 12;
         const economia25Anos = economiaAnual * 25;
+
         const arvoresPlantadas = Math.round(data.kit_power * 3);
 
+        // 4. Payback calculado usando a economia real (Demora um pouquinho mais, mas é 100% honesto)
         const mesesTotaisPayback = Math.ceil(data.kit_price / economiaMensal);
         const anosPayback = Math.floor(mesesTotaisPayback / 12);
         const mesesRestantes = mesesTotaisPayback % 12;
@@ -553,6 +557,7 @@
         if (anosPayback > 0 && mesesRestantes > 0) textoPayback += ' e ';
         if (mesesRestantes > 0) textoPayback += `${mesesRestantes} mês${mesesRestantes > 1 ? 'es' : ''}`;
         if (textoPayback === '') textoPayback = 'Menos de 1 mês';
+        // =========================================================
 
         document.getElementById('client-name').innerText = data.cliente_nome.split(' ')[0];
         document.getElementById('kit-brand').innerText = data.kit_brand;
@@ -560,16 +565,20 @@
         document.getElementById('kit-power').innerText = data.kit_power + ' kWp';
         document.getElementById('kit-generation').innerText = estGeneration.toFixed(0) + ' kWh/mês';
         document.getElementById('kit-list-price').innerText = 'De: ' + formatter.format(data.kit_list_price);
-        document.getElementById('kit-ideal-bill').innerText = formatter.format(economiaMensal);
+
+        // No topo, exibimos o "Tamanho da conta ideal" (100% do cálculo)
+        document.getElementById('kit-ideal-bill').innerText = formatter.format(valorFaturaIdeal);
 
         const priceParts = formatter.format(data.kit_price).split(',');
         document.getElementById('kit-price').innerHTML = `
                 <span class="text-xl align-top text-neutral-500 mr-1">R$</span>${priceParts[0].replace('R$', '').trim()}<span class="text-xl align-top text-neutral-500">,${priceParts[1]}</span>
             `;
 
+        // Na Projeção de Economia, exibimos os valores reais (85%)
         document.getElementById('eco-month').innerText = formatter.format(economiaMensal);
         document.getElementById('eco-year').innerText = formatter.format(economiaAnual);
         document.getElementById('eco-25years').innerText = formatter.format(economia25Anos);
+
         document.getElementById('env-trees').innerText = '+' + arvoresPlantadas;
         document.getElementById('eco-payback').innerText = textoPayback;
 
