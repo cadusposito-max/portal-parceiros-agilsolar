@@ -12,6 +12,7 @@ const COMISSAO_POR_VENDA    = 2500;   // R$ por venda fechada (alterar conforme 
 const SESSION_TIMEOUT_HOURS = 6;      // Logout automatico apos N horas sem atividade
 const MAX_LOGIN_ATTEMPTS    = 3;      // Tentativas antes de bloquear login
 const LOGIN_LOCKOUT_SECONDS = 30;     // Segundos de bloqueio apos exceder tentativas
+const TURNSTILE_SITE_KEY    = '0x4AAAAAACyD0uPARxpOHPqH'; // Cloudflare Turnstile Site Key (publica, seguro expor)
 
 // --- ESTADO GLOBAL DA APLICACAO ---
 let state = {

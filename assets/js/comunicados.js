@@ -89,6 +89,16 @@
     return state.currentUser || null;
   };
 
+  const isAdminUser = () => {
+    if (typeof state === 'undefined') return false;
+    return Boolean(state.currentUser && state.isAdmin);
+  };
+
+  const assertAdminWriteAccess = () => {
+    if (isAdminUser()) return;
+    throw new Error('Apenas administradores podem alterar comunicados.');
+  };
+
   function stripAccents(str = '') {
     return String(str)
       .normalize('NFD')
@@ -263,11 +273,19 @@
     const client = getSupabaseClient();
     if (!client) throw new Error('Supabase indisponivel.');
 
-    const { data, error } = await client
+    let query = client
       .from(TABLE_NAME)
       .select('id, title, slug, summary, content, cover_image_url, type, author_name, status, published_at, created_at, updated_at')
       .order('published_at', { ascending: false })
       .order('created_at', { ascending: false });
+
+    // Defesa em profundidade: usuario comum nunca deve receber rascunhos no client,
+    // mesmo se policy de leitura estiver permissiva demais no backend.
+    if (!isAdminUser()) {
+      query = query.eq('status', COMUNICADO_STATUS.PUBLISHED);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     return (data || []).map(rowToModel);
@@ -329,6 +347,8 @@
   }
 
   async function save(payload = {}) {
+    assertAdminWriteAccess();
+
     const model = normalizeComunicado(payload);
     const titleBasedSlug = model.slug || slugify(model.title);
 
@@ -405,6 +425,8 @@
   }
 
   async function remove(id) {
+    assertAdminWriteAccess();
+
     const targetId = String(id || '');
     if (!targetId) return false;
 
@@ -436,6 +458,8 @@
   }
 
   async function setPublished(id, shouldPublish) {
+    assertAdminWriteAccess();
+
     const item = getById(id);
     if (!item) throw new Error('Comunicado nao encontrado.');
 

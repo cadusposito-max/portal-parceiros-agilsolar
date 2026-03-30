@@ -6,15 +6,19 @@
   <!-- Content Security Policy: bloqueia scripts de origens não autorizadas -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net;
+    script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://challenges.cloudflare.com;
     style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src    'self' https://fonts.gstatic.com;
     img-src     'self' data: blob: https://placehold.co https://tzwjxgprhorqrmpqudgg.supabase.co https:;
-    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co;
-    frame-src   'none';
+    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com;
+    frame-src   https://challenges.cloudflare.com;
     object-src  'none';
     base-uri    'self';
     worker-src  'none';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+    block-all-mixed-content;
   ">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Ágil Solar - Portal Parceiros</title>
@@ -94,6 +98,8 @@
 
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="assets/css/theme-light.css" id="theme-light-css" disabled>
+  <!-- Cloudflare Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body class="selection:bg-orange-500 selection:text-white overflow-x-hidden">
 
@@ -122,6 +128,16 @@
         <div class="space-y-1">
           <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Senha</label>
           <input type="password" id="login-password" required class="w-full bg-black border border-neutral-800 focus:border-orange-500 rounded-none px-4 py-3 text-white placeholder-neutral-700 font-bold transition-all" placeholder="••••••••">
+        </div>
+
+        <!-- Cloudflare Turnstile CAPTCHA -->
+        <div class="flex justify-center py-1">
+          <div class="cf-turnstile"
+            data-sitekey="0x4AAAAAACyD0uPARxpOHPqH"
+            data-callback="onTurnstileSuccess"
+            data-expired-callback="onTurnstileExpiry"
+            data-error-callback="onTurnstileError"
+            data-theme="dark"></div>
         </div>
 
         <p id="login-error" class="hidden text-red-500 text-xs font-bold text-center bg-red-500/10 p-2 border border-red-500/20"></p>
@@ -375,7 +391,8 @@
           <button id="pb-mode-personalizada-btn" onclick="setPBProposalMode('PERSONALIZADA')"
             class="flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase transition-all text-neutral-500 hover:text-white whitespace-nowrap border-l border-neutral-800">
             PERSONALIZADA
-          </button>
+          </button>
+
         </div>
         <p id="pb-mode-helper" class="text-[10px] text-neutral-500 font-medium">Promocional selecionado. Fluxo atual de kits prontos.</p>
       </div>

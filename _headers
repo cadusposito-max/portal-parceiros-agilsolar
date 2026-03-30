@@ -1,18 +1,26 @@
-# Cabeçalhos de segurança HTTP — compatível com Netlify e Cloudflare Pages
-# Estes complementam a CSP do <meta> nos HTMLs com proteções que só funcionam via header HTTP
+# Cabecalhos de seguranca HTTP — compativel com Netlify e Cloudflare Pages
 
 /*
-  # Evita que o site seja embutido em iframes de outros domínios (clickjacking)
   X-Frame-Options: DENY
-  # Evita MIME-sniffing pelo navegador (reduz risco de XSS via upload)
   X-Content-Type-Options: nosniff
-  # Controla informações de referência em links externos
   Referrer-Policy: strict-origin-when-cross-origin
-  # Ativa proteção XSS legada em navegadores antigos
   X-XSS-Protection: 1; mode=block
-  # Remove o cabeçalho padrão que revela tecnologia usada
-  X-Powered-By:
-  # Força HTTPS por 1 ano (ative apenas se o domínio for 100% HTTPS)
   Strict-Transport-Security: max-age=31536000; includeSubDomains
-  # Evita que navegadores pré-carreguem recursos de maneira insegura
   Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+  # frame-ancestors via HTTP header — meta CSP ignora este directive (spec W3C)
+  Content-Security-Policy: frame-ancestors 'none'
+  # Protecao contra ataques Spectre/cross-origin (COOP)
+  Cross-Origin-Opener-Policy: same-origin
+
+/proposta.html
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow, noarchive
+  Content-Security-Policy: frame-ancestors 'none'
+
+/assets/test.html
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/assets/proposta.html
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow, noarchive

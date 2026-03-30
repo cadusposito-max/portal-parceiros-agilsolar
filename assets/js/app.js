@@ -38,6 +38,10 @@ function queueAppLucideCreateIcons() {
 
 const ADMIN_PREFS_KEY = 'admin_qol_prefs_v1';
 
+function userCanAccessAdminPanel() {
+  return Boolean(state.isAdmin || state.isGestor);
+}
+
 function _buildAdminPrefsSnapshot() {
   return {
     adminViewAll: Boolean(state.adminViewAll),
@@ -335,6 +339,11 @@ function renderTabs() {
 }
 
 function setTab(tabId) {
+  if (tabId === 'admin' && !userCanAccessAdminPanel()) {
+    showToast('Acesso restrito.');
+    return;
+  }
+
   closeMobileMenu();
   if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
   stopDashboardClock();
@@ -403,6 +412,17 @@ function renderContent() {
     mainToolbar.classList.add('hidden');
     toggleContainer.classList.add('hidden');
     if (adminBar) adminBar.classList.add('hidden');
+
+    if (!userCanAccessAdminPanel()) {
+      state.activeTab = 'dashboard';
+      renderTabs();
+      renderDashboard(container);
+      syncSearchToolbarForActiveTab();
+      queueAppLucideCreateIcons();
+      showToast('Acesso restrito.');
+      return;
+    }
+
     state.isEditMode = true;
     renderAdminPanel(container);
   } else {

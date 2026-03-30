@@ -34,6 +34,25 @@ function ensureAdminModal() {
 
 let _adminModalCallback = null;
 
+function _adminAccessDenied(message = 'Acesso restrito ao administrador.') {
+  showToast(message);
+  return false;
+}
+
+function _requireAdmin(options = {}) {
+  const { silent = false, message = 'Acesso restrito ao administrador.' } = options;
+  if (state.isAdmin) return true;
+  if (!silent) _adminAccessDenied(message);
+  return false;
+}
+
+function _requireAdminOrGestor(options = {}) {
+  const { silent = false, message = 'Acesso restrito.' } = options;
+  if (state.isAdmin || state.isGestor) return true;
+  if (!silent) _adminAccessDenied(message);
+  return false;
+}
+
 function openAdminModal(title, fieldsHTML, onSubmit) {
   ensureAdminModal();
   document.getElementById('admin-modal-title').textContent = title;
@@ -62,6 +81,12 @@ async function submitAdminModal(e) {
 
 // â”€â”€â”€ Painel Principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function renderAdminPanel(container) {
+  if (!_requireAdminOrGestor({ silent: true })) {
+    container.className = 'flex flex-col gap-4';
+    container.innerHTML = '<div class="border border-red-600/40 bg-red-950/20 p-5 text-red-300 text-sm font-bold">Acesso restrito ao painel administrativo.</div>';
+    return;
+  }
+
   container.className = 'flex flex-col gap-5';
 
   if (!state.adminSection) state.adminSection = 'produtos';
@@ -129,12 +154,14 @@ function renderAdminPanel(container) {
 }
 
 function setAdminSection(section) {
+  if (!_requireAdminOrGestor()) return;
   state.adminSection = section;
   const container = document.getElementById('main-container');
   if (container) renderAdminPanel(container);
 }
 
 async function renderAdminKitsSection(container) {
+  if (!_requireAdminOrGestor()) return;
   container.innerHTML = `<div class="flex items-center justify-center py-8 text-neutral-600">
     <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
   </div>`;
@@ -191,6 +218,12 @@ async function renderAdminKitsSection(container) {
 }
 
 async function setAdminKitsFranquia(franquiaId) {
+  if (!_requireAdminOrGestor()) return;
+  if (state.isGestor && state.franquiaId && String(franquiaId) !== String(state.franquiaId)) {
+    _adminAccessDenied('Gestor só pode editar a própria franquia.');
+    return;
+  }
+
   state.adminKitsFranquia = franquiaId;
   const content = document.getElementById('admin-section-content');
   if (content) renderAdminKitsSection(content);
@@ -228,6 +261,8 @@ function _addBtn(label, onclick) {
 }
 
 async function deleteAdminItem(table, id) {
+  if (!_requireAdmin()) return;
+
   showConfirmModal('Tem certeza? Esta ação não pode ser desfeita.', async () => {
     const { error } = await supabaseClient.from(table).delete().eq('id', id);
     if (error) { showToast('ERRO: ' + error.message); return; }
@@ -242,6 +277,11 @@ async function deleteAdminItem(table, id) {
 
 // â”€â”€â”€ Financiadoras â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function renderAdminFinanciadoras(container) {
+  if (!_requireAdmin({ silent: true })) {
+    container.innerHTML = `<div class="border border-red-600/40 bg-red-950/20 p-4 text-red-300 text-sm font-bold">Acesso restrito ao administrador.</div>`;
+    return;
+  }
+
   container.innerHTML = `<div class="flex items-center justify-center py-12 text-neutral-600">
     <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
   </div>`;
@@ -283,6 +323,8 @@ async function renderAdminFinanciadoras(container) {
 }
 
 function openAdminFinanciadoraForm(id) {
+  if (!_requireAdmin()) return;
+
   const fieldsHTML = `
     <input type="hidden" id="af-id" value="${id || ''}">
     <div class="grid grid-cols-2 gap-4">
@@ -345,6 +387,11 @@ function openAdminFinanciadoraForm(id) {
 
 // â”€â”€â”€ Componentes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function renderAdminComponentes(container) {
+  if (!_requireAdmin({ silent: true })) {
+    container.innerHTML = `<div class="border border-red-600/40 bg-red-950/20 p-4 text-red-300 text-sm font-bold">Acesso restrito ao administrador.</div>`;
+    return;
+  }
+
   container.innerHTML = `<div class="flex items-center justify-center py-12 text-neutral-600">
     <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
   </div>`;
@@ -405,6 +452,8 @@ async function renderAdminComponentes(container) {
 }
 
 function openAdminComponenteForm(id) {
+  if (!_requireAdmin()) return;
+
   const fieldsHTML = `
     <input type="hidden" id="ac-id" value="${id || ''}">
     <div class="grid grid-cols-2 gap-4">
@@ -460,6 +509,11 @@ function openAdminComponenteForm(id) {
 
 // â”€â”€â”€ Custos Extras â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function renderAdminCustos(container) {
+  if (!_requireAdmin({ silent: true })) {
+    container.innerHTML = `<div class="border border-red-600/40 bg-red-950/20 p-4 text-red-300 text-sm font-bold">Acesso restrito ao administrador.</div>`;
+    return;
+  }
+
   container.innerHTML = `<div class="flex items-center justify-center py-12 text-neutral-600">
     <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
   </div>`;
@@ -507,6 +561,11 @@ async function renderAdminCustos(container) {
 
 // â”€â”€â”€ Vendedores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function renderAdminVendedores(container) {
+  if (!_requireAdminOrGestor({ silent: true })) {
+    container.innerHTML = `<div class="border border-red-600/40 bg-red-950/20 p-4 text-red-300 text-sm font-bold">Acesso restrito.</div>`;
+    return;
+  }
+
   container.innerHTML = `<div class="flex items-center justify-center py-12 text-neutral-600">
     <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
   </div>`;
@@ -555,6 +614,8 @@ async function renderAdminVendedores(container) {
 }
 
 async function saveVendedorComissao(email, valor) {
+  if (!_requireAdmin()) return;
+
   const pct = parseFloat(valor);
   if (isNaN(pct) || pct < 0 || pct > 100) {
     showToast('Valor inválido. Use entre 0 e 100.');
@@ -588,6 +649,8 @@ function _roleBadge(role) {
 }
 
 async function fetchAdminUsuarios() {
+  if (!_requireAdmin()) return [];
+
   const { data, error } = await supabaseClient.rpc('admin_list_users_chat');
   if (error) throw error;
   return data || [];
@@ -608,6 +671,11 @@ function setAdminUsuariosFilter(type, value) {
 }
 
 async function renderAdminUsuarios(container) {
+  if (!_requireAdmin({ silent: true })) {
+    container.innerHTML = `<div class="border border-red-600/40 bg-red-950/20 p-4 text-red-300 text-sm font-bold">Acesso restrito ao administrador.</div>`;
+    return;
+  }
+
   container.innerHTML = `<div class="flex items-center justify-center py-12 text-neutral-600">
     <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
   </div>`;
@@ -801,6 +869,8 @@ function _renderGestorOptions(users, franquiaId, selectedGestorId) {
 }
 
 async function openAdminUsuarioForm(userId) {
+  if (!_requireAdmin()) return;
+
   let franquias = [];
   let users = [];
   try {
@@ -968,6 +1038,8 @@ async function openAdminUsuarioForm(userId) {
 }
 
 async function toggleAdminUsuarioAtivo(userId, nextActive) {
+  if (!_requireAdmin()) return;
+
   let items = [];
   try {
     items = await fetchAdminUsuarios();
@@ -1004,6 +1076,11 @@ async function toggleAdminUsuarioAtivo(userId, nextActive) {
 
 // â”€â”€â”€ Franquias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function renderAdminFranquias(container) {
+  if (!_requireAdmin({ silent: true })) {
+    container.innerHTML = `<div class="border border-red-600/40 bg-red-950/20 p-4 text-red-300 text-sm font-bold">Acesso restrito ao administrador.</div>`;
+    return;
+  }
+
   container.innerHTML = `<div class="flex items-center justify-center py-12 text-neutral-600">
     <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
   </div>`;
@@ -1047,6 +1124,8 @@ async function renderAdminFranquias(container) {
 }
 
 function openAdminFranquiaForm(id) {
+  if (!_requireAdmin()) return;
+
   const fieldsHTML = `
     <input type="hidden" id="afr-id" value="${id || ''}">
     <div class="grid grid-cols-2 gap-4">
@@ -1109,6 +1188,8 @@ function openAdminFranquiaForm(id) {
 }
 
 async function renderAdminPrecosFranquia(franquiaId, franquiaNome) {
+  if (!_requireAdmin()) return;
+
   const container = document.getElementById('admin-section-content');
   if (!container) return;
 
@@ -1174,6 +1255,8 @@ async function renderAdminPrecosFranquia(franquiaId, franquiaNome) {
 }
 
 async function savePrecoFranquia(produtoId, franquiaId, btnKey) {
+  if (!_requireAdmin()) return;
+
   const price     = parseFloat(document.getElementById(`price-${produtoId}`).value) || 0;
   const listPrice = parseFloat(document.getElementById(`listprice-${produtoId}`).value) || 0;
   const btn       = document.getElementById(`save-btn-${btnKey}`);
@@ -1215,6 +1298,8 @@ async function savePrecoFranquia(produtoId, franquiaId, btnKey) {
 
 // â”€â”€â”€ Custos Extras â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function openAdminCustoForm(id) {
+  if (!_requireAdmin()) return;
+
   const fieldsHTML = `
     <input type="hidden" id="ace-id" value="${id || ''}">
     <div class="grid grid-cols-2 gap-4">
@@ -1322,12 +1407,16 @@ function adminComunicadoTypeBadge(type) {
 }
 
 function setAdminComunicadosSearch(value) {
+  if (!_requireAdmin()) return;
+
   state.adminComunicadosSearch = String(value || '');
   const container = document.getElementById('admin-section-content');
   if (container) renderAdminComunicados(container, { skipRefresh: true });
 }
 
 function setAdminComunicadosStatus(value) {
+  if (!_requireAdmin()) return;
+
   const normalized = value === 'published' || value === 'draft' ? value : 'all';
   state.adminComunicadosStatus = normalized;
   const container = document.getElementById('admin-section-content');
@@ -1464,6 +1553,8 @@ async function renderAdminComunicados(container, options = {}) {
 }
 
 function openAdminComunicadoForm(id) {
+  if (!_requireAdmin()) return;
+
   const service = window.comunicadosService;
   if (!service) {
     showToast('Servico de comunicados indisponivel.');
@@ -1587,6 +1678,8 @@ function openAdminComunicadoForm(id) {
 }
 
 async function toggleAdminComunicadoPublish(id, shouldPublish) {
+  if (!_requireAdmin()) return;
+
   const service = window.comunicadosService;
   if (!service) {
     showToast('Servico de comunicados indisponivel.');
@@ -1619,6 +1712,8 @@ async function toggleAdminComunicadoPublish(id, shouldPublish) {
 }
 
 async function deleteAdminComunicado(id) {
+  if (!_requireAdmin()) return;
+
   const service = window.comunicadosService;
   if (!service) {
     showToast('Servico de comunicados indisponivel.');
@@ -1640,4 +1735,3 @@ async function deleteAdminComunicado(id) {
     }
   );
 }
-

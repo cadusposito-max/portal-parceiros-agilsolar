@@ -37,6 +37,24 @@ function resolveProductPrices(produto) {
   return { price, list_price: listPrice };
 }
 
+function sanitizeAdminCreateUserErrorMessage(rawMessage) {
+  const normalized = String(rawMessage || '').trim().toLowerCase();
+  if (!normalized) return 'Falha ao criar usuario no backend.';
+
+  if (normalized.includes('already') || normalized.includes('exists') || normalized.includes('ja existe')) {
+    return 'Ja existe um usuario com este e-mail.';
+  }
+  if (normalized.includes('email') && normalized.includes('invalid')) {
+    return 'E-mail invalido para criacao do usuario.';
+  }
+  if (normalized.includes('password') && (normalized.includes('weak') || normalized.includes('invalid'))) {
+    return 'Senha temporaria invalida.';
+  }
+
+  // Evita vazar detalhes internos de SQL/RPC para o cliente.
+  return 'Falha ao criar usuario no backend.';
+}
+
 function applyOperationalScopeToQuery(query) {
   if (!query || !state.currentUser) return query;
 
@@ -78,6 +96,10 @@ async function fetchFranquiasCatalog() {
 }
 
 async function createAdminUserWithConfirmedEmail(params = {}) {
+  if (!state.isAdmin) {
+    throw new Error('Apenas administradores podem criar usuarios.');
+  }
+
   if (!supabaseClient?.functions || typeof supabaseClient.functions.invoke !== 'function') {
     throw new Error('Supabase Functions indisponivel no cliente.');
   }
@@ -105,7 +127,7 @@ async function createAdminUserWithConfirmedEmail(params = {}) {
   });
 
   if (error) {
-    let message = error.message || 'Falha ao criar usuario no backend.';
+    let message = error.message || '';
     const response = error.context;
     if (response) {
       try {
@@ -115,7 +137,7 @@ async function createAdminUserWithConfirmedEmail(params = {}) {
         console.warn('[createAdminUserWithConfirmedEmail] Resposta de erro nao-JSON, mantendo mensagem padrao.', parseError);
       }
     }
-    throw new Error(message);
+    throw new Error(sanitizeAdminCreateUserErrorMessage(message));
   }
 
   if (!data || !data.user_id) {

@@ -305,7 +305,16 @@ async function _saveSenha() {
   if (nova !== confirm)     { showToast('As senhas não conferem.'); return; }
 
   const { error } = await supabaseClient.auth.updateUser({ password: nova });
-  if (error) { showToast('Erro: ' + error.message); return; }
+  if (error) {
+    // Não vazar detalhes internos do Supabase para o cliente
+    const msg = String(error.message || '').toLowerCase();
+    if (msg.includes('same password') || msg.includes('different')) {
+      showToast('A nova senha não pode ser igual à atual.');
+    } else {
+      showToast('Não foi possível alterar a senha. Tente novamente.');
+    }
+    return;
+  }
   showToast('SENHA ALTERADA COM SUCESSO!');
   closeProfileModal();
 }

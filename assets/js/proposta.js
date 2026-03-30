@@ -203,29 +203,19 @@ function gerarOpcoesParcelamento(valorBase) {
 const urlParams  = new URLSearchParams(window.location.search);
 const propostaId = urlParams.get('id');
 
+function isValidProposalId(value) {
+  const raw = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw);
+}
+
 async function carregarProposta() {
-  if (!propostaId) { showError(); return; }
+  if (!propostaId || !isValidProposalId(propostaId)) { showError(); return; }
   try {
     const { data, error } = await supabaseClient
-      .from('propostas')
-      .select('*')
-      .eq('id', propostaId)
+      .rpc('get_public_proposta', { p_id: propostaId })
       .single();
 
     if (error || !data) { showError(); return; }
-
-    // Se a proposta não tem telefone salvo, busca em outra proposta do mesmo vendedor
-    if (!data.vendedor_telefone && data.vendedor_email) {
-      const { data: outra } = await supabaseClient
-        .from('propostas')
-        .select('vendedor_telefone')
-        .eq('vendedor_email', data.vendedor_email)
-        .not('vendedor_telefone', 'is', null)
-        .neq('vendedor_telefone', '')
-        .limit(1)
-        .maybeSingle();
-      if (outra?.vendedor_telefone) data.vendedor_telefone = outra.vendedor_telefone;
-    }
 
     renderData(data);
     const priceForParcelas = (data.proposal_mode === 'PERSONALIZADA' || data.proposal_mode === 'EQUIPAMENTOS')

@@ -5,17 +5,44 @@
 // --- Proteção contra brute-force (persiste no sessionStorage para resistir a F5) ---
 const _BF_KEY_ATTEMPTS = 'bf_attempts';
 const _BF_KEY_UNTIL    = 'bf_until';
+const _RECOVERY_KEY_UNTIL = 'recovery_until';
+const RECOVERY_COOLDOWN_SECONDS = 45;
 
 function _bfGetAttempts() { return parseInt(sessionStorage.getItem(_BF_KEY_ATTEMPTS) || '0', 10); }
 function _bfSetAttempts(n) { sessionStorage.setItem(_BF_KEY_ATTEMPTS, String(n)); }
 function _bfGetUntil()    { return parseInt(sessionStorage.getItem(_BF_KEY_UNTIL) || '0', 10); }
 function _bfSetUntil(ts)  { sessionStorage.setItem(_BF_KEY_UNTIL, String(ts)); }
 function _bfClear()       { sessionStorage.removeItem(_BF_KEY_ATTEMPTS); sessionStorage.removeItem(_BF_KEY_UNTIL); }
+function _recoveryGetUntil() { return parseInt(sessionStorage.getItem(_RECOVERY_KEY_UNTIL) || '0', 10); }
+function _recoverySetUntil(ts) { sessionStorage.setItem(_RECOVERY_KEY_UNTIL, String(ts)); }
 
 let _loginLockout = false;
 
 // --- Flag para fluxo de recuperação de senha ---
 let _isPasswordRecovery = false;
+
+// --- Cloudflare Turnstile: token capturado pelo widget, validado pelo Supabase no backend ---
+let _captchaToken = null;
+
+function onTurnstileSuccess(token) {
+  _captchaToken = token;
+}
+
+function onTurnstileExpiry() {
+  _captchaToken = null;
+}
+
+function onTurnstileError() {
+  _captchaToken = null;
+  const errorEl  = document.getElementById('login-error');
+  const btnSubmit = document.getElementById('btn-submit-login');
+  if (errorEl) {
+    errorEl.innerText = 'Falha na verificação de segurança. Recarregue a página e tente novamente.';
+    errorEl.classList.remove('hidden');
+  }
+  // Desabilita o botão até o usuário recarregar — impede envio sem captchaToken
+  if (btnSubmit) btnSubmit.disabled = true;
+}
 
 // Detecta evento PASSWORD_RECOVERY (fluxo PKCE / magic-link do Supabase)
 supabaseClient.auth.onAuthStateChange((event) => {
@@ -257,14 +284,32 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const errorEl   = document.getElementById('login-error');
   const btnSubmit = document.getElementById('btn-submit-login');
 
+  // Bloqueia envio sem token Turnstile — o Supabase valida no backend
+  if (!_captchaToken) {
+    errorEl.innerText = 'Por favor, conclua a verificação de segurança antes de entrar.';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
   errorEl.classList.add('hidden');
   btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> AUTENTICANDO...`;
   btnSubmit.disabled  = true;
   queueAuthLucideCreateIcons();
 
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  // Consume o token imediatamente — é single-use; Turnstile gerará novo após reset
+  const captchaToken = _captchaToken;
+  _captchaToken = null;
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password,
+    options: { captchaToken },
+  });
 
   if (error) {
+    // Token consumido — força novo desafio Turnstile antes da próxima tentativa
+    if (typeof window.turnstile !== 'undefined') window.turnstile.reset();
+
     const attempts = _bfGetAttempts() + 1;
     _bfSetAttempts(attempts);
     const restantes = MAX_LOGIN_ATTEMPTS - attempts;
@@ -473,7 +518,7 @@ document.getElementById('reset-password-form').addEventListener('submit', async 
   queueAuthLucideCreateIcons();
 
   if (error) {
-    errorEl.textContent = 'Erro ao salvar senha: ' + error.message;
+    errorEl.textContent = 'Nao foi possivel salvar a nova senha. Tente novamente.';
     errorEl.classList.remove('hidden');
   } else {
     await supabaseClient.auth.signOut();
@@ -496,6 +541,14 @@ async function handleForgotPassword() {
   const email = document.getElementById('login-email').value.trim();
   const errorEl = document.getElementById('login-error');
   const btnForgot = document.getElementById('btn-forgot-password');
+  const recoveryUntil = _recoveryGetUntil();
+
+  if (recoveryUntil && Date.now() < recoveryUntil) {
+    const waitSeconds = Math.ceil((recoveryUntil - Date.now()) / 1000);
+    errorEl.innerText = `Aguarde ${waitSeconds}s antes de solicitar outro reset.`;
+    errorEl.classList.remove('hidden');
+    return;
+  }
 
   if (!email) {
     errorEl.innerText = 'Insira seu e-mail no campo acima para recuperar a senha.';
@@ -506,6 +559,7 @@ async function handleForgotPassword() {
   btnForgot.innerText  = 'ENVIANDO...';
   btnForgot.disabled   = true;
   errorEl.classList.add('hidden');
+  _recoverySetUntil(Date.now() + (RECOVERY_COOLDOWN_SECONDS * 1000));
 
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + window.location.pathname

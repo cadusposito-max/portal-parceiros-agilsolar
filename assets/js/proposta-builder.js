@@ -166,11 +166,32 @@ async function _pbResolveSellerPhoneByEmail(email) {
   return pending;
 }
 
+function canOperateClientProposalFlow(client) {
+  if (!client || !state.currentUser) return false;
+  if (state.isAdmin || state.isGestor) return true;
+
+  const currentEmail = _pbNormalizeEmail(state.currentUser.email);
+  const ownerEmail = _pbNormalizeEmail(client.vendedor_email);
+
+  if (!currentEmail) return false;
+  if (!ownerEmail) return true;
+  return ownerEmail === currentEmail;
+}
+
 async function resolveEffectiveSellerForClient(client) {
-  const ownerEmail = _pbNormalizeEmail(client?.vendedor_email) || _pbNormalizeEmail(state.currentUser?.email);
-  const sellerEmail = ownerEmail || _pbNormalizeEmail(state.currentUser?.email);
+  const currentEmail = _pbNormalizeEmail(state.currentUser?.email);
+  const ownerEmail = _pbNormalizeEmail(client?.vendedor_email);
+  const canManageOthers = Boolean(state.isAdmin || state.isGestor);
+
+  const sellerEmail = canManageOthers
+    ? (ownerEmail || currentEmail)
+    : currentEmail;
+
   if (!sellerEmail) {
     throw new Error('Nao foi possivel identificar o vendedor responsavel pelo cliente.');
+  }
+  if (!canManageOthers && ownerEmail && ownerEmail !== currentEmail) {
+    throw new Error('Nao autorizado para operar cliente de outro vendedor.');
   }
 
   const [sellerName, sellerPhone] = await Promise.all([
@@ -204,6 +225,10 @@ function openProposalBuilder(clientId) {
 
   if (!client) {
     showToast('Cliente nao encontrado.');
+    return;
+  }
+  if (!canOperateClientProposalFlow(client)) {
+    showToast('Acesso restrito ao cliente selecionado.');
     return;
   }
 
@@ -1026,6 +1051,11 @@ async function confirmarFechaVenda() {
   const client = state.clientes.find(c => c.id === _fechaVendaClientId);
   if (!client || !state.currentUser) {
     errEl.innerText = 'Sessão expirada. Recarregue a página.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!canOperateClientProposalFlow(client)) {
+    errEl.innerText = 'Acesso restrito ao cliente selecionado.';
     errEl.classList.remove('hidden');
     return;
   }

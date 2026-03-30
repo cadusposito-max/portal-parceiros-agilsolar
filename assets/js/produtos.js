@@ -2,6 +2,10 @@
 // RENDERIZADOR: PRODUTOS (Admin)
 // ==========================================
 
+function canManageProductCatalog() {
+  return Boolean(state.isAdmin || state.isGestor);
+}
+
 function renderProductsList(container) {
   const emptyState = document.getElementById('empty-state');
   const emptyBtn   = document.getElementById('empty-state-btn');
@@ -125,11 +129,21 @@ function renderProductsList(container) {
 const modal = document.getElementById('modal-overlay');
 
 function openModalById(itemId) {
+  if (!canManageProductCatalog()) {
+    showToast('Acesso restrito.');
+    return;
+  }
+
   const item = state.data.find(k => String(k.id) === String(itemId));
   if (item) openModal(item);
 }
 
 function openModal(item = null) {
+  if (!canManageProductCatalog()) {
+    showToast('Acesso restrito.');
+    return;
+  }
+
   modal.classList.remove('hidden');
   if (item) {
     document.getElementById('modal-title').innerText     = 'EDITAR OFERTA';
@@ -154,6 +168,11 @@ function closeModal() {
 
 document.getElementById('product-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!canManageProductCatalog()) {
+    showToast('Acesso restrito.');
+    return;
+  }
+
   const id      = document.getElementById('form-id').value;
   const btnSave = document.getElementById('btn-save-modal');
   btnSave.innerHTML = 'SALVANDO...';
@@ -201,6 +220,11 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
 });
 
 async function deleteItem(id) {
+  if (!canManageProductCatalog()) {
+    showToast('Acesso restrito.');
+    return;
+  }
+
   if (confirm('TEM CERTEZA? ESSA AÇÃO NÃO PODE SER DESFEITA.')) {
     await supabaseClient.from('produtos').delete().eq('id', id);
     await fetchProducts();
