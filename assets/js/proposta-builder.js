@@ -671,6 +671,9 @@ async function handleEquipamentosProposalSubmit(event) {
 
     if (!client.status || client.status === 'NOVO') await cycleClientStatus(client.id, 'NOVO');
     await fetchPropostas();
+    if (typeof captureEvent === 'function') {
+      captureEvent('proposal_created', { source: 'portal', mode: 'personalizada' });
+    }
 
     if (submitBtn) {
       submitBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 inline mr-1"></i> GERADO E COPIADO!';
@@ -874,6 +877,9 @@ async function copyProposalLink(kit, event) {
     }
 
     await fetchPropostas();
+    if (typeof captureEvent === 'function') {
+      captureEvent('proposal_created', { source: 'portal', mode: 'promocional' });
+    }
 
     btnCopiar.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> GERADO E COPIADO!';
     btnCopiar.classList.remove('bg-blue-600', 'hover:bg-blue-500');
@@ -1096,6 +1102,9 @@ async function confirmarFechaVenda() {
 
     // Atualiza lista de vendas (silencioso se der erro)
     await fetchVendas();
+    if (typeof captureEvent === 'function') {
+      captureEvent('sale_closed', { source: 'portal' });
+    }
 
     closeFechaVenda();
     showSalesCelebration();

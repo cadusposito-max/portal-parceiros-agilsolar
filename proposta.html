@@ -6,11 +6,11 @@
     <!-- Content Security Policy -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net;
+      script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://*.i.posthog.com;
       style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src    'self' https://fonts.gstatic.com;
       img-src     'self' data: blob: https://tzwjxgprhorqrmpqudgg.supabase.co https://images.unsplash.com;
-      connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co;
+      connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://*.i.posthog.com;
       frame-src   https://www.youtube.com;
       object-src  'none';
       base-uri    'self';
@@ -28,6 +28,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- PostHog JS SDK -->
+    <script src="https://unpkg.com/posthog-js@1.364.2/dist/array.js"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="assets/img/icon.png">
@@ -394,7 +396,6 @@
             <div>
                 <p id="vendor-name" class="text-white font-black text-lg uppercase tracking-wide">...</p>
                 <p class="text-neutral-500 text-xs font-bold uppercase tracking-widest mt-0.5">Especialista Ágil Solar</p>
-                <p id="vendor-email-text" class="text-neutral-600 text-xs font-mono mt-1"></p>
             </div>
         </div>
         <div class="mt-5 flex flex-col sm:flex-row gap-3">
@@ -442,6 +443,7 @@
 </div>
 
 <script src="assets/js/config.js"></script>
+<script src="assets/js/analytics.js"></script>
 <script src="assets/js/utils.js"></script>
 <script src="assets/js/proposta.js"></script>
 <script>
@@ -481,6 +483,5 @@ function togglePropostaTheme() {
 
 </body>
 </html>
-
 
 

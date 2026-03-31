@@ -15,6 +15,10 @@ const TAXAS_CARTAO = {
 };
 const MAX_PARCELAS = 18;
 
+if (typeof initAnalytics === 'function') {
+  initAnalytics({ mode: 'public' });
+}
+
 lucide.createIcons();
 
 function isStandaloneDisplayMode() {
@@ -128,7 +132,7 @@ function atualizarCarrossel() {
       iframe.classList.remove('opacity-100', 'z-10');
       iframe.classList.add('opacity-0', 'z-0', 'pointer-events-none');
       if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', 'https://www.youtube.com');
       }
     }
   });
@@ -218,6 +222,9 @@ async function carregarProposta() {
     if (error || !data) { showError(); return; }
 
     renderData(data);
+    if (typeof captureEvent === 'function') {
+      captureEvent('public_proposal_viewed', { source: 'public_page' });
+    }
     const priceForParcelas = (data.proposal_mode === 'PERSONALIZADA' || data.proposal_mode === 'EQUIPAMENTOS')
       ? (data.custom_total_price || data.kit_price || 0)
       : (data.kit_price || 0);
@@ -348,34 +355,43 @@ function renderData(data) {
   if (data.created_at) startCountdown(data.created_at);
 
   // --- WhatsApp CTA links ---
-  const vendorNome = data.vendedor_nome || (data.vendedor_email ? data.vendedor_email.split('@')[0] : 'Consultor');
+  // Usa apenas vendedor_nome — vendedor_email não deve ser retornado pela RPC pública
+  const vendorNome = data.vendedor_nome || 'Consultor';
   const vendorTel  = data.vendedor_telefone || '';
   const waMsg      = encodeURIComponent(
     `Olá ${vendorNome.split(' ')[0]}! Vi a proposta "${displayName}" (${formatter.format(displayPrice)}) e quero saber mais. Pode me ajudar? Meu nome é ${clientePrimeiroNome}.`
   );
+  // Se não houver telefone, não gera link inválido: oculta os CTAs
   const waLink = vendorTel
     ? `https://wa.me/55${vendorTel.replace(/\D/g, '')}?text=${waMsg}`
-    : (data.vendedor_email ? `mailto:${data.vendedor_email}?subject=Interesse na proposta solar&body=Olá, tenho interesse na proposta enviada.` : '#');
+    : null;
 
   const finalCta    = document.getElementById('final-cta-btn');
   const heroCta     = document.getElementById('hero-cta-btn');
   const ecoCta      = document.getElementById('eco-cta-btn');
   const floatWa     = document.getElementById('floating-whatsapp');
   const vendorWaBtn = document.getElementById('vendor-whatsapp-btn');
-  if (finalCta)    finalCta.href    = waLink;
-  if (heroCta)     heroCta.href     = waLink;
-  if (ecoCta)      ecoCta.href      = waLink;
-  if (floatWa)     floatWa.href     = waLink;
-  if (vendorWaBtn) vendorWaBtn.href = waLink;
+  if (waLink) {
+    if (finalCta)    finalCta.href    = waLink;
+    if (heroCta)     heroCta.href     = waLink;
+    if (ecoCta)      ecoCta.href      = waLink;
+    if (floatWa)     floatWa.href     = waLink;
+    if (vendorWaBtn) vendorWaBtn.href = waLink;
+  } else {
+    // Sem telefone: oculta botões de contato para não deixar href vazio ou apontando para '#'
+    if (finalCta)    finalCta.style.display    = 'none';
+    if (heroCta)     heroCta.style.display     = 'none';
+    if (ecoCta)      ecoCta.style.display      = 'none';
+    if (floatWa)     floatWa.style.display     = 'none';
+    if (vendorWaBtn) vendorWaBtn.style.display = 'none';
+  }
 
   // --- Vendor card ---
   const vendorCard     = document.getElementById('vendor-card');
   const vendorAvatarEl = document.getElementById('vendor-avatar');
   const vendorNameEl   = document.getElementById('vendor-name');
-  const vendorEmailEl  = document.getElementById('vendor-email-text');
   if (vendorAvatarEl) vendorAvatarEl.innerText = vendorNome.charAt(0).toUpperCase();
   if (vendorNameEl)   vendorNameEl.innerText   = vendorNome.toUpperCase();
-  if (vendorEmailEl && data.vendedor_email) vendorEmailEl.innerText = data.vendedor_email;
   if (vendorCard)     vendorCard.classList.remove('hidden');
 
   // --- Custom notes for PERSONALIZADA and EQUIPAMENTOS ---

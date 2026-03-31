@@ -6,11 +6,11 @@
   <!-- Content Security Policy: bloqueia scripts de origens não autorizadas -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://challenges.cloudflare.com;
+    script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://challenges.cloudflare.com https://*.i.posthog.com;
     style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src    'self' https://fonts.gstatic.com;
     img-src     'self' data: blob: https://placehold.co https://tzwjxgprhorqrmpqudgg.supabase.co https:;
-    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com;
+    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com https://*.i.posthog.com;
     frame-src   https://challenges.cloudflare.com;
     object-src  'none';
     base-uri    'self';
@@ -30,6 +30,8 @@
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- PostHog JS SDK -->
+  <script src="https://unpkg.com/posthog-js@1.364.2/dist/array.js"></script>
   <!-- SheetJS (XLSX export) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -843,6 +845,7 @@
 
 <!-- SCRIPTS EXTERNOS -->
 <script src="assets/js/config.js"></script>
+<script src="assets/js/analytics.js"></script>
 <script src="assets/js/utils.js"></script>
 <script src="assets/js/api.js"></script>
 <script src="assets/js/auth.js"></script>

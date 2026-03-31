@@ -461,6 +461,9 @@ document.getElementById('client-telefone').addEventListener('input', formatarTel
 
 // --- Inicialização ---
 queueAppLucideCreateIcons();
+if (typeof initAnalytics === 'function') {
+  initAnalytics({ mode: 'internal' });
+}
 checkAuth();
 
 

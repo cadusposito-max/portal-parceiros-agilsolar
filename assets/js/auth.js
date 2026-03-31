@@ -146,6 +146,7 @@ function _getInactiveSessionMessage(reason) {
 
 async function blockInactiveSession(reason = _activeCheckFailureReason || 'inactive') {
   await supabaseClient.auth.signOut();
+  if (typeof resetUser === 'function') resetUser();
   state.currentUser = null;
   document.getElementById('splash-screen').classList.add('hidden');
   document.getElementById('app-content').classList.add('hidden');
@@ -227,11 +228,13 @@ async function checkAuth() {
       renderTabs();
       renderContent();
       if (typeof chatBoot === 'function') await chatBoot();
+      if (typeof identifyUser === 'function') identifyUser(session.user);
     } else {
       document.getElementById('login-screen').classList.remove('hidden');
       document.getElementById('splash-screen').classList.add('hidden');
       document.getElementById('app-content').classList.add('hidden');
       if (typeof chatTeardown === 'function') chatTeardown(true);
+      if (typeof resetUser === 'function') resetUser();
     }
   } catch (error) {
     console.error('Erro auth:', error);
@@ -284,6 +287,11 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const errorEl   = document.getElementById('login-error');
   const btnSubmit = document.getElementById('btn-submit-login');
 
+  // Limpa estilos inline que possam ter sido definidos pelo fluxo de reset de senha
+  errorEl.style.color       = '';
+  errorEl.style.borderColor = '';
+  errorEl.style.background  = '';
+
   // Bloqueia envio sem token Turnstile — o Supabase valida no backend
   if (!_captchaToken) {
     errorEl.innerText = 'Por favor, conclua a verificação de segurança antes de entrar.';
@@ -307,6 +315,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   });
 
   if (error) {
+    if (typeof captureEvent === 'function') {
+      captureEvent('login_failed', { source: 'portal' });
+    }
+
     // Token consumido — força novo desafio Turnstile antes da próxima tentativa
     if (typeof window.turnstile !== 'undefined') window.turnstile.reset();
 
@@ -429,6 +441,7 @@ function cancelMfaStep() {
   document.getElementById('mfa-login-error').classList.add('hidden');
   _mfaFactorId = null; _mfaChallengeId = null; _pendingUser = null;
   supabaseClient.auth.signOut();
+  if (typeof resetUser === 'function') resetUser();
 }
 
 async function _finishLogin(user, email) {
@@ -474,6 +487,8 @@ async function _finishLogin(user, email) {
   renderTabs();
   renderContent();
   if (typeof chatBoot === 'function') await chatBoot();
+  if (typeof identifyUser === 'function') identifyUser(user);
+  if (typeof captureEvent === 'function') captureEvent('login_success', { source: 'portal' });
 }
 
 // --- Exibir tela de reset de senha ---
@@ -522,6 +537,7 @@ document.getElementById('reset-password-form').addEventListener('submit', async 
     errorEl.classList.remove('hidden');
   } else {
     await supabaseClient.auth.signOut();
+    if (typeof resetUser === 'function') resetUser();
     _isPasswordRecovery = false;
     // limpa o hash da URL sem recarregar a página
     history.replaceState(null, '', window.location.pathname);
@@ -618,11 +634,13 @@ async function updateVendedorStats(email) {
 async function handleLogout() {
   clearTimeout(_inactivityTimer);
   if (typeof chatTeardown === 'function') chatTeardown(true);
-  await supabaseClient.auth.signOut();
+  try {
+    await supabaseClient.auth.signOut();
+  } finally {
+    if (typeof resetUser === 'function') resetUser();
+  }
   window.location.reload();
 }
-
-
 
 
 
