@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src  'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+  style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src    'self' https://fonts.gstatic.com;
+  img-src     'self' data: blob: https://tzwjxgprhorqrmpqudgg.supabase.co;
+  connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co;
+  object-src  'none';
+  base-uri    'self';
+  worker-src  'none';
+  form-action 'self';
+">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Proposta Ágil Solar</title>
+<link rel="icon" type="image/png" href="assets/img/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- Supabase SDK + config (reuso da aplicacao principal) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/config.js"></script>
+<style>
+  /* ============================================================
+     PROPOSTA ÁGIL SOLAR — VERSÃO PDF (A4 RETRATO)
+     Template Mustache. Placeholders: {{ campo }}, blocos {{# }}{{/}}
+     ============================================================ */
+
+  :root {
+    --blue: #1d4ed8;
+    --blue-dark: #1e3a8a;
+    --blue-soft: #eff6ff;
+    --orange: #f97316;
+    --orange-soft: #fff7ed;
+    --yellow: #facc15;
+    --green: #16a34a;
+    --green-soft: #f0fdf4;
+
+    --ink: #0f172a;
+    --ink-2: #334155;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --line-strong: #cbd5e1;
+    --bg-soft: #f8fafc;
+    --white: #ffffff;
+
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    font-family: 'Inter', system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: #e5e7eb;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+
+  /* ----- Páginas (preview no browser: folhas com sombra) ----- */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 12mm auto;
+    background: var(--white);
+    padding: 14mm 14mm 12mm;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ----- Header / Footer ----- */
+  .doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10mm;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 10mm;
+  }
+  .doc-header .logo { height: 14mm; width: auto; display: block; }
+  .doc-header .meta {
+    text-align: right;
+    font-size: 8.5pt;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .doc-header .meta .pid {
+    color: var(--ink);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 8pt;
+  }
+
+  .doc-footer {
+    margin-top: auto;
+    padding-top: 6mm;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 6mm;
+    font-size: 7.5pt;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .doc-footer .brand-mark {
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 8pt;
+    margin-bottom: 2px;
+  }
+  .doc-footer .col { flex: 1; }
+  .doc-footer .col.right { text-align: right; }
+  .doc-footer .pagenum {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* ----- Tipografia ----- */
+  .eyebrow {
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--orange);
+  }
+  .eyebrow.blue { color: var(--blue); }
+  .eyebrow.ink { color: var(--ink-2); }
+
+  h1.greet {
+    font-size: 34pt;
+    font-weight: 900;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-top: 6px;
+  }
+  h1.greet .accent { color: var(--orange); }
+
+  h2.section {
+    font-size: 20pt;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-top: 4px;
+  }
+
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+
+  p, li { font-size: 10pt; line-height: 1.55; color: var(--ink-2); }
+  p.lead { font-size: 11pt; color: var(--ink-2); max-width: 145mm; }
+
+  .muted { color: var(--muted); }
+  .strong-ink { color: var(--ink); }
+
+  /* ----- Layout helpers ----- */
+  .row { display: flex; gap: 6mm; }
+  .stack { display: flex; flex-direction: column; }
+  .gap-3 { gap: 3mm; }
+  .gap-5 { gap: 5mm; }
+  .gap-8 { gap: 8mm; }
+  .mt-4 { margin-top: 4mm; }
+  .mt-5 { margin-top: 5mm; }
+  .mt-6 { margin-top: 6mm; }
+  .mt-8 { margin-top: 8mm; }
+  .mt-10 { margin-top: 10mm; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5mm; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5mm; }
+
+  /* ----- Section heading com regra fina ----- */
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6mm;
+    padding-bottom: 3mm;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 6mm;
+  }
+  .section-head .num {
+    font-size: 9pt;
+    font-weight: 800;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    font-variant-numeric: tabular-nums;
+  }
+  .section-head .title-wrap { flex: 1; }
+  .section-head h2.section { font-size: 16pt; }
+
+  /* ============================================================
+     PÁGINA 1 — CAPA & KIT
+     ============================================================ */
+  .cover-intro { margin-bottom: 8mm; }
+  .cover-intro p.lead { margin-top: 5mm; }
+
+  .meta-strip {
+    display: flex;
+    gap: 8mm;
+    margin-top: 6mm;
+    padding: 4mm 5mm;
+    background: var(--bg-soft);
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    font-size: 9pt;
+  }
+  .meta-strip .item { display: flex; flex-direction: column; gap: 1px; }
+  .meta-strip .item .k {
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .meta-strip .item .v {
+    font-size: 10pt;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .meta-strip .sep {
+    width: 1px;
+    background: var(--line);
+  }
+
+  /* ----- Card do kit (destaque principal) ----- */
+  .kit-card {
+    margin-top: 9mm;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .kit-card .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4mm 6mm;
+    background: var(--ink);
+    color: var(--white);
+  }
+  .kit-card .head .lbl {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--yellow);
+  }
+  .kit-card .head .brand-tag {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 1.5mm 3mm;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 999px;
+    color: var(--white);
+  }
+
+  .kit-card .body { padding: 7mm 6mm 5mm; }
+  .kit-card .name {
+    font-size: 18pt;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .kit-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    margin-top: 6mm;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .kit-stats .stat {
+    padding: 4mm 5mm 4mm 0;
+    display: flex;
+    gap: 4mm;
+    align-items: center;
+  }
+  .kit-stats .stat + .stat {
+    border-left: 1px solid var(--line);
+    padding-left: 5mm;
+  }
+  .kit-stats .ico {
+    width: 11mm; height: 11mm;
+    border-radius: 50%;
+    background: var(--orange-soft);
+    color: var(--orange);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .kit-stats .stat:nth-child(2) .ico {
+    background: var(--blue-soft);
+    color: var(--blue);
+  }
+  .kit-stats .ico svg { width: 6mm; height: 6mm; }
+  .kit-stats .v {
+    font-size: 17pt;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .kit-stats .v small {
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--muted);
+    margin-left: 1mm;
+    letter-spacing: 0;
+  }
+  .kit-stats .k {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  .kit-ideal {
+    margin-top: 5mm;
+    font-size: 9.5pt;
+    color: var(--ink-2);
+  }
+  .kit-ideal strong { color: var(--ink); font-weight: 700; }
+
+  .invest-block {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 6mm;
+    margin-top: 6mm;
+    padding-top: 6mm;
+    border-top: 2px solid var(--ink);
+  }
+  .invest-block .label-wrap { flex: 1; }
+  .invest-block .label {
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .invest-block .list-price {
+    font-size: 11pt;
+    color: var(--muted);
+    text-decoration: line-through;
+    margin-top: 3mm;
+    font-weight: 500;
+  }
+  .invest-block .price {
+    font-size: 30pt;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--orange);
+    font-variant-numeric: tabular-nums;
+    margin-top: 2mm;
+  }
+  .invest-block .price .currency {
+    font-size: 16pt;
+    font-weight: 700;
+    color: var(--ink);
+    margin-right: 1mm;
+    vertical-align: 0.18em;
+  }
+  .invest-block .badge {
+    background: var(--green);
+    color: var(--white);
+    padding: 2mm 4mm;
+    border-radius: 999px;
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    align-self: flex-end;
+  }
+
+  .pay-hint {
+    margin-top: 4mm;
+    padding: 3mm 4mm;
+    background: var(--blue-soft);
+    border-radius: var(--radius);
+    font-size: 9pt;
+    color: var(--blue-dark);
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+  }
+  .pay-hint svg { width: 5mm; height: 5mm; flex-shrink: 0; }
+  .pay-hint strong { font-weight: 700; }
+
+  /* ============================================================
+     PÁGINA 2 — ECONOMIA + PAGAMENTO
+     ============================================================ */
+  .savings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4mm;
+  }
+  .save-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 5mm;
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+  }
+  .save-card .k {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .save-card .v {
+    font-size: 16pt;
+    font-weight: 800;
+    color: var(--green);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    margin-top: 1mm;
+  }
+  .save-card .sub {
+    font-size: 8.5pt;
+    color: var(--muted);
+    margin-top: 1mm;
+  }
+
+  .payback-card {
+    margin-top: 5mm;
+    padding: 6mm;
+    background: var(--ink);
+    color: var(--white);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8mm;
+  }
+  .payback-card .left {
+    display: flex;
+    align-items: center;
+    gap: 5mm;
+  }
+  .payback-card .ico {
+    width: 14mm; height: 14mm;
+    background: var(--orange);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--white);
+    flex-shrink: 0;
+  }
+  .payback-card .ico svg { width: 7mm; height: 7mm; }
+  .payback-card .k {
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--yellow);
+  }
+  .payback-card .title {
+    font-size: 12pt;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-top: 1mm;
+  }
+  .payback-card .v {
+    font-size: 24pt;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    text-align: right;
+  }
+
+  /* ----- Pagamento ----- */
+  .pay-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5mm;
+  }
+  .pay-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 6mm;
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+  }
+  .pay-card .head {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+  }
+  .pay-card .ico {
+    width: 10mm; height: 10mm;
+    border-radius: 8px;
+    background: var(--blue-soft);
+    color: var(--blue);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .pay-card.orange .ico {
+    background: var(--orange-soft);
+    color: var(--orange);
+  }
+  .pay-card .ico svg { width: 5.5mm; height: 5.5mm; }
+  .pay-card .head .name {
+    font-size: 11pt;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .pay-card .feature {
+    font-size: 19pt;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin-top: 1mm;
+  }
+  .pay-card .feature small {
+    font-size: 10pt;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0;
+    margin-left: 2mm;
+  }
+  .pay-card ul {
+    list-style: none;
+    margin-top: 1mm;
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+  }
+  .pay-card li {
+    font-size: 9.5pt;
+    color: var(--ink-2);
+    display: flex;
+    gap: 3mm;
+    align-items: flex-start;
+  }
+  .pay-card li::before {
+    content: "";
+    width: 4mm; height: 4mm;
+    border-radius: 50%;
+    background: var(--green-soft);
+    border: 2px solid var(--green);
+    flex-shrink: 0;
+    margin-top: 1.2mm;
+  }
+
+  .note-card {
+    margin-top: 5mm;
+    padding: 4mm 5mm;
+    border-left: 3px solid var(--orange);
+    background: var(--orange-soft);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 9.5pt;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+  .note-card .lbl {
+    font-size: 7.5pt;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 1.5mm;
+  }
+
+  .fine-print {
+    margin-top: 4mm;
+    font-size: 8pt;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ============================================================
+     PÁGINA 3 — INSTITUCIONAL + CONSULTOR
+     ============================================================ */
+  .kvc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm 6mm;
+  }
+  .kvc {
+    display: flex;
+    gap: 4mm;
+    padding: 2mm 0;
+  }
+  .kvc .ico {
+    width: 10mm; height: 10mm;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: var(--blue);
+    color: var(--white);
+    display: grid;
+    place-items: center;
+  }
+  .kvc .ico svg { width: 5.5mm; height: 5.5mm; }
+  .kvc h3 { font-size: 10.5pt; margin-bottom: 1mm; }
+  .kvc p { font-size: 9pt; line-height: 1.45; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4mm;
+    padding: 5mm 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .stat-mini {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+  }
+  .stat-mini .ico {
+    width: 9mm; height: 9mm;
+    border-radius: 50%;
+    background: var(--blue-soft);
+    color: var(--blue);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .stat-mini .ico svg { width: 5mm; height: 5mm; }
+  .stat-mini .v {
+    font-size: 12pt;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .stat-mini .k {
+    font-size: 8pt;
+    color: var(--muted);
+    font-weight: 600;
+    line-height: 1.2;
+    margin-top: 1mm;
+  }
+
+  .quem-somos {
+    background: var(--bg-soft);
+    border-radius: var(--radius);
+    padding: 6mm;
+    margin-top: 6mm;
+  }
+  .quem-somos p { font-size: 9.5pt; line-height: 1.6; color: var(--ink-2); }
+
+  /* ----- Garantia ----- */
+  .warranty-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+  }
+  .warranty {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 4mm 5mm;
+    display: flex;
+    align-items: center;
+    gap: 4mm;
+  }
+  .warranty .yrs {
+    font-size: 22pt;
+    font-weight: 900;
+    color: var(--orange);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .warranty .yrs small {
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--muted);
+    display: block;
+    margin-top: 1mm;
+    letter-spacing: 0;
+  }
+  .warranty .lbl {
+    font-size: 9pt;
+    color: var(--ink-2);
+    line-height: 1.45;
+  }
+  .warranty .lbl strong { color: var(--ink); font-weight: 700; display: block; font-size: 10.5pt; margin-bottom: 1mm; }
+
+  /* ----- Consultor + Impacto ----- */
+  .closing-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 5mm;
+  }
+  .consultor {
+    padding: 5mm 6mm;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+  }
+  .consultor .lbl {
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--orange);
+  }
+  .consultor .top {
+    display: flex;
+    gap: 4mm;
+    align-items: center;
+  }
+  .consultor .avatar {
+    width: 14mm; height: 14mm;
+    border-radius: 50%;
+    background: var(--blue);
+    color: var(--white);
+    display: grid;
+    place-items: center;
+    font-size: 16pt;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .consultor .name {
+    font-size: 14pt;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .consultor .role {
+    font-size: 9pt;
+    color: var(--muted);
+    margin-top: 1mm;
+    letter-spacing: 0.04em;
+  }
+  .consultor .contacts {
+    display: flex;
+    flex-direction: column;
+    gap: 2mm;
+    margin-top: 1mm;
+    padding-top: 3mm;
+    border-top: 1px solid var(--line);
+  }
+  .consultor .contacts .row-item {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+    font-size: 10pt;
+    color: var(--ink);
+  }
+  .consultor .contacts svg {
+    width: 4.5mm; height: 4.5mm;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .impact {
+    padding: 5mm 6mm;
+    background: var(--green-soft);
+    border: 1px solid #bbf7d0;
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+  }
+  .impact .lbl {
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  .impact .tree-row {
+    display: flex;
+    align-items: center;
+    gap: 4mm;
+    margin-top: 1mm;
+  }
+  .impact .tree-ico {
+    width: 14mm; height: 14mm;
+    background: var(--green);
+    color: var(--white);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .impact .tree-ico svg { width: 8mm; height: 8mm; }
+  .impact .v {
+    font-size: 22pt;
+    font-weight: 900;
+    color: var(--green);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .impact .v small {
+    display: block;
+    font-size: 9pt;
+    font-weight: 700;
+    color: #047857;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 1mm;
+  }
+  .impact p {
+    font-size: 9pt;
+    color: #166534;
+    line-height: 1.5;
+  }
+
+  /* ============================================================
+     PRINT
+     ============================================================ */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  @media print {
+    html, body { background: var(--white); }
+    .page {
+      margin: 0;
+      box-shadow: none;
+      page-break-after: always;
+      break-after: page;
+    }
+    .page:last-of-type {
+      page-break-after: auto;
+      break-after: auto;
+    }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  /* ============================================================
+     PLACEHOLDERS — modo template "cru"
+     Texto solto entre {{ }} é exibido em monoespaçada amarelinha
+     pra ficar óbvio o que vem do backend.
+     (Removido automaticamente quando o preview popula os dados.)
+     ============================================================ */
+  body.template-raw {
+    /* nada — só pra debugar template visualmente se quiser */
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading / Error UI (visiveis ate o fetch terminar) -->
+<style>
+  body.is-loading .page,
+  body.is-error   .page { display: none !important; }
+
+  #pdf-loading,
+  #pdf-error {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    background: #f8fafc;
+    color: #334155;
+    font-family: 'Inter', sans-serif;
+    z-index: 100;
+    padding: 24px;
+    text-align: center;
+  }
+  body:not(.is-loading) #pdf-loading { display: none; }
+  body:not(.is-error)   #pdf-error   { display: none; }
+
+  #pdf-loading .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #f97316;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #pdf-error .ico { font-size: 42pt; }
+  #pdf-error h1   { font-size: 18pt; font-weight: 900; color: #0f172a; }
+  #pdf-error p    { font-size: 11pt; max-width: 320px; line-height: 1.5; }
+</style>
+
+<div id="pdf-loading">
+  <div class="spinner"></div>
+  <p style="font-size: 11pt; font-weight: 600;">Preparando proposta…</p>
+</div>
+
+<div id="pdf-error">
+  <div class="ico">⚠️</div>
+  <h1>Proposta indisponível</h1>
+  <p>Este link é inválido ou a proposta expirou. Entre em contato com o seu consultor.</p>
+</div>
+
+<!-- ============================================================
+     PÁGINA 1 — CAPA + KIT
+     ============================================================ -->
+<section class="page" data-screen-label="01 Capa">
+
+  <header class="doc-header">
+    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar — Energia Fotovoltaica">
+    <div class="meta">
+      <div class="pid">Proposta nº {{ proposta_id }}</div>
+      <div>Emitida em {{ proposta_data }}</div>
+    </div>
+  </header>
+
+  <div class="cover-intro">
+    <div class="eyebrow">Proposta Comercial · Ágil Solar</div>
+    <h1 class="greet">Olá, <span class="accent">{{ cliente_primeiro_nome }}</span>.</h1>
+    <p class="lead mt-4">
+      Aqui está a proposta ideal para você reduzir sua conta de luz com energia solar
+      nas melhores condições do mercado. Cada número desta página foi calculado
+      especificamente para o seu consumo.
+    </p>
+  </div>
+
+  <div class="meta-strip">
+    <div class="item">
+      <span class="k">Cliente</span>
+      <span class="v">{{ cliente_nome }}</span>
+    </div>
+    <div class="sep"></div>
+    <div class="item">
+      <span class="k">Cidade</span>
+      <span class="v">{{ cliente_cidade }}</span>
+    </div>
+    <div class="sep"></div>
+    <div class="item">
+      <span class="k">Validade da proposta</span>
+      <span class="v">{{ proposta_validade }}</span>
+    </div>
+  </div>
+
+  <!-- Card do kit -->
+  <div class="kit-card">
+    <div class="head">
+      <span class="lbl">Sistema recomendado</span>
+      {{# proposta_modo_kit }}
+      <span class="brand-tag">{{ kit_brand }}</span>
+      {{/ proposta_modo_kit }}
+    </div>
+
+    <div class="body">
+      <div class="name">{{ kit_nome }}</div>
+
+      <div class="kit-stats">
+        <div class="stat">
+          <div class="ico">
+            <!-- bolt -->
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+          </div>
+          <div>
+            <div class="v">{{ kit_power }}<small>kWp</small></div>
+            <div class="k">Potência do sistema</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="ico">
+            <!-- sun -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          </div>
+          <div>
+            <div class="v">{{ geracao_estimada }}<small>kWh/mês</small></div>
+            <div class="k">Geração estimada</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kit-ideal">
+        Ideal para faturas de luz em torno de <strong>{{ fatura_ideal }}/mês</strong>.
+      </div>
+
+      <div class="invest-block">
+        <div class="label-wrap">
+          <div class="label">Investimento total</div>
+          {{# tem_desconto }}
+          <div class="list-price">De {{ kit_list_price }}</div>
+          {{/ tem_desconto }}
+          <div class="price"><span class="currency">R$</span>{{ kit_price_num }}</div>
+        </div>
+        {{# tem_desconto }}
+        <span class="badge">Desconto ativo</span>
+        {{/ tem_desconto }}
+      </div>
+
+      <div class="pay-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        <span>
+          <strong>Parcelamos em até 18× no cartão</strong>
+          &nbsp;·&nbsp; ou financiamento em até 84 meses com 90 dias de carência.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <footer class="doc-footer">
+    <div class="col">
+      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
+      <div>{{ empresa_endereco }}</div>
+      <div>{{ empresa_site }} · {{ empresa_email }}</div>
+    </div>
+    <div class="col right">
+      <div>CNPJ {{ empresa_cnpj }}</div>
+      <div class="pagenum">Página 1 de 3</div>
+    </div>
+  </footer>
+</section>
+
+<!-- ============================================================
+     PÁGINA 2 — ECONOMIA + PAGAMENTO
+     ============================================================ -->
+<section class="page" data-screen-label="02 Economia e Pagamento">
+
+  <header class="doc-header">
+    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
+    <div class="meta">
+      <div class="pid">{{ cliente_primeiro_nome }} · Proposta {{ proposta_id }}</div>
+      <div>{{ proposta_data }}</div>
+    </div>
+  </header>
+
+  <!-- Seção: Economia -->
+  <div class="section-head">
+    <div class="num">01</div>
+    <div class="title-wrap">
+      <div class="eyebrow blue">Sua projeção</div>
+      <h2 class="section">Economia real ao longo da vida útil</h2>
+    </div>
+  </div>
+
+  <div class="savings-grid">
+    <div class="save-card">
+      <span class="k">Em 1 mês</span>
+      <span class="v">{{ economia_mensal }}</span>
+      <span class="sub">Economia mensal estimada com 85% da fatura ideal.</span>
+    </div>
+    <div class="save-card">
+      <span class="k">Em 1 ano</span>
+      <span class="v">{{ economia_anual }}</span>
+      <span class="sub">Doze meses gerando sua própria energia.</span>
+    </div>
+    <div class="save-card">
+      <span class="k">Em 25 anos</span>
+      <span class="v">{{ economia_25_anos }}</span>
+      <span class="sub">Vida útil do sistema fotovoltaico instalado.</span>
+    </div>
+  </div>
+
+  <div class="payback-card">
+    <div class="left">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </div>
+      <div>
+        <div class="k">Tempo de retorno do investimento</div>
+        <div class="title">Payback estimado do seu sistema</div>
+      </div>
+    </div>
+    <div class="v">{{ payback }}</div>
+  </div>
+
+  <!-- Seção: Pagamento -->
+  <div class="section-head mt-10">
+    <div class="num">02</div>
+    <div class="title-wrap">
+      <div class="eyebrow">Facilidades</div>
+      <h2 class="section">Condições de pagamento</h2>
+    </div>
+  </div>
+
+  <div class="pay-grid">
+    <div class="pay-card">
+      <div class="head">
+        <div class="ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        </div>
+        <div class="name">Cartão de crédito</div>
+      </div>
+      <div class="feature">Até 18×<small>no cartão</small></div>
+      <ul>
+        <li>Parcelamento direto na máquina, sem burocracia.</li>
+        <li>Aceitamos cartões das principais bandeiras.</li>
+        <li>Aprovação imediata, sistema agendado em sequência.</li>
+      </ul>
+    </div>
+
+    <div class="pay-card orange">
+      <div class="head">
+        <div class="ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18l-2 13H5L3 7z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg>
+        </div>
+        <div class="name">Financiamento (boleto)</div>
+      </div>
+      <div class="feature">100% financiado</div>
+      <ul>
+        <li>Em até <strong>84 meses</strong> pra pagar.</li>
+        <li>Carência de <strong>90 dias</strong> pra começar a pagar.</li>
+        <li>Análise via parceiros financeiros homologados.</li>
+      </ul>
+    </div>
+  </div>
+
+  {{# proposta_modo_personalizada }}
+  {{# custom_payment_note }}
+  <div class="note-card mt-6">
+    <div class="lbl">Condições personalizadas</div>
+    {{ custom_payment_note }}
+  </div>
+  {{/ custom_payment_note }}
+  {{# custom_commercial_note }}
+  <div class="note-card">
+    <div class="lbl">Observação comercial</div>
+    {{ custom_commercial_note }}
+  </div>
+  {{/ custom_commercial_note }}
+  {{/ proposta_modo_personalizada }}
+
+  <p class="fine-print">
+    * Nem todos os cartões de crédito autorizam parcelamentos acima de 12×. Sujeito a análise da operadora.
+    Os valores de economia consideram tarifa média de R$ 0,95/kWh e podem variar conforme distribuidora,
+    consumo real e bandeira tarifária vigente.
+  </p>
+
+  <footer class="doc-footer">
+    <div class="col">
+      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
+      <div>{{ empresa_endereco }}</div>
+      <div>{{ empresa_site }} · {{ empresa_email }}</div>
+    </div>
+    <div class="col right">
+      <div>CNPJ {{ empresa_cnpj }}</div>
+      <div class="pagenum">Página 2 de 3</div>
+    </div>
+  </footer>
+</section>
+
+<!-- ============================================================
+     PÁGINA 3 — INSTITUCIONAL + CONSULTOR
+     ============================================================ -->
+<section class="page" data-screen-label="03 Institucional e Contato">
+
+  <header class="doc-header">
+    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
+    <div class="meta">
+      <div class="pid">{{ cliente_primeiro_nome }} · Proposta {{ proposta_id }}</div>
+      <div>{{ proposta_data }}</div>
+    </div>
+  </header>
+
+  <!-- Chave na mão -->
+  <div class="section-head">
+    <div class="num">03</div>
+    <div class="title-wrap">
+      <div class="eyebrow">Projeto chave na mão</div>
+      <h2 class="section">O que está incluso no seu sistema</h2>
+    </div>
+  </div>
+
+  <div class="kvc-grid">
+    <div class="kvc">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+      </div>
+      <div>
+        <h3>Equipamentos Premium</h3>
+        <p>Painéis, inversores e estruturas de fixação das melhores marcas globais.</p>
+      </div>
+    </div>
+    <div class="kvc">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
+      </div>
+      <div>
+        <h3>Instalação Especializada</h3>
+        <p>Equipe técnica própria e qualificada seguindo rigorosas normas de segurança.</p>
+      </div>
+    </div>
+    <div class="kvc">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M21 3l-9 9M10 3H3v7M3 14v7h7M21 14v7h-7"/></svg>
+      </div>
+      <div>
+        <h3>Homologação</h3>
+        <p>Tratamos de toda a burocracia do projeto junto à distribuidora de energia.</p>
+      </div>
+    </div>
+    <div class="kvc">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      </div>
+      <div>
+        <h3>App de Monitoramento</h3>
+        <p>Acompanhe a geração de energia em tempo real direto do seu celular.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Garantias -->
+  <div class="warranty-grid mt-6">
+    <div class="warranty">
+      <div class="yrs">25<small>anos</small></div>
+      <div class="lbl">
+        <strong>Módulos Fotovoltaicos</strong>
+        Garantia de eficiência de geração ao longo de 25 anos de vida útil.
+      </div>
+    </div>
+    <div class="warranty">
+      <div class="yrs">10<small>anos</small></div>
+      <div class="lbl">
+        <strong>Inversores</strong>
+        Garantia real do fabricante contra defeitos de fabricação.
+      </div>
+    </div>
+  </div>
+
+  <!-- Quem somos -->
+  <div class="section-head mt-6">
+    <div class="num">04</div>
+    <div class="title-wrap">
+      <div class="eyebrow blue">Quem somos</div>
+      <h2 class="section">Ágil Solar, transformando o sol em economia</h2>
+    </div>
+  </div>
+
+  <p style="font-size: 9pt; line-height: 1.5; color: var(--ink-2); max-width: 170mm;">
+    Somos uma empresa especializada em soluções inteligentes em energia. Desde 2020, já
+    atendemos milhares de clientes em todo o Brasil, oferecendo economia, eficiência e segurança
+    por meio de projetos personalizados, tecnologia de ponta e equipe altamente capacitada.
+    Muito além de transformar o sol em energia, nós transformamos vidas — gerando lucros reais
+    para nossos clientes e sustentabilidade para o planeta.
+  </p>
+
+  <div class="stats-row mt-5">
+    <div class="stat-mini">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      </div>
+      <div>
+        <div class="v">8 Estados</div>
+        <div class="k">Presença nacional</div>
+      </div>
+    </div>
+    <div class="stat-mini">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l2-5h14l2 5"/><path d="M3 9v11h18V9"/><path d="M9 20v-6h6v6"/></svg>
+      </div>
+      <div>
+        <div class="v">+35</div>
+        <div class="k">Unidades</div>
+      </div>
+    </div>
+    <div class="stat-mini">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a8 8 0 0 1 16 0v2H4z"/><path d="M2 13h20v3H2z"/></svg>
+      </div>
+      <div>
+        <div class="v">+4.000</div>
+        <div class="k">Projetos instalados</div>
+      </div>
+    </div>
+    <div class="stat-mini">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+      </div>
+      <div>
+        <div class="v">+150</div>
+        <div class="k">Municípios atendidos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Linha de fechamento: Consultor + Impacto -->
+  <div class="closing-row mt-6">
+    <div class="consultor">
+      <div class="lbl">Seu consultor</div>
+      <div class="top">
+        <div class="avatar">{{ vendedor_inicial }}</div>
+        <div>
+          <div class="name">{{ vendedor_nome }}</div>
+          <div class="role">Especialista Ágil Solar</div>
+        </div>
+      </div>
+      <div class="contacts">
+        <div class="row-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92V21a1 1 0 0 1-1.1 1A19 19 0 0 1 2 4.1 1 1 0 0 1 3 3h4.09a1 1 0 0 1 1 .75l1 4a1 1 0 0 1-.29 1L7 10.5a16 16 0 0 0 6.5 6.5l1.75-1.75a1 1 0 0 1 1-.29l4 1a1 1 0 0 1 .75 1z"/></svg>
+          <span>{{ vendedor_telefone }}</span>
+        </div>
+        <div class="row-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+          <span>{{ vendedor_email }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="impact">
+      <div class="lbl">Impacto ambiental</div>
+      <div class="tree-row">
+        <div class="tree-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a6 6 0 0 0-4 10.5A5 5 0 0 0 12 22a5 5 0 0 0 4-9.5A6 6 0 0 0 12 2z"/><path d="M12 22V12"/></svg>
+        </div>
+        <div>
+          <div class="v">+{{ arvores_salvas }}<small>árvores salvas</small></div>
+        </div>
+      </div>
+      <p>Ao gerar sua própria energia limpa, você reduz a emissão de CO₂ e ajuda a preservar o planeta para as próximas gerações.</p>
+    </div>
+  </div>
+
+  <footer class="doc-footer">
+    <div class="col">
+      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
+      <div>{{ empresa_endereco }}</div>
+      <div>{{ empresa_site }} · {{ empresa_email }}</div>
+    </div>
+    <div class="col right">
+      <div>CNPJ {{ empresa_cnpj }}</div>
+      <div class="pagenum">Página 3 de 3</div>
+    </div>
+  </footer>
+</section>
+
+<!-- ============================================================
+     RENDERER — Busca proposta no Supabase, calcula derivados e popula
+     os placeholders {{ }} com mini Mustache.
+     Suporta ?id=<uuid> e ?print=1 (auto-imprimir/compartilhar).
+     ============================================================ -->
+<script>
+(function () {
+  document.body.classList.add('is-loading');
+
+  var urlParams  = new URLSearchParams(window.location.search);
+  var propostaId = urlParams.get('id');
+  var autoPrint  = urlParams.get('print') === '1';
+
+  function isValidUUID(v) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || '').trim());
+  }
+  function showError() {
+    document.body.classList.remove('is-loading');
+    document.body.classList.add('is-error');
+  }
+  function fmt(n) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
+  }
+  function firstName(s) {
+    return String(s || 'Cliente').trim().split(/\s+/)[0] || 'Cliente';
+  }
+
+  if (!propostaId || !isValidUUID(propostaId)) { showError(); return; }
+
+  carregarProposta();
+
+  async function carregarProposta() {
+    try {
+      var resp = await supabaseClient.rpc('get_public_proposta', { p_id: propostaId }).single();
+      if (resp.error || !resp.data) { showError(); return; }
+      var data = montarDados(resp.data);
+      renderizar(data);
+    } catch (err) {
+      console.error('[proposta-pdf]', err);
+      showError();
+    }
+  }
+
+  function montarDados(p) {
+    var TARIFA_MEDIA = 0.95;
+    var isPersonalizada = p.proposal_mode === 'PERSONALIZADA';
+    var isEquipamentos  = p.proposal_mode === 'EQUIPAMENTOS';
+    var isCustom        = isPersonalizada || isEquipamentos;
+
+    var precoFinal = isCustom ? (p.custom_total_price || p.kit_price || 0) : (p.kit_price || 0);
+    var potencia   = isCustom ? (p.custom_system_power_kwp || p.kit_power || 0) : (p.kit_power || 0);
+    var nomeKit    = p.kit_nome || (isCustom ? 'Proposta Personalizada' : '');
+    var brand      = isCustom ? '' : (p.kit_brand || '');
+    var geracao    = Number(p.geracao_estimada || 0) || (potencia * 30 * 4.5); // fallback grosseiro
+
+    var faturaIdeal     = geracao * TARIFA_MEDIA;
+    var economiaMensal  = faturaIdeal * 0.85;
+    var economiaAnual   = economiaMensal * 12;
+    var economia25Anos  = economiaAnual * 25;
+    var arvores         = Math.round(potencia * 3);
+
+    var mesesPayback = economiaMensal > 0 ? Math.ceil(precoFinal / economiaMensal) : 0;
+    var anosPB       = Math.floor(mesesPayback / 12);
+    var mesesPB      = mesesPayback % 12;
+    var payback = '';
+    if (anosPB > 0)             payback += anosPB + (anosPB > 1 ? ' anos' : ' ano');
+    if (anosPB > 0 && mesesPB)  payback += ' e ';
+    if (mesesPB > 0)            payback += mesesPB + (mesesPB > 1 ? ' meses' : ' mês');
+    if (!payback)               payback = 'Menos de 1 mês';
+
+    var dataCriacao = new Date(p.created_at);
+    var validade    = new Date(dataCriacao.getTime() + 72 * 3600 * 1000);
+    var fmtData     = function (d) {
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+    var fmtDataHora = function (d) {
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+             ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    var precoStr     = fmt(precoFinal);
+    var precoNum     = precoStr.replace(/^R\$\s*/, '').trim();
+    var listPriceStr = fmt(p.kit_list_price || precoFinal);
+    var temDesconto  = !isCustom && p.kit_list_price && p.kit_list_price > precoFinal;
+
+    return {
+      proposta_id:        p.numero || '—',
+      proposta_data:      fmtData(dataCriacao),
+      proposta_validade:  fmtDataHora(validade),
+
+      cliente_nome:           p.cliente_nome || '',
+      cliente_primeiro_nome:  firstName(p.cliente_nome),
+
+      vendedor_nome:      p.vendedor_nome || 'Consultor Ágil Solar',
+      vendedor_inicial:   (p.vendedor_nome || 'C').trim().charAt(0).toUpperCase(),
+      vendedor_telefone:  p.vendedor_telefone || '',
+      vendedor_email:     '', // RPC publica nao retorna por seguranca
+
+      proposta_modo_kit:           !isCustom,
+      proposta_modo_personalizada: isPersonalizada,
+      proposta_modo_equipamentos:  isEquipamentos,
+
+      kit_nome:       nomeKit,
+      kit_brand:      brand,
+      kit_power:      potencia ? String(potencia).replace('.', ',') : '0',
+      kit_price:      precoStr,
+      kit_price_num:  precoNum,
+      kit_list_price: listPriceStr,
+      tem_desconto:   temDesconto,
+
+      geracao_estimada: Math.round(geracao).toString(),
+      fatura_ideal:     fmt(faturaIdeal),
+
+      economia_mensal:  fmt(economiaMensal),
+      economia_anual:   fmt(economiaAnual),
+      economia_25_anos: fmt(economia25Anos),
+      payback:          payback,
+
+      arvores_salvas: String(arvores),
+
+      custom_payment_note:    p.custom_payment_note    || '',
+      custom_commercial_note: p.custom_commercial_note || '',
+
+      // Dados da franquia (vindos do JOIN na RPC)
+      empresa_cnpj:     p.franquia_cnpj         || '—',
+      empresa_endereco: p.franquia_endereco     || p.franquia_cidade || '—',
+      empresa_site:     p.franquia_site         || 'agilsolar.com',
+      empresa_email:    p.franquia_email        || '—'
+    };
+  }
+
+  function renderizar(data) {
+    var html = document.body.innerHTML;
+
+    // 1) blocos invertidos {{^ key }}...{{/ key }}
+    html = html.replace(/\{\{\^\s*([\w_]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g, function (_, k, body) {
+      var v = data[k];
+      var falsy = (v === undefined || v === null || v === false || v === '' || v === 0);
+      return falsy ? body : '';
+    });
+
+    // 2) blocos {{# key }}...{{/ key }}
+    html = html.replace(/\{\{#\s*([\w_]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g, function (_, k, body) {
+      var v = data[k];
+      var truthy = !(v === undefined || v === null || v === false || v === '' || v === 0);
+      return truthy ? body : '';
+    });
+
+    // 3) substituicoes simples {{ key }}
+    html = html.replace(/\{\{\s*([\w_]+)\s*\}\}/g, function (_, k) {
+      return (data[k] !== undefined && data[k] !== null) ? data[k] : '';
+    });
+
+    document.body.innerHTML = html;
+    document.body.classList.remove('is-loading');
+    document.title = 'Proposta ' + (data.proposta_id || '') + ' - ' + (data.cliente_primeiro_nome || '');
+
+    // Auto-print quando vier de "Compartilhar/Imprimir"
+    if (autoPrint) {
+      (async function () {
+        try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+        await new Promise(function (r) { setTimeout(r, 500); });
+        window.print();
+      })();
+    }
+  }
+})();
+</script>
+
+</body>
+</html>

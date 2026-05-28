@@ -129,11 +129,18 @@
     <!-- Header / Logo -->
     <div class="flex justify-center items-center mb-4 relative">
         <img src="assets/img/logo.png" alt="Ágil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png" class="w-48 md:w-64 h-auto" onerror="this.style.display='none'">
-        <button id="proposta-theme-btn" onclick="togglePropostaTheme()"
-            title="Alternar modo claro/escuro"
-            class="absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-all">
-            <i data-lucide="sun" id="proposta-theme-icon" class="w-4 h-4"></i>
-        </button>
+        <div class="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <button id="proposta-share-btn"
+                title="Compartilhar ou imprimir"
+                class="w-9 h-9 flex items-center justify-center border border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 hover:text-orange-300 transition-all rounded">
+                <i data-lucide="share-2" class="w-4 h-4"></i>
+            </button>
+            <button id="proposta-theme-btn" onclick="togglePropostaTheme()"
+                title="Alternar modo claro/escuro"
+                class="w-9 h-9 flex items-center justify-center border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-all">
+                <i data-lucide="sun" id="proposta-theme-icon" class="w-4 h-4"></i>
+            </button>
+        </div>
     </div>
 
     <!-- Greeting -->
@@ -435,6 +442,9 @@
         </button>
         <button id="qa-copy-btn" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
             <i data-lucide="copy" class="w-4 h-4"></i> Copiar
+        </button>
+        <button id="qa-share-btn" class="px-3 py-2 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black text-[10px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
+            <i data-lucide="share-2" class="w-4 h-4"></i> PDF
         </button>
         <button id="qa-open-browser-btn" class="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1.5">
             <i data-lucide="external-link" class="w-4 h-4"></i> Navegador

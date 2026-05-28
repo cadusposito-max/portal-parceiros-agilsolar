@@ -21,6 +21,11 @@
   X-Robots-Tag: noindex, nofollow, noarchive
   Content-Security-Policy: frame-ancestors 'none'
 
+/proposta-pdf.html
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow, noarchive
+  Content-Security-Policy: frame-ancestors 'none'
+
 /assets/test.html
   Cache-Control: no-store, max-age=0
   X-Robots-Tag: noindex, nofollow, noarchive

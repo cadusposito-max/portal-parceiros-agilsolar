@@ -249,7 +249,8 @@ function _chatApplyShellMode() {
   chat.isMobile = _chatIsMobileViewport();
 
   shell.classList.toggle('hidden', !chat.isOpen);
-  backdrop.classList.toggle('hidden', !(chat.isOpen && chat.isMobile));
+  // Backdrop aparece tambem no desktop (estilo modal WhatsApp Web/GronerZap)
+  backdrop.classList.toggle('hidden', !chat.isOpen);
   shell.classList.toggle('chat-shell--mobile', chat.isOpen && chat.isMobile);
   shell.classList.toggle('chat-shell--desktop', chat.isOpen && !chat.isMobile);
   shell.classList.toggle('chat-shell--thread', chat.isOpen && chat.isMobile && chat.mobileView === 'thread');
@@ -266,22 +267,38 @@ function _chatApplyShellMode() {
 // ----------------------------------------------------------------------------
 // iOS PWA fix: visualViewport resize/scroll quando o teclado abre
 // O 100dvh do iOS NAO encolhe com o teclado, entao o composer fica atras dele.
-// Solucao: ajustar a altura do chat-shell para visualViewport.height (real).
+//
+// Solucao: cancelar o `bottom: 0` herdado do CSS `inset: 0` e usar
+// `top: vv.offsetTop` + `height: vv.height` (padrao iOS WhatsApp-like).
 // ----------------------------------------------------------------------------
 function _chatSyncMobileViewport() {
   const chat = _chatState();
   const shell = _chatEl('chat-shell');
   if (!shell) return;
 
-  if (chat.isMobile && chat.isOpen && window.visualViewport) {
-    shell.style.height = `${window.visualViewport.height}px`;
-    // Mantem a ultima mensagem visivel quando o teclado abre/fecha
-    const messages = _chatEl('chat-thread-messages');
-    if (messages) {
-      requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
-    }
-  } else {
+  // Modo desktop OU chat fechado: limpa overrides e usa CSS default
+  if (!chat.isMobile || !chat.isOpen || !window.visualViewport) {
+    shell.style.bottom = '';
+    shell.style.top    = '';
     shell.style.height = '';
+    return;
+  }
+
+  const vv = window.visualViewport;
+  // Sanity: durante transicao do teclado o iOS as vezes reporta valores muito
+  // pequenos. Se acontecer, ignora pra nao colapsar a UI.
+  if (!vv.height || vv.height < 150) return;
+
+  // O `inset: 0` do CSS aplica top:0 e bottom:0 juntos. Pra altura inline
+  // ter efeito, precisamos cancelar `bottom:0` (senao top+bottom vencem).
+  shell.style.bottom = 'auto';
+  shell.style.top    = `${vv.offsetTop || 0}px`;
+  shell.style.height = `${vv.height}px`;
+
+  // Mantem a ultima mensagem visivel
+  const messages = _chatEl('chat-thread-messages');
+  if (messages) {
+    requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
   }
 }
 

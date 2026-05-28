@@ -417,6 +417,7 @@ function renderHistorico() {
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap mb-1">
               <span class="text-white font-black text-sm uppercase truncate group-hover:text-orange-400 transition-colors">${escapeHTML(p.kit_nome) || 'Proposta Personalizada'}</span>
+              ${p.numero ? `<span class="text-[8px] bg-neutral-800 text-neutral-400 border border-neutral-700 px-2 py-0.5 font-black uppercase tracking-widest font-mono">#${p.numero.split('-').pop()}</span>` : ''}
               ${isVendido ? '<span class="text-[8px] bg-green-500/15 text-green-400 border border-green-500/30 px-2 py-0.5 font-black uppercase tracking-widest">VENDIDO</span>' : ''}
               ${isPersonalizada ? '<span class="text-[8px] bg-orange-500/15 text-orange-400 border border-orange-500/30 px-2 py-0.5 font-black uppercase tracking-widest">PERSONALIZADA</span>' : ''}
             </div>

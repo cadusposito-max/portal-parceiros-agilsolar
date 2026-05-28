@@ -45,11 +45,48 @@ function tryOpenExternalBrowser(url) {
   }
 }
 
+// ==========================================
+// COMPARTILHAR / IMPRIMIR PDF
+// Usa Web Share API (iOS/Android/Edge mostram folha nativa com Imprimir
+// como opcao). Fallback: copia link do PDF pro clipboard.
+// ==========================================
+async function compartilharPropostaPDF() {
+  if (!propostaId) return;
+  const pdfUrl = `${window.location.origin}/proposta-pdf.html?id=${propostaId}&print=1`;
+  const shareData = {
+    title: 'Proposta Ágil Solar',
+    text:  'Confira sua proposta de energia solar',
+    url:   pdfUrl
+  };
+
+  // Tenta Web Share API nativa
+  try {
+    if (navigator.share && (typeof navigator.canShare !== 'function' || navigator.canShare(shareData))) {
+      await navigator.share(shareData);
+      return;
+    }
+  } catch (err) {
+    // AbortError = usuario cancelou a share sheet; nao é erro real
+    if (err && err.name === 'AbortError') return;
+    console.warn('[share] falhou, tentando fallback:', err);
+  }
+
+  // Fallback: copia o link do PDF
+  try {
+    await navigator.clipboard.writeText(pdfUrl);
+    if (typeof showToast === 'function') showToast('LINK DO PDF COPIADO!');
+  } catch (err) {
+    // Ultimo fallback: abre em nova aba
+    window.open(pdfUrl, '_blank');
+  }
+}
+
 function initProposalQuickActions() {
   const quickWrap = document.getElementById('proposal-quick-actions');
-  const btnBack = document.getElementById('qa-back-btn');
-  const btnCopy = document.getElementById('qa-copy-btn');
-  const btnOpen = document.getElementById('qa-open-browser-btn');
+  const btnBack   = document.getElementById('qa-back-btn');
+  const btnCopy   = document.getElementById('qa-copy-btn');
+  const btnShare  = document.getElementById('qa-share-btn');
+  const btnOpen   = document.getElementById('qa-open-browser-btn');
   if (!quickWrap || !btnBack || !btnCopy || !btnOpen) return;
 
   // Exibe sempre em telas menores e no modo app.
@@ -70,6 +107,10 @@ function initProposalQuickActions() {
     if (typeof showToast === 'function') showToast('LINK DA PROPOSTA COPIADO!');
   });
 
+  if (btnShare) {
+    btnShare.addEventListener('click', compartilharPropostaPDF);
+  }
+
   btnOpen.addEventListener('click', () => {
     const ok = tryOpenExternalBrowser(window.location.href);
     if (typeof showToast === 'function') {
@@ -79,6 +120,12 @@ function initProposalQuickActions() {
     }
     if (!ok) copiarTextoBlindado(window.location.href);
   });
+
+  // Botao desktop (no header da proposta)
+  const headerShareBtn = document.getElementById('proposta-share-btn');
+  if (headerShareBtn) {
+    headerShareBtn.addEventListener('click', compartilharPropostaPDF);
+  }
 
   lucide.createIcons();
 }
