@@ -14,7 +14,7 @@
     frame-src   https://challenges.cloudflare.com;
     object-src  'none';
     base-uri    'self';
-    worker-src  'none';
+    worker-src  'self';
     form-action 'self';
     upgrade-insecure-requests;
     block-all-mixed-content;
@@ -858,6 +858,7 @@
 <script src="assets/js/admin.js"></script>
 <script src="assets/js/profile.js"></script>
 <script src="assets/js/chat.js"></script>
+<script src="assets/js/push.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 (function () {

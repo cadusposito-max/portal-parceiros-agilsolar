@@ -940,6 +940,15 @@ async function chatBoot() {
     chat.initialized = true;
   }
 
+  // Push notifications: registra Service Worker e sugere ativacao (1x)
+  if (typeof pushInit === 'function') {
+    pushInit().then(() => {
+      if (typeof pushMaybePromptInChat === 'function') {
+        pushMaybePromptInChat();
+      }
+    });
+  }
+
   _chatUpdateFab();
   _chatApplyShellMode();
   _chatSubscribeConversationChannel();

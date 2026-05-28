@@ -12,6 +12,10 @@
   # Protecao contra ataques Spectre/cross-origin (COOP)
   Cross-Origin-Opener-Policy: same-origin
 
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
 /proposta.html
   Cache-Control: no-store, max-age=0
   X-Robots-Tag: noindex, nofollow, noarchive
