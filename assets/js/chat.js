@@ -257,6 +257,41 @@ function _chatApplyShellMode() {
   if (backBtn) {
     backBtn.classList.toggle('hidden', !(chat.isMobile && chat.mobileView === 'thread'));
   }
+
+  // iOS PWA + teclado: alinha shell ao viewport visivel
+  _chatAttachViewportListeners();
+  _chatSyncMobileViewport();
+}
+
+// ----------------------------------------------------------------------------
+// iOS PWA fix: visualViewport resize/scroll quando o teclado abre
+// O 100dvh do iOS NAO encolhe com o teclado, entao o composer fica atras dele.
+// Solucao: ajustar a altura do chat-shell para visualViewport.height (real).
+// ----------------------------------------------------------------------------
+function _chatSyncMobileViewport() {
+  const chat = _chatState();
+  const shell = _chatEl('chat-shell');
+  if (!shell) return;
+
+  if (chat.isMobile && chat.isOpen && window.visualViewport) {
+    shell.style.height = `${window.visualViewport.height}px`;
+    // Mantem a ultima mensagem visivel quando o teclado abre/fecha
+    const messages = _chatEl('chat-thread-messages');
+    if (messages) {
+      requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
+    }
+  } else {
+    shell.style.height = '';
+  }
+}
+
+function _chatAttachViewportListeners() {
+  if (window._chatViewportListenersAttached) return;
+  if (!window.visualViewport) return;
+  const handler = () => _chatSyncMobileViewport();
+  window.visualViewport.addEventListener('resize', handler);
+  window.visualViewport.addEventListener('scroll', handler);
+  window._chatViewportListenersAttached = true;
 }
 
 function _chatSyncComposerButton() {

@@ -1069,7 +1069,10 @@ body.theme-light {
   padding: 8px 10px;
   min-height: 44px;
   max-height: 150px;
-  font-size: 13px;
+  /* IMPORTANTE: 16px previne auto-zoom no iOS Safari/PWA.
+     Qualquer valor menor que 16px dispara zoom obrigatorio no iOS. */
+  font-size: 16px;
+  line-height: 1.35;
   outline: none;
 }
 
