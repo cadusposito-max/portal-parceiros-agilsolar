@@ -47,14 +47,19 @@ function tryOpenExternalBrowser(url) {
 
 // ==========================================
 // ABRIR PREVIEW DO PDF
-// Abre a versao impressa da proposta em nova aba. Dentro dessa pagina o
-// usuario tem um botao "SALVAR PDF" fixo na barra inferior que dispara o
-// dialogo nativo do navegador (que gera PDF vetor).
+// Em browser normal: nova aba (preserva a proposta original).
+// Em PWA standalone (iOS principalmente): mesma janela — _blank dispara
+// "abrir no Safari/copiar link" no iPhone, fluxo ruim. Botao Voltar do
+// preview retorna pra proposta via history.back().
 // ==========================================
 function abrirPropostaPDF() {
   if (!propostaId) return;
   const pdfUrl = `${window.location.origin}/proposta-pdf.html?id=${propostaId}`;
-  window.open(pdfUrl, '_blank', 'noopener');
+  if (isStandaloneDisplayMode()) {
+    window.location.href = pdfUrl;
+  } else {
+    window.open(pdfUrl, '_blank', 'noopener');
+  }
 }
 
 function initProposalQuickActions() {
