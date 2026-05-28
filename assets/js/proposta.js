@@ -46,39 +46,15 @@ function tryOpenExternalBrowser(url) {
 }
 
 // ==========================================
-// COMPARTILHAR / IMPRIMIR PDF
-// Usa Web Share API (iOS/Android/Edge mostram folha nativa com Imprimir
-// como opcao). Fallback: copia link do PDF pro clipboard.
+// ABRIR PREVIEW DO PDF
+// Abre a versao impressa da proposta em nova aba. Dentro dessa pagina o
+// usuario tem um botao "SALVAR PDF" fixo na barra inferior que dispara o
+// dialogo nativo do navegador (que gera PDF vetor).
 // ==========================================
-async function compartilharPropostaPDF() {
+function abrirPropostaPDF() {
   if (!propostaId) return;
-  const pdfUrl = `${window.location.origin}/proposta-pdf.html?id=${propostaId}&print=1`;
-  const shareData = {
-    title: 'Proposta Ágil Solar',
-    text:  'Confira sua proposta de energia solar',
-    url:   pdfUrl
-  };
-
-  // Tenta Web Share API nativa
-  try {
-    if (navigator.share && (typeof navigator.canShare !== 'function' || navigator.canShare(shareData))) {
-      await navigator.share(shareData);
-      return;
-    }
-  } catch (err) {
-    // AbortError = usuario cancelou a share sheet; nao é erro real
-    if (err && err.name === 'AbortError') return;
-    console.warn('[share] falhou, tentando fallback:', err);
-  }
-
-  // Fallback: copia o link do PDF
-  try {
-    await navigator.clipboard.writeText(pdfUrl);
-    if (typeof showToast === 'function') showToast('LINK DO PDF COPIADO!');
-  } catch (err) {
-    // Ultimo fallback: abre em nova aba
-    window.open(pdfUrl, '_blank');
-  }
+  const pdfUrl = `${window.location.origin}/proposta-pdf.html?id=${propostaId}`;
+  window.open(pdfUrl, '_blank', 'noopener');
 }
 
 function initProposalQuickActions() {
@@ -108,7 +84,7 @@ function initProposalQuickActions() {
   });
 
   if (btnShare) {
-    btnShare.addEventListener('click', compartilharPropostaPDF);
+    btnShare.addEventListener('click', abrirPropostaPDF);
   }
 
   btnOpen.addEventListener('click', () => {
@@ -124,7 +100,7 @@ function initProposalQuickActions() {
   // Botao desktop (no header da proposta)
   const headerShareBtn = document.getElementById('proposta-share-btn');
   if (headerShareBtn) {
-    headerShareBtn.addEventListener('click', compartilharPropostaPDF);
+    headerShareBtn.addEventListener('click', abrirPropostaPDF);
   }
 
   lucide.createIcons();

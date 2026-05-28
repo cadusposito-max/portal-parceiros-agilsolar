@@ -840,6 +840,58 @@
   }
 
   /* ============================================================
+     BARRA INFERIOR FIXA (Voltar | Salvar PDF)
+     Aparece so no preview, e escondida no print.
+     ============================================================ */
+  #pdf-action-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(8px);
+    border-radius: 999px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    z-index: 200;
+  }
+  .pdf-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border: 0;
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12pt;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.2s ease;
+  }
+  .pdf-btn svg { width: 16px; height: 16px; }
+  .pdf-btn:hover  { transform: translateY(-1px); }
+  .pdf-btn:active { transform: translateY(0); }
+
+  .pdf-btn-ghost {
+    background: rgba(255,255,255,0.08);
+    color: #f1f5f9;
+  }
+  .pdf-btn-ghost:hover { background: rgba(255,255,255,0.14); }
+
+  .pdf-btn-primary {
+    background: linear-gradient(135deg, #f97316, #eab308);
+    color: #0b0b0c;
+  }
+  .pdf-btn-primary:hover {
+    background: linear-gradient(135deg, #fb923c, #facc15);
+  }
+
+  /* Espaco no final pra barra nao cobrir conteudo */
+  body { padding-bottom: 90px; }
+
+  /* ============================================================
      PRINT
      ============================================================ */
   @page {
@@ -847,7 +899,7 @@
     margin: 0;
   }
   @media print {
-    html, body { background: var(--white); }
+    html, body { background: var(--white); padding-bottom: 0 !important; }
     .page {
       margin: 0;
       box-shadow: none;
@@ -858,6 +910,7 @@
       page-break-after: auto;
       break-after: auto;
     }
+    #pdf-action-bar { display: none !important; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 
@@ -1354,7 +1407,7 @@
 <!-- ============================================================
      RENDERER — Busca proposta no Supabase, calcula derivados e popula
      os placeholders {{ }} com mini Mustache.
-     Suporta ?id=<uuid> e ?print=1 (auto-imprimir/compartilhar).
+     Suporta ?id=<uuid>. Sem auto-print: barra inferior tem botao SALVAR PDF.
      ============================================================ -->
 <script>
 (function () {
@@ -1362,7 +1415,6 @@
 
   var urlParams  = new URLSearchParams(window.location.search);
   var propostaId = urlParams.get('id');
-  var autoPrint  = urlParams.get('print') === '1';
 
   function isValidUUID(v) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || '').trim());
@@ -1508,14 +1560,34 @@
     document.body.classList.remove('is-loading');
     document.title = 'Proposta ' + (data.proposta_id || '') + ' - ' + (data.cliente_primeiro_nome || '');
 
-    // Auto-print quando vier de "Compartilhar/Imprimir"
-    if (autoPrint) {
-      (async function () {
-        try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
-        await new Promise(function (r) { setTimeout(r, 500); });
-        window.print();
-      })();
-    }
+    // A barra inferior fixa eh perdida quando innerHTML substitui o body.
+    // Re-anexa aqui e religa o handler.
+    injetarActionBar();
+  }
+
+  function injetarActionBar() {
+    var bar = document.createElement('div');
+    bar.id = 'pdf-action-bar';
+    bar.innerHTML = ''
+      + '<button id="pdf-back-btn" type="button" class="pdf-btn pdf-btn-ghost">'
+      +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>'
+      +   '<span>Voltar</span>'
+      + '</button>'
+      + '<button id="pdf-save-btn" type="button" class="pdf-btn pdf-btn-primary">'
+      +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>'
+      +   '<span>Salvar PDF</span>'
+      + '</button>';
+    document.body.appendChild(bar);
+
+    document.getElementById('pdf-back-btn').addEventListener('click', function () {
+      if (window.history.length > 1) window.history.back();
+      else window.close();
+    });
+
+    document.getElementById('pdf-save-btn').addEventListener('click', async function () {
+      try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+      window.print();
+    });
   }
 })();
 </script>
