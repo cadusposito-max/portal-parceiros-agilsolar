@@ -784,9 +784,71 @@ function _chatDetachConversationChannel() {
 
 function _chatDetachThreadChannel() {
   const chat = _chatState();
-  if (!chat.threadChannel) return;
-  supabaseClient.removeChannel(chat.threadChannel);
-  chat.threadChannel = null;
+  if (chat.threadChannel) {
+    supabaseClient.removeChannel(chat.threadChannel);
+    chat.threadChannel = null;
+  }
+  if (chat.threadBroadcastChannel) {
+    supabaseClient.removeChannel(chat.threadBroadcastChannel);
+    chat.threadBroadcastChannel = null;
+  }
+}
+
+// Garante que o socket Realtime tem o token de auth — obrigatorio para
+// canais privados (broadcast com RLS). Idempotente, barato de chamar.
+async function _chatEnsureRealtimeAuth() {
+  try {
+    const { data } = await supabaseClient.auth.getSession();
+    const token = data && data.session ? data.session.access_token : null;
+    if (token && supabaseClient.realtime && typeof supabaseClient.realtime.setAuth === 'function') {
+      await supabaseClient.realtime.setAuth(token);
+    }
+  } catch (e) {
+    console.warn('[chat] setAuth realtime falhou:', e);
+  }
+}
+
+// Recebe uma mensagem via broadcast privado (caminho rapido) e injeta na
+// thread aberta, com dedupe por id (evita duplicar com o fallback postgres).
+function _chatHandleIncomingBroadcast(conversationId, payload) {
+  const chat = _chatState();
+  if (chat.activeConversationId !== conversationId) return;
+
+  const id = Number(payload.id);
+  if (!id) return;
+  if (chat.messages.some(m => Number(m.id) === id)) return; // dedupe
+
+  chat.messages.push({
+    id: id,
+    conversation_id: payload.conversation_id,
+    sender_id: payload.sender_id,
+    sender_nome: payload.sender_nome,
+    sender_email: '',
+    sender_avatar_url: payload.sender_avatar_url || null,
+    body: payload.body,
+    kind: payload.kind || 'text',
+    reply_to_message_id: payload.reply_to_message_id || null,
+    created_at: payload.created_at,
+    edited_at: payload.edited_at || null,
+    is_me: payload.sender_id === (state.currentUser && state.currentUser.id),
+  });
+
+  // Reordena por created_at,id (defende contra chegada fora de ordem)
+  chat.messages.sort((a, b) => {
+    const ta = new Date(a.created_at).getTime();
+    const tb = new Date(b.created_at).getTime();
+    if (ta !== tb) return ta - tb;
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  });
+
+  _chatRenderMessages(true);
+
+  // Atualiza a lista lateral (preview/ordem/unread) sem bloquear
+  _chatRefreshConversations(true).catch(() => {});
+
+  if (_chatCanMarkReadNow()) {
+    _chatQueueMarkRead(conversationId);
+  }
 }
 
 function _chatSubscribeConversationChannel() {
@@ -813,12 +875,31 @@ function _chatSubscribeConversationChannel() {
     .subscribe();
 }
 
-function _chatSubscribeThreadChannel(conversationId) {
+async function _chatSubscribeThreadChannel(conversationId) {
   const chat = _chatState();
   if (!_chatHasSession() || chat.hasAccess !== true || !conversationId) return;
 
   _chatDetachThreadChannel();
 
+  // Garante token no socket antes de assinar canal privado
+  await _chatEnsureRealtimeAuth();
+
+  // Conversa pode ter mudado durante o await
+  if (_chatState().activeConversationId !== conversationId) return;
+
+  // --- CAMINHO RAPIDO: broadcast privado (topic = chat-conv-<uuid>) ---
+  // Nome do canal == topic, pra casar com a policy chat_conv_broadcast_read.
+  chat.threadBroadcastChannel = supabaseClient
+    .channel(`chat-conv-${conversationId}`, { config: { private: true } })
+    .on('broadcast', { event: 'new_message' }, (msg) => {
+      const payload = msg && msg.payload ? msg.payload : null;
+      if (payload && payload.id) {
+        _chatHandleIncomingBroadcast(conversationId, payload);
+      }
+    })
+    .subscribe();
+
+  // --- FALLBACK: postgres_changes (redundancia se broadcast falhar) ---
   const channelName = `chat-thread-${conversationId}-${Date.now()}`;
   chat.threadChannel = supabaseClient
     .channel(channelName)
