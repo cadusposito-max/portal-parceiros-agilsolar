@@ -565,18 +565,19 @@
   .pay-card li {
     font-size: 9.5pt;
     color: var(--ink-2);
-    display: flex;
-    gap: 3mm;
-    align-items: flex-start;
+    line-height: 1.45;
+    position: relative;
+    padding-left: 7mm;
   }
   .pay-card li::before {
     content: "";
+    position: absolute;
+    left: 0;
+    top: 1.2mm;
     width: 4mm; height: 4mm;
     border-radius: 50%;
     background: var(--green-soft);
     border: 2px solid var(--green);
-    flex-shrink: 0;
-    margin-top: 1.2mm;
   }
 
   .note-card {
@@ -1072,7 +1073,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
         <span>
           <strong>Parcelamos em até 18× no cartão</strong>
-          &nbsp;·&nbsp; ou financiamento em até 84 meses com 90 dias de carência.
+          &nbsp;·&nbsp; ou financiamento em até 84 meses com 120 dias de carência.
         </span>
       </div>
     </div>
@@ -1179,7 +1180,7 @@
       <div class="feature">100% financiado</div>
       <ul>
         <li>Em até <strong>84 meses</strong> pra pagar.</li>
-        <li>Carência de <strong>90 dias</strong> pra começar a pagar.</li>
+        <li>Carência de <strong>120 dias</strong> pra começar a pagar.</li>
         <li>Análise via parceiros financeiros homologados.</li>
       </ul>
     </div>
@@ -1537,19 +1538,25 @@
   function renderizar(data) {
     var html = document.body.innerHTML;
 
-    // 1) blocos invertidos {{^ key }}...{{/ key }}
-    html = html.replace(/\{\{\^\s*([\w_]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g, function (_, k, body) {
-      var v = data[k];
-      var falsy = (v === undefined || v === null || v === false || v === '' || v === 0);
-      return falsy ? body : '';
-    });
-
-    // 2) blocos {{# key }}...{{/ key }}
-    html = html.replace(/\{\{#\s*([\w_]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g, function (_, k, body) {
-      var v = data[k];
-      var truthy = !(v === undefined || v === null || v === false || v === '' || v === 0);
-      return truthy ? body : '';
-    });
+    // 1+2) blocos {{^ key }} e {{# key }} ... {{/ key }}
+    // Loop ate estabilizar, pra resolver blocos ANINHADOS (ex.: custom_payment_note
+    // dentro de proposta_modo_personalizada). Um unico .replace nao reprocessa o
+    // conteudo ja consumido do bloco externo, deixando as tags internas literais.
+    function bloco(v) {
+      return !(v === undefined || v === null || v === false || v === '' || v === 0);
+    }
+    var prev;
+    do {
+      prev = html;
+      // blocos invertidos {{^ key }}...{{/ key }}
+      html = html.replace(/\{\{\^\s*([\w_]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g, function (_, k, body) {
+        return bloco(data[k]) ? '' : body;
+      });
+      // blocos {{# key }}...{{/ key }}
+      html = html.replace(/\{\{#\s*([\w_]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g, function (_, k, body) {
+        return bloco(data[k]) ? body : '';
+      });
+    } while (html !== prev);
 
     // 3) substituicoes simples {{ key }}
     html = html.replace(/\{\{\s*([\w_]+)\s*\}\}/g, function (_, k) {

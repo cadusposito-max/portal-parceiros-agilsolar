@@ -473,7 +473,7 @@ function _updatePropostaThemeBtn() {
   if (!btn || !icon) return;
   const isDark = !document.body.classList.contains('theme-light');
   icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-  btn.className = 'absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center border transition-all '
+  btn.className = 'w-9 h-9 flex items-center justify-center border transition-all '
     + (isDark
       ? 'border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white'
       : 'border-blue-300 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-800');
