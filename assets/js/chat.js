@@ -505,12 +505,16 @@ async function _chatRefreshConversations(preserveSelection = true) {
   }
 }
 
-async function _chatLoadMessages(conversationId, scrollToEnd = false) {
+async function _chatLoadMessages(conversationId, scrollToEnd = false, silent = false) {
   const chat = _chatState();
   if (!conversationId || !_chatHasSession() || chat.hasAccess !== true) return;
 
-  chat.loadingMessages = true;
-  _chatRenderMessages(false);
+  // silent = refresh em tempo real (sem spinner). Apenas a abertura inicial
+  // da conversa mostra "Carregando mensagens..."
+  if (!silent) {
+    chat.loadingMessages = true;
+    _chatRenderMessages(false);
+  }
 
   const { data, error } = await supabaseClient.rpc('chat_list_messages', {
     p_conversation_id: conversationId,
@@ -897,7 +901,11 @@ async function _chatSubscribeThreadChannel(conversationId) {
         _chatHandleIncomingBroadcast(conversationId, payload);
       }
     })
-    .subscribe();
+    .subscribe((status) => {
+      // SUBSCRIBED = canal privado autorizado (broadcast em tempo real ativo)
+      // CHANNEL_ERROR = policy negou ou socket sem token
+      console.log('[chat] broadcast', conversationId, '->', status);
+    });
 
   // --- FALLBACK: postgres_changes (redundancia se broadcast falhar) ---
   const channelName = `chat-thread-${conversationId}-${Date.now()}`;
@@ -910,7 +918,7 @@ async function _chatSubscribeThreadChannel(conversationId) {
       filter: `conversation_id=eq.${conversationId}`
     }, async () => {
       if (_chatState().activeConversationId !== conversationId) return;
-      await _chatLoadMessages(conversationId, true);
+      await _chatLoadMessages(conversationId, true, true); // silent: sem spinner
       await _chatRefreshConversations(true);
       if (_chatCanMarkReadNow()) {
         _chatQueueMarkRead(conversationId);
