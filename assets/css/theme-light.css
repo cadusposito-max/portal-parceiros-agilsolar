@@ -214,7 +214,9 @@ body.theme-light [class*="bg-purple-6"][class*="text-white"],
 body.theme-light [class*="bg-orange-5"][class*="text-white"],
 body.theme-light [class*="bg-orange-6"][class*="text-white"],
 body.theme-light [class*="bg-emerald-5"][class*="text-white"],
-body.theme-light [class*="bg-emerald-6"][class*="text-white"] {
+body.theme-light [class*="bg-emerald-6"][class*="text-white"],
+body.theme-light [class*="bg-blue-5"][class*="text-white"],
+body.theme-light [class*="bg-blue-6"][class*="text-white"] {
   color: #ffffff !important;
 }
 /* Also restore white on gradient buttons that already have the right bg */
@@ -511,27 +513,51 @@ body.theme-light [class*="bg-orange-600\/10"] {
 
 /* ─── 27. ADMIN PANEL ─────────────────────── */
 
-/* Admin bar (MODO ADMINISTRADOR ATIVO) */
-body.theme-light #admin-bar {
+/* Admin bar (MODO ADMINISTRADOR ATIVO) — barra global (legado) + barra do overlay */
+body.theme-light #admin-bar,
+body.theme-light #admin-overlay-kitsbar {
   background-color: #fff1f2 !important;
   border-color: #fecdd3 !important;
 }
-body.theme-light #admin-bar [class*="bg-red-6"] {
+body.theme-light #admin-bar [class*="bg-red-6"],
+body.theme-light #admin-overlay-kitsbar [class*="bg-red-6"] {
   background-color: rgba(220,38,38,0.12) !important;
   border-color: rgba(220,38,38,0.3) !important;
 }
-body.theme-light #admin-bar [class*="text-red-4"] { color: #b91c1c !important; }
-body.theme-light #admin-bar [class*="text-white"] { color: #1e293b !important; }
+body.theme-light #admin-bar [class*="text-red-4"],
+body.theme-light #admin-overlay-kitsbar [class*="text-red-4"] { color: #b91c1c !important; }
+body.theme-light #admin-bar [class*="text-white"],
+body.theme-light #admin-overlay-kitsbar [class*="text-white"] { color: #1e293b !important; }
 
 /* Admin bar action buttons (MODELO CSV, XLSX, IMPORTAR, EXPORTAR) */
 body.theme-light #admin-bar a[class*="bg-black"],
-body.theme-light #admin-bar button[class*="bg-black"] {
+body.theme-light #admin-bar button[class*="bg-black"],
+body.theme-light #admin-overlay-kitsbar a[class*="bg-black"],
+body.theme-light #admin-overlay-kitsbar button[class*="bg-black"] {
   background-color: #ffffff !important;
 }
-body.theme-light #admin-bar [class*="text-cyan-3"]  { color: #0891b2 !important; border-color: #67e8f9 !important; }
-body.theme-light #admin-bar [class*="text-blue-3"]  { color: #1d4ed8 !important; border-color: #93c5fd !important; }
-body.theme-light #admin-bar [class*="text-green-3"] { color: #15803d !important; border-color: #86efac !important; }
-body.theme-light #admin-bar [class*="text-amber-3"] { color: #92400e !important; border-color: #fcd34d !important; }
+body.theme-light #admin-bar [class*="text-cyan-3"],
+body.theme-light #admin-overlay-kitsbar [class*="text-cyan-3"]  { color: #0891b2 !important; border-color: #67e8f9 !important; }
+body.theme-light #admin-bar [class*="text-blue-3"],
+body.theme-light #admin-overlay-kitsbar [class*="text-blue-3"]  { color: #1d4ed8 !important; border-color: #93c5fd !important; }
+body.theme-light #admin-bar [class*="text-green-3"],
+body.theme-light #admin-overlay-kitsbar [class*="text-green-3"] { color: #15803d !important; border-color: #86efac !important; }
+body.theme-light #admin-bar [class*="text-amber-3"],
+body.theme-light #admin-overlay-kitsbar [class*="text-amber-3"] { color: #92400e !important; border-color: #fcd34d !important; }
+
+/* Overlay admin global — fundo e cabeçalho no tema claro */
+body.theme-light #admin-overlay {
+  background-color: rgba(241,245,249,0.97) !important;
+}
+body.theme-light #admin-overlay .sticky {
+  background-color: rgba(255,255,255,0.92) !important;
+  border-color: #e2e8f0 !important;
+}
+body.theme-light #admin-overlay #admin-close-btn {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
 
 /* Admin section header (Gerenciamento do Sistema) */
 body.theme-light [class*="bg-red-950\/10"],

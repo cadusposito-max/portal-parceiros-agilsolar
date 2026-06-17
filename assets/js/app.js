@@ -155,7 +155,7 @@ function renderHeaderUser() {
     avatarEl.onclick = openProfileModal;
   }
   if (nameEl)   nameEl.textContent = displayName;
-  if (roleEl)   roleEl.textContent = state.isAdmin ? 'Administrador' : state.isGestor ? 'Gestor' : 'Vendedor';
+  if (roleEl)   roleEl.textContent = state.isAdmin ? 'Administrador' : state.isGestor ? 'Gestor' : state.isTecnico ? 'Técnico' : 'Vendedor';
   if (wrapEl)   wrapEl.classList.replace('hidden', 'flex');
 
   if (state.isAdmin) hydrateAdminPreferences();
@@ -180,8 +180,8 @@ function renderHeaderUser() {
       ? 'view-scope-toggle is-consolidated p-3 border transition-all duration-300 bg-purple-600 border-purple-500 text-white hover:bg-purple-700 hover:border-purple-400 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest'
       : 'view-scope-toggle is-unit p-3 border transition-all duration-300 bg-blue-600 border-blue-500 text-white hover:bg-blue-700 hover:border-blue-400 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest';
     btn.innerHTML = state.adminViewAll
-      ? '<i data-lucide="layers" class="w-4 h-4"></i><span class="hidden sm:inline">CONSOLIDADO</span>'
-      : '<i data-lucide="building-2" class="w-4 h-4"></i><span class="hidden sm:inline">MINHA UNIDADE</span>';
+      ? '<i data-lucide="layers" class="w-4 h-4"></i><span class="hidden lg:inline">CONSOLIDADO</span>'
+      : '<i data-lucide="building-2" class="w-4 h-4"></i><span class="hidden lg:inline">MINHA UNIDADE</span>';
     if (adminBtn && adminBtn.parentNode) {
       adminBtn.parentNode.insertBefore(btn, adminBtn);
     }
@@ -198,8 +198,8 @@ function renderHeaderUser() {
       ? 'view-scope-toggle is-gestor-all p-3 border transition-all duration-300 bg-blue-600 border-blue-500 text-white hover:bg-blue-700 hover:border-blue-400 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest'
       : 'view-scope-toggle is-gestor-own p-3 border transition-all duration-300 bg-blue-600 border-blue-500 text-white hover:bg-blue-700 hover:border-blue-400 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest';
     btn.innerHTML = state.gestorViewAll
-      ? '<i data-lucide="users" class="w-4 h-4"></i><span class="hidden sm:inline">MINHA UNIDADE</span>'
-      : '<i data-lucide="user" class="w-4 h-4"></i><span class="hidden sm:inline">APENAS MEUS</span>';
+      ? '<i data-lucide="users" class="w-4 h-4"></i><span class="hidden lg:inline">MINHA UNIDADE</span>'
+      : '<i data-lucide="user" class="w-4 h-4"></i><span class="hidden lg:inline">APENAS MEUS</span>';
     if (adminBtn && adminBtn.parentNode) {
       adminBtn.parentNode.insertBefore(btn, adminBtn);
     }
@@ -292,41 +292,168 @@ async function refreshData() {
   showToast('Dados atualizados.');
 }
 
+// Abas do O&M visíveis para um vendedor com acesso (sem OS/Pendências/Relatórios/Técnicos).
+const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
+
+function getActiveTabsForEnvironment() {
+  // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
+  if (state.isTecnico) return OM_TABS;
+  if (state.environment === 'om' && state.canOM) {
+    // Admin/Gestor/Coordenador veem o O&M completo; vendedor O&M só Propostas, Central e Clientes.
+    if (state.isAdmin || state.isGestor || state.isCoordenador) return OM_TABS;
+    return OM_TABS.filter(t => OM_TABS_VENDEDOR.includes(t.id));
+  }
+  // O Admin não é mais uma aba do Comercial — virou destino global (overlay),
+  // acessível pela engrenagem em qualquer vertente. Ver openAdmin().
+  return TABS;
+}
+
+function getActiveTabId() {
+  return state.environment === 'om' ? state.omActiveTab : state.activeTab;
+}
+
+// Lê no backend se o usuário corrente pode ver o ambiente O&M.
+// Admin sempre pode; técnico vive no O&M (aba OS); demais dependem de om_enabled.
+async function omRefreshAccess() {
+  if (state.isAdmin || state.isTecnico) { state.canOM = true; return; }
+  try {
+    const { data, error } = await supabaseClient.rpc('om_can_use_current_user');
+    state.canOM = !error && data === true;
+  } catch (_) {
+    state.canOM = false;
+  }
+}
+
+function renderEnvSwitcher() {
+  const desktop = document.getElementById('env-switcher');
+  const section = document.getElementById('menu-section');
+
+  // Técnico não troca de ambiente — esconde o seletor por completo.
+  if (state.isTecnico) {
+    if (desktop) desktop.style.display = 'none';
+    if (section) section.style.display = 'none';
+    return;
+  }
+  // Sem acesso ao O&M: esconde o seletor e mantém só o Comercial.
+  if (!state.canOM) {
+    if (state.environment === 'om') state.environment = 'comercial';
+    if (desktop) desktop.style.display = 'none';
+    if (section) section.style.display = 'none';
+    return;
+  }
+  // Não-técnico com acesso: a visibilidade fica por conta das classes responsivas.
+  if (desktop) desktop.style.display = '';
+  if (section) section.style.display = '';
+
+  const activate = (idSuffix, isOn, isOm) => {
+    const btn = document.getElementById(idSuffix);
+    if (!btn) return;
+    const base = 'env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap';
+    const baseMobile = 'env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all';
+    const root = idSuffix.endsWith('-mobile') ? baseMobile : base;
+    if (isOn) {
+      const tone = isOm
+        ? 'om-nav-grad om-nav-shadow'
+        : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[0_0_12px_rgba(234,88,12,0.3)]';
+      btn.className = `${root} ${tone}`;
+    } else {
+      btn.className = `${root} text-neutral-500 hover:text-neutral-200 bg-transparent`;
+    }
+  };
+
+  const isOm = state.environment === 'om';
+  activate('env-btn-comercial',         !isOm, false);
+  activate('env-btn-om',                 isOm, true);
+  activate('env-btn-comercial-mobile',  !isOm, false);
+  activate('env-btn-om-mobile',          isOm, true);
+
+}
+
 function renderTabs() {
   const container = document.getElementById('tab-container');
   const mobileNav = document.getElementById('mobile-menu-tabs');
 
-  const tabs = state.isAdmin
-    ? [...TABS, { id: 'admin', label: 'ADMIN', icon: 'settings' }]
-    : TABS;
+  renderEnvSwitcher();
 
-  const desktopHTML = tabs.map(tab => {
-    const isActive = state.activeTab === tab.id;
+  const tabs = getActiveTabsForEnvironment();
+  const activeId = getActiveTabId();
+  const isOm = state.environment === 'om';
+
+  const activeBg = isOm
+    ? 'om-nav-grad om-nav-shadow'
+    : 'text-black bg-gradient-to-r from-orange-600 to-yellow-500 shadow-[0_0_12px_rgba(234,88,12,0.3)]';
+  const activeBgMobile = isOm
+    ? 'om-nav-grad shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]'
+    : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]';
+  const hoverBorder = isOm ? 'om-hover-border' : 'hover:border-orange-500/40';
+
+  const primaryTabs   = tabs.filter(t => !t.secondary);
+  const secondaryTabs = tabs.filter(t =>  t.secondary);
+  const hasSecondaryActive = secondaryTabs.some(t => t.id === activeId);
+
+  const buildBtn = (tab) => {
+    const isActive = activeId === tab.id;
     return `
       <button onclick="setTab('${tab.id}')"
         class="app-tab-btn ${isActive ? 'is-active' : ''} relative flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap
-          ${isActive
-            ? 'text-black bg-gradient-to-r from-orange-600 to-yellow-500 shadow-[0_0_12px_rgba(234,88,12,0.3)]'
-            : 'text-neutral-500 hover:text-neutral-300 bg-transparent'
-          }">
+          ${isActive ? activeBg : 'text-neutral-500 hover:text-neutral-300 bg-transparent'}">
         <i data-lucide="${tab.icon}" class="w-3.5 h-3.5 ${isActive ? 'stroke-[3px]' : ''}"></i>
         ${tab.label}
       </button>
     `;
-  }).join('');
+  };
 
-  container.innerHTML = desktopHTML;
+  const subnav = document.getElementById('om-subnav');
+
+  if (isOm) {
+    // O&M: as rotas viram uma SEGUNDA LINHA (sub-nav) no desktop; o topo fica só
+    // com o switcher de ambiente. Sem dropdown "MAIS".
+    container.innerHTML = '';
+    const moreMenu = document.getElementById('om-more-menu');
+    if (moreMenu) moreMenu.remove();
+    if (subnav) {
+      subnav.className = 'border-t border-neutral-800/60 bg-black/95 hidden lg:block';
+      subnav.innerHTML = `
+        <div class="max-w-7xl mx-auto px-4">
+          <nav class="flex items-center gap-1 overflow-x-auto no-scrollbar">
+            ${tabs.map(tab => {
+              const isActive = activeId === tab.id;
+              return `
+                <button onclick="setTab('${tab.id}')"
+                  class="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all
+                    ${isActive ? activeBg : 'text-neutral-400 hover:text-white hover:bg-neutral-900/70'}">
+                  <i data-lucide="${tab.icon}" class="w-3.5 h-3.5 ${isActive ? 'stroke-[3px]' : ''}"></i>${tab.label}
+                </button>`;
+            }).join('')}
+          </nav>
+        </div>`;
+    }
+  } else {
+    // Comercial: abas no topo (com "MAIS" para secundárias, se houver).
+    let desktopHTML = primaryTabs.map(buildBtn).join('');
+    if (secondaryTabs.length) {
+      const moreActiveCls = hasSecondaryActive ? activeBg : 'text-neutral-500 hover:text-neutral-300 bg-transparent';
+      desktopHTML += `
+        <button id="om-more-btn" onclick="toggleOmMoreMenu(event)"
+          class="app-tab-btn ${hasSecondaryActive ? 'is-active' : ''} relative flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap ${moreActiveCls}">
+          <i data-lucide="more-horizontal" class="w-3.5 h-3.5 ${hasSecondaryActive ? 'stroke-[3px]' : ''}"></i>
+          MAIS
+          <i data-lucide="chevron-down" class="w-3 h-3 -ml-0.5"></i>
+        </button>
+      `;
+    }
+    container.innerHTML = desktopHTML;
+    renderOmMoreMenu(secondaryTabs, activeId, isOm);
+    if (subnav) { subnav.className = 'hidden'; subnav.innerHTML = ''; }
+  }
 
   if (mobileNav) {
     mobileNav.innerHTML = tabs.map(tab => {
-      const isActive = state.activeTab === tab.id;
+      const isActive = activeId === tab.id;
       return `
         <button onclick="setTab('${tab.id}')"
           class="app-tab-mobile-btn ${isActive ? 'is-active' : ''} flex items-center gap-3 w-full px-4 py-4 text-sm font-black uppercase tracking-widest transition-all duration-200
-            ${isActive
-              ? 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]'
-              : 'text-neutral-400 hover:text-white hover:bg-neutral-900/80 border-l-2 border-transparent hover:border-orange-500/40'
-            }">
+            ${isActive ? activeBgMobile : `text-neutral-400 hover:text-white hover:bg-neutral-900/80 border-l-2 border-transparent ${hoverBorder}`}">
           <i data-lucide="${tab.icon}" class="w-5 h-5 ${isActive ? 'stroke-[3px]' : ''}"></i>
           <span class="flex-1 text-left">${tab.label}</span>
           ${isActive ? '<i data-lucide="chevron-right" class="w-4 h-4"></i>' : ''}
@@ -338,9 +465,210 @@ function renderTabs() {
   queueAppLucideCreateIcons();
 }
 
+function renderOmMoreMenu(secondaryTabs, activeId, isOm) {
+  let menu = document.getElementById('om-more-menu');
+  if (!secondaryTabs.length) {
+    if (menu) menu.remove();
+    return;
+  }
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'om-more-menu';
+    menu.className = 'hidden fixed z-[60] min-w-[200px] bg-black/98 backdrop-blur-xl border border-neutral-800/80 shadow-[0_8px_32px_rgba(0,0,0,0.6)] p-1';
+    document.body.appendChild(menu);
+  }
+  const activeBg = isOm
+    ? 'text-black bg-gradient-to-r from-blue-600 to-blue-400'
+    : 'text-black bg-gradient-to-r from-orange-600 to-yellow-500';
+  menu.innerHTML = secondaryTabs.map(tab => {
+    const isActive = activeId === tab.id;
+    return `
+      <button onclick="setTab('${tab.id}'); closeOmMoreMenu();"
+        class="flex items-center gap-2.5 w-full px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all
+          ${isActive ? activeBg : 'text-neutral-400 hover:text-white hover:bg-neutral-900/80'}">
+        <i data-lucide="${tab.icon}" class="w-3.5 h-3.5 ${isActive ? 'stroke-[3px]' : ''}"></i>
+        <span class="flex-1 text-left">${tab.label}</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function toggleOmMoreMenu(ev) {
+  if (ev) ev.stopPropagation();
+  const menu = document.getElementById('om-more-menu');
+  const btn  = document.getElementById('om-more-btn');
+  if (!menu || !btn) return;
+  if (menu.classList.contains('hidden')) {
+    const rect = btn.getBoundingClientRect();
+    menu.style.top  = (rect.bottom + 6) + 'px';
+    menu.style.left = Math.max(8, rect.right - 200) + 'px';
+    menu.classList.remove('hidden');
+    queueAppLucideCreateIcons();
+    setTimeout(() => {
+      document.addEventListener('click', closeOmMoreMenuOnOutside, { once: true });
+    }, 0);
+  } else {
+    closeOmMoreMenu();
+  }
+}
+
+function closeOmMoreMenu() {
+  const menu = document.getElementById('om-more-menu');
+  if (menu) menu.classList.add('hidden');
+}
+
+function closeOmMoreMenuOnOutside(ev) {
+  const menu = document.getElementById('om-more-menu');
+  const btn  = document.getElementById('om-more-btn');
+  if (!menu) return;
+  if (menu.contains(ev.target) || (btn && btn.contains(ev.target))) {
+    document.addEventListener('click', closeOmMoreMenuOnOutside, { once: true });
+    return;
+  }
+  closeOmMoreMenu();
+}
+
+function setEnvironment(env) {
+  if (state.isTecnico) return; // técnico não troca de ambiente
+  if (env !== 'comercial' && env !== 'om') return;
+  if (env === 'om' && !state.canOM) return; // sem acesso ao O&M
+  if (state.environment === env) return;
+
+  // Não fecha o menu: ao trocar de seção, o usuário vê as abas da nova seção.
+  if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
+  stopDashboardClock();
+
+  state.environment = env;
+  renderTabs();
+  renderContent();
+}
+
+// ==========================================
+// LAUNCHER — tela inicial de escolha de ambiente
+// ==========================================
+
+// O launcher só aparece quando há escolha real (2+ ambientes). Hoje isso equivale
+// a "tem Comercial + O&M". Quando Financeiro/Vistoria/Engenharia ficarem ativos,
+// basta contar os ambientes disponíveis aqui e mostrar quando forem >= 2.
+function launcherShouldShow() {
+  return !state.isTecnico && !!state.canOM;
+}
+
+function showLauncher() {
+  const screen = document.getElementById('launcher-screen');
+  if (!screen) return;
+
+  const displayName = (state.profile?.nome) || (typeof getFirstName === 'function' ? getFirstName() : '') || '';
+  const email       = state.currentUser ? state.currentUser.email : '';
+  const initial     = (displayName || email).charAt(0).toUpperCase();
+  const roleLabel   = state.isAdmin ? 'Administrador' : state.isGestor ? 'Gestor' : state.isTecnico ? 'Técnico' : 'Vendedor';
+
+  const nameEl = document.getElementById('launcher-user-name');
+  const roleEl = document.getElementById('launcher-user-role');
+  if (nameEl) nameEl.textContent = displayName;
+  if (roleEl) roleEl.textContent = roleLabel;
+
+  // Avatar: foto se houver, senão a inicial — mesma lógica de renderHeaderUser().
+  const rawAvatarUrl = state.profile?.avatar_url || '';
+  const avatarUrl    = rawAvatarUrl && typeof safeImageUrl === 'function'
+    ? safeImageUrl(rawAvatarUrl, 'assets/img/logo-light.png') : '';
+  const avatarEl = document.getElementById('launcher-user-avatar');
+  if (avatarEl) {
+    if (avatarUrl) {
+      avatarEl.innerHTML = `<img src="${avatarUrl}" alt="avatar" class="w-full h-full object-cover rounded-full" onerror="this.src='assets/img/logo-light.png';this.onerror=null;">`;
+    } else {
+      avatarEl.textContent = initial;
+    }
+  }
+
+  // O&M só é oferecido a quem tem acesso (robustez p/ futuro).
+  const omCard = document.getElementById('launcher-card-om');
+  if (omCard) omCard.classList.toggle('hidden', !state.canOM);
+
+  screen.classList.remove('hidden');
+  // força reflow antes de animar a opacidade
+  void screen.offsetWidth;
+  screen.classList.remove('opacity-0');
+  if (typeof queueAppLucideCreateIcons === 'function') queueAppLucideCreateIcons();
+  else if (window.lucide) lucide.createIcons();
+
+  startLauncherTypewriter();
+}
+
+// Efeito "typewriter" na pergunta do hero: digita, segura pra leitura, apaga e troca.
+// Respeita prefers-reduced-motion (mostra a 1ª frase parada).
+let _launcherTwStarted = false;
+function startLauncherTypewriter() {
+  const el = document.getElementById('launcher-tw');
+  if (!el || _launcherTwStarted) return;
+  _launcherTwStarted = true;
+
+  const FRASES = [
+    'Para onde você quer ir?',
+    'Por onde vamos começar?',
+    'Onde você vai trabalhar hoje?',
+    'Qual ambiente quer abrir?',
+    'O que vamos resolver agora?',
+  ];
+
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { el.textContent = FRASES[0]; return; }
+
+  const typeSpeed = 55;    // ms por letra ao escrever
+  const delSpeed  = 28;    // ms por letra ao apagar
+  const holdFull  = 3200;  // pausa com a frase escrita (tempo de leitura)
+  const holdEmpty = 450;   // pausa antes da próxima frase
+
+  let i = 0, pos = 0, apagando = false;
+  el.textContent = '';
+  (function tick() {
+    const txt = FRASES[i];
+    if (!apagando) {
+      pos++;
+      el.textContent = txt.slice(0, pos);
+      if (pos === txt.length) { apagando = true; return setTimeout(tick, holdFull); }
+      return setTimeout(tick, typeSpeed);
+    } else {
+      pos--;
+      el.textContent = txt.slice(0, pos);
+      if (pos === 0) { apagando = false; i = (i + 1) % FRASES.length; return setTimeout(tick, holdEmpty); }
+      return setTimeout(tick, delSpeed);
+    }
+  })();
+}
+
+// Disparado pelo clique nos cards. NÃO usa setEnvironment (que aborta quando o
+// ambiente já é o atual — caso do Comercial, que é o default).
+function enterEnvironment(env) {
+  if (env !== 'comercial' && env !== 'om') return;
+  if (env === 'om' && !state.canOM) return;
+
+  const screen = document.getElementById('launcher-screen');
+  if (screen) {
+    screen.classList.add('opacity-0', 'pointer-events-none');
+    setTimeout(() => screen.classList.add('hidden'), 500);
+  }
+
+  state.environment = env;
+  if (env === 'om') state.omActiveTab = 'central';
+  renderTabs();
+  renderContent();
+}
+
 function setTab(tabId) {
-  if (tabId === 'admin' && !userCanAccessAdminPanel()) {
-    showToast('Acesso restrito.');
+  if (state.isTecnico && tabId !== 'os') return; // técnico só acessa a aba OS
+
+  // Admin é destino global (overlay), não uma aba de ambiente. Qualquer chamada
+  // remanescente a setTab('admin') é redirecionada para o overlay.
+  if (tabId === 'admin') { closeMobileMenu(); openAdmin(); return; }
+
+  if (state.environment === 'om') {
+    closeMobileMenu();
+    if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
+    stopDashboardClock();
+    state.omActiveTab = tabId;
+    renderTabs();
+    renderContent();
     return;
   }
 
@@ -350,6 +678,68 @@ function setTab(tabId) {
   state.activeTab = tabId;
   renderTabs();
   renderContent();
+}
+
+// =======================================================================
+// ADMIN GLOBAL (overlay transversal) — Etapa 1: fluxo de estado.
+// O painel admin deixa de ser filho do Comercial e passa a ser um destino
+// acessível pela engrenagem de qualquer vertente. Aqui só preparamos o
+// estado abrir/fechar guardando a origem; o overlay/render vem na Etapa 2.
+// (Ainda não ligado à engrenagem — funções dormentes, sem efeito visual.)
+// =======================================================================
+function openAdmin() {
+  if (!userCanAccessAdminPanel()) { showToast('Acesso restrito.'); return; }
+  if (state.adminOpen) return;
+  // Overlay transversal: NÃO mexemos na vertente de baixo. Guardamos a origem
+  // apenas para referência/estado visual; "voltar de onde veio" é automático,
+  // porque o conteúdo da vertente permanece intacto atrás do overlay.
+  state.returnEnvironment = state.environment;
+  state.returnTab = state.environment === 'om' ? state.omActiveTab : state.activeTab;
+  state.adminOpen = true;
+  renderAdminOverlay();
+}
+
+function closeAdmin() {
+  if (!state.adminOpen) return;
+  state.adminOpen = false;
+  state.returnEnvironment = null;
+  state.returnTab = null;
+  renderAdminOverlay();
+}
+
+// Classes da engrenagem (#admin-toggle-btn): aparência padrão x ativa (overlay aberto).
+const ADMIN_GEAR_CLS_DEFAULT = 'p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-500 hover:text-white hover:border-neutral-600 shrink-0';
+const ADMIN_GEAR_CLS_ACTIVE  = 'p-2.5 border transition-all duration-300 bg-red-600 border-red-500 text-white shrink-0';
+
+// Fecha o overlay com a tecla ESC.
+function _adminEscHandler(ev) {
+  if (ev.key === 'Escape' && state.adminOpen) closeAdmin();
+}
+
+// Mostra/esconde o overlay admin e renderiza o painel no container próprio.
+// Não toca no #main-container — a vertente de baixo fica preservada.
+function renderAdminOverlay() {
+  const overlay = document.getElementById('admin-overlay');
+  if (!overlay) return;
+  const gear = document.getElementById('admin-toggle-btn');
+  if (state.adminOpen) {
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // trava scroll do fundo
+    if (gear) gear.className = ADMIN_GEAR_CLS_ACTIVE; // engrenagem em destaque
+    // Label do botão de fechar indica para onde volta.
+    const lbl = document.getElementById('admin-close-label');
+    if (lbl) lbl.textContent = state.returnEnvironment === 'om' ? 'Voltar ao O&M' : 'Voltar ao Comercial';
+    document.addEventListener('keydown', _adminEscHandler);
+    const content = document.getElementById('admin-overlay-content');
+    if (content && typeof renderAdminPanel === 'function') renderAdminPanel(content);
+  } else {
+    overlay.classList.add('hidden');
+    overlay.scrollTop = 0;
+    document.body.style.overflow = '';
+    if (gear) gear.className = ADMIN_GEAR_CLS_DEFAULT; // restaura aparência
+    document.removeEventListener('keydown', _adminEscHandler);
+  }
+  queueAppLucideCreateIcons();
 }
 
 function setViewMode(mode) {
@@ -386,6 +776,24 @@ function renderContent() {
 
   emptyState.classList.add('hidden');
 
+  // Ambiente O&M: delega para o módulo om.js
+  if (state.environment === 'om') {
+    stopDashboardClock();
+    mainToolbar.classList.add('hidden');
+    toggleContainer.classList.add('hidden');
+    if (adminBar) adminBar.classList.add('hidden');
+    if (typeof renderOMRoute === 'function') {
+      renderOMRoute(container, state.omActiveTab);
+    } else {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo O&M não carregado.</div>';
+    }
+    queueAppLucideCreateIcons();
+    return;
+  }
+
+  // Saindo do O&M: para clock interno do módulo
+  if (typeof stopOmClock === 'function') stopOmClock();
+
   if (state.activeTab === 'dashboard') {
     mainToolbar.classList.add('hidden');
     toggleContainer.classList.add('hidden');
@@ -407,24 +815,6 @@ function renderContent() {
     toggleContainer.classList.add('hidden');
     if (adminBar) adminBar.classList.add('hidden');
     renderVendas(container);
-  } else if (state.activeTab === 'admin') {
-    stopDashboardClock();
-    mainToolbar.classList.add('hidden');
-    toggleContainer.classList.add('hidden');
-    if (adminBar) adminBar.classList.add('hidden');
-
-    if (!userCanAccessAdminPanel()) {
-      state.activeTab = 'dashboard';
-      renderTabs();
-      renderDashboard(container);
-      syncSearchToolbarForActiveTab();
-      queueAppLucideCreateIcons();
-      showToast('Acesso restrito.');
-      return;
-    }
-
-    state.isEditMode = true;
-    renderAdminPanel(container);
   } else {
     stopDashboardClock();
     if (!state.isEditMode) {

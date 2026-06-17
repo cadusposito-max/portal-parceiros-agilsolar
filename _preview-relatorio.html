@@ -1,0 +1,104 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Prévia relatório</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 32px 40px; background: #fff; }
+  .ph-head { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #0a4ba0; padding-bottom: 16px; margin-bottom: 24px; }
+  .ph-head img { height: 46px; }
+  .ph-head .meta { margin-left: auto; text-align: right; font-size: 12px; color: #555; }
+  .ph-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; color: #fff; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  .ph-sub { color: #555; font-size: 13px; margin-bottom: 24px; }
+  .ph-kpis { display: flex; gap: 12px; margin-bottom: 24px; }
+  .ph-kpi { flex: 1; border: 1px solid #e2e2e2; border-left-width: 4px; border-radius: 6px; padding: 10px 12px; }
+  .ph-kpi .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #888; font-weight: 700; }
+  .ph-kpi .val { font-size: 18px; font-weight: 800; margin-top: 2px; }
+  .ph-kpi.st-ok { border-left-color: #0a7d3c; background: #f3fbf6; }
+  .ph-kpi.st-ok .val { color: #0a7d3c; }
+  .ph-kpi.st-warn { border-left-color: #b45309; background: #fffaf2; }
+  .ph-kpi.st-warn .val { color: #b45309; }
+  .ph-kpi.st-bad { border-left-color: #b91c1c; background: #fdf4f4; }
+  .ph-kpi.st-bad .val { color: #b91c1c; }
+  .ph-kpi.st-neutral { border-left-color: #cbd5e1; }
+  .ph-cols { display: flex; gap: 16px; margin-bottom: 24px; }
+  .ph-card { flex: 1; border: 1px solid #e2e2e2; border-radius: 6px; padding: 14px 16px; }
+  .ph-card h2, section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #0a4ba0; margin: 0 0 10px; }
+  .ph-card .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 12px; }
+  .ph-card .grid2 .k { color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+  section { margin-bottom: 22px; }
+  .ph-pair { display: flex; gap: 16px; margin-bottom: 14px; }
+  .ph-pair > .ph-block { flex: 1; margin-bottom: 0; min-width: 0; }
+  .ph-block { margin-bottom: 14px; }
+  .ph-block h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #444; margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid #eee; }
+  .ph-count { color: #888; font-weight: 400; }
+  .ph-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .ph-block.wide .ph-grid { grid-template-columns: repeat(4, 1fr); }
+  .ph-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid #ddd; border-radius: 4px; }
+  ul { margin: 0; padding-left: 0; list-style: none; }
+  .ph-check li { padding: 4px 0; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  .ph-check .mark { display: inline-block; width: 18px; font-weight: 800; }
+  .ph-check .done .mark { color: #0a7d3c; }
+  .ph-check .undone { color: #999; }
+  .ph-check em { color: #777; font-style: normal; }
+  .ph-probs li { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+  .tag { background: #e6f0ff; color: #0a4ba0; font-size: 10px; padding: 1px 6px; border-radius: 3px; }
+  .obs { font-size: 13px; white-space: pre-line; }
+  .muted { color: #999; font-size: 12px; }
+  .ph-foot { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e2e2e2; font-size: 11px; color: #888; display: flex; }
+  .ph-foot .right { margin-left: auto; }
+</style></head><body>
+  <div class="ph-head">
+    <div style="font-weight:900;font-size:22px;color:#0a4ba0">Ágil<span style="color:#f59e0b">Solar</span></div>
+    <div class="meta">Relatório Técnico O&amp;M<br>OS-2026-002 · 03/06/2026</div>
+  </div>
+  <span class="ph-badge" style="background:#0a7d3c">Bom</span>
+  <h1>Construtora Horizonte</h1>
+  <div class="ph-sub">Limpeza de módulos</div>
+
+  <div class="ph-kpis">
+    <div class="ph-kpi st-ok"><div class="lbl">Checklist</div><div class="val">4/4</div></div>
+    <div class="ph-kpi st-neutral"><div class="lbl">Fotos</div><div class="val">4</div></div>
+    <div class="ph-kpi st-ok"><div class="lbl">Problemas</div><div class="val">0</div></div>
+    <div class="ph-kpi st-ok"><div class="lbl">Estado geral</div><div class="val">Bom</div></div>
+  </div>
+
+  <div class="ph-cols">
+    <div class="ph-card"><h2>Dados do cliente</h2>
+      <div style="font-weight:700;font-size:14px">Construtora Horizonte</div>
+      <div style="font-size:12px;color:#555;margin-top:4px">Av. Brasil, 1500 - Centro, São Paulo - SP</div>
+      <div style="font-size:12px;color:#555">(11) 98123-4567</div>
+    </div>
+    <div class="ph-card"><h2>Dados do sistema</h2>
+      <div class="grid2">
+        <div><div class="k">Potência</div>22 kWp</div>
+        <div><div class="k">Inversor</div>Sungrow SG20RT</div>
+        <div><div class="k">Módulos</div>40× JA Solar JAM72S30-550</div>
+        <div><div class="k">Telhado</div>metálico</div>
+      </div>
+    </div>
+  </div>
+
+  <section><h2>Registro fotográfico</h2>
+    <div class="ph-pair">
+      <div class="ph-block"><h3>Antes <span class="ph-count">2</span></h3>
+        <div class="ph-grid"><img src="https://picsum.photos/seed/a1/300"><img src="https://picsum.photos/seed/a2/300"></div></div>
+      <div class="ph-block"><h3>Depois <span class="ph-count">2</span></h3>
+        <div class="ph-grid"><img src="https://picsum.photos/seed/d1/300"><img src="https://picsum.photos/seed/d2/300"></div></div>
+    </div>
+    <div class="ph-block wide"><h3>Inversor / app <span class="ph-count">1</span></h3>
+      <div class="ph-grid"><img src="https://picsum.photos/seed/inv/300"></div></div>
+  </section>
+  <section><h2>Checklist (4/4)</h2>
+    <ul class="ph-check">
+      <li class="done"><span class="mark">✓</span> Inspeção visual dos módulos</li>
+      <li class="done"><span class="mark">✓</span> Limpeza completa dos módulos</li>
+      <li class="done"><span class="mark">✓</span> Verificação de fixação e cabeamento</li>
+      <li class="done"><span class="mark">✓</span> Medição de geração antes e depois <em>— 18 kWh → 21 kWh</em></li>
+    </ul>
+  </section>
+  <section><h2>Problemas encontrados</h2><p class="muted">Nenhum problema registrado.</p></section>
+  <section><h2>Observação final / recomendações</h2>
+    <div class="obs"><span class="muted">Sem observações.</span></div></section>
+
+  <div class="ph-foot"><span>Relatório gerado pelo portal AgilSolar O&amp;M</span><span class="right">Finalizado em 03/06/2026</span></div>
+</body></html>

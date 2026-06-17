@@ -612,9 +612,9 @@ body.theme-light {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--chat-border);
-  background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(0,0,0,0));
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0));
 }
 
 .chat-shell-header-left {
@@ -667,8 +667,8 @@ body.theme-light {
 
 .chat-shell-title {
   color: var(--chat-text);
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 900;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -677,11 +677,10 @@ body.theme-light {
 
 .chat-shell-subtitle {
   color: var(--chat-muted);
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 1px;
 }
 
 .chat-shell-header-actions {
@@ -807,19 +806,16 @@ body.theme-light {
 .chat-search-wrap input {
   width: 100%;
   border: 1px solid var(--chat-border);
-  background: rgba(255,255,255,0.03);
+  background: transparent;
   color: var(--chat-text);
-  padding: 10px 14px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
   outline: none;
-  border-radius: 999px;
-  transition: background 0.2s, border-color 0.2s;
 }
 
 .chat-search-wrap input:focus {
   border-color: var(--chat-accent);
-  background: rgba(255,255,255,0.06);
 }
 
 .chat-list-empty,
@@ -849,38 +845,39 @@ body.theme-light {
 .chat-conv-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
   color: var(--chat-text);
-  padding: 12px 12px;
-  border-radius: 12px;
-  transition: background 0.2s ease;
+  padding: 10px;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .chat-conv-item:hover {
-  background: rgba(255,255,255,0.04);
+  border-color: var(--chat-border);
+  background: rgba(255,255,255,0.02);
 }
 
 .chat-conv-item.is-active {
-  background: rgba(249,115,22,0.10);
+  border-color: rgba(249,115,22,0.35);
+  background: rgba(249,115,22,0.08);
 }
 
 .chat-conv-avatar,
 .chat-directory-avatar,
 .chat-thread-avatar-core,
 .chat-profile-avatar-core {
-  width: 46px;
-  height: 46px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--chat-accent), var(--chat-accent-2));
   color: #0b0b0c;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 900;
   flex-shrink: 0;
   overflow: hidden;
@@ -888,9 +885,8 @@ body.theme-light {
 
 .chat-thread-avatar-core,
 .chat-profile-avatar-core {
-  width: 42px;
-  height: 42px;
-  font-size: 14px;
+  width: 36px;
+  height: 36px;
 }
 
 .chat-conv-avatar.has-image,
@@ -930,8 +926,8 @@ body.theme-light {
 
 .chat-conv-title,
 .chat-directory-name {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 900;
   color: var(--chat-text);
   white-space: nowrap;
   overflow: hidden;
@@ -940,13 +936,13 @@ body.theme-light {
 
 .chat-conv-time,
 .chat-directory-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--chat-muted);
   white-space: nowrap;
 }
 
 .chat-conv-preview {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--chat-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -954,18 +950,17 @@ body.theme-light {
 }
 
 .chat-conv-unread {
-  min-width: 20px;
-  height: 20px;
+  min-width: 19px;
+  height: 19px;
   border-radius: 999px;
-  background: var(--chat-accent);
-  color: #0b0b0c;
+  background: #ef4444;
+  color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
   font-weight: 900;
-  padding: 0 5px;
-  box-shadow: 0 0 12px rgba(249,115,22,0.4);
+  padding: 0 4px;
 }
 
 .chat-thread-panel {
@@ -1007,17 +1002,33 @@ body.theme-light {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 18px;
-  background:
-    radial-gradient(circle at 15% 10%, rgba(249,115,22,0.05) 0%, transparent 40%),
-    radial-gradient(circle at 85% 90%, rgba(234,179,8,0.04) 0%, transparent 40%);
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .chat-msg-row {
   display: flex;
+}
+
+.chat-msg-day-separator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px 0 2px;
+}
+
+.chat-msg-day-separator span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chat-muted);
+  background: var(--chat-other);
+  border: 1px solid var(--chat-border);
+  padding: 4px 10px;
+  border-radius: 999px;
 }
 
 .chat-msg-row.is-me {
@@ -1075,63 +1086,45 @@ body.theme-light {
 
 .chat-thread-form {
   border-top: 1px solid var(--chat-border);
-  padding: 12px 16px;
+  padding: 10px;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 8px;
   background: var(--chat-panel);
 }
 
 .chat-thread-form textarea {
   flex: 1;
   resize: none;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--chat-border);
+  background: transparent;
   color: var(--chat-text);
-  padding: 10px 16px;
-  min-height: 42px;
+  padding: 8px 10px;
+  min-height: 44px;
   max-height: 150px;
-  /* IMPORTANTE: 16px previne auto-zoom no iOS Safari/PWA.
-     Qualquer valor menor que 16px dispara zoom obrigatorio no iOS. */
-  font-size: 16px;
-  line-height: 1.35;
+  font-size: 13px;
   outline: none;
-  border-radius: 24px;
-  transition: background 0.2s, border-color 0.2s;
 }
 
 .chat-thread-form textarea:focus {
   border-color: var(--chat-accent);
-  background: rgba(255,255,255,0.07);
 }
 
 .chat-thread-form button {
-  width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--chat-border);
   background: linear-gradient(135deg, var(--chat-accent), var(--chat-accent-2));
   color: #0b0b0c;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s ease, transform 0.1s ease;
-  flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(249,115,22,0.3);
-}
-
-.chat-thread-form button:hover:not(:disabled) {
-  transform: scale(1.05);
-}
-
-.chat-thread-form button:active:not(:disabled) {
-  transform: scale(0.95);
+  transition: opacity 0.2s ease;
 }
 
 .chat-thread-form button:disabled {
-  opacity: 0.35;
+  opacity: 0.45;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 .chat-directory-overlay {
@@ -1332,3 +1325,215 @@ body.theme-light {
     width: 100%;
   }
 }
+
+
+/* ============================================================
+   O&M ENVIRONMENT - tema verde operação
+   ============================================================ */
+.om-env {
+  /* radial sutil seguindo o acento do ambiente (laranja no dark / azul no light) */
+  background:
+    radial-gradient(900px 360px at 78% -180px, var(--om-radial), transparent 70%),
+    radial-gradient(900px 380px at 22% -200px, var(--om-radial2), transparent 70%);
+}
+
+.om-env table { border-collapse: separate; border-spacing: 0; }
+.om-env table tbody tr:last-child { border-bottom: 0; }
+
+/* ============================================================
+   O&M — ACENTO TEMÁTICO  ·  LARANJA no dark · AZUL no light
+   Vars de COR COMPLETA (não triplos) trocam conforme data-theme;
+   as classes .om-* abaixo as consomem. Switch de tema recolore
+   tudo sem JS. (Triplos rgb() em background-color não repintavam
+   no Chromium ao trocar a var — por isso usamos cores completas.)
+   ============================================================ */
+:root,
+html[data-theme="dark"] {
+  --om: #f97316;            /* orange-500 — sólido base */
+  --om-soft: #fb923c;       /* orange-400 — texto/realce sobre dark */
+  --om-strong: #ea580c;     /* orange-600 — gradiente */
+  --om-on: #fed7aa;         /* orange-200 — texto sobre card profundo */
+  --om-chip-bg:   rgba(251,146,60,0.12);
+  --om-pill-bg:   rgba(254,215,170,0.12);
+  --om-avatar-bg: rgba(251,146,60,0.15);
+  --om-avatar-bd: rgba(251,146,60,0.18);
+  --om-border-50: rgba(251,146,60,0.5);
+  --om-border-40: rgba(251,146,60,0.4);
+  --om-border-30: rgba(251,146,60,0.3);
+  --om-border-20: rgba(251,146,60,0.2);
+  --om-focus:     rgba(251,146,60,0.6);
+  --om-hatch:     rgba(251,146,60,0.22);
+  --om-contour:   #fb923c;
+  --om-contour-dot: rgba(251,146,60,0.45);
+  --om-shadow:    rgba(249,115,22,0.35);
+  --om-radial:    rgba(249,115,22,0.05);
+  --om-radial2:   rgba(234,88,12,0.03);
+  --om-deep-grad:
+    radial-gradient(120% 120% at 15% 0%, rgba(251,146,60,0.12), transparent 50%),
+    linear-gradient(135deg, #2a1606 0%, #3a2109 50%, #1d1004 100%);
+  --om-deep-border: rgba(124,45,18,0.55);
+}
+html[data-theme="light"] {
+  --om: #2563eb;            /* blue-600 */
+  --om-soft: #3b82f6;       /* blue-500 */
+  --om-strong: #1d4ed8;     /* blue-700 */
+  --om-on: #bfdbfe;         /* blue-200 */
+  --om-chip-bg:   rgba(59,130,246,0.12);
+  --om-pill-bg:   rgba(191,219,254,0.18);
+  --om-avatar-bg: rgba(59,130,246,0.14);
+  --om-avatar-bd: rgba(59,130,246,0.20);
+  --om-border-50: rgba(59,130,246,0.5);
+  --om-border-40: rgba(59,130,246,0.4);
+  --om-border-30: rgba(59,130,246,0.3);
+  --om-border-20: rgba(59,130,246,0.22);
+  --om-focus:     rgba(59,130,246,0.6);
+  --om-hatch:     rgba(59,130,246,0.22);
+  --om-contour:   #60a5fa;
+  --om-contour-dot: rgba(96,165,250,0.5);
+  --om-shadow:    rgba(37,99,235,0.3);
+  --om-radial:    rgba(59,130,246,0.06);
+  --om-radial2:   rgba(6,182,212,0.04);
+  --om-deep-grad:
+    radial-gradient(120% 120% at 15% 0%, rgba(96,165,250,0.16), transparent 50%),
+    linear-gradient(135deg, #0f2a4a 0%, #133561 50%, #0b1f3a 100%);
+  --om-deep-border: rgba(30,58,138,0.55);
+}
+
+/* Texto / preenchimento / traço */
+.om-acc        { color: var(--om-soft); }
+.om-acc-strong { color: var(--om); }
+.om-acc-fill   { background-color: var(--om-soft); }
+.om-acc-stroke { stroke: var(--om-soft); }
+
+/* Botão sólido (CTA) */
+.om-acc-solid       { background-color: var(--om); color: #000; }
+.om-acc-solid:hover { background-color: var(--om-soft); }
+
+/* Chip de ícone translúcido (+ variante que preenche no hover do grupo) */
+.om-acc-chip { background-color: var(--om-chip-bg); color: var(--om-soft); }
+.group:hover .om-acc-chip-h { background-color: var(--om-soft); color: #000; }
+
+/* Foco de input, hovers, avatar */
+.om-acc-focus:focus    { border-color: var(--om-focus); }
+.om-acc-hbborder:hover { border-color: var(--om-border-50); }
+.om-acc-hbtext:hover   { color: var(--om-soft); }
+.om-acc-avatar { background-color: var(--om-avatar-bg); border-color: var(--om-avatar-bd); color: var(--om-soft); }
+
+/* Barras do gráfico */
+.om-bar-empty { border: 1px solid var(--om-border-20); }
+.group:hover .om-bar-empty { border-color: var(--om-border-50); }
+.om-hatch { background-image: repeating-linear-gradient(135deg, var(--om-hatch) 0 4px, transparent 4px 9px); }
+
+/* Card de destaque profundo (Atendimentos / Horário) */
+.om-deep       { background: var(--om-deep-grad); border: 1px solid var(--om-deep-border); }
+.om-deep-label { color: var(--om-on); }
+.om-deep-icon  { background-color: rgba(255,255,255,0.06); color: var(--om-on); }
+.om-deep-pill  { background-color: var(--om-pill-bg); color: var(--om-on); }
+.om-contour      { stroke: var(--om-contour); stroke-opacity: 0.12; }
+.om-contour-dots { background-image: radial-gradient(var(--om-contour-dot) 1px, transparent 1px); }
+
+/* Navbar O&M — switcher de ambiente, abas e sub-nav */
+.om-nav-grad   { background-image: linear-gradient(to right, var(--om-strong), var(--om-soft)); color: #000; }
+.om-nav-shadow { box-shadow: 0 0 12px var(--om-shadow); }
+.om-hover-border:hover { border-color: var(--om-border-40); }
+
+/* ------------------------------------------------------------
+   O&M — demais rotas (Propostas, Clientes, OS, Pendências,
+   Relatórios, Técnicos) + modais ainda escritos com utilitários
+   AZUIS do Tailwind. Remapeamos para o acento temático dentro de
+   .om-env e do #om-modal-root. O prefixo :is(...) tem 2 classes
+   de especificidade = vence o utilitário do Tailwind sem !important.
+   No modo light as vars já são azuis → fica idêntico ao original.
+   ------------------------------------------------------------ */
+:is(.om-env, #om-modal-root) .bg-blue-500            { background-color: var(--om); }
+:is(.om-env, #om-modal-root) .hover\:bg-blue-400:hover { background-color: var(--om-soft); }
+:is(.om-env, #om-modal-root) .bg-blue-500\/10        { background-color: var(--om-chip-bg); }
+
+:is(.om-env, #om-modal-root) .text-blue-300          { color: var(--om-soft); }
+:is(.om-env, #om-modal-root) .text-blue-400          { color: var(--om-soft); }
+:is(.om-env, #om-modal-root) .text-blue-400\/80      { color: var(--om-soft); }
+:is(.om-env, #om-modal-root) .text-blue-950          { color: #000; }
+:is(.om-env, #om-modal-root) .hover\:text-blue-300:hover { color: var(--om-soft); }
+:is(.om-env, #om-modal-root) .hover\:text-blue-200:hover { color: var(--om-on); }
+
+:is(.om-env, #om-modal-root) .border-blue-500        { border-color: var(--om); }
+:is(.om-env, #om-modal-root) .border-blue-500\/20    { border-color: var(--om-border-20); }
+:is(.om-env, #om-modal-root) .border-blue-500\/30    { border-color: var(--om-border-30); }
+:is(.om-env, #om-modal-root) .border-blue-500\/40    { border-color: var(--om-border-40); }
+:is(.om-env, #om-modal-root) .hover\:border-blue-500\/40:hover { border-color: var(--om-border-40); }
+:is(.om-env, #om-modal-root) .hover\:border-blue-500\/50:hover { border-color: var(--om-border-50); }
+:is(.om-env, #om-modal-root) .focus\:border-blue-500\/60:focus { border-color: var(--om-focus); }
+
+/* gradientes azuis (pipeline / badges) — sobrescreve os stops do Tailwind */
+:is(.om-env, #om-modal-root) .from-blue-400,
+:is(.om-env, #om-modal-root) .from-blue-500,
+:is(.om-env, #om-modal-root) .from-blue-600 { --tw-gradient-from: var(--om-strong) var(--tw-gradient-from-position); }
+:is(.om-env, #om-modal-root) .to-blue-400,
+:is(.om-env, #om-modal-root) .to-blue-600   { --tw-gradient-to: var(--om-soft) var(--tw-gradient-to-position); }
+
+/* ==========================================
+   LAUNCHER — tela inicial de escolha de ambiente
+   ========================================== */
+.launch-bg {
+  background-image:
+    radial-gradient(1100px 520px at 50% -8%, rgba(249,115,22,0.10), transparent 60%),
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 100% 100%, 44px 44px, 44px 44px;
+}
+
+.logo-glow { filter: drop-shadow(0 0 22px rgba(249,115,22,0.4)); }
+
+/* Cards de módulo */
+.mod-card {
+  background: linear-gradient(145deg,#111 0%,#0c0c0c 60%,#080808 100%);
+  border: 1px solid #1f1f1f;
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1), border-color .35s ease, box-shadow .35s ease;
+  position: relative;
+  overflow: hidden;
+}
+.mod-card.is-active { cursor: pointer; }
+.mod-card.is-active:hover {
+  transform: translateY(-4px);
+  border-color: rgba(249,115,22,.55);
+  box-shadow: 0 16px 40px -12px rgba(0,0,0,.8), 0 0 0 1px rgba(249,115,22,.15);
+}
+.mod-card.is-active:active { transform: translateY(-1px) scale(.99); }
+
+/* faixa luminosa que cruza no hover */
+.mod-card.is-active::after {
+  content:''; position:absolute; top:-50%; left:-80%; width:35%; height:200%;
+  background: linear-gradient(to right, transparent 0%, rgba(255,255,255,.05) 50%, transparent 100%);
+  transform: skewX(-15deg); transition: left .65s ease; pointer-events:none;
+}
+.mod-card.is-active:hover::after { left:140%; }
+
+.mod-card.is-soon { opacity:.55; }
+.mod-card.is-soon:hover { opacity:.72; border-color:#2a2a2a; }
+
+.seta-cta { transition: transform .3s ease, opacity .3s ease; }
+.mod-card.is-active:hover .seta-cta { transform: translateX(4px); }
+.ico-wrap { transition: border-color .35s ease; }
+.mod-card.is-active:hover .ico-wrap { border-color: rgba(249,115,22,.5); }
+
+/* entrada em cascata */
+@keyframes launcherFadeSlideUp { from{opacity:0; transform:translateY(18px);} to{opacity:1; transform:translateY(0);} }
+.stg { animation: launcherFadeSlideUp .55s ease-out both; }
+.stg-1{animation-delay:60ms}.stg-2{animation-delay:130ms}.stg-3{animation-delay:200ms}
+.stg-4{animation-delay:270ms}.stg-5{animation-delay:340ms}.stg-6{animation-delay:410ms}
+
+/* cursor do typewriter (pergunta do hero) */
+.launcher-caret {
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  margin-left: 4px;
+  background: linear-gradient(180deg, #f97316, #facc15);
+  animation: launcherBlink 1s steps(1) infinite;
+  vertical-align: -2px;
+}
+@keyframes launcherBlink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .launcher-caret { animation: none; }
+}
+

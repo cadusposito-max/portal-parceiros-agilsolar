@@ -75,10 +75,26 @@ function _chatIsAccessDeniedError(error) {
   return message.includes('sem acesso ao chat');
 }
 
+// Sintomas de sessão perdida (refresh_token expirou → PostgREST cai pro role anon,
+// que não tem EXECUTE nas funções chat_*). O listener em auth.js cuida do logout —
+// aqui só silencia o erro e desmonta o chat pra não bombardear RPCs em loop.
+function _chatIsSessionLostError(error) {
+  const code = String(error?.code || '');
+  if (code === '42501' || code === 'PGRST301') return true; // permission denied / JWT expired
+  const status = Number(error?.status || 0);
+  if (status === 401) return true;
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('permission denied for function')
+      || message.includes('jwt expired')
+      || message.includes('invalid jwt');
+}
+
 function _chatHandleAccessDenied(error) {
-  if (!_chatIsAccessDeniedError(error)) return false;
-  chatTeardown(true);
-  return true;
+  if (_chatIsAccessDeniedError(error) || _chatIsSessionLostError(error)) {
+    chatTeardown(true);
+    return true;
+  }
+  return false;
 }
 
 function _chatCanMarkReadNow() {
@@ -236,7 +252,32 @@ function _chatFormatListTime(value) {
 function _chatFormatMessageTime(value) {
   if (!value) return '';
   const dt = new Date(value);
+  if (isNaN(dt.getTime())) return '';
   return dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function _chatFormatDaySeparator(value) {
+  if (!value) return '';
+  const dt = new Date(value);
+  if (isNaN(dt.getTime())) return '';
+  const now = new Date();
+  const ontem = new Date(now);
+  ontem.setDate(now.getDate() - 1);
+
+  if (dt.toDateString() === now.toDateString()) return 'Hoje';
+  if (dt.toDateString() === ontem.toDateString()) return 'Ontem';
+
+  const sameYear = dt.getFullYear() === now.getFullYear();
+  if (sameYear) {
+    return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+  }
+  return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function _chatDayKey(value) {
+  const dt = new Date(value);
+  if (isNaN(dt.getTime())) return '';
+  return dt.getFullYear() + '-' + (dt.getMonth() + 1) + '-' + dt.getDate();
 }
 
 function _chatApplyShellMode() {
@@ -442,12 +483,22 @@ function _chatRenderMessages(scrollToEnd = false) {
     return;
   }
 
+  let lastDayKey = '';
   box.innerHTML = items.map(msg => {
     const isMe = Boolean(msg.is_me);
     const safeBody = escapeHTML(msg.body || '').replace(/\n/g, '<br>');
     const sender = escapeHTML(msg.sender_nome || 'Usuário');
     const time = _chatFormatMessageTime(msg.created_at);
-    return `
+
+    let separator = '';
+    const dayKey = _chatDayKey(msg.created_at);
+    if (dayKey && dayKey !== lastDayKey) {
+      const label = _chatFormatDaySeparator(msg.created_at);
+      separator = `<div class="chat-msg-day-separator"><span>${escapeHTML(label)}</span></div>`;
+      lastDayKey = dayKey;
+    }
+
+    return separator + `
       <div class="chat-msg-row ${isMe ? 'is-me' : 'is-other'}">
         <div class="chat-msg-bubble">
           ${isMe ? '' : `<div class="chat-msg-sender">${sender}</div>`}

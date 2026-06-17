@@ -1,0 +1,491 @@
+// ==========================================
+// PROPOSTA O&M — PÁGINA PÚBLICA
+// Modos suportados:
+//   ?t=<public_token>  → produção (Supabase RPC get_public_om_proposta)
+//   ?mock=<id>         → dev local (localStorage)
+// ==========================================
+
+if (typeof initAnalytics === 'function') {
+  try { initAnalytics({ mode: 'public' }); } catch (_) {}
+}
+lucide.createIcons();
+
+const params      = new URLSearchParams(window.location.search);
+const mockId      = params.get('mock');
+const publicToken = params.get('t');
+
+const STORAGE_KEY = (id) => `om-proposta-public-${id}`;
+
+function showError() {
+  document.getElementById('loading').classList.add('hidden');
+  const err = document.getElementById('error-state');
+  err.classList.remove('hidden');
+  err.classList.add('flex');
+}
+
+function statusTone(s) {
+  const map = {
+    'Rascunho':     ['bg-neutral-800',       'text-neutral-300',  'border-neutral-700'],
+    'Enviada':      ['bg-blue-500/10',       'text-blue-300',     'border-blue-500/30'],
+    'Visualizada':  ['bg-yellow-500/10',     'text-yellow-300',   'border-yellow-500/30'],
+    'Aprovada':     ['bg-blue-500/10',    'text-blue-300',  'border-blue-500/30'],
+    'Recusada':     ['bg-red-500/10',        'text-red-400',      'border-red-500/30'],
+    'Vencida':      ['bg-orange-500/10',     'text-orange-300',   'border-orange-500/30'],
+    'Cancelada':    ['bg-neutral-800',       'text-neutral-300',  'border-neutral-700'],
+  };
+  return (map[s] || map['Enviada']).join(' ');
+}
+
+const INCLUSO_POR_TIPO = {
+  'Limpeza de módulos': [
+    'Limpeza completa dos módulos fotovoltaicos',
+    'Inspeção visual da fixação e cabeamento',
+    'Verificação de geração antes e depois',
+    'Relatório técnico com fotos',
+  ],
+  'Manutenção preventiva': [
+    'Inspeção visual completa',
+    'Reaperto de conexões CC e CA',
+    'Verificação de DPS e aterramento',
+    'Teste de geração e desempenho',
+    'Relatório técnico com fotos e recomendações',
+  ],
+  'Vistoria técnica': [
+    'Inspeção visual do sistema',
+    'Verificação de string box e inversor',
+    'Conferência de fixação e estrutura',
+    'Relatório técnico com diagnóstico',
+  ],
+  'Manutenção corretiva': [
+    'Diagnóstico do problema',
+    'Reparo conforme escopo descrito',
+    'Teste de funcionamento após o reparo',
+    'Relatório técnico com fotos',
+  ],
+  'Correção de pendência': [
+    'Correção da pendência identificada',
+    'Teste de funcionamento após o reparo',
+    'Relatório técnico com fotos',
+  ],
+  'Plano recorrente': [
+    'Visitas periódicas no intervalo contratado',
+    'Limpeza e inspeção a cada visita',
+    'Relatório técnico a cada visita',
+    'Atendimento prioritário em ocorrências',
+  ],
+};
+
+const NAO_INCLUSO_PADRAO = [
+  'Substituição de equipamentos (módulos, inversor, string box)',
+  'Adequações elétricas fora do escopo descrito',
+  'Deslocamento adicional fora da área de cobertura',
+];
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function renderListaInclusos(tipo, incluso, naoIncluso) {
+  // Prioridade: snapshot vindo do backend > mapa hardcoded (fallback do modo mock)
+  const inclusoItems = Array.isArray(incluso) && incluso.length
+    ? incluso
+    : (INCLUSO_POR_TIPO[tipo] || INCLUSO_POR_TIPO['Manutenção preventiva']);
+  const naoInclusoItems = Array.isArray(naoIncluso) && naoIncluso.length
+    ? naoIncluso
+    : NAO_INCLUSO_PADRAO;
+
+  const ul = document.getElementById('incluso-list');
+  ul.innerHTML = inclusoItems.map(t => `<li class="flex items-start gap-2"><i data-lucide="check" class="w-3.5 h-3.5 text-blue-400 stroke-[3] mt-0.5 shrink-0"></i><span>${escapeHtml(t)}</span></li>`).join('');
+
+  const ul2 = document.getElementById('nao-incluso-list');
+  ul2.innerHTML = naoInclusoItems.map(t => `<li class="flex items-start gap-2"><i data-lucide="minus" class="w-3.5 h-3.5 text-neutral-600 stroke-[3] mt-0.5 shrink-0"></i><span>${escapeHtml(t)}</span></li>`).join('');
+}
+
+function formatBRL(v) {
+  if (v == null || isNaN(v)) return '—';
+  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function setStatusChip(status) {
+  const wrap  = document.getElementById('status-chip');
+  const label = document.getElementById('status-label');
+  wrap.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest ' + statusTone(status);
+  label.textContent = status;
+}
+
+function renderSistema(s) {
+  const cards = document.getElementById('sys-cards');
+  const empty = document.getElementById('sys-empty');
+  if (!cards || !empty) return;
+
+  const has = s && (s.potencia || s.modulos || s.inversor || s.telhado);
+  if (!has) {
+    cards.classList.add('hidden');
+    empty.classList.remove('hidden');
+    empty.classList.add('flex');
+    return;
+  }
+
+  cards.classList.remove('hidden');
+  empty.classList.add('hidden');
+  empty.classList.remove('flex');
+
+  const set = (id, v) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const val = (v == null || v === '') ? '—' : String(v);
+    el.textContent = val;
+    if (val === '—') el.classList.add('text-neutral-600'); else el.classList.remove('text-neutral-600');
+  };
+  set('sys-potencia', s.potencia);
+  set('sys-modulos',  s.modulos);
+  set('sys-inversor', s.inversor);
+  set('sys-telhado',  s.telhado);
+}
+
+function render(p) {
+  const tipo = p.tipo || '—';
+  const cidade = p.cidade || (p.endereco || '').split(' — ').pop() || '—';
+
+  document.getElementById('proposal-number').textContent   = p.numero || '—';
+  document.getElementById('client-name').textContent       = p.cliente || 'Cliente';
+  document.getElementById('client-address').textContent    = p.endereco || p.cidade || '—';
+  document.getElementById('hero-service-title').textContent = tipo;
+
+  // Resumo executivo
+  document.getElementById('sum-service').textContent    = tipo;
+  document.getElementById('sum-system').textContent     = cidade;
+  document.getElementById('sum-investment').textContent = formatBRL(p.valor);
+
+  // Descrição livre — só aparece se o vendedor preencheu algo significativo
+  const descEl = document.getElementById('service-desc');
+  if (descEl) {
+    const desc = (p.descricao || '').trim();
+    if (desc) { descEl.textContent = desc; descEl.classList.remove('hidden'); }
+    else      { descEl.classList.add('hidden'); }
+  }
+
+  document.getElementById('valor').textContent       = formatBRL(p.valor);
+  document.getElementById('pagamento').textContent   = p.pagamento || '—';
+  document.getElementById('validade').textContent    = p.validade || '—';
+  document.getElementById('validade2').textContent   = p.validade || '—';
+  document.getElementById('responsavel').textContent = p.responsavel || '—';
+  document.getElementById('franquia').textContent    = p.franquia || 'Ágil Solar';
+
+  setStatusChip(p.status || 'Enviada');
+  renderListaInclusos(p.tipo, p.incluso, p.nao_incluso);
+  renderSistema(p.sistema);
+
+  const wa = (p.telefone || '').replace(/\D/g, '');
+  const waMsg = encodeURIComponent(`Olá! Recebi a proposta ${p.numero} da Ágil Solar e gostaria de conversar.`);
+  document.getElementById('btn-whatsapp').href = wa
+    ? `https://wa.me/55${wa}?text=${waMsg}`
+    : `https://wa.me/?text=${waMsg}`;
+
+  // Esconde ações se a proposta não pode mais ser respondida
+  const finalStates = ['Aprovada', 'Recusada', 'Cancelada', 'Vencida'];
+  if (finalStates.includes(p.status)) {
+    showResponseBanner(p);
+    ['btn-aprovar', 'btn-recusar'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.disabled = true;
+      el.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+    });
+  }
+
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('proposal-content').classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function showResponseBanner(p) {
+  const el = document.getElementById('response-banner');
+  if (!el) return;
+  let cls = 'bg-neutral-900 border-neutral-800 text-neutral-300';
+  let text = `Esta proposta está no status ${p.status}.`;
+  if (p.status === 'Aprovada')  { cls = 'bg-blue-500/10 border-blue-500/30 text-blue-200'; text = 'Proposta aprovada. Vamos te chamar para agendar a execução.'; }
+  if (p.status === 'Recusada')  { cls = 'bg-red-500/10 border-red-500/30 text-red-300';            text = 'Proposta recusada. Caso queira conversar, fale com a gente no WhatsApp.'; }
+  if (p.status === 'Vencida')   { cls = 'bg-orange-500/10 border-orange-500/30 text-orange-200';  text = 'Esta proposta venceu. Solicite uma nova com o seu consultor.'; }
+  el.className = `mt-4 p-3 border text-[12px] ${cls}`;
+  el.textContent = text;
+  el.classList.remove('hidden');
+}
+
+// ----------------------------------------------------------------------
+// Persistência mock — sincroniza com o portal via localStorage
+// ----------------------------------------------------------------------
+function loadFromMock(id) {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY(id));
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) { return null; }
+}
+function saveMock(id, data) {
+  try { localStorage.setItem(STORAGE_KEY(id), JSON.stringify(data)); } catch (_) {}
+}
+
+function markViewed(id, p) {
+  if (!p) return;
+  if (!p.viewedAt) p.viewedAt = new Date().toISOString();
+  // Se ainda está como Enviada, sobe para Visualizada
+  if (p.status === 'Enviada') p.status = 'Visualizada';
+  saveMock(id, p);
+}
+
+function respond(id, decision) {
+  const p = loadFromMock(id);
+  if (!p) return;
+  if (['Aprovada', 'Recusada', 'Cancelada', 'Vencida'].includes(p.status)) return;
+  p.status = decision === 'aprovar' ? 'Aprovada' : 'Recusada';
+  p.respondedAt = new Date().toISOString();
+  saveMock(id, p);
+  if (typeof captureEvent === 'function') {
+    try { captureEvent('public_om_proposal_response', { decision: p.status }); } catch (_) {}
+  }
+  render(p);
+}
+
+// ----------------------------------------------------------------------
+// Persistência real — Supabase RPC
+// ----------------------------------------------------------------------
+function showResponseError(msg) {
+  const el = document.getElementById('response-banner');
+  if (!el) return;
+  el.className = 'mt-4 p-3 border text-[12px] bg-red-500/10 border-red-500/30 text-red-300';
+  el.textContent = msg || 'Não foi possível processar sua resposta. Tente novamente.';
+  el.classList.remove('hidden');
+}
+
+function setActionsBusy(busy) {
+  ['btn-aprovar', 'btn-recusar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = !!busy;
+    el.classList.toggle('opacity-60', !!busy);
+    el.classList.toggle('cursor-wait', !!busy);
+    el.classList.toggle('pointer-events-none', !!busy);
+  });
+}
+
+async function respondReal(token, decision) {
+  setActionsBusy(true);
+  try {
+    const { data, error } = await supabaseClient.rpc('respond_public_om_proposta', {
+      p_token: token,
+      p_decision: decision,
+    });
+    if (error || !data) {
+      // Mensagem amigável pros 2 erros mais comuns da RPC
+      const msg = (error?.message || '').toLowerCase();
+      if (msg.includes('não pode mais')) {
+        showResponseError('Esta proposta já foi respondida ou não pode mais ser alterada.');
+      } else {
+        showResponseError();
+      }
+      return;
+    }
+    if (typeof captureEvent === 'function') {
+      try { captureEvent('public_om_proposal_response', { decision: data.status, mode: 'live' }); } catch (_) {}
+    }
+    render(data);
+  } catch (e) {
+    showResponseError();
+  } finally {
+    setActionsBusy(false);
+  }
+}
+
+async function loadFromSupabase(token) {
+  const { data, error } = await supabaseClient.rpc('get_public_om_proposta', { p_token: token });
+  if (error || !data) return null;
+  return data;
+}
+
+// ----------------------------------------------------------------------
+// Aceite com assinatura desenhada
+// ----------------------------------------------------------------------
+const TEXTO_CIENCIA = 'Declaro que li e compreendi integralmente esta proposta de serviço da Ágil Solar — escopo, valores, condições de pagamento e prazo de validade. Manifesto, de forma livre e consciente, meu aceite e aprovação desta proposta. Estou ciente de que esta aprovação digital, registrada com minha assinatura, data, hora e endereço de IP, confirma o pedido e autoriza a Ágil Solar a agendar a execução do serviço descrito. Confirmo que a assinatura aposta abaixo é de minha autoria.';
+
+let _sigPad = null;
+
+function initSignaturePad(canvas, onChange) {
+  const ctx = canvas.getContext('2d');
+  function paintBg() { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  paintBg();
+  ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0a0a0a';
+  let drawing = false, hasInk = false, last = null;
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const t = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    return {
+      x: (t.clientX - r.left) * (canvas.width / r.width),
+      y: (t.clientY - r.top) * (canvas.height / r.height),
+    };
+  }
+  function start(e) { drawing = true; last = pos(e); e.preventDefault(); }
+  function move(e) {
+    if (!drawing) return;
+    const p = pos(e);
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last = p;
+    hasInk = true;
+    if (onChange) onChange();
+    e.preventDefault();
+  }
+  function end() { drawing = false; }
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end);
+  return {
+    isEmpty: () => !hasInk,
+    clear: () => { paintBg(); hasInk = false; if (onChange) onChange(); },
+    toDataURL: () => canvas.toDataURL('image/png'),
+  };
+}
+
+function aceiteEl(id) { return document.getElementById(id); }
+
+function updateAceiteConfirm() {
+  const ok = aceiteEl('aceite-nome').value.trim() !== ''
+    && aceiteEl('aceite-check').checked
+    && _sigPad && !_sigPad.isEmpty();
+  const btn = aceiteEl('aceite-confirmar');
+  btn.disabled = !ok;
+  btn.classList.toggle('opacity-40', !ok);
+  btn.classList.toggle('cursor-not-allowed', !ok);
+}
+
+function showAceiteErro(msg) {
+  const el = aceiteEl('aceite-erro');
+  if (!msg) { el.classList.add('hidden'); el.textContent = ''; return; }
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function setAceiteBusy(busy) {
+  ['aceite-cancelar', 'aceite-fechar', 'aceite-limpar'].forEach(id => {
+    const el = aceiteEl(id); if (el) el.disabled = !!busy;
+  });
+  const btn = aceiteEl('aceite-confirmar');
+  btn.classList.toggle('cursor-wait', !!busy);
+  if (busy) btn.disabled = true; else updateAceiteConfirm();
+}
+
+function openAceiteModal() {
+  const modal = aceiteEl('aceite-modal');
+  aceiteEl('aceite-texto').textContent = TEXTO_CIENCIA;
+  aceiteEl('aceite-nome').value = '';
+  aceiteEl('aceite-check').checked = false;
+  showAceiteErro(null);
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.body.classList.add('overflow-hidden');
+  if (!_sigPad) _sigPad = initSignaturePad(aceiteEl('aceite-canvas'), updateAceiteConfirm);
+  else _sigPad.clear();
+  updateAceiteConfirm();
+}
+
+function closeAceiteModal() {
+  const modal = aceiteEl('aceite-modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  document.body.classList.remove('overflow-hidden');
+}
+
+async function aceiteConfirmar() {
+  if (aceiteEl('aceite-confirmar').disabled) return;
+  showAceiteErro(null);
+  setAceiteBusy(true);
+  try {
+    await submeterAceite({
+      nome: aceiteEl('aceite-nome').value.trim(),
+      assinatura: _sigPad.toDataURL(),
+      texto: TEXTO_CIENCIA,
+    });
+  } catch (e) {
+    showAceiteErro((e && e.message) || 'Não foi possível registrar o aceite. Tente novamente.');
+  } finally {
+    setAceiteBusy(false);
+  }
+}
+
+async function submeterAceite(aceite) {
+  // Produção: ?t=<token>
+  if (publicToken) {
+    const { data, error } = await supabaseClient.rpc('respond_public_om_proposta', {
+      p_token: publicToken,
+      p_decision: 'aprovar',
+      p_aceite_nome: aceite.nome,
+      p_assinatura: aceite.assinatura,
+      p_texto_ciencia: aceite.texto,
+    });
+    if (error || !data) {
+      const msg = (error?.message || '').toLowerCase();
+      throw new Error(msg.includes('não pode mais') || msg.includes('respondida')
+        ? 'Esta proposta já foi respondida ou não pode mais ser alterada.'
+        : 'Não foi possível registrar o aceite. Tente novamente.');
+    }
+    if (typeof captureEvent === 'function') {
+      try { captureEvent('public_om_proposal_response', { decision: 'Aprovada', mode: 'live' }); } catch (_) {}
+    }
+    closeAceiteModal();
+    render(data);
+    return;
+  }
+  // Modo dev local: ?mock=<id>
+  if (mockId) {
+    closeAceiteModal();
+    respond(mockId, 'aprovar');
+  }
+}
+
+function wireAceiteModal() {
+  aceiteEl('aceite-nome').addEventListener('input', updateAceiteConfirm);
+  aceiteEl('aceite-check').addEventListener('change', updateAceiteConfirm);
+  aceiteEl('aceite-limpar').addEventListener('click', () => { if (_sigPad) _sigPad.clear(); });
+  aceiteEl('aceite-confirmar').addEventListener('click', aceiteConfirmar);
+  aceiteEl('aceite-cancelar').addEventListener('click', closeAceiteModal);
+  aceiteEl('aceite-fechar').addEventListener('click', closeAceiteModal);
+}
+
+// ----------------------------------------------------------------------
+// Boot
+// ----------------------------------------------------------------------
+async function boot() {
+  wireAceiteModal();
+  // Modo dev local: ?mock=<id>
+  if (mockId) {
+    const p = loadFromMock(mockId);
+    if (!p) { showError(); return; }
+    markViewed(mockId, p);
+    render(p);
+    if (typeof captureEvent === 'function') {
+      try { captureEvent('public_om_proposal_viewed', { mode: 'mock' }); } catch (_) {}
+    }
+    document.getElementById('btn-aprovar').addEventListener('click', () => openAceiteModal());
+    document.getElementById('btn-recusar').addEventListener('click', () => respond(mockId, 'recusar'));
+    return;
+  }
+
+  // Modo produção: ?t=<public_token>
+  if (publicToken) {
+    const p = await loadFromSupabase(publicToken);
+    if (!p) { showError(); return; }
+    render(p);
+    if (typeof captureEvent === 'function') {
+      try { captureEvent('public_om_proposal_viewed', { mode: 'live' }); } catch (_) {}
+    }
+    document.getElementById('btn-aprovar').addEventListener('click', () => openAceiteModal());
+    document.getElementById('btn-recusar').addEventListener('click', () => respondReal(publicToken, 'recusar'));
+    return;
+  }
+
+  showError();
+}
+
+boot();

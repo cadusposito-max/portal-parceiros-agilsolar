@@ -633,84 +633,15 @@ function renderClientesList(container) {
     return;
   }
 
-  // Kanban: caminho separado (ja e segmentado por coluna de status)
   if (state.isAdmin && state.adminClientesViewMode === 'kanban') {
     html += renderAdminClientesKanbanView(filteredRows);
-    container.innerHTML = html;
-    lucide.createIcons();
-    return;
+  } else {
+    const showSeller = (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll);
+    const showFranquia = state.isAdmin && state.adminViewAll;
+    html += `<section class="grid grid-cols-1 gap-2">${filteredRows.map((item, index) => renderClienteCard(item, index, { compact: false, showSeller, showFranquia })).join('')}</section>`;
   }
 
-  // Lista: render incremental (8 em 8 conforme rola) pra nao travar com
-  // muitos cards. Monta so o toolbar + grid vazio + sentinela aqui.
-  const showSeller = (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll);
-  const showFranquia = state.isAdmin && state.adminViewAll;
-  html += `<section id="clientes-cards-grid" class="grid grid-cols-1 gap-2"></section>`;
-  html += `<div id="clientes-scroll-sentinel" class="h-1" aria-hidden="true"></div>`;
   container.innerHTML = html;
-
-  _clientesSetupIncremental(filteredRows, { compact: false, showSeller, showFranquia });
-  lucide.createIcons();
-}
-
-// ==========================================================================
-// RENDER INCREMENTAL DA LISTA DE CLIENTES (scroll infinito, 8 em 8)
-// Evita montar centenas de cards de uma vez (causava engasgo na troca de aba).
-// ==========================================================================
-const CLIENTES_PAGE_SIZE = 8;
-let _clientesIncremental = { rows: [], rendered: 0, observer: null, cardOpts: null };
-
-function _clientesSetupIncremental(rows, cardOpts) {
-  // Desconecta observer anterior (troca de filtro/aba)
-  if (_clientesIncremental.observer) {
-    _clientesIncremental.observer.disconnect();
-    _clientesIncremental.observer = null;
-  }
-  _clientesIncremental = { rows: rows || [], rendered: 0, observer: null, cardOpts };
-
-  // Primeiro lote imediato
-  _clientesRenderNextBatch();
-
-  // Se ja renderizou tudo, nao precisa de observer
-  if (_clientesIncremental.rendered >= _clientesIncremental.rows.length) return;
-
-  const sentinel = document.getElementById('clientes-scroll-sentinel');
-  if (!sentinel || typeof IntersectionObserver === 'undefined') {
-    // Fallback: sem observer, renderiza tudo de uma vez
-    while (_clientesIncremental.rendered < _clientesIncremental.rows.length) {
-      _clientesRenderNextBatch();
-    }
-    return;
-  }
-
-  const obs = new IntersectionObserver((entries) => {
-    if (!entries.some((e) => e.isIntersecting)) return;
-    _clientesRenderNextBatch();
-    if (_clientesIncremental.rendered >= _clientesIncremental.rows.length) {
-      obs.disconnect();
-      _clientesIncremental.observer = null;
-    }
-  }, { rootMargin: '300px 0px' }); // pre-carrega antes de chegar no fim
-
-  obs.observe(sentinel);
-  _clientesIncremental.observer = obs;
-}
-
-function _clientesRenderNextBatch() {
-  const grid = document.getElementById('clientes-cards-grid');
-  if (!grid) return;
-  const st = _clientesIncremental;
-  const start = st.rendered;
-  const end = Math.min(start + CLIENTES_PAGE_SIZE, st.rows.length);
-  if (start >= end) return;
-
-  const chunk = st.rows
-    .slice(start, end)
-    .map((item, i) => renderClienteCard(item, i, st.cardOpts))
-    .join('');
-
-  grid.insertAdjacentHTML('beforeend', chunk);
-  st.rendered = end;
   lucide.createIcons();
 }
 

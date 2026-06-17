@@ -135,7 +135,11 @@ function renderAdminPanel(container) {
   lucide.createIcons();
 
   const content = document.getElementById('admin-section-content');
-  const adminBar = document.getElementById('admin-bar');
+  // Barra de ações de kits: no overlay usamos a barra própria (#admin-overlay-kitsbar);
+  // na vertente Comercial (caminho legado), a barra global (#admin-bar).
+  const adminBar = document.getElementById(state.adminOpen ? 'admin-overlay-kitsbar' : 'admin-bar');
+  const otherBar = document.getElementById(state.adminOpen ? 'admin-bar' : 'admin-overlay-kitsbar');
+  if (otherBar) otherBar.classList.add('hidden');
 
   if (state.adminSection === 'produtos') {
     state.isEditMode = true;
@@ -156,7 +160,8 @@ function renderAdminPanel(container) {
 function setAdminSection(section) {
   if (!_requireAdminOrGestor()) return;
   state.adminSection = section;
-  const container = document.getElementById('main-container');
+  // No overlay, re-renderiza no container próprio; senão, no #main-container (legado Comercial).
+  const container = document.getElementById(state.adminOpen ? 'admin-overlay-content' : 'main-container');
   if (container) renderAdminPanel(container);
 }
 
@@ -645,6 +650,9 @@ function _roleBadge(role) {
   if (normalized === 'gestor') {
     return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-blue-300 border-blue-700 bg-blue-900/30">GESTOR</span>';
   }
+  if (normalized === 'tecnico' || normalized === 'coordenador_tecnico') {
+    return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-orange-300 border-orange-700 bg-orange-900/30">TÉCNICO</span>';
+  }
   return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-neutral-300 border-neutral-700 bg-neutral-900/30">VENDEDOR</span>';
 }
 
@@ -811,6 +819,7 @@ async function renderAdminUsuarios(container) {
         <option value="admin" ${roleFilter === 'admin' ? 'selected' : ''}>ADMIN</option>
         <option value="gestor" ${roleFilter === 'gestor' ? 'selected' : ''}>GESTOR</option>
         <option value="vendedor" ${roleFilter === 'vendedor' ? 'selected' : ''}>VENDEDOR</option>
+        <option value="tecnico" ${roleFilter === 'tecnico' ? 'selected' : ''}>TÉCNICO</option>
       </select>
       <select onchange="setAdminUsuariosFilter('franquia', this.value)" class="bg-black border border-neutral-700 focus:border-orange-500 px-3 py-2.5 text-white font-bold uppercase text-[11px]">
         <option value="all" ${franquiaFilter === 'all' ? 'selected' : ''}>TODAS FRANQUIAS</option>
@@ -895,6 +904,7 @@ async function openAdminUsuarioForm(userId) {
   const defaultRole = _normalizeAdminRole(current?.role || 'vendedor');
   const defaultFranquia = current?.franquia_id || state.franquiaId || franquias[0]?.id || '';
   const defaultChatEnabled = current?.chat_enabled === true;
+  const defaultOmEnabled = current?.om_enabled === true;
   const defaultGestorId = current?.gestor_user_id || '';
 
   const fieldsHTML = `
@@ -911,6 +921,7 @@ async function openAdminUsuarioForm(userId) {
           <option value="vendedor" ${defaultRole === 'vendedor' ? 'selected' : ''}>VENDEDOR</option>
           <option value="gestor" ${defaultRole === 'gestor' ? 'selected' : ''}>GESTOR</option>
           <option value="admin" ${defaultRole === 'admin' ? 'selected' : ''}>ADMIN</option>
+          <option value="tecnico" ${defaultRole === 'tecnico' ? 'selected' : ''}>TÉCNICO</option>
         </select></div>
       <div><label class="${_labelCls}">Franquia *</label>
         <select id="au-franquia-id" class="${_selectCls}">${_renderFranquiaOptions(franquias, defaultFranquia)}</select></div>
@@ -925,6 +936,13 @@ async function openAdminUsuarioForm(userId) {
       <div class="col-span-2 bg-cyan-950/20 border border-cyan-700/30 p-3">
         <p class="text-cyan-200/90 text-[10px] font-bold">Quando desativado: usuario nao aparece no chat, nao inicia/recebe conversa e nao envia mensagens.</p>
       </div>
+      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" id="au-om-enabled" ${defaultOmEnabled ? 'checked' : ''} class="w-4 h-4 accent-orange-500">
+        <span class="text-white font-bold text-sm uppercase">Permitir acesso ao O&amp;M (om_enabled)</span>
+      </label>
+      <div class="col-span-2 bg-orange-950/20 border border-orange-700/30 p-3">
+        <p class="text-orange-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente O&amp;M no portal (so Comercial). Admin sempre ve, independente desta opcao.</p>
+      </div>
       <div id="au-gestor-wrap" class="col-span-2 ${defaultRole === 'vendedor' ? '' : 'hidden'}">
         <label class="${_labelCls}">Gestor vinculado (apenas vendedor)</label>
         <select id="au-gestor-user-id" class="${_selectCls}">
@@ -937,6 +955,7 @@ async function openAdminUsuarioForm(userId) {
   openAdminModal(userId ? 'EDITAR USUARIO' : 'NOVO USUARIO', fieldsHTML, async () => {
     const roleValue = document.getElementById('au-role').value;
     const chatEnabled = document.getElementById('au-chat-enabled').checked;
+    const omEnabled = document.getElementById('au-om-enabled').checked;
     const gestorUserId = roleValue === 'vendedor'
       ? (document.getElementById('au-gestor-user-id')?.value || null)
       : null;
@@ -961,6 +980,12 @@ async function openAdminUsuarioForm(userId) {
         p_gestor_user_id: gestorUserId,
       });
       if (chatError) { showToast('ERRO CHAT: ' + chatError.message); return; }
+
+      const { error: omError } = await supabaseClient.rpc('admin_set_user_om_access', {
+        p_user_id: userId,
+        p_om_enabled: omEnabled,
+      });
+      if (omError) { showToast('ERRO O&M: ' + omError.message); return; }
 
       closeAdminModal();
       showToast('USUARIO ATUALIZADO');
@@ -1003,8 +1028,16 @@ async function openAdminUsuarioForm(userId) {
         closeAdminModal();
         showToast('USUARIO CRIADO, MAS CHAT NAO FOI CONFIGURADO: ' + chatError.message);
       } else {
+        const { error: omError } = await supabaseClient.rpc('admin_set_user_om_access', {
+          p_user_id: newUserId,
+          p_om_enabled: omEnabled,
+        });
         closeAdminModal();
-        showToast('USUARIO CRIADO COM SUCESSO');
+        if (omError) {
+          showToast('USUARIO CRIADO, MAS O&M NAO FOI CONFIGURADO: ' + omError.message);
+        } else {
+          showToast('USUARIO CRIADO COM SUCESSO');
+        }
       }
     }
 

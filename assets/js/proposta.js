@@ -45,29 +45,11 @@ function tryOpenExternalBrowser(url) {
   }
 }
 
-// ==========================================
-// ABRIR PREVIEW DO PDF
-// Em browser normal: nova aba (preserva a proposta original).
-// Em PWA standalone (iOS principalmente): mesma janela — _blank dispara
-// "abrir no Safari/copiar link" no iPhone, fluxo ruim. Botao Voltar do
-// preview retorna pra proposta via history.back().
-// ==========================================
-function abrirPropostaPDF() {
-  if (!propostaId) return;
-  const pdfUrl = `${window.location.origin}/proposta-pdf.html?id=${propostaId}`;
-  if (isStandaloneDisplayMode()) {
-    window.location.href = pdfUrl;
-  } else {
-    window.open(pdfUrl, '_blank', 'noopener');
-  }
-}
-
 function initProposalQuickActions() {
   const quickWrap = document.getElementById('proposal-quick-actions');
-  const btnBack   = document.getElementById('qa-back-btn');
-  const btnCopy   = document.getElementById('qa-copy-btn');
-  const btnShare  = document.getElementById('qa-share-btn');
-  const btnOpen   = document.getElementById('qa-open-browser-btn');
+  const btnBack = document.getElementById('qa-back-btn');
+  const btnCopy = document.getElementById('qa-copy-btn');
+  const btnOpen = document.getElementById('qa-open-browser-btn');
   if (!quickWrap || !btnBack || !btnCopy || !btnOpen) return;
 
   // Exibe sempre em telas menores e no modo app.
@@ -88,10 +70,6 @@ function initProposalQuickActions() {
     if (typeof showToast === 'function') showToast('LINK DA PROPOSTA COPIADO!');
   });
 
-  if (btnShare) {
-    btnShare.addEventListener('click', abrirPropostaPDF);
-  }
-
   btnOpen.addEventListener('click', () => {
     const ok = tryOpenExternalBrowser(window.location.href);
     if (typeof showToast === 'function') {
@@ -101,12 +79,6 @@ function initProposalQuickActions() {
     }
     if (!ok) copiarTextoBlindado(window.location.href);
   });
-
-  // Botao desktop (no header da proposta)
-  const headerShareBtn = document.getElementById('proposta-share-btn');
-  if (headerShareBtn) {
-    headerShareBtn.addEventListener('click', abrirPropostaPDF);
-  }
 
   lucide.createIcons();
 }

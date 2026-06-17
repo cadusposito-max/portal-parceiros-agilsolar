@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src  'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://*.i.posthog.com;
+    style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src    'self' https://fonts.gstatic.com;
+    img-src     'self' data: blob: https://tzwjxgprhorqrmpqudgg.supabase.co;
+    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://*.i.posthog.com;
+    object-src  'none';
+    base-uri    'self';
+    form-action 'self';
+    upgrade-insecure-requests;
+    block-all-mixed-content;
+  ">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Proposta O&amp;M — Ágil Solar</title>
+
+  <link rel="icon" type="image/png" href="assets/img/icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#070707">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Agil Solar O&M">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/posthog-js@1.364.2/dist/array.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/proposta-om.premium.css?v=20260616-vendedor">
+  <link rel="stylesheet" href="assets/css/proposta-om.layout.css?v=20260616-vendedor">
+
+  <style>
+    /* ---- Layout responsivo do documento (um único DOM) ---- */
+    /* NÃO definir display em .doc-desktop aqui: o grid de 2 colunas vem do
+       layout.css em @media(min-width:900px); no mobile o padrão (block) basta. */
+    .aside { display: flex; flex-direction: column; gap: 14px; }
+    @media (max-width: 899px) {
+      .doc-desktop { max-width: 560px; margin: 0 auto; padding: 24px 16px 56px; }
+      .doc-desktop .aside { margin-top: 14px; }
+    }
+    @media (min-width: 900px) { #kpi-grid { display: none; } }
+
+    /* descrição livre dentro do escopo incluso */
+    #service-desc {
+      margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line);
+      font-size: 12.5px; color: var(--muted); line-height: 1.55; white-space: pre-line;
+    }
+
+    /* estado vazio do sistema */
+    .sys-empty { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); }
+    .sys-empty svg { width: 16px; height: 16px; color: var(--dim); flex: 0 0 auto; }
+
+    /* link recusar no card de preço */
+    .price .reject-link {
+      background: none; border: 0; cursor: pointer; color: var(--dim);
+      font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+      margin-top: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+    }
+    .price .reject-link:hover { color: #f87171; }
+    .price .reject-link svg { width: 13px; height: 13px; }
+    .is-busy { opacity: .6; pointer-events: none; }
+
+    /* card do responsável técnico (lateral) */
+    .resp-card { display: flex; align-items: center; gap: 14px; border-radius: 20px; padding: 16px 18px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(23,23,23,.6), rgba(10,10,10,.5)); }
+    .resp-card .resp-ic { width: 46px; height: 46px; flex: 0 0 auto; border-radius: 12px; display: grid; place-items: center; background: rgba(249,115,22,.12); color: var(--amber-2); }
+    .resp-card .resp-ic svg { width: 22px; height: 22px; }
+    .resp-card .resp-k { font-size: 9.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+    .resp-card .resp-v { font-size: 14px; font-weight: 800; color: #fff; margin-top: 3px; }
+
+    /* estado de erro */
+    .errstate {
+      min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 24px; gap: 8px;
+    }
+    .errstate svg { width: 56px; height: 56px; color: #f87171; }
+    .errstate h1 { font-size: 22px; font-weight: 900; text-transform: uppercase; color: #fff; margin: 8px 0 0; }
+    .errstate p { color: var(--muted); max-width: 420px; font-size: 13px; line-height: 1.5; }
+
+    /* ---- Modal de aceite (assinatura) ---- */
+    .aceite-modal {
+      position: fixed; inset: 0; z-index: 130; background: rgba(0,0,0,.82); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .aceite-modal.open { display: flex; }
+    .aceite-box {
+      background: #0c0c0c; border: 1px solid var(--line-2); border-radius: 18px;
+      width: 100%; max-width: 520px; max-height: 94vh; overflow-y: auto;
+    }
+    .aceite-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+    .aceite-hd h2 { font-size: 13px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: #fff; margin: 0; }
+    .aceite-x { background: none; border: 0; color: var(--dim); cursor: pointer; padding: 4px; }
+    .aceite-x:hover { color: #fff; }
+    .aceite-x svg { width: 20px; height: 20px; }
+    .aceite-bd { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .aceite-lbl { font-size: 10.5px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--amber); margin-bottom: 7px; }
+    .aceite-termo { background: #070707; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: 12px; color: var(--muted); line-height: 1.55; }
+    .aceite-field-head { display: flex; align-items: center; justify-content: space-between; }
+    .aceite-input { width: 100%; background: #070707; border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 12px; font-size: 14px; color: #fff; outline: none; font-family: inherit; }
+    .aceite-input:focus { border-color: rgba(249,115,22,.6); }
+    .aceite-canvas { width: 100%; background: #fff; border: 1px solid var(--line-2); border-radius: 10px; touch-action: none; cursor: crosshair; aspect-ratio: 500/180; }
+    .aceite-hint { font-size: 10px; color: var(--dim); margin-top: 6px; }
+    .aceite-clear { background: none; border: 0; color: var(--dim); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+    .aceite-clear:hover { color: var(--amber); }
+    .aceite-check-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .aceite-check-row input { margin-top: 2px; width: 16px; height: 16px; accent-color: var(--orange); flex: 0 0 auto; }
+    .aceite-check-row span { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .aceite-erro { padding: 11px; border: 1px solid rgba(248,113,113,.3); background: rgba(248,113,113,.1); color: #fca5a5; font-size: 12px; border-radius: 10px; }
+    .aceite-ft { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--line); background: rgba(7,7,7,.6); }
+    .aceite-cancel { padding: 10px 16px; background: rgba(255,255,255,.03); border: 1px solid var(--line-2); border-radius: 10px; color: #d6d3d1; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+    .aceite-confirm { padding: 10px 18px; background: var(--grad); border: 0; border-radius: 10px; color: #1a1206; font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+    .aceite-confirm svg { width: 15px; height: 15px; }
+    .aceite-confirm:disabled { opacity: .4; cursor: not-allowed; }
+  </style>
+</head>
+<body class="proposta">
+
+<!-- ====================== LOADER ====================== -->
+<div class="loader" id="loader">
+  <div class="loader-inner">
+    <img class="loader-logo" src="assets/img/icon.png" alt="Ágil Solar" onerror="this.style.display='none'">
+    <div class="loader-bar"><i id="loader-bar-fill" style="width:10%"></i></div>
+    <div class="loader-text">Carregando proposta</div>
+    <div class="loader-sub" id="loader-sub">Iniciando conexão segura…</div>
+  </div>
+</div>
+
+<!-- ====================== ERRO ====================== -->
+<div class="errstate" id="error-state" style="display:none">
+  <i data-lucide="file-warning"></i>
+  <h1>Proposta indisponível</h1>
+  <p>Este link é inválido ou a proposta expirou. Entre em contato com a Ágil Solar.</p>
+</div>
+
+<!-- ====================== CAPA ====================== -->
+<div class="cover2" id="cover" style="display:none">
+  <div class="cover2-top">
+    <img src="assets/img/logo.png" alt="Ágil Solar" onerror="this.style.display='none'">
+    <span class="cover2-year">O&amp;M · <span id="cover-ano">—</span></span>
+  </div>
+  <div class="cover2-center">
+    <div class="cover2-over">Proposta de serviço</div>
+    <h1 class="cover2-title" id="cover-title">Proposta O&amp;M</h1>
+    <p class="cover2-sub" id="cover-sub">Operação &amp; Manutenção do sistema fotovoltaico.</p>
+    <button class="cover2-cta" id="cover-cta">Abrir proposta <i data-lucide="arrow-right"></i></button>
+  </div>
+  <div class="cover2-foot">
+    <span class="cli" id="cover-cli">—</span>
+    <span class="meta">Nº <span id="cover-num">—</span><br>Válida até <span id="cover-validade">—</span></span>
+  </div>
+</div>
+
+<!-- ====================== DOCUMENTO ====================== -->
+<div class="doc" id="doc" style="display:none">
+
+  <div class="doc-desktop">
+
+    <!-- Cabeçalho / saudação (desktop + mobile) -->
+    <div class="blk2 m-intro" id="m-intro">
+      <div class="m-intro-top">
+        <img src="assets/img/logo.png" alt="Ágil Solar" onerror="this.style.display='none'">
+        <span class="chip"><span class="dot"></span><span id="status-label">—</span></span>
+      </div>
+      <div class="m-eyebrow">Proposta de serviço</div>
+      <h1 class="m-greet">Olá, <span class="grad" id="m-greet-name">Cliente</span>!</h1>
+      <p class="m-greet-sub" id="m-greet-sub">Aqui está a proposta de manutenção do seu sistema fotovoltaico, preparada sob medida.</p>
+      <div class="m-meta">
+        <span><i data-lucide="map-pin"></i><span id="m-local">—</span></span>
+        <span><i data-lucide="calendar-clock"></i>Prazo: até 5 dias úteis</span>
+      </div>
+      <div class="m-validade">
+        <div class="m-validade-ic"><i data-lucide="calendar-check"></i></div>
+        <div>
+          <div class="m-validade-k">Validade da proposta</div>
+          <div class="m-validade-v">Esta proposta é válida até <b id="m-validade-data">—</b></div>
+        </div>
+      </div>
+      <div class="m-num">Proposta Nº <b id="m-num">—</b></div>
+    </div>
+
+    <!-- Coluna detalhe -->
+    <div class="detail">
+
+      <!-- Benefícios (fixo) -->
+      <div class="blk2 span2">
+        <div class="eyebrow section-eyebrow"><span class="bar"></span>Por que vale a pena</div>
+        <div class="stat3">
+          <div class="stat">
+            <div class="ic"><i data-lucide="trending-up"></i></div>
+            <div class="k">Mais geração</div>
+            <div class="v">Evite perdas de até <b>20%</b></div>
+          </div>
+          <div class="stat">
+            <div class="ic"><i data-lucide="users"></i></div>
+            <div class="k">Equipe própria</div>
+            <div class="v">Especializada</div>
+          </div>
+          <div class="stat">
+            <div class="ic"><i data-lucide="shield-check"></i></div>
+            <div class="k">Durabilidade</div>
+            <div class="v">Preserva <b>+30 anos</b> de vida útil</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Escopo incluso -->
+      <div class="blk2 c-card scope-in">
+        <div class="scope-head"><i data-lucide="check-circle-2"></i>Incluso no serviço</div>
+        <ul class="scope-list" id="incluso-list"></ul>
+        <p id="service-desc" style="display:none"></p>
+      </div>
+
+      <!-- Fora do escopo -->
+      <div class="blk2 c-card scope-out">
+        <div class="scope-head"><i data-lucide="minus-circle"></i>Fora do escopo</div>
+        <ul class="scope-list" id="nao-incluso-list"></ul>
+      </div>
+
+      <!-- Dados do sistema -->
+      <div class="blk2 c-card">
+        <div class="eyebrow section-eyebrow"><span class="bar"></span>Dados do sistema</div>
+        <div class="sys-grid" id="sys-cards">
+          <div class="sys-cell"><div class="k"><i data-lucide="zap"></i>Potência</div><div class="v" id="sys-potencia">—</div></div>
+          <div class="sys-cell"><div class="k"><i data-lucide="grid-3x3"></i>Módulos</div><div class="v" id="sys-modulos">—</div></div>
+          <div class="sys-cell"><div class="k"><i data-lucide="cpu"></i>Inversor</div><div class="v" id="sys-inversor">—</div></div>
+          <div class="sys-cell"><div class="k"><i data-lucide="home"></i>Telhado</div><div class="v" id="sys-telhado">—</div></div>
+        </div>
+        <div class="sys-empty" id="sys-empty" style="display:none">
+          <i data-lucide="info"></i>
+          <span>Dados técnicos do sistema serão confirmados pela nossa equipe durante a visita.</span>
+        </div>
+      </div>
+
+      <!-- Como funciona (fixo) -->
+      <div class="blk2 c-card">
+        <div class="eyebrow section-eyebrow"><span class="bar"></span>Como funciona · 4 etapas</div>
+        <div class="steps">
+          <div class="step"><div class="no">1</div><div class="tx"><h4>Você aprova</h4><p>Confirma a proposta com assinatura digital nesta tela.</p></div></div>
+          <div class="step"><div class="no">2</div><div class="tx"><h4>Agendamos</h4><p>Combinamos data e horário que cabem na sua rotina.</p></div></div>
+          <div class="step"><div class="no">3</div><div class="tx"><h4>Executamos</h4><p>Equipe técnica realiza o serviço no local, com segurança.</p></div></div>
+          <div class="step"><div class="no">4</div><div class="tx"><h4>Relatório</h4><p>Você recebe um PDF com fotos antes/depois e checklist.</p></div></div>
+        </div>
+      </div>
+
+      <!-- Sobre (fixo) -->
+      <div class="blk2 about span2">
+        <div class="eyebrow section-eyebrow"><span class="bar"></span>Sobre a Ágil Solar</div>
+        <h3>Quem cuida da sua usina</h3>
+        <p>Equipe técnica especializada em operação e manutenção de sistemas fotovoltaicos, com relatórios completos e atendimento próximo.</p>
+        <div class="pg">
+          <div class="it"><div class="n">7<span class="suf"> anos</span></div><div class="l">de mercado em energia solar</div></div>
+          <div class="it"><div class="n">1.200<span class="suf">+</span></div><div class="l">sistemas sob manutenção</div></div>
+          <div class="it"><div class="n">9,8<span class="suf"> MWp</span></div><div class="l">monitorados todo mês</div></div>
+          <div class="it"><div class="n">4,9<span class="suf">★</span></div><div class="l">avaliação média dos clientes</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coluna lateral -->
+    <div class="aside">
+      <!-- Preço + CTA -->
+      <div class="blk2 price" id="bloco-preco">
+        <div class="lab">Investimento total</div>
+        <div class="val" id="valor">—</div>
+        <div class="terms">
+          <span><i data-lucide="credit-card"></i><span id="pagamento">—</span></span>
+          <span><i data-lucide="calendar-check"></i>Válida até <b id="validade-price">—</b></span>
+        </div>
+        <button class="price-parcelas" id="ver-parcelas-desk" type="button"><i data-lucide="credit-card"></i>Parcele em até 12x — ver opções</button>
+        <div class="divider"></div>
+        <div id="price-actions">
+          <button class="approve" id="btn-aprovar"><i data-lucide="check"></i>Aprovar proposta</button>
+          <a class="wa" id="btn-whatsapp" href="#" target="_blank" rel="noopener"><i data-lucide="message-circle"></i>Tirar dúvida no WhatsApp</a>
+          <button class="reject-link" id="btn-recusar"><i data-lucide="x"></i>Recusar proposta</button>
+        </div>
+        <div id="price-final" style="display:none"></div>
+      </div>
+
+      <!-- Vendedor -->
+      <div class="blk2 resp-card" id="resp-card">
+        <div class="resp-ic"><i data-lucide="user-round"></i></div>
+        <div>
+          <div class="resp-k">Vendedor</div>
+          <div class="resp-v" id="responsavel">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">Ágil Solar · Operação &amp; Manutenção · Proposta exclusiva e confidencial.</div>
+
+  <!-- ===== Barra de aprovação fixa (somente mobile) ===== -->
+  <div id="m-cta-bar" class="m-cta-bar" aria-hidden="true">
+    <button class="m-cta-approve" id="m-cta-aprovar" type="button"><i data-lucide="check"></i>Aprovar proposta</button>
+  </div>
+</div>
+
+<!-- ====================== MODAL DE PARCELAS ====================== -->
+<div id="modal-parcelamento" class="par-modal" aria-hidden="true">
+  <div class="par-box">
+    <div class="par-hd">
+      <div class="par-hd-l"><span class="par-hd-ic"><i data-lucide="credit-card"></i></span><h3>Opções no cartão</h3></div>
+      <button id="btn-close-modal" type="button" class="par-x"><i data-lucide="x"></i></button>
+    </div>
+    <div class="par-bd">
+      <div id="installments-list" class="par-list"><!-- preenchido via JS --></div>
+    </div>
+    <div class="par-ft"><i data-lucide="info"></i>Valores sujeitos às taxas da operadora do cartão.</div>
+  </div>
+</div>
+
+<!-- ====================== MODAL DE ACEITE (assinatura) ====================== -->
+<div id="aceite-modal" class="aceite-modal">
+  <div class="aceite-box">
+    <div class="aceite-hd">
+      <h2>Confirmar aprovação</h2>
+      <button id="aceite-fechar" type="button" class="aceite-x"><i data-lucide="x"></i></button>
+    </div>
+    <div class="aceite-bd">
+      <div>
+        <div class="aceite-lbl">Termo de ciência</div>
+        <div id="aceite-texto" class="aceite-termo"></div>
+      </div>
+      <div>
+        <label for="aceite-nome" class="aceite-lbl">Seu nome completo</label>
+        <input id="aceite-nome" type="text" autocomplete="name" placeholder="Nome de quem está aprovando" class="aceite-input" />
+      </div>
+      <div>
+        <div class="aceite-field-head">
+          <span class="aceite-lbl" style="margin-bottom:0">Assinatura</span>
+          <button id="aceite-limpar" type="button" class="aceite-clear">Limpar</button>
+        </div>
+        <canvas id="aceite-canvas" width="500" height="180" class="aceite-canvas" style="margin-top:7px"></canvas>
+        <div class="aceite-hint">Assine no quadro acima com o dedo ou o mouse.</div>
+      </div>
+      <label class="aceite-check-row">
+        <input id="aceite-check" type="checkbox" />
+        <span>Li o termo de ciência acima e confirmo, de forma livre e consciente, o aceite desta proposta.</span>
+      </label>
+      <div id="aceite-erro" class="aceite-erro" style="display:none"></div>
+    </div>
+    <div class="aceite-ft">
+      <button id="aceite-cancelar" type="button" class="aceite-cancel">Cancelar</button>
+      <button id="aceite-confirmar" type="button" class="aceite-confirm">
+        <i data-lucide="check"></i>Confirmar aprovação
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/config.js?v=20260615-bg-fix"></script>
+<script src="assets/js/analytics.js?v=20260615-bg-fix"></script>
+<script src="assets/js/utils.js?v=20260615-bg-fix"></script>
+<script src="assets/js/proposta-om.js?v=20260616-vendedor"></script>
+</body>
+</html>

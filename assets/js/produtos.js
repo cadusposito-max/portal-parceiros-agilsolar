@@ -29,7 +29,7 @@ function renderProductsList(container) {
   document.getElementById('empty-state-icon').innerHTML = '<i data-lucide="search" class="w-10 h-10"></i>';
   document.getElementById('empty-state-icon').className = 'inline-flex items-center justify-center w-20 h-20 bg-neutral-900 mb-6 text-neutral-700 border border-neutral-800';
 
-  let list = state.activeTab === 'admin'
+  let list = state.adminOpen
     ? [...state.data]
     : state.data.filter(item => item.categoria === state.activeTab);
   if (state.searchTerm) {
@@ -178,7 +178,7 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   btnSave.innerHTML = 'SALVANDO...';
 
   const productData = {
-    categoria:  (state.activeTab === 'clientes' || state.activeTab === 'admin') ? 'kitsInversor' : state.activeTab,
+    categoria:  (state.activeTab === 'clientes' || state.adminOpen) ? 'kitsInversor' : state.activeTab,
     name:       document.getElementById('form-name').value.toUpperCase(),
     brand:      document.getElementById('form-brand').value.toUpperCase(),
     power:      Number(document.getElementById('form-power').value),
@@ -691,8 +691,8 @@ async function handleKitsSpreadsheetSelection(event) {
 }
 
 function triggerKitsImportPicker() {
-  if (state.activeTab !== 'admin' || state.adminSection !== 'produtos') {
-    showToast('ACESSO DISPONIVEL APENAS NA ABA ADMIN > KITS.');
+  if (!state.adminOpen || state.adminSection !== 'produtos') {
+    showToast('ACESSO DISPONIVEL APENAS NO ADMIN > KITS.');
     return;
   }
 
@@ -707,8 +707,8 @@ function triggerKitsImportPicker() {
 }
 
 function exportCurrentKitsXLSX() {
-  if (state.activeTab !== 'admin' || state.adminSection !== 'produtos') {
-    showToast('ACESSO DISPONIVEL APENAS NA ABA ADMIN > KITS.');
+  if (!state.adminOpen || state.adminSection !== 'produtos') {
+    showToast('ACESSO DISPONIVEL APENAS NO ADMIN > KITS.');
     return;
   }
 

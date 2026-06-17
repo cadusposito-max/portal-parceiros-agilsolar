@@ -28,6 +28,17 @@ let state = {
   isEditMode: false,
   currentUser: null,
 
+  // Ambiente ativo: 'comercial' | 'om'
+  environment: 'comercial',
+  // Tab ativa dentro do ambiente O&M
+  omActiveTab: 'central',
+
+  // Admin global (overlay transversal, desvinculado do ambiente). Etapa 1.
+  // Ao abrir, guardamos a vertente/aba de origem para restaurar ao fechar.
+  adminOpen: false,
+  returnEnvironment: null,
+  returnTab: null,
+
   // Clientes
   clienteFilter: 'TODOS',   // Filtro de status na aba clientes (vendedor/gestor)
   clienteSort:   'recent',  // Ordenacao: 'recent' | 'alpha' (vendedor/gestor)
@@ -78,6 +89,7 @@ let state = {
   // Permissoes
   isAdmin: false,
   isGestor: false,
+  isTecnico: false,
 
   // Admin
   adminSection: 'produtos',
@@ -136,4 +148,15 @@ const TABS = [
   { id: 'dashboard', label: 'DASHBOARD',      icon: 'layout-dashboard' },
   { id: 'clientes',  label: 'MEUS CLIENTES',  icon: 'users' },
   { id: 'vendas',    label: 'VENDAS',         icon: 'trophy' }
+];
+
+// Tabs do ambiente O&M (Operação & Manutenção)
+const OM_TABS = [
+  { id: 'propostas',  label: 'PROPOSTAS O&M', icon: 'file-signature' },
+  { id: 'central',    label: 'CENTRAL',       icon: 'radar',          secondary: true },
+  { id: 'clientes',   label: 'CLIENTES',      icon: 'users',          secondary: true },
+  { id: 'os',         label: 'OS',            icon: 'clipboard-list', secondary: true },
+  { id: 'pendencias', label: 'PENDÊNCIAS',    icon: 'alert-triangle', secondary: true },
+  { id: 'relatorios', label: 'RELATÓRIOS',    icon: 'file-text',      secondary: true },
+  { id: 'tecnicos',   label: 'TÉCNICOS',      icon: 'hard-hat',       secondary: true }
 ];

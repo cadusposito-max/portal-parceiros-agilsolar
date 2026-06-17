@@ -44,11 +44,32 @@ function onTurnstileError() {
   if (btnSubmit) btnSubmit.disabled = true;
 }
 
+// Guard pra não disparar logout automático em loop
+let _sessionLossHandled = false;
+
 // Detecta evento PASSWORD_RECOVERY (fluxo PKCE / magic-link do Supabase)
-supabaseClient.auth.onAuthStateChange((event) => {
+// e perda de sessão pós-login (refresh_token expirou/revogado)
+supabaseClient.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     _isPasswordRecovery = true;
     showPasswordResetForm();
+    return;
+  }
+
+  // Detecção de sessão perdida: só age se o usuário ESTAVA logado (state.currentUser set).
+  // Cobre:
+  //  - SIGNED_OUT disparado pelo Supabase quando refresh falha
+  //  - TOKEN_REFRESHED vindo com session=null (refresh quebrou)
+  // Não atua durante o boot/login (state.currentUser ainda é null) nem em recovery.
+  const lostSession =
+    (event === 'SIGNED_OUT') ||
+    (event === 'TOKEN_REFRESHED' && !session);
+
+  if (lostSession && state.currentUser && !_isPasswordRecovery && !_sessionLossHandled) {
+    _sessionLossHandled = true;
+    try { showToast('Sessão expirada. Faça login novamente.'); } catch (_) {}
+    // Reload leva pra tela de login (mesmo fluxo do handleLogout, sem chamar signOut duas vezes)
+    setTimeout(() => window.location.reload(), 800);
   }
 });
 
@@ -145,6 +166,7 @@ function _getInactiveSessionMessage(reason) {
 }
 
 async function blockInactiveSession(reason = _activeCheckFailureReason || 'inactive') {
+  _sessionLossHandled = true; // suprime listener (fluxo dedicado de conta inativa)
   await supabaseClient.auth.signOut();
   if (typeof resetUser === 'function') resetUser();
   state.currentUser = null;
@@ -198,7 +220,12 @@ async function checkAuth() {
       const appMeta     = session.user.app_metadata || {};
       state.isAdmin     = appMeta.role === 'admin';
       state.isGestor    = appMeta.role === 'gestor';
+      state.isTecnico   = appMeta.role === 'tecnico';
+      state.isCoordenador = appMeta.role === 'coordenador_tecnico';
+      state.role        = appMeta.role || 'vendedor';
       state.franquiaId  = appMeta.franquia_id || null;
+      // Técnico fica preso ao ambiente O&M, aba OS.
+      if (state.isTecnico) { state.environment = 'om'; state.omActiveTab = 'os'; }
       state.adminPrefsLoaded = false;
       if (state.isAdmin && state.franquiaId && !state.adminKitsFranquia) {
         state.adminKitsFranquia = state.franquiaId;
@@ -224,9 +251,14 @@ async function checkAuth() {
         fetchComunicados(),
         updateVendedorStats(session.user.email),
       ]);
+      if (typeof omRefreshAccess === 'function') await omRefreshAccess();
       renderHeaderUser();
-      renderTabs();
-      renderContent();
+      renderTabs();                 // prepara o header atrás do overlay
+      if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
+        showLauncher();             // espera a escolha; renderContent() roda no enterEnvironment()
+      } else {
+        renderContent();            // caminho atual: 1 ambiente / técnico
+      }
       if (typeof chatBoot === 'function') await chatBoot();
       if (typeof identifyUser === 'function') identifyUser(session.user);
     } else {
@@ -454,7 +486,12 @@ async function _finishLogin(user, email) {
   const appMeta     = user.app_metadata || {};
   state.isAdmin     = appMeta.role === 'admin';
   state.isGestor    = appMeta.role === 'gestor';
+  state.isTecnico   = appMeta.role === 'tecnico';
+  state.isCoordenador = appMeta.role === 'coordenador_tecnico';
+  state.role        = appMeta.role || 'vendedor';
   state.franquiaId  = appMeta.franquia_id || null;
+  // Técnico fica preso ao ambiente O&M, aba OS.
+  if (state.isTecnico) { state.environment = 'om'; state.omActiveTab = 'os'; }
   state.adminPrefsLoaded = false;
   if (state.isAdmin && state.franquiaId && !state.adminKitsFranquia) {
     state.adminKitsFranquia = state.franquiaId;
@@ -483,9 +520,14 @@ async function _finishLogin(user, email) {
     fetchComponentes(),
     fetchComunicados(),
   ]);
+  if (typeof omRefreshAccess === 'function') await omRefreshAccess();
   renderHeaderUser();
-  renderTabs();
-  renderContent();
+  renderTabs();                 // prepara o header atrás do overlay
+  if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
+    showLauncher();             // espera a escolha; renderContent() roda no enterEnvironment()
+  } else {
+    renderContent();            // caminho atual: 1 ambiente / técnico
+  }
   if (typeof chatBoot === 'function') await chatBoot();
   if (typeof identifyUser === 'function') identifyUser(user);
   if (typeof captureEvent === 'function') captureEvent('login_success', { source: 'portal' });
@@ -632,6 +674,7 @@ async function updateVendedorStats(email) {
 }
 
 async function handleLogout() {
+  _sessionLossHandled = true; // suprime listener de "sessão expirada" (saída intencional)
   clearTimeout(_inactivityTimer);
   if (typeof chatTeardown === 'function') chatTeardown(true);
   try {

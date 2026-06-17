@@ -1,0 +1,39 @@
+name: Update build metadata
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - "assets/build.json"
+
+permissions:
+  contents: write
+
+jobs:
+  update-build-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write build metadata
+        shell: bash
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          VERSION="v${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
+          DEPLOYED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          cat > assets/build.json <<EOF
+          {
+            "version": "${VERSION}",
+            "commit": "${SHORT_SHA}",
+            "deployed_at": "${DEPLOYED_AT}"
+          }
+          EOF
+
+      - name: Commit build metadata
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update build metadata"
+          file_pattern: assets/build.json

@@ -37,6 +37,11 @@ function setThemePreference(preference) {
     : 'system';
   localStorage.setItem('themePreference', pref);
   applyThemeMode();
+  // Re-renderiza o conteúdo: alguns valores (ex.: background-color via var CSS)
+  // não repintam no toggle ao vivo sem um novo render. Só no toggle do usuário.
+  if (typeof renderContent === 'function') {
+    try { renderContent(); } catch (_) {}
+  }
   if (typeof showToast === 'function') {
     const label = pref === 'system' ? 'SISTEMA' : (pref === 'light' ? 'CLARO' : 'ESCURO');
     showToast(`TEMA: ${label}`);
@@ -561,7 +566,9 @@ function _ensureVersionUpdateNotice() {
     btnUpdateNow.addEventListener('click', () => {
       btnUpdateNow.setAttribute('disabled', 'true');
       btnUpdateNow.textContent = 'Atualizando...';
-      window.location.reload();
+      const url = new URL(window.location.href);
+      url.searchParams.set('app_v', _detectedNewVersion || String(Date.now()));
+      window.location.replace(url.toString());
     });
   }
 
@@ -646,5 +653,4 @@ if (document.readyState === 'loading') {
 } else {
   initPublishedVersionWatcher();
 }
-
 

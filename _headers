@@ -12,19 +12,42 @@
   # Protecao contra ataques Spectre/cross-origin (COOP)
   Cross-Origin-Opener-Policy: same-origin
 
-/sw.js
-  Cache-Control: no-cache, no-store, must-revalidate
-  Service-Worker-Allowed: /
+/index.html
+  Cache-Control: no-store, max-age=0
+
+/assets/css/main.css
+  Cache-Control: no-store, max-age=0
+
+/version.json
+  Cache-Control: no-store, max-age=0
+
+/assets/build.json
+  Cache-Control: no-store, max-age=0
+
+/assets/js/om.js
+  Cache-Control: no-store, max-age=0
+
+/assets/js/om-os.js
+  Cache-Control: no-store, max-age=0
 
 /proposta.html
   Cache-Control: no-store, max-age=0
   X-Robots-Tag: noindex, nofollow, noarchive
   Content-Security-Policy: frame-ancestors 'none'
 
-/proposta-pdf.html
+/proposta-om.html
   Cache-Control: no-store, max-age=0
   X-Robots-Tag: noindex, nofollow, noarchive
   Content-Security-Policy: frame-ancestors 'none'
+
+/assets/css/proposta-om.layout.css
+  Cache-Control: no-store, max-age=0
+
+/assets/css/proposta-om.premium.css
+  Cache-Control: no-store, max-age=0
+
+/assets/js/proposta-om.js
+  Cache-Control: no-store, max-age=0
 
 /assets/test.html
   Cache-Control: no-store, max-age=0

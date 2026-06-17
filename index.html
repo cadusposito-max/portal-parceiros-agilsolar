@@ -14,7 +14,7 @@
     frame-src   https://challenges.cloudflare.com;
     object-src  'none';
     base-uri    'self';
-    worker-src  'self';
+    worker-src  'none';
     form-action 'self';
     upgrade-insecure-requests;
     block-all-mixed-content;
@@ -97,7 +97,7 @@
     }
   </script>
 
-  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/main.css?v=20260617-launcher-tw">
   <link rel="stylesheet" href="assets/css/theme-light.css" id="theme-light-css" disabled>
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -208,6 +208,137 @@
   </div>
 </div>
 
+<!-- LAUNCHER — tela inicial de escolha de ambiente (só p/ quem tem 2+ ambientes) -->
+<div id="launcher-screen" class="fixed inset-0 z-[95] bg-[#050505] launch-bg overflow-y-auto hidden opacity-0 transition-opacity duration-500">
+
+  <!-- Topo: usuário + sair -->
+  <header class="w-full border-b border-neutral-900/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <span class="hidden sm:inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-neutral-500">
+        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> Portal Parceiros
+      </span>
+      <div class="flex items-center gap-2.5">
+        <!-- User pill — mesmo padrão do header do app -->
+        <div id="launcher-user-avatar"
+          class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 to-yellow-500 flex items-center justify-center text-black font-black text-xs avatar-pulse select-none overflow-hidden shrink-0"></div>
+        <div class="flex flex-col leading-tight">
+          <span id="launcher-user-name" class="text-white text-[11px] font-black uppercase tracking-widest leading-tight"></span>
+          <span id="launcher-user-role" class="text-neutral-600 text-[9px] font-bold uppercase tracking-widest">Vendedor</span>
+        </div>
+        <!-- Logout (botão power vermelho, igual ao header) -->
+        <button onclick="handleLogout()" title="Sair do Sistema"
+          class="ml-1 p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-red-500/60 hover:text-red-400 hover:bg-red-500/8 hover:border-red-500/40 shrink-0">
+          <i data-lucide="power" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
+    <!-- Logo + saudação -->
+    <section class="pt-12 sm:pt-16 pb-8 sm:pb-12 text-center">
+      <img src="assets/img/logo.png" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png"
+           onerror="this.src='https://placehold.co/300x90?text=Agil+Solar'" alt="Ágil Solar"
+           class="logo-glow w-44 sm:w-56 h-auto object-contain mx-auto mb-8 stg stg-1">
+      <p class="text-orange-500 text-[11px] sm:text-xs font-black uppercase tracking-[0.3em] mb-3 stg stg-2">Bem-vindo de volta</p>
+      <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight stg stg-2 min-h-[4.5rem] sm:min-h-[4rem] flex items-center justify-center">
+        <span id="launcher-tw">Para onde você quer ir?</span><span id="launcher-caret" class="launcher-caret" aria-hidden="true"></span>
+      </h1>
+      <p class="text-neutral-500 text-sm sm:text-base font-medium mt-4 max-w-md mx-auto stg stg-3">
+        Escolha o ambiente em que você vai trabalhar hoje.
+      </p>
+    </section>
+
+    <!-- Grade de módulos: auto-fill deixa espaço pra novos ambientes -->
+    <section class="grid gap-4 sm:gap-5" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));">
+
+      <!-- COMERCIAL (ativo) -->
+      <button type="button" onclick="enterEnvironment('comercial')" class="mod-card is-active text-left p-6 stg stg-3">
+        <div class="flex items-start justify-between mb-8">
+          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="trending-up" class="w-6 h-6 text-orange-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Ativo
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-white uppercase tracking-wide">Comercial</h2>
+        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Propostas, vendas, clientes e dashboard de performance.</p>
+        <div class="flex items-center gap-2 mt-5 text-orange-500 text-xs font-black uppercase tracking-widest">
+          Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i>
+        </div>
+      </button>
+
+      <!-- O&M (ativo) -->
+      <button type="button" id="launcher-card-om" onclick="enterEnvironment('om')" class="mod-card is-active text-left p-6 stg stg-4">
+        <div class="flex items-start justify-between mb-8">
+          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="wrench" class="w-6 h-6 text-orange-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-orange-400 bg-orange-400/10 border border-orange-400/20 px-2 py-1">
+            <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Novo
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-white uppercase tracking-wide">O&amp;M</h2>
+        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Operação e manutenção: ordens de serviço e propostas técnicas.</p>
+        <div class="flex items-center gap-2 mt-5 text-orange-500 text-xs font-black uppercase tracking-widest">
+          Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i>
+        </div>
+      </button>
+
+      <!-- FINANCEIRO (em breve) -->
+      <div class="mod-card is-soon p-6 stg stg-4">
+        <div class="flex items-start justify-between mb-8">
+          <div class="w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="wallet" class="w-6 h-6 text-neutral-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-neutral-500 bg-neutral-500/10 border border-neutral-700 px-2 py-1">
+            <i data-lucide="lock" class="w-2.5 h-2.5"></i> Em breve
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Financeiro</h2>
+        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Faturamento, comissões e controle de recebíveis.</p>
+        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponível em breve</div>
+      </div>
+
+      <!-- VISTORIA (em breve) -->
+      <div class="mod-card is-soon p-6 stg stg-5">
+        <div class="flex items-start justify-between mb-8">
+          <div class="w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="clipboard-check" class="w-6 h-6 text-neutral-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-neutral-500 bg-neutral-500/10 border border-neutral-700 px-2 py-1">
+            <i data-lucide="lock" class="w-2.5 h-2.5"></i> Em breve
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Vistoria</h2>
+        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Checklists de campo, fotos e laudos de inspeção.</p>
+        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponível em breve</div>
+      </div>
+
+      <!-- ENGENHARIA (em breve) -->
+      <div class="mod-card is-soon p-6 stg stg-5">
+        <div class="flex items-start justify-between mb-8">
+          <div class="w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="ruler" class="w-6 h-6 text-neutral-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-neutral-500 bg-neutral-500/10 border border-neutral-700 px-2 py-1">
+            <i data-lucide="lock" class="w-2.5 h-2.5"></i> Em breve
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Engenharia</h2>
+        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Projetos, dimensionamento e documentação técnica.</p>
+        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponível em breve</div>
+      </div>
+
+    </section>
+
+    <footer class="mt-12 text-center">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-700">Ágil Solar · Portal Parceiros</p>
+    </footer>
+  </main>
+</div>
+
 <!-- MAIN APP CONTENT -->
 <div id="app-content" class="opacity-0 scale-95 transition-all duration-1000 hidden">
   <header class="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-neutral-800/80 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.9)] animate-fade-in-down">
@@ -219,59 +350,101 @@
 
         <!-- Logo -->
         <div class="flex items-center gap-3 cursor-pointer group shrink-0" onclick="window.scrollTo(0,0)">
+          <!-- Wordmark completo (telas largas) -->
           <img src="assets/img/logo.png" alt="Ágil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png"
             onerror="this.src='https://placehold.co/150x50?text=Agil+Solar'"
-            class="h-7 w-auto object-contain group-hover:scale-105 transition-transform">
-          <div class="hidden sm:block border-l border-neutral-800 pl-3">
+            class="hidden lg:block h-7 w-auto object-contain group-hover:scale-105 transition-transform">
+          <!-- Só o ícone (telas estreitas) -->
+          <img src="assets/img/logo-icon.png" alt="Ágil Solar"
+            class="lg:hidden h-8 w-auto object-contain group-hover:scale-105 transition-transform">
+          <div class="hidden lg:block border-l border-neutral-800 pl-3">
             <p class="text-white text-[9px] font-black uppercase tracking-[0.35em] leading-tight">Portal<br>Parceiros</p>
           </div>
         </div>
 
         <!-- Nav + actions -->
-        <div class="flex items-center gap-2 md:gap-3 overflow-x-auto no-scrollbar">
-          <nav class="hidden md:flex bg-neutral-900/60 p-0.5 border border-neutral-800/60" id="tab-container"></nav>
+        <div class="flex items-center gap-2 md:gap-3 min-w-0 flex-1 justify-end">
 
-          <!-- Hamburger (mobile only) -->
-          <button id="hamburger-btn" onclick="toggleMobileMenu()"
-            class="md:hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 shrink-0"
-            aria-label="Abrir menu" aria-expanded="false">
-            <i data-lucide="menu" id="hamburger-icon" class="w-4 h-4"></i>
-          </button>
-
-          <!-- Admin -->
-          <button id="admin-toggle-btn" onclick="setTab('admin')" class="hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-500 hover:text-white hover:border-neutral-600 shrink-0" title="Modo ADMIN">
-            <i data-lucide="settings" class="w-4 h-4"></i>
-          </button>
-
-          <!-- Refresh (PWA standalone only) -->
-          <button id="pwa-refresh-btn" onclick="window.location.reload()" title="Atualizar"
-            class="hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 shrink-0">
-            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-          </button>
-
-          <!-- User pill -->
-          <div id="header-user" class="hidden items-center gap-2.5 pl-2 md:pl-3 border-l border-neutral-800 shrink-0">
-            <div id="header-user-avatar"
-              class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-yellow-500 flex items-center justify-center text-black font-black text-xs avatar-pulse cursor-default select-none">
+          <!-- GRUPO ESQUERDO: navegação (rola horizontalmente se exceder) -->
+          <div class="flex items-center gap-2 md:gap-3 overflow-x-auto no-scrollbar min-w-0">
+            <!-- Switcher de ambiente: Comercial / O&M -->
+            <div id="env-switcher" class="hidden lg:inline-flex gap-1 bg-neutral-900/60 p-0.5 border border-neutral-800/60 shrink-0">
+              <button id="env-btn-comercial" onclick="setEnvironment('comercial')"
+                class="env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>COMERCIAL
+              </button>
+              <button id="env-btn-om" onclick="setEnvironment('om')"
+                class="env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all">
+                <i data-lucide="wrench" class="w-3.5 h-3.5"></i>O&amp;M
+              </button>
             </div>
-            <div class="hidden md:flex flex-col">
-              <span id="header-user-name" class="text-white text-[10px] font-black uppercase tracking-widest leading-tight"></span>
-              <span id="header-user-role" class="text-neutral-600 text-[8px] font-bold uppercase tracking-widest">Vendedor</span>
-            </div>
+
+            <nav class="hidden lg:flex bg-neutral-900/60 p-0.5 border border-neutral-800/60 shrink-0" id="tab-container"></nav>
+
+            <!-- Hamburger (mobile only) -->
+            <button id="hamburger-btn" onclick="toggleMobileMenu()"
+              class="lg:hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 shrink-0"
+              aria-label="Abrir menu" aria-expanded="false">
+              <i data-lucide="menu" id="hamburger-icon" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Admin -->
+            <button id="admin-toggle-btn" onclick="openAdmin()" class="hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-500 hover:text-white hover:border-neutral-600 shrink-0" title="Modo ADMIN">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Refresh (PWA standalone only) -->
+            <button id="pwa-refresh-btn" onclick="const u=new URL(window.location.href);u.searchParams.set('app_v',Date.now());window.location.replace(u.toString())" title="Atualizar"
+              class="hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 shrink-0">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
           </div>
 
-          <!-- Logout -->
-          <button onclick="handleLogout()" title="Sair do Sistema"
-            class="p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-red-500/60 hover:text-red-400 hover:bg-red-500/8 hover:border-red-500/40 shrink-0">
-            <i data-lucide="power" class="w-4 h-4"></i>
-          </button>
+          <!-- GRUPO DIREITO: usuário + logout (sempre visíveis, não rolam) -->
+          <div class="flex items-center gap-2 md:gap-3 shrink-0">
+            <!-- User pill -->
+            <div id="header-user" class="hidden items-center gap-2.5 pl-2 md:pl-3 border-l border-neutral-800 shrink-0">
+              <div id="header-user-avatar"
+                class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-yellow-500 flex items-center justify-center text-black font-black text-xs avatar-pulse cursor-default select-none">
+              </div>
+              <div class="hidden lg:flex flex-col">
+                <span id="header-user-name" class="text-white text-[10px] font-black uppercase tracking-widest leading-tight"></span>
+                <span id="header-user-role" class="text-neutral-600 text-[8px] font-bold uppercase tracking-widest">Vendedor</span>
+              </div>
+            </div>
+
+            <!-- Logout -->
+            <button onclick="handleLogout()" title="Sair do Sistema"
+              class="p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-red-500/60 hover:text-red-400 hover:bg-red-500/8 hover:border-red-500/40 shrink-0">
+              <i data-lucide="power" class="w-4 h-4"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- Sub-nav O&M — segunda linha de navegação (desktop). Preenchida por renderTabs(). -->
+    <div id="om-subnav" class="hidden"></div>
+
     <!-- Mobile Navigation Dropdown -->
-    <div id="mobile-menu" class="hidden md:hidden overflow-hidden border-t border-neutral-800/60 bg-black/98 backdrop-blur-xl">
-      <nav id="mobile-menu-tabs" class="flex flex-col p-2 gap-0.5">
+    <div id="mobile-menu" class="hidden lg:hidden overflow-hidden border-t border-neutral-800/60 bg-black/98 backdrop-blur-xl">
+      <!-- Seletor de seção -->
+      <div id="menu-section">
+        <div class="px-3 pt-3 pb-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-neutral-600">Seção</div>
+        <div id="env-switcher-mobile" class="flex px-2 pb-2 gap-1 border-b border-neutral-800/60">
+          <button onclick="setEnvironment('comercial')" id="env-btn-comercial-mobile"
+            class="env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>COMERCIAL
+          </button>
+          <button onclick="setEnvironment('om')" id="env-btn-om-mobile"
+            class="env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            <i data-lucide="wrench" class="w-3.5 h-3.5"></i>O&amp;M
+          </button>
+        </div>
+      </div>
+      <!-- Abas da seção selecionada -->
+      <div class="px-3 pt-3 pb-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-neutral-600">Navegação</div>
+      <nav id="mobile-menu-tabs" class="flex flex-col px-2 pb-2 gap-0.5">
         <!-- Rendered by JS -->
       </nav>
     </div>
@@ -334,6 +507,59 @@
       <button id="empty-state-btn" class="hidden text-orange-500 font-black hover:text-white hover:underline uppercase tracking-wide">+ AÇÃO</button>
     </div>
   </main>
+</div>
+
+<!-- OVERLAY ADMIN GLOBAL — destino transversal acessível pela engrenagem de qualquer vertente -->
+<div id="admin-overlay" class="fixed inset-0 z-[120] bg-black/95 backdrop-blur-md hidden overflow-y-auto">
+  <!-- Cabeçalho fixo com botão de fechar -->
+  <div class="sticky top-0 z-10 bg-black/90 backdrop-blur border-b border-neutral-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="bg-red-600/20 border border-red-600/30 p-2 text-red-400 shrink-0"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
+        <div class="min-w-0">
+          <span class="text-red-400 font-black uppercase tracking-widest block text-[9px] leading-tight">Administração</span>
+          <span class="text-white font-bold text-sm leading-tight">Painel global do sistema</span>
+        </div>
+      </div>
+      <button id="admin-close-btn" onclick="closeAdmin()" title="Fechar painel admin (ESC)"
+        class="flex items-center gap-2 bg-black border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 px-4 py-2.5 font-black uppercase tracking-widest transition-all text-[10px] shrink-0">
+        <i data-lucide="x" class="w-4 h-4"></i><span id="admin-close-label" class="hidden sm:inline">Fechar</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 py-6 md:py-8">
+    <!-- Barra de ações de kits (própria do overlay; espelha #admin-bar para a seção KITS) -->
+    <div id="admin-overlay-kitsbar" class="hidden mb-6 bg-red-950/20 border border-red-600/20 p-4 flex items-center justify-between backdrop-blur-sm gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-red-600/20 border border-red-600/30 p-2 text-red-400"><i data-lucide="settings" class="w-4 h-4 animate-spin-slow"></i></div>
+        <div>
+          <span class="text-red-400 font-black uppercase tracking-widest block text-[10px]">Atenção</span>
+          <span class="text-white font-bold text-sm">MODO ADMINISTRADOR ATIVO</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap justify-end">
+        <a href="assets/templates/modelo_importacao_kits.csv" download="modelo_importacao_kits.csv" class="flex items-center gap-2 bg-black border border-cyan-700/60 text-cyan-300 hover:bg-cyan-600/15 hover:border-cyan-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="file-text" class="w-4 h-4"></i> MODELO CSV
+        </a>
+        <button onclick="downloadKitsImportTemplateXLSX()" class="flex items-center gap-2 bg-black border border-blue-700/60 text-blue-300 hover:bg-blue-600/15 hover:border-blue-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> MODELO XLSX
+        </button>
+        <button onclick="triggerKitsImportPicker()" class="flex items-center gap-2 bg-black border border-green-700/60 text-green-300 hover:bg-green-600/15 hover:border-green-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="upload" class="w-4 h-4"></i> IMPORTAR PLANILHA
+        </button>
+        <button onclick="exportCurrentKitsXLSX()" class="flex items-center gap-2 bg-black border border-amber-700/60 text-amber-300 hover:bg-amber-600/15 hover:border-amber-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="download" class="w-4 h-4"></i> EXPORTAR XLSX
+        </button>
+        <button onclick="openModal()" class="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black px-5 py-2.5 font-black uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(234,88,12,0.2)] hover:shadow-[0_0_30px_rgba(234,88,12,0.4)] active:scale-95 text-xs">
+          <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i> NOVO KIT
+        </button>
+      </div>
+    </div>
+
+    <!-- Conteúdo do painel admin (renderAdminPanel injeta aqui no modo overlay) -->
+    <div id="admin-overlay-content"></div>
+  </div>
 </div>
 
 <!-- MODAL POPUP: PROPOSTA / FINANCIAMENTO / HISTÓRICO -->
@@ -844,22 +1070,25 @@
 </div>
 
 <!-- SCRIPTS EXTERNOS -->
-<script src="assets/js/config.js"></script>
-<script src="assets/js/analytics.js"></script>
-<script src="assets/js/utils.js"></script>
-<script src="assets/js/api.js"></script>
-<script src="assets/js/auth.js"></script>
-<script src="assets/js/comunicados.js"></script>
-<script src="assets/js/dashboard.js"></script>
-<script src="assets/js/clientes.js"></script>
-<script src="assets/js/produtos.js"></script>
-<script src="assets/js/proposta-builder.js"></script>
-<script src="assets/js/vendas.js"></script>
-<script src="assets/js/admin.js"></script>
-<script src="assets/js/profile.js"></script>
-<script src="assets/js/chat.js"></script>
-<script src="assets/js/push.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/config.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/analytics.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/utils.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/api.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/auth.js?v=20260617-om-perfis"></script>
+<script src="assets/js/comunicados.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/dashboard.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/clientes.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/produtos.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/proposta-builder.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/vendas.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/admin.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/profile.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/chat.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/om.js?v=20260617-om-perfis"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js"></script>
+<script src="assets/js/om-os.js?v=20260616-os-tabs"></script>
+<script src="assets/js/app.js?v=20260617-om-perfis"></script>
+<script src="assets/js/update-notice.js?v=20260615-om-central-propostas"></script>
 <script>
 (function () {
   const isPwa = window.matchMedia('(display-mode: standalone)').matches
