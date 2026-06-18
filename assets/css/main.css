@@ -1437,6 +1437,70 @@ html[data-theme="light"] {
 .om-nav-shadow { box-shadow: 0 0 12px var(--om-shadow); }
 .om-hover-border:hover { border-color: var(--om-border-40); }
 
+/* ============================================================
+   FINANCEIRO — acento teal para gestão financeira
+   ============================================================ */
+:root,
+html[data-theme="dark"] {
+  --fin: #14b8a6;
+  --fin-soft: #2dd4bf;
+  --fin-strong: #0d9488;
+  --fin-on: #99f6e4;
+  --fin-chip-bg: rgba(45,212,191,0.12);
+  --fin-border-50: rgba(45,212,191,0.5);
+  --fin-border-40: rgba(45,212,191,0.4);
+  --fin-border-30: rgba(45,212,191,0.3);
+  --fin-border-20: rgba(45,212,191,0.2);
+  --fin-focus: rgba(45,212,191,0.6);
+  --fin-shadow: rgba(20,184,166,0.35);
+  --fin-radial: rgba(20,184,166,0.05);
+  --fin-radial2: rgba(13,148,136,0.03);
+  --fin-deep-grad:
+    radial-gradient(120% 120% at 15% 0%, rgba(45,212,191,0.12), transparent 50%),
+    linear-gradient(135deg, #04221c 0%, #063a30 52%, #03201b 100%);
+  --fin-deep-border: rgba(13,148,136,0.5);
+}
+
+html[data-theme="light"] {
+  --fin: #0d9488;
+  --fin-soft: #0f766e;
+  --fin-strong: #115e59;
+  --fin-on: #ccfbf1;
+  --fin-chip-bg: rgba(13,148,136,0.12);
+  --fin-border-50: rgba(13,148,136,0.5);
+  --fin-border-40: rgba(13,148,136,0.4);
+  --fin-border-30: rgba(13,148,136,0.3);
+  --fin-border-20: rgba(13,148,136,0.2);
+  --fin-focus: rgba(13,148,136,0.6);
+  --fin-shadow: rgba(13,148,136,0.3);
+  --fin-radial: rgba(13,148,136,0.06);
+  --fin-radial2: rgba(6,182,212,0.04);
+  --fin-deep-grad:
+    radial-gradient(120% 120% at 15% 0%, rgba(20,184,166,0.16), transparent 50%),
+    linear-gradient(135deg, #0d3b34 0%, #0f4d44 52%, #0a2f29 100%);
+  --fin-deep-border: rgba(15,118,110,0.55);
+}
+
+.fin-env {
+  background:
+    radial-gradient(900px 360px at 78% -180px, var(--fin-radial), transparent 70%),
+    radial-gradient(900px 380px at 22% -200px, var(--fin-radial2), transparent 70%);
+}
+
+.fin-acc { color: var(--fin-soft); }
+.fin-acc-strong { color: var(--fin); }
+.fin-acc-chip { background-color: var(--fin-chip-bg); color: var(--fin-soft); }
+.fin-acc-solid { background-color: var(--fin); color: #022c22; }
+.fin-acc-solid:hover { background-color: var(--fin-soft); }
+.fin-acc-focus:focus { border-color: var(--fin-focus); outline: none; }
+.fin-deep { background: var(--fin-deep-grad); border: 1px solid var(--fin-deep-border); }
+.fin-deep-label { color: var(--fin-on); }
+.fin-deep-pill { background: rgba(153,246,228,0.12); color: var(--fin-on); }
+.fin-nav-grad { background-image: linear-gradient(to right, var(--fin-strong), var(--fin-soft)); color: #022c22; }
+.fin-nav-shadow { box-shadow: 0 0 12px var(--fin-shadow); }
+.fin-hover-border:hover { border-color: var(--fin-border-40); }
+.fin-table-row:hover { background: linear-gradient(90deg, rgba(20,184,166,0.055), transparent 64%); }
+
 /* ------------------------------------------------------------
    O&M — demais rotas (Propostas, Clientes, OS, Pendências,
    Relatórios, Técnicos) + modais ainda escritos com utilitários

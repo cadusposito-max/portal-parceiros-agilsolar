@@ -440,7 +440,11 @@
     const d = cache.detalhe, os = d.os, c = d.cliente || {}, s = d.sistema || {};
     const tel = (c.telefone || '').replace(/\D/g, '');
     const telE164 = tel ? (tel.length <= 11 ? '55' + tel : tel) : '';
-    const rota = s.endereco_instalacao ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(s.endereco_instalacao) : '';
+    // Endereço do atendimento: usa o do sistema; se vazio, cai no endereço do cliente.
+    const endereco = (s.endereco_instalacao && s.endereco_instalacao.trim())
+      || [c.endereco, c.cidade].filter(Boolean).join(' — ')
+      || '';
+    const rota = endereco ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(endereco) : '';
 
     const acao = (href, icon, label, on, ext) =>
       `<a ${on ? `href="${href}"` : ''} ${ext || ''}
@@ -464,7 +468,7 @@
         <div class="text-[12.5px] text-amber-100/90 leading-relaxed">${esc(d.acesso_obs)}</div></div></div>` : '';
 
     const localCard = card('Local do atendimento', 'map',
-      `<div class="p-4 text-[13px] text-neutral-200 leading-relaxed">${esc(s.endereco_instalacao || 'Endereço não informado')}</div>`);
+      `<div class="p-4 text-[13px] text-neutral-200 leading-relaxed">${esc(endereco || 'Endereço não informado')}</div>`);
 
     const modulos = s.quantidade_modulos
       ? `${s.quantidade_modulos}× ${[s.marca_modulos, s.modelo_modulos].filter(Boolean).join(' ') || 'módulos'}`

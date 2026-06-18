@@ -345,14 +345,21 @@ function renderEnvSwitcher() {
   if (desktop) desktop.style.display = '';
   if (section) section.style.display = '';
 
-  const activate = (idSuffix, isOn, isOm) => {
+  const setDisplay = (id, visible) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !visible);
+  };
+  setDisplay('env-btn-om', Boolean(state.canOM));
+  setDisplay('env-btn-om-mobile', Boolean(state.canOM));
+
+  const activate = (idSuffix, isOn, env) => {
     const btn = document.getElementById(idSuffix);
     if (!btn) return;
     const base = 'env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap';
     const baseMobile = 'env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all';
     const root = idSuffix.endsWith('-mobile') ? baseMobile : base;
     if (isOn) {
-      const tone = isOm
+      const tone = env === 'om'
         ? 'om-nav-grad om-nav-shadow'
         : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[0_0_12px_rgba(234,88,12,0.3)]';
       btn.className = `${root} ${tone}`;
@@ -362,10 +369,13 @@ function renderEnvSwitcher() {
   };
 
   const isOm = state.environment === 'om';
-  activate('env-btn-comercial',         !isOm, false);
-  activate('env-btn-om',                 isOm, true);
-  activate('env-btn-comercial-mobile',  !isOm, false);
-  activate('env-btn-om-mobile',          isOm, true);
+  activate('env-btn-comercial',         !isOm, 'comercial');
+  activate('env-btn-om',                 isOm, 'om');
+  activate('env-btn-comercial-mobile',  !isOm, 'comercial');
+  activate('env-btn-om-mobile',          isOm, 'om');
+
+  setDisplay('env-btn-om', Boolean(state.canOM));
+  setDisplay('env-btn-om-mobile', Boolean(state.canOM));
 
 }
 
@@ -548,10 +558,9 @@ function setEnvironment(env) {
 // ==========================================
 
 // O launcher só aparece quando há escolha real (2+ ambientes). Hoje isso equivale
-// a "tem Comercial + O&M". Quando Financeiro/Vistoria/Engenharia ficarem ativos,
-// basta contar os ambientes disponíveis aqui e mostrar quando forem >= 2.
 function launcherShouldShow() {
-  return !state.isTecnico && !!state.canOM;
+  if (state.isTecnico) return false;
+  return !!state.canOM;
 }
 
 function showLauncher() {
@@ -728,7 +737,9 @@ function renderAdminOverlay() {
     if (gear) gear.className = ADMIN_GEAR_CLS_ACTIVE; // engrenagem em destaque
     // Label do botão de fechar indica para onde volta.
     const lbl = document.getElementById('admin-close-label');
-    if (lbl) lbl.textContent = state.returnEnvironment === 'om' ? 'Voltar ao O&M' : 'Voltar ao Comercial';
+    if (lbl) lbl.textContent = state.returnEnvironment === 'om'
+      ? 'Voltar ao O&M'
+      : 'Voltar ao Comercial';
     document.addEventListener('keydown', _adminEscHandler);
     const content = document.getElementById('admin-overlay-content');
     if (content && typeof renderAdminPanel === 'function') renderAdminPanel(content);
@@ -855,10 +866,6 @@ if (typeof initAnalytics === 'function') {
   initAnalytics({ mode: 'internal' });
 }
 checkAuth();
-
-
-
-
 
 
 
