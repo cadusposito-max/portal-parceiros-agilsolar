@@ -1,0 +1,1132 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Content Security Policy: bloqueia scripts de origens nÃ£o autorizadas -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://challenges.cloudflare.com https://*.i.posthog.com;
+    style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src    'self' https://fonts.gstatic.com;
+    img-src     'self' data: blob: https://placehold.co https://tzwjxgprhorqrmpqudgg.supabase.co https:;
+    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com https://*.i.posthog.com;
+    frame-src   https://challenges.cloudflare.com;
+    object-src  'none';
+    base-uri    'self';
+    worker-src  'none';
+    form-action 'self';
+    upgrade-insecure-requests;
+    block-all-mixed-content;
+  ">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Ãgil Solar - Portal Parceiros</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- PostHog JS SDK -->
+  <script src="https://unpkg.com/posthog-js@1.364.2/dist/array.js"></script>
+  <!-- SheetJS (XLSX export) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="assets/img/icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#050505">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Agil Solar">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+
+  <!-- ConfiguraÃ§Ãµes Tailwind -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            orange: { 500: '#f97316', 600: '#ea580c' },
+            yellow: { 400: '#facc15', 500: '#eab308' }
+          },
+          animation: {
+            'spin-slow':      'spin 3s linear infinite',
+            'fade-in-down':   'fadeInDown 0.5s ease-out',
+            'fade-in-up':     'fadeInUp 0.5s ease-out',
+            'pulse-slow':     'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'slide-in-left':  'slideInLeft 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            'slide-in-right': 'slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            'glow-pulse':     'glowPulse 3s ease-in-out infinite',
+            'float':          'float 6s ease-in-out infinite',
+          },
+          keyframes: {
+            fadeInDown: {
+              '0%':   { opacity: '0', transform: 'translateY(-10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            fadeInUp: {
+              '0%':   { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            slideInLeft: {
+              '0%':   { opacity: '0', transform: 'translateX(-16px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            slideInRight: {
+              '0%':   { opacity: '0', transform: 'translateX(16px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            glowPulse: {
+              '0%, 100%': { boxShadow: '0 0 10px rgba(249,115,22,0.2)' },
+              '50%':      { boxShadow: '0 0 25px rgba(249,115,22,0.5)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%':      { transform: 'translateY(-6px)' },
+            },
+          }
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="assets/css/main.css?v=20260617-launcher-tw">
+  <link rel="stylesheet" href="assets/css/theme-light.css" id="theme-light-css" disabled>
+  <!-- Cloudflare Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body class="selection:bg-orange-500 selection:text-white overflow-x-hidden">
+
+<!-- TELA DE LOGIN -->
+<div id="login-screen" class="fixed inset-0 z-[200] bg-[#050505] flex flex-col items-center justify-center overflow-hidden transition-opacity duration-500">
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-black to-black animate-pulse"></div>
+
+  <div class="relative z-10 w-full max-w-md px-6">
+    <div class="relative mb-10 flex justify-center group">
+      <div class="absolute inset-0 bg-orange-600 blur-[80px] opacity-20 animate-pulse"></div>
+      <img src="assets/img/logo.png" alt="Ãgil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png" onerror="this.src='https://placehold.co/300x100?text=Agil+Solar'" class="relative w-64 md:w-72 h-auto object-contain animate-pulse-slow">
+    </div>
+
+    <div class="bg-neutral-900/80 backdrop-blur-md border border-neutral-800 p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+      <div class="mb-8 text-center">
+        <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter uppercase mb-1 pb-1 pr-1 inline-block">Portal Parceiros</h2>
+        <p class="text-neutral-500 text-[10px] font-black uppercase tracking-[0.2em]">Insira as suas credenciais</p>
+      </div>
+
+      <form id="login-form" class="space-y-5">
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">E-mail</label>
+          <input type="email" id="login-email" required class="w-full bg-black border border-neutral-800 focus:border-orange-500 rounded-none px-4 py-3 text-white placeholder-neutral-700 font-bold transition-all" placeholder="vendedor@agilsolar.com">
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Senha</label>
+          <input type="password" id="login-password" required class="w-full bg-black border border-neutral-800 focus:border-orange-500 rounded-none px-4 py-3 text-white placeholder-neutral-700 font-bold transition-all" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
+        </div>
+
+        <!-- Cloudflare Turnstile CAPTCHA -->
+        <div class="flex justify-center py-1">
+          <div class="cf-turnstile"
+            data-sitekey="0x4AAAAAACyD0uPARxpOHPqH"
+            data-callback="onTurnstileSuccess"
+            data-expired-callback="onTurnstileExpiry"
+            data-error-callback="onTurnstileError"
+            data-theme="dark"></div>
+        </div>
+
+        <p id="login-error" class="hidden text-red-500 text-xs font-bold text-center bg-red-500/10 p-2 border border-red-500/20"></p>
+
+        <button type="submit" id="btn-submit-login" class="w-full mt-4 py-4 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] active:scale-95 flex justify-center items-center gap-2">
+          <i data-lucide="log-in" class="w-5 h-5 stroke-[3px]"></i>
+          <span>ENTRAR NO SISTEMA</span>
+        </button>
+
+        <div class="text-center pt-2">
+          <button type="button" id="btn-forgot-password" onclick="handleForgotPassword()"
+            class="text-[10px] text-neutral-600 hover:text-orange-400 font-bold uppercase tracking-widest transition-colors">
+            ESQUECI A SENHA
+          </button>
+        </div>
+      </form>
+
+      <!-- ETAPA 2FA -->
+      <div id="mfa-step" class="hidden">
+        <div class="mb-6 text-center">
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-orange-500/10 border border-orange-500/30 mb-4">
+            <i data-lucide="shield-check" class="w-7 h-7 text-orange-400"></i>
+          </div>
+          <h2 class="text-xl font-black text-white uppercase tracking-tight mb-1">VerificaÃ§Ã£o 2FA</h2>
+          <p class="text-neutral-500 text-[10px] font-bold uppercase tracking-widest">Insira o cÃ³digo do seu app autenticador</p>
+        </div>
+        <div class="space-y-4">
+          <input type="text" id="mfa-login-code" maxlength="6" inputmode="numeric" placeholder="000000" autocomplete="one-time-code"
+            class="w-full bg-black border border-neutral-800 focus:border-orange-500 rounded-none px-4 py-4 text-white font-mono text-center text-2xl tracking-[0.6em] placeholder-neutral-700 outline-none transition-all">
+          <p id="mfa-login-error" class="hidden text-red-500 text-xs font-bold text-center bg-red-500/10 p-2 border border-red-500/20"></p>
+          <button onclick="submitMfaCode()" id="btn-mfa-submit"
+            class="w-full py-4 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] active:scale-95 flex justify-center items-center gap-2">
+            <i data-lucide="check" class="w-5 h-5 stroke-[3px]"></i>
+            <span>CONFIRMAR</span>
+          </button>
+          <div class="text-center">
+            <button type="button" onclick="cancelMfaStep()"
+              class="text-[10px] text-neutral-600 hover:text-neutral-400 font-bold uppercase tracking-widest transition-colors">
+              VOLTAR AO LOGIN
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SPLASH SCREEN -->
+<div id="splash-screen" class="fixed inset-0 z-[100] bg-[#050505] flex flex-col items-center justify-center overflow-hidden transition-opacity duration-1000 ease-in-out hidden">
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/20 via-black to-black animate-pulse"></div>
+  <div class="relative z-10 flex flex-col items-center transition-transform duration-1000" id="splash-content">
+
+    <div class="relative mb-6 group">
+      <div class="absolute inset-0 bg-orange-600 blur-[80px] opacity-30 animate-pulse"></div>
+      <img src="assets/img/logo.png" alt="Ãgil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png" onerror="this.src='https://placehold.co/300x100?text=Agil+Solar'" class="relative w-80 md:w-96 h-auto object-contain animate-pulse-slow">
+    </div>
+
+    <div class="flex flex-col items-center gap-3 w-64 mt-8">
+      <div class="flex justify-between w-full text-[10px] font-black uppercase text-neutral-600 tracking-widest">
+        <span>System Check</span><span id="loading-percentage" class="text-orange-500">0%</span>
+      </div>
+      <div class="w-full h-1.5 bg-neutral-900 rounded-none overflow-hidden border border-neutral-800">
+        <div id="loading-bar" class="h-full bg-gradient-to-r from-orange-600 to-yellow-400 transition-all duration-200 ease-out shadow-[0_0_10px_rgba(234,88,12,0.5)]" style="width: 0%"></div>
+      </div>
+      <p class="text-[10px] font-mono text-neutral-700 mt-2 animate-pulse">Sincronizando Banco de Dados...</p>
+    </div>
+  </div>
+</div>
+
+<!-- LAUNCHER â€” tela inicial de escolha de ambiente (sÃ³ p/ quem tem 2+ ambientes) -->
+<div id="launcher-screen" class="fixed inset-0 z-[95] bg-[#050505] launch-bg overflow-y-auto hidden opacity-0 transition-opacity duration-500">
+
+  <!-- Topo: usuÃ¡rio + sair -->
+  <header class="w-full border-b border-neutral-900/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <span class="hidden sm:inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-neutral-500">
+        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> Portal Parceiros
+      </span>
+      <div class="flex items-center gap-2.5">
+        <!-- User pill â€” mesmo padrÃ£o do header do app -->
+        <div id="launcher-user-avatar"
+          class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 to-yellow-500 flex items-center justify-center text-black font-black text-xs avatar-pulse select-none overflow-hidden shrink-0"></div>
+        <div class="flex flex-col leading-tight">
+          <span id="launcher-user-name" class="text-white text-[11px] font-black uppercase tracking-widest leading-tight"></span>
+          <span id="launcher-user-role" class="text-neutral-600 text-[9px] font-bold uppercase tracking-widest">Vendedor</span>
+        </div>
+        <!-- Logout (botÃ£o power vermelho, igual ao header) -->
+        <button onclick="handleLogout()" title="Sair do Sistema"
+          class="ml-1 p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-red-500/60 hover:text-red-400 hover:bg-red-500/8 hover:border-red-500/40 shrink-0">
+          <i data-lucide="power" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
+    <!-- Logo + saudaÃ§Ã£o -->
+    <section class="pt-12 sm:pt-16 pb-8 sm:pb-12 text-center">
+      <img src="assets/img/logo.png" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png"
+           onerror="this.src='https://placehold.co/300x90?text=Agil+Solar'" alt="Ãgil Solar"
+           class="logo-glow w-44 sm:w-56 h-auto object-contain mx-auto mb-8 stg stg-1">
+      <p class="text-orange-500 text-[11px] sm:text-xs font-black uppercase tracking-[0.3em] mb-3 stg stg-2">Bem-vindo de volta</p>
+      <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight stg stg-2 min-h-[4.5rem] sm:min-h-[4rem] flex items-center justify-center">
+        <span id="launcher-tw">Para onde vocÃª quer ir?</span><span id="launcher-caret" class="launcher-caret" aria-hidden="true"></span>
+      </h1>
+      <p class="text-neutral-500 text-sm sm:text-base font-medium mt-4 max-w-md mx-auto stg stg-3">
+        Escolha o ambiente em que vocÃª vai trabalhar hoje.
+      </p>
+    </section>
+
+    <!-- Grade de mÃ³dulos: auto-fill deixa espaÃ§o pra novos ambientes -->
+    <section class="grid gap-4 sm:gap-5" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));">
+
+      <!-- COMERCIAL (ativo) -->
+      <button type="button" onclick="enterEnvironment('comercial')" class="mod-card is-active text-left p-6 stg stg-3">
+        <div class="flex items-start justify-between mb-8">
+          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="trending-up" class="w-6 h-6 text-orange-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Ativo
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-white uppercase tracking-wide">Comercial</h2>
+        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Propostas, vendas, clientes e dashboard de performance.</p>
+        <div class="flex items-center gap-2 mt-5 text-orange-500 text-xs font-black uppercase tracking-widest">
+          Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i>
+        </div>
+      </button>
+
+      <!-- O&M (ativo) -->
+      <button type="button" id="launcher-card-om" onclick="enterEnvironment('om')" class="mod-card is-active text-left p-6 stg stg-4">
+        <div class="flex items-start justify-between mb-8">
+          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="wrench" class="w-6 h-6 text-orange-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-orange-400 bg-orange-400/10 border border-orange-400/20 px-2 py-1">
+            <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Novo
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-white uppercase tracking-wide">O&amp;M</h2>
+        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">OperaÃ§Ã£o e manutenÃ§Ã£o: ordens de serviÃ§o e propostas tÃ©cnicas.</p>
+        <div class="flex items-center gap-2 mt-5 text-orange-500 text-xs font-black uppercase tracking-widest">
+          Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i>
+        </div>
+      </button>
+
+      <!-- FINANCEIRO (em breve) -->
+      <div class="mod-card is-soon p-6 stg stg-4">
+        <div class="flex items-start justify-between mb-8">
+          <div class="w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="wallet" class="w-6 h-6 text-neutral-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-neutral-500 bg-neutral-500/10 border border-neutral-700 px-2 py-1">
+            <i data-lucide="lock" class="w-2.5 h-2.5"></i> Em breve
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Financeiro</h2>
+        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Faturamento, comissoes e controle de recebiveis.</p>
+        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponivel em breve</div>
+      </div>
+
+      <!-- VISTORIA (em breve) -->
+      <div class="mod-card is-soon p-6 stg stg-5">
+        <div class="flex items-start justify-between mb-8">
+          <div class="w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="clipboard-check" class="w-6 h-6 text-neutral-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-neutral-500 bg-neutral-500/10 border border-neutral-700 px-2 py-1">
+            <i data-lucide="lock" class="w-2.5 h-2.5"></i> Em breve
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Vistoria</h2>
+        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Checklists de campo, fotos e laudos de inspeÃ§Ã£o.</p>
+        <div class="flex items-center gap-2 mt-5 text-teal-400 text-xs font-black uppercase tracking-widest">Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i></div>
+      </div>
+
+      <!-- ENGENHARIA (em breve) -->
+      <div class="mod-card is-soon p-6 stg stg-5">
+        <div class="flex items-start justify-between mb-8">
+          <div class="w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="ruler" class="w-6 h-6 text-neutral-500"></i>
+          </div>
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-neutral-500 bg-neutral-500/10 border border-neutral-700 px-2 py-1">
+            <i data-lucide="lock" class="w-2.5 h-2.5"></i> Em breve
+          </span>
+        </div>
+        <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Engenharia</h2>
+        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Projetos, dimensionamento e documentaÃ§Ã£o tÃ©cnica.</p>
+        <div class="flex items-center gap-2 mt-5 text-teal-400 text-xs font-black uppercase tracking-widest">Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i></div>
+      </div>
+
+    </section>
+
+    <footer class="mt-12 text-center">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-700">Ãgil Solar Â· Portal Parceiros</p>
+    </footer>
+  </main>
+</div>
+
+<!-- MAIN APP CONTENT -->
+<div id="app-content" class="opacity-0 scale-95 transition-all duration-1000 hidden">
+  <header class="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-neutral-800/80 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.9)] animate-fade-in-down">
+    <!-- Stripe animada no topo -->
+    <div class="animated-stripe h-[2px] w-full"></div>
+
+    <div class="max-w-7xl mx-auto px-4 py-2.5">
+      <div class="flex items-center justify-between gap-4">
+
+        <!-- Logo -->
+        <div class="flex items-center gap-3 cursor-pointer group shrink-0" onclick="window.scrollTo(0,0)">
+          <!-- Wordmark completo (telas largas) -->
+          <img src="assets/img/logo.png" alt="Ãgil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png"
+            onerror="this.src='https://placehold.co/150x50?text=Agil+Solar'"
+            class="hidden lg:block h-7 w-auto object-contain group-hover:scale-105 transition-transform">
+          <!-- SÃ³ o Ã­cone (telas estreitas) -->
+          <img src="assets/img/logo-icon.png" alt="Ãgil Solar"
+            class="lg:hidden h-8 w-auto object-contain group-hover:scale-105 transition-transform">
+          <div class="hidden lg:block border-l border-neutral-800 pl-3">
+            <p class="text-white text-[9px] font-black uppercase tracking-[0.35em] leading-tight">Portal<br>Parceiros</p>
+          </div>
+        </div>
+
+        <!-- Nav + actions -->
+        <div class="flex items-center gap-2 md:gap-3 min-w-0 flex-1 justify-end">
+
+          <!-- GRUPO ESQUERDO: navegaÃ§Ã£o (rola horizontalmente se exceder) -->
+          <div class="flex items-center gap-2 md:gap-3 overflow-x-auto no-scrollbar min-w-0">
+            <!-- Switcher de ambiente: Comercial / O&M -->
+            <div id="env-switcher" class="hidden lg:inline-flex gap-1 bg-neutral-900/60 p-0.5 border border-neutral-800/60 shrink-0">
+              <button id="env-btn-comercial" onclick="setEnvironment('comercial')"
+                class="env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>COMERCIAL
+              </button>
+              <button id="env-btn-om" onclick="setEnvironment('om')"
+                class="env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all">
+                <i data-lucide="wrench" class="w-3.5 h-3.5"></i>O&amp;M
+              </button>
+            </div>
+
+            <nav class="hidden lg:flex bg-neutral-900/60 p-0.5 border border-neutral-800/60 shrink-0" id="tab-container"></nav>
+
+            <!-- Hamburger (mobile only) -->
+            <button id="hamburger-btn" onclick="toggleMobileMenu()"
+              class="lg:hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 shrink-0"
+              aria-label="Abrir menu" aria-expanded="false">
+              <i data-lucide="menu" id="hamburger-icon" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Admin -->
+            <button id="admin-toggle-btn" onclick="openAdmin()" class="hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-500 hover:text-white hover:border-neutral-600 shrink-0" title="Modo ADMIN">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Refresh (PWA standalone only) -->
+            <button id="pwa-refresh-btn" onclick="const u=new URL(window.location.href);u.searchParams.set('app_v',Date.now());window.location.replace(u.toString())" title="Atualizar"
+              class="hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 shrink-0">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- GRUPO DIREITO: usuÃ¡rio + logout (sempre visÃ­veis, nÃ£o rolam) -->
+          <div class="flex items-center gap-2 md:gap-3 shrink-0">
+            <!-- User pill -->
+            <div id="header-user" class="hidden items-center gap-2.5 pl-2 md:pl-3 border-l border-neutral-800 shrink-0">
+              <div id="header-user-avatar"
+                class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-yellow-500 flex items-center justify-center text-black font-black text-xs avatar-pulse cursor-default select-none">
+              </div>
+              <div class="hidden lg:flex flex-col">
+                <span id="header-user-name" class="text-white text-[10px] font-black uppercase tracking-widest leading-tight"></span>
+                <span id="header-user-role" class="text-neutral-600 text-[8px] font-bold uppercase tracking-widest">Vendedor</span>
+              </div>
+            </div>
+
+            <!-- Logout -->
+            <button onclick="handleLogout()" title="Sair do Sistema"
+              class="p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-red-500/60 hover:text-red-400 hover:bg-red-500/8 hover:border-red-500/40 shrink-0">
+              <i data-lucide="power" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sub-nav O&M â€” segunda linha de navegaÃ§Ã£o (desktop). Preenchida por renderTabs(). -->
+    <div id="om-subnav" class="hidden"></div>
+
+    <!-- Mobile Navigation Dropdown -->
+    <div id="mobile-menu" class="hidden lg:hidden overflow-hidden border-t border-neutral-800/60 bg-black/98 backdrop-blur-xl">
+      <!-- Seletor de seÃ§Ã£o -->
+      <div id="menu-section">
+        <div class="px-3 pt-3 pb-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-neutral-600">SeÃ§Ã£o</div>
+        <div id="env-switcher-mobile" class="flex px-2 pb-2 gap-1 border-b border-neutral-800/60">
+          <button onclick="setEnvironment('comercial')" id="env-btn-comercial-mobile"
+            class="env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>COMERCIAL
+          </button>
+          <button onclick="setEnvironment('om')" id="env-btn-om-mobile"
+            class="env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            <i data-lucide="wrench" class="w-3.5 h-3.5"></i>O&amp;M
+          </button>
+        </div>
+      </div>
+      <!-- Abas da seÃ§Ã£o selecionada -->
+      <div class="px-3 pt-3 pb-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-neutral-600">NavegaÃ§Ã£o</div>
+      <nav id="mobile-menu-tabs" class="flex flex-col px-2 pb-2 gap-0.5">
+        <!-- Rendered by JS -->
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 md:py-8 relative animate-fade-in-up">
+
+    <div id="admin-bar" class="hidden mb-6 bg-red-950/20 border border-red-600/20 p-4 flex items-center justify-between backdrop-blur-sm gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-red-600/20 border border-red-600/30 p-2 text-red-400"><i data-lucide="settings" class="w-4 h-4 animate-spin-slow"></i></div>
+        <div>
+          <span class="text-red-400 font-black uppercase tracking-widest block text-[10px]">AtenÃ§Ã£o</span>
+          <span class="text-white font-bold text-sm">MODO ADMINISTRADOR ATIVO</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap justify-end">
+        <a href="assets/templates/modelo_importacao_kits.csv" download="modelo_importacao_kits.csv" class="flex items-center gap-2 bg-black border border-cyan-700/60 text-cyan-300 hover:bg-cyan-600/15 hover:border-cyan-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="file-text" class="w-4 h-4"></i> MODELO CSV
+        </a>
+        <button onclick="downloadKitsImportTemplateXLSX()" class="flex items-center gap-2 bg-black border border-blue-700/60 text-blue-300 hover:bg-blue-600/15 hover:border-blue-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> MODELO XLSX
+        </button>
+        <button onclick="triggerKitsImportPicker()" class="flex items-center gap-2 bg-black border border-green-700/60 text-green-300 hover:bg-green-600/15 hover:border-green-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="upload" class="w-4 h-4"></i> IMPORTAR PLANILHA
+        </button>
+        <button onclick="exportCurrentKitsXLSX()" class="flex items-center gap-2 bg-black border border-amber-700/60 text-amber-300 hover:bg-amber-600/15 hover:border-amber-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="download" class="w-4 h-4"></i> EXPORTAR XLSX
+        </button>
+        <button onclick="openModal()" class="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black px-5 py-2.5 font-black uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(234,88,12,0.2)] hover:shadow-[0_0_30px_rgba(234,88,12,0.4)] active:scale-95 text-xs">
+          <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i> NOVO KIT
+        </button>
+      </div>
+    </div>
+    <input
+      type="file"
+      id="kits-import-file-input"
+      class="hidden"
+      accept=".xlsx,.xls,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+
+    <!-- Toolbar Principal -->
+    <div id="main-toolbar" class="flex flex-col sm:flex-row gap-4 mb-8 hidden">
+      <div class="relative flex-1 group">
+        <div class="absolute inset-0 bg-orange-500/10 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
+        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-600 group-focus-within:text-orange-500 transition-colors"></i>
+        <input type="text" id="search-input" placeholder="BUSCAR CLIENTE..." class="relative w-full pl-12 pr-4 py-4 bg-neutral-900 border-2 border-neutral-800 text-white placeholder:text-neutral-600 focus:outline-none focus:border-orange-500 focus:bg-black transition-all font-bold uppercase tracking-wide">
+      </div>
+      <div id="view-toggle-container" class="flex bg-neutral-900 p-1 border border-neutral-800 shrink-0 hidden">
+        <button onclick="setViewMode('grid')" id="btn-grid" class="p-3 transition-all bg-gradient-to-r from-orange-600 to-yellow-500 text-black"><i data-lucide="grid" class="w-6 h-6"></i></button>
+        <button onclick="setViewMode('list')" id="btn-list" class="p-3 transition-all text-neutral-600 hover:text-white"><i data-lucide="list" class="w-6 h-6"></i></button>
+      </div>
+    </div>
+
+    <!-- Container Principal -->
+    <div id="main-container"></div>
+
+    <!-- Estado Vazio / Erros -->
+    <div id="empty-state" class="hidden text-center py-32 border-2 border-dashed border-neutral-800 bg-neutral-900/20">
+      <div id="empty-state-icon" class="inline-flex items-center justify-center w-20 h-20 bg-neutral-900 mb-6 text-neutral-700 border border-neutral-800"><i data-lucide="search" class="w-10 h-10"></i></div>
+      <p id="empty-state-text" class="text-neutral-500 font-bold uppercase tracking-widest mb-4">Nenhum resultado encontrado</p>
+      <button id="empty-state-btn" class="hidden text-orange-500 font-black hover:text-white hover:underline uppercase tracking-wide">+ AÃ‡ÃƒO</button>
+    </div>
+  </main>
+</div>
+
+<!-- OVERLAY ADMIN GLOBAL â€” destino transversal acessÃ­vel pela engrenagem de qualquer vertente -->
+<div id="admin-overlay" class="fixed inset-0 z-[120] bg-black/95 backdrop-blur-md hidden overflow-y-auto">
+  <!-- CabeÃ§alho fixo com botÃ£o de fechar -->
+  <div class="sticky top-0 z-10 bg-black/90 backdrop-blur border-b border-neutral-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="bg-red-600/20 border border-red-600/30 p-2 text-red-400 shrink-0"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
+        <div class="min-w-0">
+          <span class="text-red-400 font-black uppercase tracking-widest block text-[9px] leading-tight">AdministraÃ§Ã£o</span>
+          <span class="text-white font-bold text-sm leading-tight">Painel global do sistema</span>
+        </div>
+      </div>
+      <button id="admin-close-btn" onclick="closeAdmin()" title="Fechar painel admin (ESC)"
+        class="flex items-center gap-2 bg-black border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-600 px-4 py-2.5 font-black uppercase tracking-widest transition-all text-[10px] shrink-0">
+        <i data-lucide="x" class="w-4 h-4"></i><span id="admin-close-label" class="hidden sm:inline">Fechar</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 py-6 md:py-8">
+    <!-- Barra de aÃ§Ãµes de kits (prÃ³pria do overlay; espelha #admin-bar para a seÃ§Ã£o KITS) -->
+    <div id="admin-overlay-kitsbar" class="hidden mb-6 bg-red-950/20 border border-red-600/20 p-4 flex items-center justify-between backdrop-blur-sm gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-red-600/20 border border-red-600/30 p-2 text-red-400"><i data-lucide="settings" class="w-4 h-4 animate-spin-slow"></i></div>
+        <div>
+          <span class="text-red-400 font-black uppercase tracking-widest block text-[10px]">AtenÃ§Ã£o</span>
+          <span class="text-white font-bold text-sm">MODO ADMINISTRADOR ATIVO</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap justify-end">
+        <a href="assets/templates/modelo_importacao_kits.csv" download="modelo_importacao_kits.csv" class="flex items-center gap-2 bg-black border border-cyan-700/60 text-cyan-300 hover:bg-cyan-600/15 hover:border-cyan-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="file-text" class="w-4 h-4"></i> MODELO CSV
+        </a>
+        <button onclick="downloadKitsImportTemplateXLSX()" class="flex items-center gap-2 bg-black border border-blue-700/60 text-blue-300 hover:bg-blue-600/15 hover:border-blue-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> MODELO XLSX
+        </button>
+        <button onclick="triggerKitsImportPicker()" class="flex items-center gap-2 bg-black border border-green-700/60 text-green-300 hover:bg-green-600/15 hover:border-green-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="upload" class="w-4 h-4"></i> IMPORTAR PLANILHA
+        </button>
+        <button onclick="exportCurrentKitsXLSX()" class="flex items-center gap-2 bg-black border border-amber-700/60 text-amber-300 hover:bg-amber-600/15 hover:border-amber-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
+          <i data-lucide="download" class="w-4 h-4"></i> EXPORTAR XLSX
+        </button>
+        <button onclick="openModal()" class="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black px-5 py-2.5 font-black uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(234,88,12,0.2)] hover:shadow-[0_0_30px_rgba(234,88,12,0.4)] active:scale-95 text-xs">
+          <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i> NOVO KIT
+        </button>
+      </div>
+    </div>
+
+    <!-- ConteÃºdo do painel admin (renderAdminPanel injeta aqui no modo overlay) -->
+    <div id="admin-overlay-content"></div>
+  </div>
+</div>
+
+<!-- MODAL POPUP: PROPOSTA / FINANCIAMENTO / HISTÃ“RICO -->
+<div id="proposal-builder-modal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-md p-2 md:p-4 hidden">
+  <div class="bg-[#080808] border border-neutral-800 w-full max-w-6xl h-full md:h-[92vh] flex flex-col shadow-[0_0_80px_rgba(234,88,12,0.15)] relative overflow-hidden animate-fade-in-up">
+
+    <!-- Stripe topo -->
+    <div class="animated-stripe h-[2px] w-full shrink-0"></div>
+
+    <!-- ===== HEADER ===== -->
+    <div class="bg-black/80 border-b border-neutral-800 p-3 md:p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shrink-0">
+      <!-- Client info -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div id="pb-client-avatar" class="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 to-yellow-500 flex items-center justify-center text-black font-black text-lg select-none avatar-pulse">?</div>
+        <div class="min-w-0">
+          <p class="text-[9px] text-orange-500/80 font-black uppercase tracking-[0.3em] leading-tight">Cliente em Atendimento</p>
+          <h2 id="pb-client-name" class="text-white font-black text-base md:text-lg uppercase truncate leading-tight">...</h2>
+        </div>
+      </div>
+      <!-- Nav + actions -->
+      <div class="flex items-center gap-2 flex-wrap shrink-0">
+        <div class="flex bg-neutral-900/80 border border-neutral-800">
+          <button onclick="setPBMainTab('kits')" id="pb-main-tab-kits"
+            class="flex items-center gap-1.5 px-3 py-2 text-[9px] font-black uppercase tracking-wider transition-all bg-gradient-to-r from-orange-600 to-yellow-500 text-black">
+            <i data-lucide="zap" class="w-3 h-3 stroke-[3px]"></i>KITS
+          </button>
+          <button onclick="setPBMainTab('financiamento')" id="pb-main-tab-financiamento"
+            class="flex items-center gap-1.5 px-3 py-2 text-[9px] font-black uppercase tracking-wider transition-all text-neutral-500 hover:text-white border-l border-neutral-800">
+            <i data-lucide="landmark" class="w-3 h-3"></i>FINANC.
+          </button>
+          <button onclick="setPBMainTab('historico')" id="pb-main-tab-historico"
+            class="flex items-center gap-1.5 px-3 py-2 text-[9px] font-black uppercase tracking-wider transition-all text-neutral-500 hover:text-white border-l border-neutral-800">
+            <i data-lucide="history" class="w-3 h-3"></i>HISTÃ“RICO
+          </button>
+        </div>
+        <button onclick="openFechaVenda()"
+          class="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-white px-3 py-2 font-black uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(34,197,94,0.3)] active:scale-95 text-[9px]">
+          <i data-lucide="trophy" class="w-3.5 h-3.5 stroke-[3px]"></i>FECHAR VENDA
+        </button>
+        <button onclick="closeProposalBuilder()" class="p-2 border border-neutral-800 bg-neutral-900/80 text-neutral-500 hover:text-red-500 hover:border-red-500/40 transition-all shrink-0">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== SECTION: KITS ===== -->
+    <div id="pb-section-kits" class="flex flex-col flex-1 min-h-0 overflow-hidden">
+
+      <!-- ===== BARRA DE MODO ===== -->
+      <div class="p-3 bg-black border-b border-neutral-800 flex flex-col sm:flex-row gap-2 items-start sm:items-center shrink-0">
+        <div class="flex bg-neutral-900 border border-neutral-800 shrink-0">
+          <button id="pb-mode-promocional-btn" onclick="setPBProposalMode('PROMOCIONAL')"
+            class="flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase transition-all bg-orange-500 text-black whitespace-nowrap">
+            PROMOCIONAL
+          </button>
+          <button id="pb-mode-personalizada-btn" onclick="setPBProposalMode('PERSONALIZADA')"
+            class="flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase transition-all text-neutral-500 hover:text-white whitespace-nowrap border-l border-neutral-800">
+            PERSONALIZADA
+          </button>
+
+        </div>
+        <p id="pb-mode-helper" class="text-[10px] text-neutral-500 font-medium">Promocional selecionado. Fluxo atual de kits prontos.</p>
+      </div>
+
+      <!-- ===== TOOLBAR (sÃ³ aparece no modo PROMOCIONAL) ===== -->
+      <div id="pb-promocional-toolbar" class="p-3 md:p-4 bg-neutral-900/60 border-b border-neutral-800/60 flex flex-col sm:flex-row gap-3 shrink-0">
+        <div class="flex bg-black border border-neutral-800 shrink-0">
+          <button id="pb-tab-inversor" onclick="setPBTab('kitsInversor')" class="flex-1 px-4 py-2.5 text-[10px] font-black uppercase transition-all bg-orange-500 text-black whitespace-nowrap">Inversores</button>
+          <button id="pb-tab-micro" onclick="setPBTab('kitsMicro')" class="flex-1 px-4 py-2.5 text-[10px] font-black uppercase transition-all text-neutral-500 hover:text-white whitespace-nowrap border-l border-neutral-800">Microinversores</button>
+        </div>
+        <div class="relative flex-1 group">
+          <div class="absolute inset-0 bg-orange-500/10 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
+          <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-orange-500 transition-colors"></i>
+          <input type="text" id="pb-search" placeholder="BUSCAR POR POTÃŠNCIA OU GERAÃ‡ÃƒO EST. (ex: 500)..." class="relative w-full pl-10 pr-4 py-2.5 bg-black border border-neutral-700 text-white focus:outline-none focus:border-orange-500 transition-all font-bold uppercase text-xs">
+        </div>
+        <div class="flex bg-black border border-neutral-800 shrink-0">
+          <button onclick="setPBViewMode('list')" id="pb-btn-list" class="p-2.5 transition-all bg-orange-500 text-black" title="Lista"><i data-lucide="list" class="w-4 h-4"></i></button>
+          <button onclick="setPBViewMode('grid')" id="pb-btn-grid" class="p-2.5 transition-all text-neutral-500 hover:text-white border-l border-neutral-800" title="Grade"><i data-lucide="grid" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+
+            <!-- ===== PAINEL PERSONALIZADA (admin/gestor, oculto por padrao) ===== -->
+      <div id="pb-equip-panel" class="hidden flex-1 overflow-y-auto p-4 md:p-6 bg-[#050505] custom-scrollbar">
+        <form id="pb-equip-form" autocomplete="off">
+          <div class="max-w-2xl mx-auto space-y-6">
+
+            <!-- Cabecalho -->
+            <div class="border-b border-orange-500/20 pb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 uppercase tracking-wider">Proposta Personalizada</h3>
+                <p class="text-neutral-500 text-xs mt-1">Informe os dados da proposta personalizada. Sem instalacao, projeto ou servicos.</p>
+              </div>
+              <span id="pb-personalizada-role-badge" class="shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-1 border border-purple-500/40 bg-purple-500/10 text-purple-400 flex items-center gap-1">
+                <i data-lucide="shield" class="w-3 h-3"></i> <span id="pb-personalizada-role-badge-label">ADMIN/GESTOR</span>
+              </span>
+            </div>
+
+            <!-- Descricao -->
+            <div class="space-y-1">
+              <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Descricao da Proposta</label>
+              <input type="text" id="pb-equip-descricao"
+                placeholder="ex: Proposta personalizada 7,92 kWp"
+                class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold transition-all">
+            </div>
+
+            <!-- Valor da Proposta -->
+            <div class="space-y-1">
+              <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Valor da Proposta (R$) <span class="text-red-400">*</span></label>
+              <input type="number" id="pb-equip-valor" min="0" step="0.01"
+                placeholder="0,00"
+                class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-mono font-bold transition-all">
+            </div>
+
+            <!-- Potencia do Sistema -->
+            <div class="space-y-1">
+              <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Potencia do Sistema (kWp) <span class="text-red-400">*</span></label>
+              <input type="number" id="pb-equip-potencia" min="0" step="0.01"
+                placeholder="Informe a potencia em kWp"
+                required
+                class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-mono font-bold transition-all">
+            </div>
+
+            <!-- Observacoes -->
+            <div class="space-y-4">
+              <p class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Observacoes (opcional)</p>
+              <div class="space-y-1">
+                <label class="text-[10px] text-neutral-400 font-black uppercase tracking-widest">Condicao de Pagamento</label>
+                <input type="text" id="pb-equip-payment-note"
+                  placeholder="ex: Pagamento antecipado via PIX"
+                  class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold transition-all">
+              </div>
+              <div class="space-y-1">
+                <label class="text-[10px] text-neutral-400 font-black uppercase tracking-widest">Observacao Comercial</label>
+                <input type="text" id="pb-equip-commercial-note"
+                  placeholder="ex: Valido por 3 dias uteis"
+                  class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold transition-all">
+              </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="bg-neutral-900/60 border border-neutral-800 p-4 space-y-2">
+              <p class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest mb-3">Resumo da Proposta</p>
+              <div class="flex justify-between text-sm">
+                <span class="text-neutral-400 font-medium">Valor da Proposta</span>
+                <span id="pb-equip-preview-equip" class="text-white font-black font-mono">R$ â€”</span>
+              </div>
+              <div class="flex justify-between text-base border-t border-orange-500/30 pt-2">
+                <span class="text-white font-black uppercase tracking-wider">Total</span>
+                <span id="pb-equip-preview-total" class="text-orange-400 font-black font-mono text-lg">R$ â€”</span>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" id="pb-equip-submit" disabled
+              class="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] active:scale-95 opacity-50 cursor-not-allowed flex items-center justify-center gap-2">
+              <i data-lucide="package" class="w-4 h-4 stroke-[3px]"></i>
+              GERAR PROPOSTA PERSONALIZADA
+            </button>
+
+          </div>
+        </form>
+      </div>
+
+      <div id="pb-products-container" class="flex-1 overflow-y-auto p-3 md:p-5 bg-[#050505] custom-scrollbar content-start"></div>
+      <div id="pb-empty" class="hidden flex-1 flex flex-col items-center justify-center p-6 bg-[#050505]">
+        <i data-lucide="search-x" class="w-12 h-12 text-neutral-700 mb-4"></i>
+        <p class="text-neutral-500 font-bold uppercase tracking-widest text-center">Nenhum kit atende a este filtro</p>
+      </div>
+    </div>
+
+    <!-- ===== SECTION: FINANCIAMENTO ===== -->
+    <div id="pb-section-financiamento" class="hidden flex-1 overflow-y-auto p-4 md:p-6 bg-[#050505] custom-scrollbar">
+      <!-- Renderizado via JS -->
+    </div>
+
+    <!-- ===== SECTION: HISTÃ“RICO ===== -->
+    <div id="pb-section-historico" class="hidden flex-1 overflow-y-auto p-4 md:p-6 bg-[#050505] custom-scrollbar">
+      <!-- Renderizado via JS -->
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: CADASTRAR KIT ADMIN -->
+<div id="modal-overlay" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 hidden">
+  <div class="bg-neutral-900 border-2 border-orange-600/50 w-full max-w-lg shadow-[0_0_50px_rgba(234,88,12,0.2)] animate-fade-in-up">
+    <div class="flex justify-between items-center p-6 border-b border-neutral-800 bg-black/50">
+      <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 flex items-center gap-2 italic tracking-tighter uppercase pb-1 pr-1">
+        <i data-lucide="edit-2" class="w-6 h-6 text-orange-500" id="modal-icon"></i>
+        <span id="modal-title">NOVA OFERTA</span>
+      </h2>
+      <button onclick="closeModal()" class="text-neutral-500 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-8 h-8"></i></button>
+    </div>
+
+    <form id="product-form" class="p-6 space-y-5">
+      <input type="hidden" id="form-id">
+      <div class="grid grid-cols-2 gap-5">
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Produto</label>
+          <input required id="form-name" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white placeholder-neutral-700 font-bold uppercase transition-all" placeholder="NOME DO KIT">
+        </div>
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Marca</label>
+          <input required id="form-brand" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white placeholder-neutral-700 font-bold uppercase transition-all" placeholder="FABRICANTE">
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">PotÃªncia (kWp)</label>
+          <input required type="number" step="any" id="form-power" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-mono font-bold">
+        </div>
+        <div class="space-y-1">
+          <label class="text-[10px] text-green-500/80 font-black uppercase tracking-widest">PreÃ§o Venda</label>
+          <input required type="number" step="any" id="form-price" class="w-full bg-black border border-green-900 focus:border-green-500 text-green-400 rounded-none px-4 py-3 font-mono font-bold">
+        </div>
+        <div class="space-y-1">
+          <label class="text-[10px] text-red-500/80 font-black uppercase tracking-widest">PreÃ§o Lista</label>
+          <input required type="number" step="any" id="form-listPrice" class="w-full bg-black border border-red-900 focus:border-red-500 text-red-400 rounded-none px-4 py-3 font-mono font-bold">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Tipo</label>
+          <select id="form-type" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold uppercase">
+            <option>MonofÃ¡sico</option><option>BifÃ¡sico</option><option>TrifÃ¡sico</option>
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Tag</label>
+          <select id="form-tag" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold uppercase">
+            <option>MAIS VENDIDO</option><option>PREMIUM</option><option>CUSTO-BENEFÃCIO</option>
+            <option>LANÃ‡AMENTO</option><option>ALTA POTÃŠNCIA</option><option>PROJETO ESPECIAL</option>
+          </select>
+        </div>
+      </div>
+      <div class="pt-4 flex gap-4">
+        <button type="button" onclick="closeModal()" class="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-black uppercase tracking-widest transition-colors border-b-4 border-neutral-950 active:border-b-0 active:translate-y-1">Cancelar</button>
+        <button type="submit" id="btn-save-modal" class="flex-1 py-4 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black font-black uppercase tracking-widest transition-all border-b-4 border-orange-800 active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(234,88,12,0.4)]">SALVAR OFERTA</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: NOVO CLIENTE -->
+<div id="client-modal-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 hidden">
+  <div class="bg-neutral-900 border-2 border-orange-600/50 rounded-none w-full max-w-sm shadow-[0_0_50px_rgba(234,88,12,0.2)] animate-fade-in-up">
+    <div class="flex justify-between items-center p-6 border-b border-neutral-800 bg-black/50">
+      <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 italic tracking-tighter uppercase pb-1 pr-1">NOVO CLIENTE</h2>
+      <button onclick="closeClientModal()" class="text-neutral-500 hover:text-red-500 transition-colors"><i data-lucide="x" class="w-8 h-8"></i></button>
+    </div>
+    <form id="client-form" class="p-6 space-y-5">
+      <div class="space-y-1">
+        <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Nome do Cliente</label>
+        <input required id="client-nome" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold uppercase transition-all" placeholder="EX: JOÃƒO SILVA">
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">WhatsApp (com DDD)</label>
+        <input required id="client-telefone" type="tel" maxlength="15" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-mono font-bold transition-all" placeholder="11 99999-9999">
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Cidade/UF</label>
+        <input required id="client-cidade" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold uppercase transition-all" placeholder="ARAÃ‡ATUBA/SP">
+      </div>
+      <button type="submit" id="btn-save-client" class="w-full mt-2 py-4 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black font-black uppercase tracking-widest transition-all border-b-4 border-orange-800 active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(234,88,12,0.4)]">SALVAR CLIENTE</button>
+    </form>
+  </div>
+</div>
+
+<!-- CHAT FLOATING BUTTON -->
+<div id="chat-fab-container" class="hidden fixed bottom-8 right-6 z-[92]">
+  <button id="chat-fab-btn" type="button" aria-label="Abrir chat interno" class="chat-fab-btn">
+    <i data-lucide="message-circle" class="w-6 h-6"></i>
+    <span id="chat-fab-badge" class="chat-fab-badge hidden">0</span>
+  </button>
+</div>
+
+<!-- CHAT SHELL -->
+<div id="chat-shell-backdrop" class="hidden fixed inset-0 z-[93] bg-black/55 backdrop-blur-md"></div>
+<section id="chat-shell" class="hidden fixed z-[94]" aria-label="Chat interno">
+  <div class="chat-shell-window">
+    <header class="chat-shell-header">
+      <div class="chat-shell-header-left">
+        <button id="chat-thread-back-btn" type="button" class="chat-icon-btn hidden" aria-label="Voltar para lista">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        </button>
+
+        <button id="chat-thread-meta-btn" type="button" class="chat-thread-meta-btn" aria-label="Ver perfil do contato" aria-expanded="false" disabled>
+          <span id="chat-thread-avatar" class="chat-thread-avatar">
+            <span class="chat-thread-avatar-core">U</span>
+          </span>
+          <span class="chat-shell-header-title-wrap">
+            <p class="chat-shell-overline">Chat Interno</p>
+            <h3 id="chat-thread-title" class="chat-shell-title">Conversa</h3>
+            <p id="chat-thread-subtitle" class="chat-shell-subtitle">Selecione uma conversa para comecar.</p>
+          </span>
+        </button>
+
+        <div id="chat-thread-profile-card" class="chat-thread-profile-card hidden" role="dialog" aria-label="Perfil do contato">
+          <div class="chat-thread-profile-top">
+            <span id="chat-profile-avatar" class="chat-profile-avatar">
+              <span class="chat-profile-avatar-core">U</span>
+            </span>
+            <div class="chat-thread-profile-main">
+              <p id="chat-profile-name" class="chat-thread-profile-name">Usuario</p>
+              <p id="chat-profile-kind" class="chat-thread-profile-kind">Conversa direta</p>
+            </div>
+          </div>
+          <div class="chat-thread-profile-grid">
+            <div class="chat-thread-profile-row">
+              <span class="chat-thread-profile-label">Email</span>
+              <span id="chat-profile-email" class="chat-thread-profile-value">-</span>
+            </div>
+            <div class="chat-thread-profile-row">
+              <span class="chat-thread-profile-label">Cargo</span>
+              <span id="chat-profile-role" class="chat-thread-profile-value">-</span>
+            </div>
+            <div class="chat-thread-profile-row">
+              <span class="chat-thread-profile-label">Franquia</span>
+              <span id="chat-profile-franquia" class="chat-thread-profile-value">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-shell-header-actions">
+        <button id="chat-new-conversation-btn" type="button" class="chat-icon-btn" aria-label="Nova conversa">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+        </button>
+        <button id="chat-shell-close-btn" type="button" class="chat-icon-btn" aria-label="Fechar chat">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="chat-shell-body">
+      <aside id="chat-list-panel" class="chat-list-panel">
+        <div class="chat-search-wrap">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <input id="chat-list-search" type="text" placeholder="Buscar conversa..." autocomplete="off">
+        </div>
+        <div id="chat-list-empty" class="chat-list-empty hidden">Nenhuma conversa encontrada.</div>
+        <div id="chat-list-items" class="chat-list-items custom-scrollbar"></div>
+      </aside>
+
+      <section id="chat-thread-panel" class="chat-thread-panel">
+        <div id="chat-thread-empty" class="chat-thread-empty">
+          <i data-lucide="messages-square" class="w-8 h-8"></i>
+          <p>Selecione uma conversa para comeÃ§ar.</p>
+        </div>
+
+        <div id="chat-thread-body" class="chat-thread-body hidden">
+          <div id="chat-thread-loading" class="chat-thread-loading hidden">
+            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+            Carregando mensagens...
+          </div>
+          <div id="chat-thread-messages" class="chat-thread-messages custom-scrollbar"></div>
+          <form id="chat-thread-form" class="chat-thread-form" autocomplete="off">
+            <textarea id="chat-thread-input" rows="2" maxlength="4000" placeholder="Digite uma mensagem..."></textarea>
+            <button id="chat-thread-send-btn" type="submit" aria-label="Enviar mensagem" disabled>
+              <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    <div id="chat-directory-overlay" class="chat-directory-overlay hidden">
+      <div class="chat-directory-card">
+        <div class="chat-directory-header">
+          <p class="chat-directory-title">Nova conversa</p>
+          <button id="chat-directory-close-btn" type="button" class="chat-icon-btn" aria-label="Fechar lista de usuÃ¡rios">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div class="chat-search-wrap">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <input id="chat-directory-search" type="text" placeholder="Buscar usuÃ¡rio..." autocomplete="off">
+        </div>
+        <div id="chat-directory-empty" class="chat-list-empty hidden">Nenhum usuÃ¡rio encontrado.</div>
+        <div id="chat-directory-list" class="chat-directory-list custom-scrollbar"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast" class="fixed bottom-10 right-10 bg-gradient-to-r from-orange-600 to-yellow-500 text-black px-8 py-5 shadow-[0_0_50px_rgba(234,88,12,0.5)] flex items-center gap-4 border-4 border-orange-400 transform translate-y-full opacity-0 transition-all duration-300 z-[9999]" style="pointer-events: none;">
+  <div class="bg-black p-1"><i data-lucide="check" class="w-6 h-6 text-orange-500 stroke-[4px]"></i></div>
+  <span id="toast-msg" class="font-black uppercase tracking-wider text-sm">NOTIFICAÃ‡ÃƒO</span>
+</div>
+
+<!-- MODAL: CONFIRMAÃ‡ÃƒO GENÃ‰RICA -->
+<div id="confirm-modal-overlay" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 hidden">
+  <div class="bg-neutral-900 border-2 border-red-600/40 w-full max-w-sm shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-fade-in-up">
+    <div class="p-6 space-y-5">
+      <div class="flex items-center gap-3">
+        <div class="bg-red-600/20 p-3 shrink-0">
+          <i data-lucide="alert-triangle" class="w-6 h-6 text-red-500"></i>
+        </div>
+        <h3 class="text-white font-black uppercase tracking-widest text-sm">Confirmar AÃ§Ã£o</h3>
+      </div>
+      <p id="confirm-modal-msg" class="text-neutral-400 text-sm font-medium leading-relaxed"></p>
+      <div class="flex gap-3 pt-2">
+        <button onclick="hideConfirmModal()" class="flex-1 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-black uppercase tracking-widest transition-colors text-sm border border-neutral-700">Cancelar</button>
+        <button id="btn-confirm-yes" class="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest transition-colors text-sm">CONFIRMAR</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: FECHAR VENDA -->
+<div id="fecha-venda-modal" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 hidden">
+  <div class="bg-[#080808] border-2 border-green-600/40 w-full max-w-lg shadow-[0_0_60px_rgba(34,197,94,0.2)] overflow-hidden animate-fade-in-up">
+    <div class="animated-stripe h-[2px] w-full"></div>
+    <div class="p-4 border-b border-neutral-800 flex items-center justify-between bg-black/50">
+      <div class="flex items-center gap-3">
+        <div class="bg-green-600/20 p-2 border border-green-600/30"><i data-lucide="trophy" class="w-5 h-5 text-green-400"></i></div>
+        <div>
+          <p class="text-[9px] text-green-500 font-black uppercase tracking-widest">Registrar Fechamento</p>
+          <h3 class="text-white font-black text-sm uppercase">FECHAR VENDA</h3>
+        </div>
+      </div>
+      <button onclick="closeFechaVenda()" class="p-2 text-neutral-500 hover:text-red-500 transition-colors border border-neutral-800 bg-neutral-900">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <p class="text-[10px] text-neutral-500 font-black uppercase tracking-widest mb-1.5">Cliente</p>
+        <div class="bg-neutral-900 border border-neutral-800 px-4 py-2.5 flex items-center gap-2">
+          <i data-lucide="user" class="w-4 h-4 text-orange-500"></i>
+          <p id="fv-client-name" class="text-white font-black uppercase text-sm">...</p>
+        </div>
+      </div>
+      <div>
+        <p class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest mb-1.5">Kit Vendido *</p>
+        <select id="fv-kit-select" onchange="onFvKitChange()"
+          class="w-full bg-black border border-neutral-700 focus:border-orange-500 px-4 py-3 text-white font-bold uppercase text-xs transition-all">
+          <option value="">â€” SELECIONE O KIT â€”</option>
+        </select>
+      </div>
+      <div id="fv-kit-info" class="hidden bg-green-950/20 border border-green-900/40 p-4">
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Valor</span>
+          <span id="fv-kit-price" class="text-green-400 font-black text-xl"></span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">PotÃªncia</span>
+          <span id="fv-kit-power" class="text-orange-400 font-bold text-sm"></span>
+        </div>
+      </div>
+      <p id="fv-error" class="hidden text-red-500 text-xs font-bold bg-red-500/10 border border-red-500/20 p-3"></p>
+      <button onclick="confirmarFechaVenda()" id="btn-confirmar-venda"
+        class="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-white font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(34,197,94,0.4)] flex items-center justify-center gap-2 text-sm active:scale-[0.98]">
+        <i data-lucide="trophy" class="w-5 h-5 stroke-[3px]"></i> CONFIRMAR VENDA FECHADA
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFETTI CANVAS -->
+<canvas id="confetti-canvas" class="fixed inset-0 z-[200] pointer-events-none hidden" style="width:100%;height:100%"></canvas>
+
+<!-- TELA DE RESET DE SENHA (exibida quando o usuÃ¡rio clica no link de recuperaÃ§Ã£o) -->
+<div id="reset-password-screen" class="fixed inset-0 z-[250] bg-[#050505] flex flex-col items-center justify-center overflow-hidden hidden">
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-black to-black pointer-events-none"></div>
+
+  <div class="relative z-10 w-full max-w-md px-6">
+    <div class="relative mb-10 flex justify-center group">
+      <div class="absolute inset-0 bg-orange-600 blur-[80px] opacity-20 animate-pulse"></div>
+      <img src="assets/img/logo.png" alt="Ãgil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png" onerror="this.src='https://placehold.co/300x100?text=Agil+Solar'" class="relative w-64 md:w-72 h-auto object-contain animate-pulse-slow">
+    </div>
+
+    <div class="bg-neutral-900/80 backdrop-blur-md border border-neutral-800 p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+      <div class="mb-8 text-center">
+        <div class="flex items-center justify-center mb-3">
+          <div class="p-2 bg-orange-500/10 border border-orange-500/20">
+            <i data-lucide="key-round" class="w-5 h-5 text-orange-400"></i>
+          </div>
+        </div>
+        <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter uppercase mb-1 pb-1 pr-1 inline-block">DEFINIR NOVA SENHA</h2>
+        <p class="text-neutral-500 text-[10px] font-black uppercase tracking-[0.2em]">Escolha uma senha segura</p>
+      </div>
+
+      <form id="reset-password-form" class="space-y-5">
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Nova Senha</label>
+          <input type="password" id="reset-new-password" required minlength="6"
+            class="w-full bg-black border border-neutral-800 focus:border-orange-500 rounded-none px-4 py-3 text-white placeholder-neutral-700 font-bold transition-all"
+            placeholder="mÃ­nimo 6 caracteres">
+        </div>
+        <div class="space-y-1">
+          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Confirmar Senha</label>
+          <input type="password" id="reset-confirm-password" required minlength="6"
+            class="w-full bg-black border border-neutral-800 focus:border-orange-500 rounded-none px-4 py-3 text-white placeholder-neutral-700 font-bold transition-all"
+            placeholder="repita a nova senha">
+        </div>
+
+        <p id="reset-password-error" class="hidden text-red-500 text-xs font-bold text-center bg-red-500/10 p-2 border border-red-500/20"></p>
+
+        <button type="submit" id="btn-submit-reset"
+          class="w-full mt-4 py-4 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(234,88,12,0.3)] active:scale-95 flex justify-center items-center gap-2">
+          <i data-lucide="check" class="w-5 h-5 stroke-[3px]"></i>
+          <span>SALVAR NOVA SENHA</span>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS EXTERNOS -->
+<script src="assets/js/config.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/analytics.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/utils.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/api.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/auth.js?v=20260617-om-perfis"></script>
+<script src="assets/js/comunicados.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/dashboard.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/clientes.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/produtos.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/proposta-builder.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/vendas.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/admin.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/profile.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/chat.js?v=20260615-om-central-propostas"></script>
+<script src="assets/js/om.js?v=20260617-om-perfis"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js"></script>
+<script src="assets/js/om-os.js?v=20260618-os-endereco"></script>
+<script src="assets/js/app.js?v=20260617-om-perfis"></script>
+<script src="assets/js/update-notice.js?v=20260615-om-central-propostas"></script>
+<script>
+(function () {
+  const isPwa = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+  if (isPwa) {
+    // Mostra sÃ³ para vendedores comuns (admin e gestor jÃ¡ tÃªm botÃµes extras no header)
+    const checkAndShow = () => {
+      if (typeof state !== 'undefined') {
+        if (!state.isAdmin && !state.isGestor) {
+          const btn = document.getElementById('pwa-refresh-btn');
+          if (btn) btn.classList.remove('hidden');
+        }
+      } else {
+        setTimeout(checkAndShow, 300);
+      }
+    };
+    checkAndShow();
+  }
+  // Giro do Ã­cone ao clicar
+  const refreshBtn = document.getElementById('pwa-refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', function () {
+      const icon = this.querySelector('[data-lucide]');
+      if (icon) {
+        icon.style.transition = 'transform 0.4s ease';
+        icon.style.transform  = 'rotate(360deg)';
+      }
+    });
+  }
+})();
+</script>
+</html>
+
+
+
+
+
+
+
+
+

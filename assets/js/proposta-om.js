@@ -141,7 +141,7 @@ function render(p) {
   setText('status-label', p.status || 'Enviada');
   setText('m-greet-name', p.cliente || 'Cliente');
   const subEl = $('m-greet-sub');
-  if (subEl) subEl.textContent = `Aqui está a proposta de ${(tipo || 'manutenção').toLowerCase()} do seu sistema fotovoltaico, preparada sob medida.`;
+  if (subEl) subEl.textContent = 'Aqui está a proposta de manutenção do seu sistema fotovoltaico, preparada sob medida.';
   setText('m-local', cidade);
   setText('m-validade-data', p.validade);
   setText('m-num', p.numero);

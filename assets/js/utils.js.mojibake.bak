@@ -1,8 +1,8 @@
 ﻿// ==========================================
-// UTILITÁRIOS GERAIS
+// UTILITÃRIOS GERAIS
 // ==========================================
 
-// --- Tema + logo por tema (dark/light) sem ocupar espaço no header ---
+// --- Tema + logo por tema (dark/light) sem ocupar espaÃ§o no header ---
 function getThemePreference() {
   const pref = localStorage.getItem('themePreference');
   return (pref === 'light' || pref === 'dark' || pref === 'system') ? pref : 'system';
@@ -94,7 +94,7 @@ if (window.matchMedia) {
   }
 }
 
-// --- Segurança: sanitizar strings antes de inserir no DOM ---
+// --- SeguranÃ§a: sanitizar strings antes de inserir no DOM ---
 function escapeHTML(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -153,7 +153,7 @@ function formatDate(dateString) {
   return d.toLocaleDateString('pt-BR');
 }
 
-// Retorna label legível para um período 'YYYY-MM' ou 'all'
+// Retorna label legÃ­vel para um perÃ­odo 'YYYY-MM' ou 'all'
 function formatMonthLabel(yyyymm) {
   if (!yyyymm || yyyymm === 'all') return 'GERAL';
   const [y, m] = yyyymm.split('-');
@@ -215,7 +215,7 @@ function debounce(fn, wait = 180) {
   };
 }
 
-// --- Toast com fila (evita sobreposição) ---
+// --- Toast com fila (evita sobreposiÃ§Ã£o) ---
 let _toastQueue   = [];
 let _toastShowing = false;
 
@@ -248,7 +248,7 @@ function _processToastQueue() {
   }, 3000);
 }
 
-// --- Modal de confirmação genérico ---
+// --- Modal de confirmaÃ§Ã£o genÃ©rico ---
 function showConfirmModal(message, onConfirm, confirmLabel = 'CONFIRMAR', danger = true) {
   document.getElementById('confirm-modal-msg').innerText = message;
   const btnYes = document.getElementById('btn-confirm-yes');
@@ -265,7 +265,7 @@ function hideConfirmModal() {
 }
 
 // ==========================================
-// ANIMAÇÃO DE CONTADORES
+// ANIMAÃ‡ÃƒO DE CONTADORES
 // ==========================================
 function animateCounters() {
   const reduceMotion =
@@ -313,7 +313,7 @@ function animateCounters() {
 }
 
 // ==========================================
-// SAUDAÇÃO E INFO DO USUÁRIO
+// SAUDAÃ‡ÃƒO E INFO DO USUÃRIO
 // ==========================================
 function getGreeting() {
   const h = new Date().getHours();
@@ -323,7 +323,7 @@ function getGreeting() {
 }
 
 function getFirstName() {
-  // Prioridade: nome do perfil → user_metadata → email
+  // Prioridade: nome do perfil â†’ user_metadata â†’ email
   if (state.profile?.nome) return state.profile.nome.split(' ')[0];
   if (!state.currentUser) return '';
   const meta = state.currentUser.user_metadata || {};
@@ -339,9 +339,9 @@ function getBadgeStyles(tag) {
   const styles = {
     'MAIS VENDIDO':    'bg-gradient-to-r from-orange-600 to-yellow-500 text-black border-orange-500',
     'PREMIUM':         'bg-neutral-800 text-orange-400 border-orange-500',
-    'CUSTO-BENEFÍCIO': 'bg-green-600 text-white border-green-500',
-    'LANÇAMENTO':      'bg-blue-600 text-white border-blue-500',
-    'ALTA POTÊNCIA':   'bg-red-600 text-white border-red-500',
+    'CUSTO-BENEFÃCIO': 'bg-green-600 text-white border-green-500',
+    'LANÃ‡AMENTO':      'bg-blue-600 text-white border-blue-500',
+    'ALTA POTÃŠNCIA':   'bg-red-600 text-white border-red-500',
     'PROJETO ESPECIAL':'bg-neutral-700 text-neutral-300 border-neutral-600',
   };
   return styles[tag] || styles['PROJETO ESPECIAL'];
@@ -351,15 +351,15 @@ function getStatusColor(status) {
   switch (status) {
     case 'NOVO':              return 'text-blue-400 border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20';
     case 'PROPOSTA ENVIADA':  return 'text-yellow-400 border-yellow-500/50 bg-yellow-500/10 hover:bg-yellow-500/20';
-    case 'EM NEGOCIAÇÃO':     return 'text-orange-500 border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20';
+    case 'EM NEGOCIAÃ‡ÃƒO':     return 'text-orange-500 border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20';
     case 'FECHADO':           return 'text-green-400 border-green-500/50 bg-green-500/10 hover:bg-green-500/20';
     default:                  return 'text-blue-400 border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20';
   }
 }
 
-// Estima geração mensal em kWh
-// Usa hsp_medio da franquia do usuário logado (carregado via fetchFranquia).
-// Fallback: 5.4 HSP (Araçatuba) quando não logado (ex: proposta.html pública).
+// Estima geraÃ§Ã£o mensal em kWh
+// Usa hsp_medio da franquia do usuÃ¡rio logado (carregado via fetchFranquia).
+// Fallback: 5.4 HSP (AraÃ§atuba) quando nÃ£o logado (ex: proposta.html pÃºblica).
 function calcularGeracaoEstimada(potencia_kWp, categoria) {
   const hsp        = (typeof state !== 'undefined' && state.franquiaHsp) ? state.franquiaHsp : 5.4;
   const eficiencia = categoria === 'kitsMicro' ? 0.81 : 0.76;
@@ -397,7 +397,7 @@ function fallbackCopiar(texto) {
 // ==========================================
 function exportToXLSX(rows, columns, filename) {
   if (typeof XLSX === 'undefined') {
-    showToast('Biblioteca XLSX não carregada. Recarregue a página.');
+    showToast('Biblioteca XLSX nÃ£o carregada. Recarregue a pÃ¡gina.');
     return;
   }
   if (!rows || rows.length === 0) {
@@ -419,16 +419,16 @@ function exportToXLSX(rows, columns, filename) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Dados');
   XLSX.writeFile(wb, `${filename}.xlsx`);
-  // Nota: o caller é responsável pelo toast (evita toast duplo)
+  // Nota: o caller Ã© responsÃ¡vel pelo toast (evita toast duplo)
 }
 
 // ==========================================
-// CELEBRAÇÃO DE VENDA (confetti + som)
+// CELEBRAÃ‡ÃƒO DE VENDA (confetti + som)
 // ==========================================
 let _salesCelebrationAudioWarned = false;
 
 function showSalesCelebration() {
-  // — Som: sino de notificação elegante —
+  // â€” Som: sino de notificaÃ§Ã£o elegante â€”
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const actx = new AudioCtx();
@@ -451,7 +451,7 @@ function showSalesCelebration() {
     }
   }
 
-  // — Confetti canvas —
+  // â€” Confetti canvas â€”
   const canvas = document.getElementById('confetti-canvas');
   if (!canvas) return;
   canvas.width  = window.innerWidth;

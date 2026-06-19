@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -297,8 +297,8 @@
           </span>
         </div>
         <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Financeiro</h2>
-        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Faturamento, comissões e controle de recebíveis.</p>
-        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponível em breve</div>
+        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Faturamento, comissoes e controle de recebiveis.</p>
+        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponivel em breve</div>
       </div>
 
       <!-- VISTORIA (em breve) -->
@@ -313,7 +313,7 @@
         </div>
         <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Vistoria</h2>
         <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Checklists de campo, fotos e laudos de inspeção.</p>
-        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponível em breve</div>
+        <div class="flex items-center gap-2 mt-5 text-teal-400 text-xs font-black uppercase tracking-widest">Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i></div>
       </div>
 
       <!-- ENGENHARIA (em breve) -->
@@ -328,7 +328,7 @@
         </div>
         <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Engenharia</h2>
         <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Projetos, dimensionamento e documentação técnica.</p>
-        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponível em breve</div>
+        <div class="flex items-center gap-2 mt-5 text-teal-400 text-xs font-black uppercase tracking-widest">Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i></div>
       </div>
 
     </section>
@@ -393,8 +393,8 @@
               <i data-lucide="settings" class="w-4 h-4"></i>
             </button>
 
-            <!-- Refresh (PWA standalone only) -->
-            <button id="pwa-refresh-btn" onclick="const u=new URL(window.location.href);u.searchParams.set('app_v',Date.now());window.location.replace(u.toString())" title="Atualizar"
+            <!-- Refresh (só no modo app / PWA) -->
+            <button id="pwa-refresh-btn" title="Atualizar"
               class="hidden p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 shrink-0">
               <i data-lucide="refresh-cw" class="w-4 h-4"></i>
             </button>
@@ -1069,55 +1069,82 @@
   </div>
 </div>
 
-<!-- SCRIPTS EXTERNOS -->
-<script src="assets/js/config.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/analytics.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/utils.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/api.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/auth.js?v=20260617-om-perfis"></script>
-<script src="assets/js/comunicados.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/dashboard.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/clientes.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/produtos.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/proposta-builder.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/vendas.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/admin.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/profile.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/chat.js?v=20260615-om-central-propostas"></script>
-<script src="assets/js/om.js?v=20260617-om-perfis"></script>
-<script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js"></script>
-<script src="assets/js/om-os.js?v=20260616-os-tabs"></script>
-<script src="assets/js/app.js?v=20260617-om-perfis"></script>
-<script src="assets/js/update-notice.js?v=20260615-om-central-propostas"></script>
+<!-- SCRIPTS EXTERNOS
+     Carregados em ordem (clássicos, síncronos). Cada arquivo mantém seu ?v=
+     próprio, trocado a cada deploy. Quando o botão "Atualizar" do header
+     recarrega a página com ?app_v=<token>, esse token é propagado para TODOS
+     os JS locais — furando o cache do modo app (PWA) só naquele recarregamento. -->
 <script>
 (function () {
-  const isPwa = window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true;
-  if (isPwa) {
-    // Mostra só para vendedores comuns (admin e gestor já têm botões extras no header)
-    const checkAndShow = () => {
-      if (typeof state !== 'undefined') {
-        if (!state.isAdmin && !state.isGestor) {
-          const btn = document.getElementById('pwa-refresh-btn');
-          if (btn) btn.classList.remove('hidden');
-        }
-      } else {
-        setTimeout(checkAndShow, 300);
-      }
-    };
-    checkAndShow();
+  var appV = new URLSearchParams(window.location.search).get('app_v');
+  var bust = appV ? '&app_v=' + encodeURIComponent(appV) : '';
+  function w(src)            { document.write('<script src="' + src + '"><\/script>'); }
+  function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
+
+  local('config.js',           '20260615-om-central-propostas');
+  local('analytics.js',        '20260615-om-central-propostas');
+  local('utils.js',            '20260615-om-central-propostas');
+  local('api.js',              '20260615-om-central-propostas');
+  local('auth.js',             '20260617-om-perfis');
+  local('comunicados.js',      '20260615-om-central-propostas');
+  local('dashboard.js',        '20260615-om-central-propostas');
+  local('clientes.js',         '20260615-om-central-propostas');
+  local('produtos.js',         '20260615-om-central-propostas');
+  local('proposta-builder.js', '20260615-om-central-propostas');
+  local('vendas.js',           '20260615-om-central-propostas');
+  local('admin.js',            '20260615-om-central-propostas');
+  local('profile.js',          '20260615-om-central-propostas');
+  local('chat.js',             '20260615-om-central-propostas');
+  local('om.js',               '20260617-om-perfis');
+  w('https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js');
+  local('om-os.js',            '20260618-os-endereco');
+  local('app.js',              '20260617-om-perfis');
+  local('update-notice.js',    '20260615-om-central-propostas');
+})();
+</script>
+<script>
+(function () {
+  var btn = document.getElementById('pwa-refresh-btn');
+  if (!btn) return;
+
+  // Detecta o modo app (PWA instalado) de forma abrangente: Android usa
+  // display-mode, iOS usa navigator.standalone.
+  function isPwa() {
+    return window.matchMedia('(display-mode: standalone)').matches
+      || window.matchMedia('(display-mode: fullscreen)').matches
+      || window.matchMedia('(display-mode: minimal-ui)').matches
+      || window.navigator.standalone === true;
   }
-  // Giro do ícone ao clicar
-  const refreshBtn = document.getElementById('pwa-refresh-btn');
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', function () {
-      const icon = this.querySelector('[data-lucide]');
-      if (icon) {
-        icon.style.transition = 'transform 0.4s ease';
-        icon.style.transform  = 'rotate(360deg)';
-      }
-    });
+
+  // Mostra o botão sempre que estiver no modo app — sem depender do login/state
+  // (essa dependência era o motivo de "às vezes não aparecer"). Re-checa por
+  // alguns segundos porque o display-mode pode demorar a estabilizar no launch.
+  function syncVisibility() {
+    if (isPwa()) btn.classList.remove('hidden');
   }
+  syncVisibility();
+  var tries = 0;
+  var iv = setInterval(function () {
+    syncVisibility();
+    if (++tries >= 20 || !btn.classList.contains('hidden')) clearInterval(iv);
+  }, 300);
+  try {
+    window.matchMedia('(display-mode: standalone)')
+      .addEventListener('change', syncVisibility);
+  } catch (_) { /* navegadores antigos */ }
+
+  // Clique: gira o ícone e recarrega com um token novo. O token vai na URL e o
+  // carregador de scripts o repassa a todos os JS, garantindo código novo.
+  btn.addEventListener('click', function () {
+    var icon = btn.querySelector('[data-lucide]');
+    if (icon) {
+      icon.style.transition = 'transform 0.5s ease';
+      icon.style.transform  = 'rotate(360deg)';
+    }
+    var u = new URL(window.location.href);
+    u.searchParams.set('app_v', Date.now());
+    setTimeout(function () { window.location.replace(u.toString()); }, 150);
+  });
 })();
 </script>
 </html>

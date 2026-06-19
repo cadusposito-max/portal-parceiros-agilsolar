@@ -164,7 +164,7 @@ body.proposta::before{
 .stat .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:rgba(249,115,22,.14);color:var(--amber-2);margin-bottom:11px}
 .stat .ic svg{width:16px;height:16px}
 .stat .k{font-size:9px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
-.stat .v{font-size:13px;font-weight:800;color:#fff;line-height:1.3;overflow-wrap:anywhere}
+.stat .v{font-size:13px;font-weight:800;color:#fff;line-height:1.3;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto}
 .stat .v b{color:var(--amber-2);font-weight:900}
 
 /* badge de validade no preço */
@@ -256,12 +256,24 @@ body.proposta::before{
 
 /* ---- Visibilidade / ordem mobile × desktop ---- */
 @media (max-width:899px){
-  /* empilha: saudação → preço (aside) → resto (detail) */
+  /* empilha tudo numa coluna única. display:contents "achata" .detail e .aside
+     no flex do .doc-desktop, permitindo intercalar o preço+vendedor no meio dos
+     blocos via order. Ordem desejada:
+     intro → por que vale a pena → incluso → fora do escopo →
+     preço → vendedor → dados do sistema → como funciona → sobre */
   .doc-desktop{display:flex;flex-direction:column;gap:14px}
+  .doc-desktop .detail,
+  .doc-desktop .aside{display:contents}
   #m-intro{order:1}
-  .doc-desktop .aside{order:2}
-  .doc-desktop .detail{order:3}
-  /* o card de preço (no topo) mostra aprovar/recusar; o mesmo aprovar segue na barra fixa */
+  #bloco-beneficios{order:2}
+  .scope-in{order:3}
+  .scope-out{order:4}
+  #bloco-preco{order:5}
+  #resp-card{order:6}
+  #bloco-sistema{order:7}
+  #bloco-como{order:8}
+  .about{order:9}
+  /* o card de preço (agora no meio) mostra aprovar/recusar; o mesmo aprovar segue na barra fixa */
   /* zona segura no fim: a barra fixa não cobre o rodapé ao aparecer */
   .foot{padding-bottom:96px}
 }
