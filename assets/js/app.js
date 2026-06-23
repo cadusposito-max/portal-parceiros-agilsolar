@@ -372,6 +372,9 @@ function renderEnvSwitcher() {
   const activate = (idSuffix, isOn, env) => {
     const btn = document.getElementById(idSuffix);
     if (!btn) return;
+    // setDisplay() já decidiu a visibilidade (acesso) acima; preservar esse estado
+    // ao reescrever o className, senão o botão volta a aparecer mesmo sem acesso.
+    const wasHidden = btn.classList.contains('hidden');
     const base = 'env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap';
     const baseMobile = 'env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all';
     const root = idSuffix.endsWith('-mobile') ? baseMobile : base;
@@ -385,6 +388,7 @@ function renderEnvSwitcher() {
     } else {
       btn.className = `${root} text-neutral-500 hover:text-neutral-200 bg-transparent`;
     }
+    if (wasHidden) btn.classList.add('hidden');
   };
 
   const env = state.environment;
