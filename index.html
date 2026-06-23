@@ -97,7 +97,7 @@
     }
   </script>
 
-  <link rel="stylesheet" href="assets/css/main.css?v=20260617-launcher-tw">
+  <link rel="stylesheet" href="assets/css/main.css?v=20260619-fin-v2">
   <link rel="stylesheet" href="assets/css/theme-light.css" id="theme-light-css" disabled>
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -286,20 +286,20 @@
         </div>
       </button>
 
-      <!-- FINANCEIRO (em breve) -->
-      <div class="mod-card is-soon p-6 stg stg-4">
+      <!-- FINANCEIRO (ativo — visível só com acesso) -->
+      <button type="button" id="launcher-card-financeiro" onclick="enterEnvironment('financeiro')" class="mod-card is-active text-left p-6 stg stg-4">
         <div class="flex items-start justify-between mb-8">
-          <div class="w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
-            <i data-lucide="wallet" class="w-6 h-6 text-neutral-500"></i>
+          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
+            <i data-lucide="wallet" class="w-6 h-6 text-teal-400"></i>
           </div>
-          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-neutral-500 bg-neutral-500/10 border border-neutral-700 px-2 py-1">
-            <i data-lucide="lock" class="w-2.5 h-2.5"></i> Em breve
+          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-teal-400 bg-teal-400/10 border border-teal-400/20 px-2 py-1">
+            <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Novo
           </span>
         </div>
-        <h2 class="text-xl font-black text-neutral-300 uppercase tracking-wide">Financeiro</h2>
-        <p class="text-neutral-600 text-sm font-medium mt-1.5 leading-relaxed">Faturamento, comissoes e controle de recebiveis.</p>
-        <div class="flex items-center gap-2 mt-5 text-neutral-600 text-xs font-black uppercase tracking-widest">Disponivel em breve</div>
-      </div>
+        <h2 class="text-xl font-black text-white uppercase tracking-wide">Financeiro</h2>
+        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Faturamento, recebíveis, comissões e controle financeiro.</p>
+        <div class="flex items-center gap-2 mt-5 text-teal-400 text-xs font-black uppercase tracking-widest">Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i></div>
+      </button>
 
       <!-- VISTORIA (em breve) -->
       <div class="mod-card is-soon p-6 stg stg-5">
@@ -377,6 +377,10 @@
                 class="env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all">
                 <i data-lucide="wrench" class="w-3.5 h-3.5"></i>O&amp;M
               </button>
+              <button id="env-btn-financeiro" onclick="setEnvironment('financeiro')"
+                class="env-btn hidden flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all">
+                <i data-lucide="wallet" class="w-3.5 h-3.5"></i>FINANCEIRO
+              </button>
             </div>
 
             <nav class="hidden lg:flex bg-neutral-900/60 p-0.5 border border-neutral-800/60 shrink-0" id="tab-container"></nav>
@@ -439,6 +443,10 @@
           <button onclick="setEnvironment('om')" id="env-btn-om-mobile"
             class="env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
             <i data-lucide="wrench" class="w-3.5 h-3.5"></i>O&amp;M
+          </button>
+          <button onclick="setEnvironment('financeiro')" id="env-btn-financeiro-mobile"
+            class="env-btn-mobile hidden flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            <i data-lucide="wallet" class="w-3.5 h-3.5"></i>FINANCEIRO
           </button>
         </div>
       </div>
@@ -1081,11 +1089,11 @@
   function w(src)            { document.write('<script src="' + src + '"><\/script>'); }
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
 
-  local('config.js',           '20260615-om-central-propostas');
+  local('config.js',           '20260622-fin-grupos');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20260615-om-central-propostas');
   local('api.js',              '20260615-om-central-propostas');
-  local('auth.js',             '20260617-om-perfis');
+  local('auth.js',             '20260619-fin-v1');
   local('comunicados.js',      '20260615-om-central-propostas');
   local('dashboard.js',        '20260615-om-central-propostas');
   local('clientes.js',         '20260615-om-central-propostas');
@@ -1097,8 +1105,9 @@
   local('chat.js',             '20260615-om-central-propostas');
   local('om.js',               '20260617-om-perfis');
   w('https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js');
-  local('om-os.js',            '20260618-os-endereco');
-  local('app.js',              '20260617-om-perfis');
+  local('om-os.js',            '20260623-os-checklist-foto');
+  local('financeiro.js',       '20260622-fin-dash');
+  local('app.js',              '20260622-fin-grupos');
   local('update-notice.js',    '20260615-om-central-propostas');
 })();
 </script>

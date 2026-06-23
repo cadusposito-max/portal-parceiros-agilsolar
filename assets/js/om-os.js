@@ -550,6 +550,13 @@
           </button>
         </div>
         ${open ? `<div class="border-t border-neutral-800 p-3 flex flex-col gap-3">
+          ${it.descricao ? `<div class="bg-neutral-950/60 border border-neutral-800 p-3">
+            <div class="flex items-center gap-1.5 mb-1.5">
+              <i data-lucide="list-checks" class="w-3.5 h-3.5 text-blue-400"></i>
+              <span class="text-[10px] font-black uppercase tracking-wider text-neutral-400">Como fazer</span>
+            </div>
+            <p class="text-[12.5px] leading-relaxed text-neutral-300 whitespace-pre-line">${esc(it.descricao)}</p>
+          </div>` : ''}
           <div>
             <label class="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Observação</label>
             <textarea ${lk ? 'disabled' : ''} onblur="omOsObsSave('${esc(it.id)}', this.value)" rows="2" placeholder="Opcional…"
@@ -823,14 +830,16 @@
   // ==========================================================================
   // FOTOS — EXIF, compressão, upload
   // ==========================================================================
-  function omOsFile() {
-    let el = document.getElementById('om-os-file-input');
+  // mode: 'cam' força a câmera (capture); 'gal' abre galeria/arquivos (sem capture)
+  function omOsFile(mode) {
+    const id = 'om-os-file-' + (mode === 'gal' ? 'gal' : 'cam');
+    let el = document.getElementById(id);
     if (!el) {
       el = document.createElement('input');
       el.type = 'file';
       el.accept = 'image/*';
-      el.setAttribute('capture', 'environment');
-      el.id = 'om-os-file-input';
+      if (mode !== 'gal') el.setAttribute('capture', 'environment');
+      el.id = id;
       el.style.display = 'none';
       el.addEventListener('change', (e) => {
         const f = e.target.files && e.target.files[0];
@@ -842,10 +851,44 @@
     return el;
   }
 
+  // Folha de escolha Câmera / Galeria. pendingFoto já deve estar setado pelo chamador.
+  function omOsFotoSheet() {
+    if (document.getElementById('om-os-foto-sheet')) return;
+    const ov = document.createElement('div');
+    ov.id = 'om-os-foto-sheet';
+    ov.className = 'fixed inset-0 z-[120] flex items-end justify-center bg-black/60';
+    ov.onclick = (e) => { if (e.target === ov) omOsFotoCancel(); };
+    ov.innerHTML = `<div class="w-full max-w-md bg-neutral-950 border-t border-neutral-800 p-4 pb-6 flex flex-col gap-3">
+      <div class="text-[11px] font-black uppercase tracking-[0.15em] text-neutral-400 text-center mb-1">Adicionar foto</div>
+      <button onclick="omOsFotoPick('cam')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-neutral-900 border border-neutral-800 hover:border-blue-500/40 text-left">
+        <i data-lucide="camera" class="w-5 h-5 text-blue-400"></i>
+        <span class="text-[14px] font-bold text-white">Câmera</span></button>
+      <button onclick="omOsFotoPick('gal')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-neutral-900 border border-neutral-800 hover:border-blue-500/40 text-left">
+        <i data-lucide="image" class="w-5 h-5 text-blue-400"></i>
+        <span class="text-[14px] font-bold text-white">Galeria</span></button>
+      <button onclick="omOsFotoCancel()" class="w-full px-4 py-3 text-[13px] font-bold text-neutral-400">Cancelar</button>
+    </div>`;
+    document.body.appendChild(ov);
+    icons();
+  }
+
+  function omOsFotoPick(mode) {
+    const ov = document.getElementById('om-os-foto-sheet');
+    if (ov) ov.remove();
+    if (!pendingFoto) return;
+    omOsFile(mode).click();
+  }
+
+  function omOsFotoCancel() {
+    const ov = document.getElementById('om-os-foto-sheet');
+    if (ov) ov.remove();
+    pendingFoto = null;
+  }
+
   function omOsAddFoto(categoria, itemId) {
     if (locked()) { toast('OS encerrada — não é possível enviar fotos.'); return; }
     pendingFoto = { categoria, itemId: itemId || null };
-    omOsFile().click();
+    omOsFotoSheet();
   }
 
   function omOsVerFoto(url) {
@@ -938,7 +981,7 @@
     if (!probForm) return;
     probSyncDesc();
     pendingFoto = { categoria: 'anomalia', itemId: null, forProblem: true };
-    omOsFile().click();
+    omOsFotoSheet();
   }
   async function omOsProblemaSalvar() {
     if (!probForm) return;
@@ -1007,7 +1050,7 @@
     omOsView, omOsFiltro, omOsSort, omOsBusca, omOsKanbanTab,
     omOsAbrir, omOsVoltar, omOsSubtab, omOsFlow,
     omOsItemToggle, omOsItemExpand, omOsObsSave,
-    omOsAddFoto, omOsVerFoto,
+    omOsAddFoto, omOsVerFoto, omOsFotoPick, omOsFotoCancel,
     omOsProblemaAbrir, omOsProblemaCancelar, omOsProblemaGravidade,
     omOsProblemaRetorno, omOsProblemaFoto, omOsProblemaSalvar,
     omOsFinalizarAbrir, omOsFinalizarCancelar, omOsFinalizarEstado, omOsFinalizarConfirmar,

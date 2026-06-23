@@ -1472,6 +1472,94 @@ html[data-theme="light"] {
 :is(.om-env, #om-modal-root) .to-blue-600   { --tw-gradient-to: var(--om-soft) var(--tw-gradient-to-position); }
 
 /* ==========================================
+   FINANCEIRO — 3º ambiente (acento teal/verde-água).
+   Espelha o padrão --om-*. Vars mudam em dark/light.
+   ========================================== */
+:root, html[data-theme="dark"] {
+  --fin:#14b8a6; --fin-soft:#2dd4bf; --fin-strong:#0d9488; --fin-on:#99f6e4;
+  --fin-chip-bg:rgba(45,212,191,0.12);
+  --fin-border-50:rgba(45,212,191,0.5); --fin-border-40:rgba(45,212,191,0.4);
+  --fin-border-30:rgba(45,212,191,0.3); --fin-border-20:rgba(45,212,191,0.2);
+  --fin-focus:rgba(45,212,191,0.6); --fin-contour:#2dd4bf; --fin-contour-dot:rgba(45,212,191,0.45);
+  --fin-shadow:rgba(20,184,166,0.35); --fin-radial:rgba(20,184,166,0.05); --fin-radial2:rgba(13,148,136,0.03);
+  --fin-deep-grad:
+    radial-gradient(120% 120% at 15% 0%, rgba(45,212,191,0.12), transparent 50%),
+    linear-gradient(135deg,#04221c 0%,#063a30 52%,#03201b 100%);
+  --fin-deep-border:rgba(13,148,136,0.5);
+}
+html[data-theme="light"] {
+  --fin:#0d9488; --fin-soft:#0f766e; --fin-strong:#115e59; --fin-on:#0f766e;
+  --fin-deep-grad: linear-gradient(135deg,#0d3b34 0%,#0f4d44 52%,#0a2f29 100%);
+  --fin-deep-border:rgba(13,148,136,0.45);
+}
+
+.fin-env { background:
+  radial-gradient(900px 360px at 78% -180px, var(--fin-radial), transparent 70%),
+  radial-gradient(900px 380px at 22% -200px, var(--fin-radial2), transparent 70%); }
+
+.fin-acc        { color:var(--fin-soft); }
+.fin-acc-strong { color:var(--fin); }
+.fin-acc-solid       { background:var(--fin); color:#022c22; }
+.fin-acc-solid:hover { background:var(--fin-soft); }
+.fin-acc-chip   { background:var(--fin-chip-bg); color:var(--fin-soft); }
+.fin-acc-focus:focus { border-color:var(--fin-focus); outline:none; }
+
+.fin-deep       { background:var(--fin-deep-grad); border:1px solid var(--fin-deep-border); }
+.fin-deep-label { color:var(--fin-on); }
+.fin-deep-icon  { background:rgba(255,255,255,0.06); color:var(--fin-on); }
+.fin-deep-pill  { background:rgba(153,246,224,0.12); color:var(--fin-on); }
+.fin-contour      { stroke:var(--fin-contour); stroke-opacity:0.14; }
+.fin-contour-dots { background-image:radial-gradient(var(--fin-contour-dot) 1px, transparent 1px); }
+
+/* Navbar Financeiro — switcher, abas e sub-nav */
+.fin-nav-grad   { background-image:linear-gradient(to right, var(--fin-strong), var(--fin-soft)); color:#022c22; }
+.fin-nav-shadow { box-shadow:0 0 12px var(--fin-shadow); }
+.fin-hover-border:hover { border-color:var(--fin-border-40); }
+
+/* metric-card global não tem borda — dentro do Financeiro a gente adiciona */
+.fin-env .metric-card { border:1px solid #1f1f1f; }
+.fin-env .metric-card:hover { border-color:var(--fin-border-30); }
+.fin-env .num { font-variant-numeric:tabular-nums; }
+.fin-env .fin-tab.is-active { background:var(--fin); color:#022c22; }
+
+/* sub-abas internas (ex.: Pagamentos → Conferência / Comissões) */
+.fin-subtab { color:#737373; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .2s, border-color .2s; }
+.fin-subtab:hover { color:#e5e5e5; }
+.fin-subtab.is-active { color:var(--fin-soft); border-bottom-color:var(--fin); }
+
+/* animação de barras (aging / dre inline / composição) */
+@keyframes finBarFill { from { width:0 !important; } }
+.fin-env .bar-anim { animation:finBarFill 1.2s cubic-bezier(.22,1,.36,1) forwards; }
+
+/* ===== Gráfico de faturamento (estilo "ações") ===== */
+.fat-wrap { position:relative; width:100%; cursor:crosshair; user-select:none; }
+.fat-wrap svg { display:block; width:100%; }
+.fat-line { fill:none; stroke:var(--fin-soft); stroke-width:2; vector-effect:non-scaling-stroke; }
+.fat-line.proj { stroke:var(--fin); stroke-dasharray:5 5; stroke-opacity:.85; }
+.fat-grid { stroke:#1c1c1c; stroke-width:1; vector-effect:non-scaling-stroke; }
+.fat-crosshair { stroke:var(--fin-soft); stroke-width:1; stroke-dasharray:4 4; vector-effect:non-scaling-stroke; opacity:0; transition:opacity .1s; }
+.fat-dot { position:absolute; width:11px; height:11px; border-radius:9999px; background:var(--fin-soft);
+  box-shadow:0 0 0 4px rgba(45,212,191,.18), 0 0 10px var(--fin-shadow); transform:translate(-50%,-50%);
+  pointer-events:none; opacity:0; transition:opacity .1s; }
+.fat-tip { position:absolute; pointer-events:none; opacity:0; transition:opacity .12s; transform:translate(-50%,-118%);
+  background:#0a0a0a; border:1px solid var(--fin-border-30); padding:8px 11px; white-space:nowrap; z-index:5;
+  box-shadow:0 10px 30px rgba(0,0,0,.6); }
+.fat-wrap.show .fat-crosshair, .fat-wrap.show .fat-dot, .fat-wrap.show .fat-tip { opacity:1; }
+.fat-xlabels { display:flex; justify-content:space-between; margin-top:6px; }
+.fat-xlabels span { font-size:9px; font-weight:700; letter-spacing:.08em; color:#525252; }
+.fat-pbtn.is-active { background:var(--fin); color:#022c22 !important; }
+.spark { width:100%; height:30px; display:block; margin-top:10px; overflow:visible; }
+.spark path { fill:none; stroke-width:1.6; vector-effect:non-scaling-stroke; }
+
+/* modal + toasts do Financeiro */
+#fin-modal { display:none; }
+#fin-modal.is-open { display:flex; }
+#fin-modal-card { animation:finModalIn .3s cubic-bezier(.22,1,.36,1) both; }
+@keyframes finModalIn { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+.fin-toast-in { animation:finToastIn .3s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes finToastIn { from{opacity:0;transform:translateY(-12px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+
+/* ==========================================
    LAUNCHER — tela inicial de escolha de ambiente
    ========================================== */
 .launch-bg {

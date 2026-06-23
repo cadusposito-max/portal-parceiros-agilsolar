@@ -28,10 +28,24 @@ let state = {
   isEditMode: false,
   currentUser: null,
 
-  // Ambiente ativo: 'comercial' | 'om'
+  // Ambiente ativo: 'comercial' | 'om' | 'financeiro'
   environment: 'comercial',
   // Tab ativa dentro do ambiente O&M
   omActiveTab: 'central',
+  // Tab ativa dentro do ambiente Financeiro
+  finActiveTab: 'visao',
+  // Sub-aba ativa de Pagamentos: 'conferencia' | 'comissoes'
+  finPagSub: 'conferencia',
+  // Sub-aba ativa por grupo do Financeiro (abas reagrupadas)
+  finSub: { recebiveis: 'titulos', compras: 'orcamentos', margem: 'precificacao', acoes: 'pendencias' },
+  // Acesso ao Financeiro (resolvido em runtime por fin_can_use_current_user)
+  canFin: false,
+  // Filtros/estado por aba do Financeiro
+  finFilters: {
+    recebiveis:  { search: '', f: 'todos' },
+    pagamentos:  { f: 'todos' },
+    ordemcompra: { f: 'todos' },
+  },
 
   // Admin global (overlay transversal, desvinculado do ambiente). Etapa 1.
   // Ao abrir, guardamos a vertente/aba de origem para restaurar ao fechar.
@@ -159,4 +173,24 @@ const OM_TABS = [
   { id: 'pendencias', label: 'PENDÊNCIAS',    icon: 'alert-triangle', secondary: true },
   { id: 'relatorios', label: 'RELATÓRIOS',    icon: 'file-text',      secondary: true },
   { id: 'tecnicos',   label: 'TÉCNICOS',      icon: 'hard-hat',       secondary: true }
+];
+
+// Tabs do ambiente Financeiro (15 áreas). Todas funcionais e únicas.
+// Abas do Financeiro reagrupadas (15 áreas → 9 abas-pai). Subáreas viram
+// sub-abas dentro do pai (ver FIN_SUBGROUPS em financeiro.js):
+//   RECEBÍVEIS = Títulos · Parcelamentos
+//   PAGAMENTOS = Conferência · Comissões
+//   COMPRAS    = Orçamentos · Ordem de Compra
+//   MARGEM     = Precificação · Custos · DRE
+//   AÇÕES      = Pendências · Aprovações
+const FIN_TABS = [
+  { id: 'visao',      label: 'VISÃO GERAL', icon: 'layout-dashboard' },
+  { id: 'funil',      label: 'FUNIL',       icon: 'git-merge' },
+  { id: 'recebiveis', label: 'RECEBÍVEIS',  icon: 'receipt' },
+  { id: 'pagamentos', label: 'PAGAMENTOS',  icon: 'credit-card' },
+  { id: 'compras',    label: 'COMPRAS',     icon: 'shopping-cart' },
+  { id: 'margem',     label: 'MARGEM',      icon: 'bar-chart-3' },
+  { id: 'acoes',      label: 'AÇÕES',       icon: 'badge-check' },
+  { id: 'relatorios', label: 'RELATÓRIOS',  icon: 'pie-chart' },
+  { id: 'config',     label: 'CONFIG',      icon: 'settings' }
 ];

@@ -905,6 +905,7 @@ async function openAdminUsuarioForm(userId) {
   const defaultFranquia = current?.franquia_id || state.franquiaId || franquias[0]?.id || '';
   const defaultChatEnabled = current?.chat_enabled === true;
   const defaultOmEnabled = current?.om_enabled === true;
+  const defaultFinEnabled = current?.fin_enabled === true;
   const defaultGestorId = current?.gestor_user_id || '';
 
   const fieldsHTML = `
@@ -943,6 +944,13 @@ async function openAdminUsuarioForm(userId) {
       <div class="col-span-2 bg-orange-950/20 border border-orange-700/30 p-3">
         <p class="text-orange-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente O&amp;M no portal (so Comercial). Admin sempre ve, independente desta opcao.</p>
       </div>
+      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" id="au-fin-enabled" ${defaultFinEnabled ? 'checked' : ''} class="w-4 h-4 accent-teal-500">
+        <span class="text-white font-bold text-sm uppercase">Permitir acesso ao Financeiro (fin_enabled)</span>
+      </label>
+      <div class="col-span-2 bg-teal-950/20 border border-teal-700/30 p-3">
+        <p class="text-teal-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente Financeiro no portal. Admin sempre ve, independente desta opcao.</p>
+      </div>
       <div id="au-gestor-wrap" class="col-span-2 ${defaultRole === 'vendedor' ? '' : 'hidden'}">
         <label class="${_labelCls}">Gestor vinculado (apenas vendedor)</label>
         <select id="au-gestor-user-id" class="${_selectCls}">
@@ -956,6 +964,7 @@ async function openAdminUsuarioForm(userId) {
     const roleValue = document.getElementById('au-role').value;
     const chatEnabled = document.getElementById('au-chat-enabled').checked;
     const omEnabled = document.getElementById('au-om-enabled').checked;
+    const finEnabled = document.getElementById('au-fin-enabled').checked;
     const gestorUserId = roleValue === 'vendedor'
       ? (document.getElementById('au-gestor-user-id')?.value || null)
       : null;
@@ -986,6 +995,12 @@ async function openAdminUsuarioForm(userId) {
         p_om_enabled: omEnabled,
       });
       if (omError) { showToast('ERRO O&M: ' + omError.message); return; }
+
+      const { error: finError } = await supabaseClient.rpc('set_fin_enabled', {
+        p_user_id: userId,
+        p_enabled: finEnabled,
+      });
+      if (finError) { showToast('ERRO FINANCEIRO: ' + finError.message); return; }
 
       closeAdminModal();
       showToast('USUARIO ATUALIZADO');
@@ -1032,9 +1047,15 @@ async function openAdminUsuarioForm(userId) {
           p_user_id: newUserId,
           p_om_enabled: omEnabled,
         });
+        const { error: finError } = await supabaseClient.rpc('set_fin_enabled', {
+          p_user_id: newUserId,
+          p_enabled: finEnabled,
+        });
         closeAdminModal();
         if (omError) {
           showToast('USUARIO CRIADO, MAS O&M NAO FOI CONFIGURADO: ' + omError.message);
+        } else if (finError) {
+          showToast('USUARIO CRIADO, MAS FINANCEIRO NAO FOI CONFIGURADO: ' + finError.message);
         } else {
           showToast('USUARIO CRIADO COM SUCESSO');
         }

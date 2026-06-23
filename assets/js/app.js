@@ -298,6 +298,7 @@ const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
 function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
+  if (state.environment === 'financeiro' && state.canFin) return FIN_TABS;
   if (state.environment === 'om' && state.canOM) {
     // Admin/Gestor/Coordenador veem o O&M completo; vendedor O&M só Propostas, Central e Clientes.
     if (state.isAdmin || state.isGestor || state.isCoordenador) return OM_TABS;
@@ -309,7 +310,9 @@ function getActiveTabsForEnvironment() {
 }
 
 function getActiveTabId() {
-  return state.environment === 'om' ? state.omActiveTab : state.activeTab;
+  if (state.environment === 'om') return state.omActiveTab;
+  if (state.environment === 'financeiro') return state.finActiveTab;
+  return state.activeTab;
 }
 
 // Lê no backend se o usuário corrente pode ver o ambiente O&M.
@@ -324,6 +327,18 @@ async function omRefreshAccess() {
   }
 }
 
+// Lê no backend se o usuário corrente pode ver o ambiente Financeiro.
+// Admin sempre pode; demais dependem da flag fin_enabled. (Espelha omRefreshAccess.)
+async function finRefreshAccess() {
+  if (state.isAdmin) { state.canFin = true; return; }
+  try {
+    const { data, error } = await supabaseClient.rpc('fin_can_use_current_user');
+    state.canFin = !error && data === true;
+  } catch (_) {
+    state.canFin = false;
+  }
+}
+
 function renderEnvSwitcher() {
   const desktop = document.getElementById('env-switcher');
   const section = document.getElementById('menu-section');
@@ -334,9 +349,9 @@ function renderEnvSwitcher() {
     if (section) section.style.display = 'none';
     return;
   }
-  // Sem acesso ao O&M: esconde o seletor e mantém só o Comercial.
-  if (!state.canOM) {
-    if (state.environment === 'om') state.environment = 'comercial';
+  // Sem acesso a NENHUM ambiente extra: esconde o seletor e mantém só o Comercial.
+  if (!state.canOM && !state.canFin) {
+    if (state.environment !== 'comercial') state.environment = 'comercial';
     if (desktop) desktop.style.display = 'none';
     if (section) section.style.display = 'none';
     return;
@@ -351,6 +366,8 @@ function renderEnvSwitcher() {
   };
   setDisplay('env-btn-om', Boolean(state.canOM));
   setDisplay('env-btn-om-mobile', Boolean(state.canOM));
+  setDisplay('env-btn-financeiro', Boolean(state.canFin));
+  setDisplay('env-btn-financeiro-mobile', Boolean(state.canFin));
 
   const activate = (idSuffix, isOn, env) => {
     const btn = document.getElementById(idSuffix);
@@ -361,22 +378,22 @@ function renderEnvSwitcher() {
     if (isOn) {
       const tone = env === 'om'
         ? 'om-nav-grad om-nav-shadow'
-        : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[0_0_12px_rgba(234,88,12,0.3)]';
+        : env === 'financeiro'
+          ? 'fin-nav-grad fin-nav-shadow'
+          : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[0_0_12px_rgba(234,88,12,0.3)]';
       btn.className = `${root} ${tone}`;
     } else {
       btn.className = `${root} text-neutral-500 hover:text-neutral-200 bg-transparent`;
     }
   };
 
-  const isOm = state.environment === 'om';
-  activate('env-btn-comercial',         !isOm, 'comercial');
-  activate('env-btn-om',                 isOm, 'om');
-  activate('env-btn-comercial-mobile',  !isOm, 'comercial');
-  activate('env-btn-om-mobile',          isOm, 'om');
-
-  setDisplay('env-btn-om', Boolean(state.canOM));
-  setDisplay('env-btn-om-mobile', Boolean(state.canOM));
-
+  const env = state.environment;
+  activate('env-btn-comercial',          env === 'comercial',  'comercial');
+  activate('env-btn-om',                  env === 'om',         'om');
+  activate('env-btn-financeiro',          env === 'financeiro', 'financeiro');
+  activate('env-btn-comercial-mobile',    env === 'comercial',  'comercial');
+  activate('env-btn-om-mobile',           env === 'om',         'om');
+  activate('env-btn-financeiro-mobile',   env === 'financeiro', 'financeiro');
 }
 
 function renderTabs() {
@@ -387,15 +404,19 @@ function renderTabs() {
 
   const tabs = getActiveTabsForEnvironment();
   const activeId = getActiveTabId();
-  const isOm = state.environment === 'om';
+  const isOm  = state.environment === 'om';
+  const isFin = state.environment === 'financeiro';
+  // Ambientes com sub-nav (segunda linha de abas no desktop): O&M e Financeiro.
+  const isSubnavEnv = isOm || isFin;
 
-  const activeBg = isOm
-    ? 'om-nav-grad om-nav-shadow'
+  const navGrad = isFin ? 'fin-nav-grad fin-nav-shadow' : 'om-nav-grad om-nav-shadow';
+  const activeBg = isSubnavEnv
+    ? navGrad
     : 'text-black bg-gradient-to-r from-orange-600 to-yellow-500 shadow-[0_0_12px_rgba(234,88,12,0.3)]';
-  const activeBgMobile = isOm
-    ? 'om-nav-grad shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]'
+  const activeBgMobile = isSubnavEnv
+    ? `${isFin ? 'fin-nav-grad' : 'om-nav-grad'} shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]`
     : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]';
-  const hoverBorder = isOm ? 'om-hover-border' : 'hover:border-orange-500/40';
+  const hoverBorder = isFin ? 'fin-hover-border' : isOm ? 'om-hover-border' : 'hover:border-orange-500/40';
 
   const primaryTabs   = tabs.filter(t => !t.secondary);
   const secondaryTabs = tabs.filter(t =>  t.secondary);
@@ -415,9 +436,9 @@ function renderTabs() {
 
   const subnav = document.getElementById('om-subnav');
 
-  if (isOm) {
-    // O&M: as rotas viram uma SEGUNDA LINHA (sub-nav) no desktop; o topo fica só
-    // com o switcher de ambiente. Sem dropdown "MAIS".
+  if (isSubnavEnv) {
+    // O&M e Financeiro: as rotas viram uma SEGUNDA LINHA (sub-nav) no desktop; o
+    // topo fica só com o switcher de ambiente. Sem dropdown "MAIS".
     container.innerHTML = '';
     const moreMenu = document.getElementById('om-more-menu');
     if (moreMenu) moreMenu.remove();
@@ -540,8 +561,9 @@ function closeOmMoreMenuOnOutside(ev) {
 
 function setEnvironment(env) {
   if (state.isTecnico) return; // técnico não troca de ambiente
-  if (env !== 'comercial' && env !== 'om') return;
+  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro') return;
   if (env === 'om' && !state.canOM) return; // sem acesso ao O&M
+  if (env === 'financeiro' && !state.canFin) return; // sem acesso ao Financeiro
   if (state.environment === env) return;
 
   // Não fecha o menu: ao trocar de seção, o usuário vê as abas da nova seção.
@@ -560,7 +582,7 @@ function setEnvironment(env) {
 // O launcher só aparece quando há escolha real (2+ ambientes). Hoje isso equivale
 function launcherShouldShow() {
   if (state.isTecnico) return false;
-  return !!state.canOM;
+  return !!state.canOM || !!state.canFin;
 }
 
 function showLauncher() {
@@ -593,6 +615,10 @@ function showLauncher() {
   // O&M só é oferecido a quem tem acesso (robustez p/ futuro).
   const omCard = document.getElementById('launcher-card-om');
   if (omCard) omCard.classList.toggle('hidden', !state.canOM);
+
+  // Financeiro idem — só aparece pra quem tem acesso (admin/flag).
+  const finCard = document.getElementById('launcher-card-financeiro');
+  if (finCard) finCard.classList.toggle('hidden', !state.canFin);
 
   screen.classList.remove('hidden');
   // força reflow antes de animar a opacidade
@@ -649,8 +675,9 @@ function startLauncherTypewriter() {
 // Disparado pelo clique nos cards. NÃO usa setEnvironment (que aborta quando o
 // ambiente já é o atual — caso do Comercial, que é o default).
 function enterEnvironment(env) {
-  if (env !== 'comercial' && env !== 'om') return;
+  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro') return;
   if (env === 'om' && !state.canOM) return;
+  if (env === 'financeiro' && !state.canFin) return;
 
   const screen = document.getElementById('launcher-screen');
   if (screen) {
@@ -660,6 +687,7 @@ function enterEnvironment(env) {
 
   state.environment = env;
   if (env === 'om') state.omActiveTab = 'central';
+  if (env === 'financeiro') state.finActiveTab = 'visao';
   renderTabs();
   renderContent();
 }
@@ -676,6 +704,18 @@ function setTab(tabId) {
     if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
     stopDashboardClock();
     state.omActiveTab = tabId;
+    renderTabs();
+    renderContent();
+    return;
+  }
+
+  if (state.environment === 'financeiro') {
+    closeMobileMenu();
+    if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
+    stopDashboardClock();
+    // Abas reagrupadas: um id de subárea (ex.: 'dre','orcamentos') é resolvido
+    // para a aba-pai (ex.: 'margem','compras') e a sub-aba certa fica memorizada.
+    state.finActiveTab = (typeof finResolveTab === 'function') ? finResolveTab(tabId) : tabId;
     renderTabs();
     renderContent();
     return;
@@ -797,6 +837,22 @@ function renderContent() {
       renderOMRoute(container, state.omActiveTab);
     } else {
       container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo O&M não carregado.</div>';
+    }
+    queueAppLucideCreateIcons();
+    return;
+  }
+
+  // Ambiente Financeiro: delega para o módulo financeiro.js
+  if (state.environment === 'financeiro') {
+    stopDashboardClock();
+    if (typeof stopOmClock === 'function') stopOmClock();
+    mainToolbar.classList.add('hidden');
+    toggleContainer.classList.add('hidden');
+    if (adminBar) adminBar.classList.add('hidden');
+    if (typeof renderFinRoute === 'function') {
+      renderFinRoute(container, state.finActiveTab);
+    } else {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Financeiro não carregado.</div>';
     }
     queueAppLucideCreateIcons();
     return;

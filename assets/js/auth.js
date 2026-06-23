@@ -252,6 +252,7 @@ async function checkAuth() {
         updateVendedorStats(session.user.email),
       ]);
       if (typeof omRefreshAccess === 'function') await omRefreshAccess();
+      if (typeof finRefreshAccess === 'function') await finRefreshAccess();
       renderHeaderUser();
       renderTabs();                 // prepara o header atrás do overlay
       if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
