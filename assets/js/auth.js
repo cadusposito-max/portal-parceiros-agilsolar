@@ -613,6 +613,10 @@ async function _finishLogin(user, email) {
     fetchComunicados(),
   ]);
   if (typeof omRefreshAccess === 'function') await omRefreshAccess();
+  // Espelha o caminho de boot/restore: resolve tambem o acesso ao Financeiro
+  // (state.canFin via fin_can_use_current_user). Sem isto, o ambiente/funil
+  // Financeiro so aparecia apos um refresh.
+  if (typeof finRefreshAccess === 'function') await finRefreshAccess();
   renderHeaderUser();
   renderTabs();                 // prepara o header atrás do overlay
   if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
