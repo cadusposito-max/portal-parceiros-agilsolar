@@ -437,15 +437,33 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 // Login por passkey (Face ID / biometria / chave de seguranca). ADITIVO: nao
 // substitui o login por senha. Funciona no dominio de producao (RP ID); no de
 // teste a origem nao bate e falha de forma graciosa -> usuario segue com senha.
+let _passkeyInFlight = false;
+
+// Detecta cancelamento do usuario (nao e falha de verdade): o WebAuthn rejeita
+// com NotAllowedError tanto em cancelamento quanto em timeout.
+function _isPasskeyCancel(err) {
+  if (!err) return false;
+  const name = String(err.name || err.code || '').toLowerCase();
+  const msg  = String(err.message || '').toLowerCase();
+  return name.includes('notallowed') || name.includes('abort') ||
+         msg.includes('cancel') || msg.includes('not allowed') ||
+         msg.includes('abort') || msg.includes('timed out') || msg.includes('timeout');
+}
+
 async function loginWithPasskey() {
   const errorEl = document.getElementById('login-error');
   const btn     = document.getElementById('btn-login-passkey');
+
+  // Evita duas cerimonias WebAuthn ao mesmo tempo (causa "request already pending"
+  // que faz a 2a tentativa falhar sem abrir o Face ID).
+  if (_passkeyInFlight) return;
 
   if (!supabaseClient.auth || typeof supabaseClient.auth.signInWithPasskey !== 'function') {
     if (errorEl) { errorEl.innerText = 'Login por passkey indisponível neste navegador/versão.'; errorEl.classList.remove('hidden'); }
     return;
   }
 
+  _passkeyInFlight = true;
   if (errorEl) errorEl.classList.add('hidden');
   const originalHtml = btn ? btn.innerHTML : '';
   if (btn) {
@@ -456,15 +474,31 @@ async function loginWithPasskey() {
 
   try {
     const { data, error } = await supabaseClient.auth.signInWithPasskey();
-    if (error || !data || !data.user) {
+    if (error) {
+      if (errorEl) {
+        errorEl.innerText = _isPasskeyCancel(error)
+          ? 'Login por Face ID cancelado. Toque no botão para tentar de novo.'
+          : 'Não foi possível entrar com passkey. Use e-mail e senha.';
+        errorEl.classList.remove('hidden');
+      }
+      return;
+    }
+    if (!data || !data.user) {
       if (errorEl) { errorEl.innerText = 'Não foi possível entrar com passkey. Use e-mail e senha.'; errorEl.classList.remove('hidden'); }
       return;
     }
     _bfClear();
     await _finishLogin(data.user, data.user.email || '');
-  } catch (_) {
-    if (errorEl) { errorEl.innerText = 'Não foi possível entrar com passkey. Use e-mail e senha.'; errorEl.classList.remove('hidden'); }
+  } catch (e) {
+    if (errorEl) {
+      errorEl.innerText = _isPasskeyCancel(e)
+        ? 'Login por Face ID cancelado. Toque no botão para tentar de novo.'
+        : 'Não foi possível entrar com passkey. Use e-mail e senha.';
+      errorEl.classList.remove('hidden');
+    }
   } finally {
+    // Libera sempre, mesmo em erro/cancelamento, para a proxima tentativa ser limpa.
+    _passkeyInFlight = false;
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = originalHtml;

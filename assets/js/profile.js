@@ -508,7 +508,10 @@ async function _loadPasskeys() {
   lucide.createIcons();
 }
 
+let _passkeyRegInFlight = false;
 async function _registerPasskey() {
+  if (_passkeyRegInFlight) return; // evita cerimonia WebAuthn duplicada
+  _passkeyRegInFlight = true;
   const area = document.getElementById('passkey-status-area');
   if (area) {
     area.innerHTML = `<div class="text-neutral-500 text-[10px] font-bold uppercase tracking-widest text-center py-4"><i data-lucide="loader-2" class="w-5 h-5 animate-spin inline-block mr-2"></i> Aguardando o dispositivo...</div>`;
@@ -516,10 +519,17 @@ async function _registerPasskey() {
   }
   try {
     const { error } = await supabaseClient.auth.registerPasskey();
-    if (error) { showToast('Não foi possível cadastrar: ' + (error.message || 'erro')); _loadPasskeys(); return; }
-    showToast('PASSKEY CADASTRADA COM SUCESSO!');
+    if (error) {
+      const m = String(error.message || '').toLowerCase();
+      const cancelou = String(error.name || '').toLowerCase().includes('notallowed') || m.includes('cancel') || m.includes('not allowed') || m.includes('abort') || m.includes('timeout') || m.includes('timed out');
+      showToast(cancelou ? 'Cadastro cancelado. Toque novamente para tentar.' : ('Não foi possível cadastrar: ' + (error.message || 'erro')));
+    } else {
+      showToast('PASSKEY CADASTRADA COM SUCESSO!');
+    }
   } catch (_) {
     showToast('Cadastro cancelado ou não suportado neste dispositivo.');
+  } finally {
+    _passkeyRegInFlight = false;
   }
   _loadPasskeys();
 }
