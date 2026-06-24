@@ -475,10 +475,15 @@ async function loginWithPasskey() {
   try {
     const { data, error } = await supabaseClient.auth.signInWithPasskey();
     if (error) {
+      console.error('[passkey login] erro:', error.code || error.name, error.message, error);
       if (errorEl) {
-        errorEl.innerText = _isPasskeyCancel(error)
-          ? 'Login por Face ID cancelado. Toque no botão para tentar de novo.'
-          : 'Não foi possível entrar com passkey. Use e-mail e senha.';
+        if (_isPasskeyCancel(error)) {
+          errorEl.innerText = 'Login por Face ID cancelado. Toque no botão para tentar de novo.';
+        } else {
+          // Mostra o detalhe para diagnostico (ex.: webauthn_credential_not_found = passkey de outro dominio).
+          const det = error.code || error.name || error.message || 'desconhecido';
+          errorEl.innerText = 'Falha no passkey (' + det + '). Use e-mail e senha.';
+        }
         errorEl.classList.remove('hidden');
       }
       return;
