@@ -434,6 +434,45 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   }
 });
 
+// Login por passkey (Face ID / biometria / chave de seguranca). ADITIVO: nao
+// substitui o login por senha. Funciona no dominio de producao (RP ID); no de
+// teste a origem nao bate e falha de forma graciosa -> usuario segue com senha.
+async function loginWithPasskey() {
+  const errorEl = document.getElementById('login-error');
+  const btn     = document.getElementById('btn-login-passkey');
+
+  if (!supabaseClient.auth || typeof supabaseClient.auth.signInWithPasskey !== 'function') {
+    if (errorEl) { errorEl.innerText = 'Login por passkey indisponível neste navegador/versão.'; errorEl.classList.remove('hidden'); }
+    return;
+  }
+
+  if (errorEl) errorEl.classList.add('hidden');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> <span>VERIFICANDO...</span>`;
+    queueAuthLucideCreateIcons();
+  }
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPasskey();
+    if (error || !data || !data.user) {
+      if (errorEl) { errorEl.innerText = 'Não foi possível entrar com passkey. Use e-mail e senha.'; errorEl.classList.remove('hidden'); }
+      return;
+    }
+    _bfClear();
+    await _finishLogin(data.user, data.user.email || '');
+  } catch (_) {
+    if (errorEl) { errorEl.innerText = 'Não foi possível entrar com passkey. Use e-mail e senha.'; errorEl.classList.remove('hidden'); }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+      queueAuthLucideCreateIcons();
+    }
+  }
+}
+
 let _mfaFactorId    = null;
 let _mfaChallengeId = null;
 let _pendingUser    = null;

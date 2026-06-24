@@ -5,7 +5,11 @@
 const SUPABASE_URL = 'https://tzwjxgprhorqrmpqudgg.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6d2p4Z3ByaG9ycXJtcHF1ZGdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjczNTksImV4cCI6MjA4NzcwMzM1OX0.hwfzCb9FGVXX7Uf0pY7zFS6SZHrh0pzWk1gKFVq2DX4';
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// experimental.passkey = true habilita os metodos de passkey/WebAuthn (Face ID, biometria).
+// E aditivo: nao altera o login por senha nem as opcoes padrao de sessao (persist/refresh).
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { experimental: { passkey: true } },
+});
 
 // --- CONSTANTES DE NEGOCIO ---
 const COMISSAO_POR_VENDA    = 2500;   // R$ por venda fechada (alterar conforme acordo)

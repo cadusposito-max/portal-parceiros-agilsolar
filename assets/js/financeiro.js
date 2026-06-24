@@ -332,7 +332,7 @@
       <button onclick="setTab('${p.atalho}')" class="w-full flex items-center justify-between gap-3 p-3 bg-neutral-950/60 border border-neutral-800 hover:border-[color:var(--fin-border-30)] transition-colors text-left">
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-9 h-9 grid place-items-center border ${finRiscoTone[p.sev]||finRiscoTone['2']} shrink-0"><i data-lucide="${finRiscoIcon[p.tipo]||'alert-circle'}" class="w-4 h-4"></i></div>
-          <div class="min-w-0"><div class="text-sm font-black text-white truncate">${p.titulo}</div><div class="text-[10px] text-neutral-500 font-bold truncate">${p.sub}</div></div>
+          <div class="min-w-0"><div class="text-sm font-black text-white truncate">${escapeHTML(p.titulo)}</div><div class="text-[10px] text-neutral-500 font-bold truncate">${escapeHTML(p.sub)}</div></div>
         </div>
         <span class="text-white font-black num shrink-0">${brMoney(p.valor)}</span>
       </button>`).join('') : `<div class="p-6 text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Nenhum projeto em risco 🎉</div>`;
@@ -375,7 +375,7 @@
     rows = rows.slice(0, 4);
     host.innerHTML = rows.length ? rows.map(r=>`
       <tr class="border-b border-neutral-800/60 hover:bg-neutral-900/40 transition-colors">
-        <td class="px-5 py-3.5"><div class="font-black text-white">${r.cli}</div><div class="text-[10px] text-neutral-500 font-bold">${r.proj}</div></td>
+        <td class="px-5 py-3.5"><div class="font-black text-white">${escapeHTML(r.cli)}</div><div class="text-[10px] text-neutral-500 font-bold">${escapeHTML(r.proj)}</div></td>
         <td class="px-3 py-3.5 text-neutral-400 font-mono text-[11px]">${r.doc}</td>
         <td class="px-3 py-3.5 text-neutral-400 num">${r.venc||'—'}</td>
         <td class="px-3 py-3.5 text-right text-white font-bold num">${brMoney(r.valor)}</td>
@@ -388,17 +388,19 @@
     if (filter) state.finFilters.recebiveis.f = filter;
     filter = state.finFilters.recebiveis.f || 'todos';
     try { finTitulos = await finRpc('list_fin_titulos', { p_filter: filter }) || []; } catch (_) { finTitulos = []; }
+    const editBtn = (r) => `<button onclick="finTitEdit('${r.id}')" title="Editar título" class="w-8 h-8 grid place-items-center bg-neutral-900 text-neutral-400 border border-neutral-800 hover:fin-acc transition-colors"><i data-lucide="pencil" class="w-4 h-4"></i></button>`;
     const acts = (r) => r.st === 'pago'
-      ? `<span class="text-[10px] font-bold uppercase tracking-widest text-emerald-400 inline-flex items-center gap-1"><i data-lucide="check-check" class="w-3.5 h-3.5"></i>Pago</span>`
+      ? `<div class="inline-flex gap-1.5 justify-end items-center"><span class="text-[10px] font-bold uppercase tracking-widest text-emerald-400 inline-flex items-center gap-1"><i data-lucide="check-check" class="w-3.5 h-3.5"></i>Pago</span>${editBtn(r)}</div>`
       : `<div class="inline-flex gap-1.5 justify-end">
           <button onclick="finTitBaixar('${r.id}')" title="Baixar / receber" class="w-8 h-8 grid place-items-center bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20 transition-colors"><i data-lucide="check" class="w-4 h-4 stroke-[2.5]"></i></button>
           <button onclick="finTitReneg('${r.id}')" title="Renegociar vencimento" class="w-8 h-8 grid place-items-center bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white transition-colors"><i data-lucide="calendar-clock" class="w-4 h-4"></i></button>
+          ${editBtn(r)}
           <button onclick="finTitCancelar('${r.id}')" title="Cancelar" class="w-8 h-8 grid place-items-center bg-red-500/10 text-red-400 border border-red-500/25 hover:bg-red-500/20 transition-colors"><i data-lucide="x" class="w-4 h-4 stroke-[2.5]"></i></button>
         </div>`;
     const tbl = document.getElementById('rec-table');
     if (tbl) tbl.innerHTML = finTitulos.length ? finTitulos.map(r=>`
       <tr class="border-b border-neutral-800/60 hover:bg-neutral-900/40 transition-colors">
-        <td class="px-5 py-3.5"><div class="font-black text-white">${r.cli}</div><div class="text-[10px] text-neutral-500 font-bold">${r.proj}</div></td>
+        <td class="px-5 py-3.5"><div class="font-black text-white">${escapeHTML(r.cli)}</div><div class="text-[10px] text-neutral-500 font-bold">${escapeHTML(r.proj)}</div></td>
         <td class="px-3 py-3.5 text-neutral-400 font-mono text-[11px]">${r.doc}</td>
         <td class="px-3 py-3.5 text-neutral-400 num">${r.emi||'—'}</td>
         <td class="px-3 py-3.5 text-neutral-400 num">${r.venc||'—'}</td>
@@ -410,7 +412,7 @@
     if (cards) cards.innerHTML = finTitulos.length ? finTitulos.map(r=>`
       <div class="metric-card p-4">
         <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0"><div class="font-black text-white truncate">${r.cli}</div><div class="text-[10px] text-neutral-500 font-bold">${r.proj} · ${r.doc}</div></div>
+          <div class="min-w-0"><div class="font-black text-white truncate">${escapeHTML(r.cli)}</div><div class="text-[10px] text-neutral-500 font-bold">${escapeHTML(r.proj)} · ${escapeHTML(r.doc)}</div></div>
           ${pill(r.st)}
         </div>
         <div class="flex items-center justify-between mt-3 pt-3 border-t border-neutral-800">
@@ -420,8 +422,9 @@
         ${r.st!=='pago'?`<div class="flex gap-2 mt-3">
           <button onclick="finTitBaixar('${r.id}')" class="flex-1 py-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5"><i data-lucide="check" class="w-3.5 h-3.5"></i>Baixar</button>
           <button onclick="finTitReneg('${r.id}')" class="py-2.5 px-3 bg-neutral-900 text-neutral-300 border border-neutral-800 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i></button>
+          <button onclick="finTitEdit('${r.id}')" class="py-2.5 px-3 bg-neutral-900 text-neutral-300 border border-neutral-800 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
           <button onclick="finTitCancelar('${r.id}')" class="py-2.5 px-3 bg-red-500/10 text-red-400 border border-red-500/25 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
-        </div>`:''}
+        </div>`:`<div class="flex mt-3"><button onclick="finTitEdit('${r.id}')" class="flex-1 py-2.5 bg-neutral-900 text-neutral-300 border border-neutral-800 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Editar</button></div>`}
       </div>`).join('') : `<div class="text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest py-8">Nenhum título neste filtro</div>`;
     finIcons();
   }
@@ -434,7 +437,7 @@
       <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
         <div class="min-w-0">
           <div class="text-[10px] font-black uppercase tracking-[0.2em] fin-acc-strong">Baixar título</div>
-          <h3 class="text-lg font-black text-white mt-1 truncate">${t.cli}</h3>
+          <h3 class="text-lg font-black text-white mt-1 truncate">${escapeHTML(t.cli)}</h3>
           <div class="text-[11px] text-neutral-500 font-bold">${t.proj} · saldo ${brMoney(t.saldo)}</div>
         </div>
         <button onclick="closeFinModal()" class="shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -463,12 +466,75 @@
     catch (_) { return; }
     closeFinModal(); finToast('Baixa registrada', 'ok'); renderRec();
   }
-  async function finTitReneg(id) {
-    const nova = prompt('Novo vencimento (AAAA-MM-DD):');
-    if (!nova) return;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(nova)) { finToast('Data inválida (use AAAA-MM-DD)', 'warn'); return; }
+  function finTitReneg(id) {
+    const t = finTitById(id); if (!t) return;
+    finEnsureChrome();
+    document.getElementById('fin-modal-card').innerHTML = `
+      <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
+        <div class="min-w-0"><div class="text-[10px] font-black uppercase tracking-[0.2em] fin-acc-strong">Renegociar</div>
+          <h3 class="text-lg font-black text-white mt-1 truncate">${escapeHTML(t.cli)}</h3>
+          <div class="text-[11px] text-neutral-500 font-bold">Vence hoje em ${t.venc||'—'}</div></div>
+        <button onclick="closeFinModal()" class="shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Novo vencimento</label>
+          <input id="fin-reneg-venc" type="date" value="${t.venc_iso||''}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white text-sm font-bold"></div>
+        <button onclick="finTitRenegSubmit('${id}')" class="w-full py-3 fin-acc-solid text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="calendar-clock" class="w-4 h-4"></i>Atualizar vencimento</button>
+      </div>`;
+    document.getElementById('fin-modal').classList.add('is-open');
+    finIcons();
+  }
+  async function finTitRenegSubmit(id) {
+    const nova = document.getElementById('fin-reneg-venc').value;
+    if (!nova) { finToast('Informe o novo vencimento', 'warn'); return; }
     try { await finRpc('renegociar_fin_titulo', { p_id: id, p_vencimento: nova }); } catch (_) { return; }
-    finToast('Vencimento atualizado', 'ok'); renderRec();
+    closeFinModal(); finToast('Vencimento atualizado', 'ok'); renderRec();
+  }
+  // Edição manual completa do título (valor, descrição, documento, datas).
+  function finTitEdit(id) {
+    const t = finTitById(id); if (!t) return;
+    finEnsureChrome();
+    document.getElementById('fin-modal-card').innerHTML = `
+      <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
+        <div class="min-w-0"><div class="text-[10px] font-black uppercase tracking-[0.2em] fin-acc-strong">Editar título</div>
+          <h3 class="text-lg font-black text-white mt-1 truncate">${escapeHTML(t.cli)}</h3>
+          ${Number(t.pago)>0?`<div class="text-[11px] text-yellow-400 font-bold">Já recebido ${brMoney(t.pago)} — valor não pode ficar abaixo disso</div>`:''}</div>
+        <button onclick="closeFinModal()" class="shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Descrição</label>
+          <input id="fin-ed-desc" type="text" value="${(t.desc_raw||'').replace(/"/g,'&quot;')}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white text-sm font-bold"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Documento</label>
+            <input id="fin-ed-doc" type="text" value="${(t.doc_raw||'').replace(/"/g,'&quot;')}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white text-sm font-bold"></div>
+          <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Valor</label>
+            <input id="fin-ed-valor" type="number" step="0.01" value="${Number(t.valor)||0}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Emissão</label>
+            <input id="fin-ed-emi" type="date" value="${t.emi_iso||''}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white text-sm font-bold"></div>
+          <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Vencimento</label>
+            <input id="fin-ed-venc" type="date" value="${t.venc_iso||''}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white text-sm font-bold"></div>
+        </div>
+        <button onclick="finTitEditSubmit('${id}')" class="w-full py-3 fin-acc-solid text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4 stroke-[3]"></i>Salvar alterações</button>
+      </div>`;
+    document.getElementById('fin-modal').classList.add('is-open');
+    finIcons();
+  }
+  async function finTitEditSubmit(id) {
+    const valor = parseFloat(document.getElementById('fin-ed-valor').value);
+    if (!(valor > 0)) { finToast('Informe um valor válido', 'warn'); return; }
+    try {
+      await finRpc('update_fin_titulo', {
+        p_id: id,
+        p_descricao: document.getElementById('fin-ed-desc').value || '',
+        p_documento: document.getElementById('fin-ed-doc').value || '',
+        p_valor: valor,
+        p_emissao: document.getElementById('fin-ed-emi').value || null,
+        p_vencimento: document.getElementById('fin-ed-venc').value || null,
+      });
+    } catch (_) { return; }
+    closeFinModal(); finToast('Título atualizado', 'ok'); renderRec();
   }
   async function finTitCancelar(id) {
     if (!window.confirm('Cancelar este título?')) return;
@@ -518,7 +584,7 @@
       try { rows = await finRpc('search_fin_clientes', { p_q: q || '' }) || []; } catch (_) { return; }
       finLancResults = rows;
       const box = document.getElementById('fin-lanc-results'); if (!box) return;
-      box.innerHTML = rows.length ? rows.map(c=>`<button type="button" onclick="finLancPick('${c.id}')" class="w-full text-left px-3 py-2.5 hover:bg-neutral-900 border-b border-neutral-800/60 last:border-0 text-[12px] font-bold text-white">${c.nome}<span class="text-neutral-500 font-normal"> · ${c.cidade||''}</span></button>`).join('') : `<div class="px-3 py-3 text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Nenhum cliente</div>`;
+      box.innerHTML = rows.length ? rows.map(c=>`<button type="button" onclick="finLancPick('${c.id}')" class="w-full text-left px-3 py-2.5 hover:bg-neutral-900 border-b border-neutral-800/60 last:border-0 text-[12px] font-bold text-white">${escapeHTML(c.nome)}<span class="text-neutral-500 font-normal"> · ${escapeHTML(c.cidade||'')}</span></button>`).join('') : `<div class="px-3 py-3 text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Nenhum cliente</div>`;
       box.classList.remove('hidden');
     }, 250);
   }
@@ -602,14 +668,17 @@
         <button onclick="finComAjustar('${c.id}',${c.pct})" title="Ajustar %" class="w-8 h-8 grid place-items-center bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white transition-colors"><i data-lucide="percent" class="w-4 h-4"></i></button>
       </div>`;
   }
+  let finComRows = [];
+  const finComById = id => finComRows.find(c => c.id === id);
   async function renderCom() {
     let rows = [];
     try { rows = await finRpc('list_fin_comissoes', { p_filter: 'todos' }) || []; } catch (_) {}
+    finComRows = rows;
     const tbl = document.getElementById('com-table');
     if (tbl) tbl.innerHTML = rows.length ? rows.map(c=>`
       <tr class="border-b border-neutral-800/60 hover:bg-neutral-900/40 transition-colors">
         <td class="px-5 py-3.5"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full fin-acc-chip grid place-items-center font-black text-[10px]">${comIni(c.vendedor)}</div><span class="font-black text-white">${c.vendedor}</span></div></td>
-        <td class="px-3 py-3.5 text-neutral-400">${c.cliente}</td>
+        <td class="px-3 py-3.5 text-neutral-400">${escapeHTML(c.cliente)}</td>
         <td class="px-3 py-3.5 text-right text-neutral-400 num">${brMoney(c.base)}</td>
         <td class="px-3 py-3.5 text-center text-neutral-400 num">${c.pct}%</td>
         <td class="px-3 py-3.5 text-right text-white font-bold num">${brMoney(c.valor)}</td>
@@ -624,7 +693,7 @@
           <span class="inline-flex px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${comStMap[c.st].c}">${comStMap[c.st].l}</span>
         </div>
         <div class="flex items-center justify-between mt-3 pt-3 border-t border-neutral-800 text-[11px]">
-          <span class="text-neutral-500 font-bold truncate">${c.cliente} · ${c.pct}%</span><span class="text-white font-black num">${brMoney(c.valor)}</span>
+          <span class="text-neutral-500 font-bold truncate">${escapeHTML(c.cliente)} · ${c.pct}%</span><span class="text-white font-black num">${brMoney(c.valor)}</span>
         </div>
         ${c.st!=='pago'?`<div class="flex gap-2 mt-3">
           ${c.st==='liberar'?`<button onclick="finComLiberar('${c.id}')" class="flex-1 py-2.5 fin-acc-chip border border-[color:var(--fin-border-30)] text-[10px] font-black uppercase tracking-widest">Liberar</button>`:''}
@@ -636,13 +705,50 @@
   }
   async function finComLiberar(id) { try { await finRpc('set_fin_comissao_status', { p_id:id, p_status:'liberado' }); } catch(_){return;} finToast('Comissão liberada','ok'); renderCom(); }
   async function finComPagar(id)   { try { await finRpc('set_fin_comissao_status', { p_id:id, p_status:'pago' }); } catch(_){return;} finToast('Comissão paga','ok'); renderCom(); }
-  async function finComAjustar(id, pct) {
-    const nv = prompt('Novo percentual de comissão (%):', pct);
-    if (nv === null) return;
-    const n = parseFloat(String(nv).replace(',','.'));
-    if (!(n >= 0)) { finToast('Percentual inválido','warn'); return; }
-    try { await finRpc('ajustar_fin_comissao_pct', { p_id:id, p_pct:n }); } catch(_){return;}
-    finToast('Comissão ajustada','ok'); renderCom();
+  function finComAjustar(id) {
+    const c = finComById(id); if (!c) return;
+    finEnsureChrome();
+    document.getElementById('fin-modal-card').innerHTML = `
+      <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
+        <div class="min-w-0"><div class="text-[10px] font-black uppercase tracking-[0.2em] fin-acc-strong">Ajustar comissão</div>
+          <h3 class="text-lg font-black text-white mt-1 truncate">${c.vendedor}</h3>
+          <div class="text-[11px] text-neutral-500 font-bold">Base ${brMoney(c.base)} · ${escapeHTML(c.cliente)}</div></div>
+        <button onclick="closeFinModal()" class="shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Percentual (%)</label>
+            <input id="fin-com-pct" type="number" step="0.01" value="${Number(c.pct)||0}" oninput="finComCalc('pct')" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black"></div>
+          <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Valor (R$)</label>
+            <input id="fin-com-val" type="number" step="0.01" value="${Number(c.valor)||0}" oninput="finComCalc('val')" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black"></div>
+        </div>
+        <div class="text-[10px] text-neutral-500 font-bold leading-relaxed">Edite o <span class="text-white">%</span> ou o <span class="text-white">valor fixo</span> — o outro campo se ajusta sozinho a partir da base.</div>
+        <input type="hidden" id="fin-com-base" value="${Number(c.base)||0}">
+        <button onclick="finComAjustarSubmit('${id}')" class="w-full py-3 fin-acc-solid text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4 stroke-[3]"></i>Salvar comissão</button>
+      </div>`;
+    document.getElementById('fin-modal').classList.add('is-open');
+    finIcons();
+  }
+  // Mantém % e valor sincronizados a partir da base no modal de comissão.
+  let _finComMode = 'pct';
+  function finComCalc(src) {
+    _finComMode = src;
+    const base = parseFloat(document.getElementById('fin-com-base').value) || 0;
+    const pctEl = document.getElementById('fin-com-pct'), valEl = document.getElementById('fin-com-val');
+    if (src === 'pct') { const p = parseFloat(pctEl.value)||0; valEl.value = (base * p / 100).toFixed(2); }
+    else { const val = parseFloat(valEl.value)||0; pctEl.value = base > 0 ? (val / base * 100).toFixed(4) : 0; }
+  }
+  async function finComAjustarSubmit(id) {
+    if (_finComMode === 'val') {
+      const val = parseFloat(document.getElementById('fin-com-val').value);
+      if (!(val >= 0)) { finToast('Valor inválido','warn'); return; }
+      try { await finRpc('set_fin_comissao_valor', { p_id:id, p_valor:val }); } catch(_){return;}
+    } else {
+      const n = parseFloat(document.getElementById('fin-com-pct').value);
+      if (!(n >= 0)) { finToast('Percentual inválido','warn'); return; }
+      try { await finRpc('ajustar_fin_comissao_pct', { p_id:id, p_pct:n }); } catch(_){return;}
+    }
+    closeFinModal(); finToast('Comissão ajustada','ok'); renderCom();
   }
   // Preenche um <select> com os projetos do funil (picker compartilhado).
   async function finFillProjetoSelect(selId) {
@@ -650,21 +756,23 @@
     let rows = [];
     try { rows = await finRpc('list_fin_projetos_basicos') || []; } catch (_) {}
     el.innerHTML = rows.length
-      ? rows.map(p=>`<option value="${p.id}">${p.cli} · ${brMoney(p.valor)}</option>`).join('')
+      ? rows.map(p=>`<option value="${p.id}">${escapeHTML(p.cli)} · ${brMoney(p.valor)}</option>`).join('')
       : '<option value="">Nenhum projeto — feche uma venda primeiro</option>';
   }
 
   // Orçamentos: foco em margem (custo do kit × valor do projeto). Mesma base da Ordem de Compra.
   async function renderOrc() {
     const host = document.getElementById('orc-grid'); if (!host) return;
+    if (!finPrecCfg) { try { finPrecCfg = await finRpc('get_fin_precificacao'); } catch (_) {} }
+    const min = Number(finPrecCfg && finPrecCfg.margem_min) || 15;
     let rows = [];
     try { rows = await finRpc('list_fin_ordens_compra', { p_filter: 'todos' }) || []; } catch (_) {}
     const novo = `<button onclick="finNovaOC()" class="metric-card p-5 border-dashed flex flex-col items-center justify-center gap-2 text-neutral-500 hover:text-white hover:border-[color:var(--fin-border-30)] transition-colors min-h-[160px]"><i data-lucide="plus" class="w-6 h-6"></i><span class="text-[10px] font-black uppercase tracking-widest">Novo orçamento</span></button>`;
     host.innerHTML = novo + rows.map(o=>{
-      const mg = o.margem, baixa = (mg!=null && mg<15);
+      const mg = o.margem, baixa = (mg!=null && mg<min);
       return `<div class="metric-card p-5">
         <div class="flex items-start justify-between gap-2 mb-4">
-          <div class="min-w-0"><div class="font-black text-white truncate">${o.cli}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">${o.fornecedor}</div></div>
+          <div class="min-w-0"><div class="font-black text-white truncate">${escapeHTML(o.cli)}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">${escapeHTML(o.fornecedor)}</div></div>
           <span class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest border ${mg==null?'bg-neutral-800 text-neutral-400 border-neutral-700':baixa?'bg-red-500/10 text-red-400 border-red-500/25':'fin-acc-chip border-[color:var(--fin-border-30)]'}">${mg==null?'Sem projeto':baixa?'Margem baixa':'Saudável'}</span>
         </div>
         <div class="grid grid-cols-2 gap-3 mb-4">
@@ -729,45 +837,78 @@
     closeFinModal(); finToast('Ordem de compra criada', 'ok');
     if ((state.finSub && state.finSub.compras) === 'ordemcompra') renderOC(); else renderOrc();
   }
-  // Precificação EXTENSÍVEL: composição renderizada dinamicamente a partir dos itens (categoria livre).
-  let finPrecData = null;
-  const FIN_PREC_CORES = ['var(--fin)','var(--fin-soft)','#facc15','#34d399','#60a5fa','#f472b6','#a78bfa'];
+  /* Precificação = CALCULADORA da planilha do contábil (mesma conta do DRE).
+     Os % vêm de fin_config via get_fin_precificacao; cálculo 100% client-side. */
+  let finPrecData = null, finPrecCfg = null;
   async function renderPrec() {
     let d;
     try { d = await finRpc('get_fin_precificacao'); } catch (_) { return; }
-    finPrecData = d;
-    const isAdmin = !!state.isAdmin;
-    const mk = document.getElementById('fin-prec-markup'); if (mk) mk.textContent = (Number(d.markup)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×';
-    const al = document.getElementById('fin-prec-alvo'); if (al) al.innerHTML = `<i data-lucide="percent" class="w-3 h-3"></i>Margem-alvo ${d.margem_alvo}%`;
-    const addBtn = document.getElementById('fin-prec-add'); if (addBtn) addBtn.classList.toggle('hidden', !isAdmin);
-    const comp = document.getElementById('fin-prec-comp');
-    const itens = d.itens || [];
-    if (comp) comp.innerHTML = itens.length ? itens.map((it,idx)=>{
-      const isPct = it.tipo==='percent';
-      const valTxt = isPct ? (it.valor+'%') : brMoney(it.valor);
-      const w = isPct ? Math.max(0,Math.min(Number(it.valor)||0,100)) : 0;
-      const cor = FIN_PREC_CORES[idx % FIN_PREC_CORES.length];
-      return `<div>
-        <div class="flex justify-between items-center text-[11px] font-bold mb-1.5">
-          <span class="text-neutral-300">${it.rotulo}${it.categoria?` <span class="text-neutral-600 font-normal">· ${it.categoria}</span>`:''}</span>
-          <span class="flex items-center gap-2"><span class="text-white num">${valTxt}</span>
-            ${isAdmin?`<button onclick="finEditPrecItem('${it.id}',${Number(it.valor)||0})" class="text-neutral-500 hover:fin-acc"><i data-lucide="pencil" class="w-3 h-3"></i></button><button onclick="finDelPrecItem('${it.id}')" class="text-neutral-500 hover:text-red-400"><i data-lucide="trash-2" class="w-3 h-3"></i></button>`:''}
-          </span>
-        </div>
-        ${isPct?`<div class="h-2.5 bg-neutral-900"><div class="h-full" style="width:${w}%;background:${cor}"></div></div>`:''}
-      </div>`;
-    }).join('') : `<div class="text-[10px] text-neutral-600 font-bold uppercase tracking-widest py-4 text-center">Nenhum item de composição</div>`;
-    const simMk = document.getElementById('fin-sim-markup'); if (simMk && !simMk.value) simMk.value = d.markup;
-    finPrecSimular();
+    finPrecData = d; finPrecCfg = d;
+    const alvo = document.getElementById('fin-pc-alvo'); if (alvo && !alvo.value) alvo.value = d.margem_alvo || '';
+    finPrecRenderRows();
+    finPrecCalc();
     finIcons();
   }
-  function finPrecSimular() {
-    const custo = parseFloat((document.getElementById('fin-sim-custo')||{}).value) || 0;
-    const markup = parseFloat((document.getElementById('fin-sim-markup')||{}).value) || 0;
-    const preco = custo * markup;
-    const margem = preco > 0 ? (preco - custo) / preco * 100 : 0;
-    const ep = document.getElementById('fin-sim-preco'); if (ep) ep.textContent = brMoney(preco);
-    const em = document.getElementById('fin-sim-margem'); if (em) em.textContent = margem.toFixed(1)+'%';
+  function finPrecNum(id) { return parseFloat((document.getElementById(id)||{}).value) || 0; }
+  function finPrecRenderRows() {
+    const host = document.getElementById('prec-rows'); if (!host) return;
+    const p = finPrecCfg || {};
+    const money = (label, key) => `
+      <div class="py-2.5 flex items-center gap-3">
+        <span class="font-bold text-neutral-300 text-sm flex-1">${label}</span>
+        <div class="relative w-40"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">R$</span>
+          <input id="fin-pc-${key}" type="number" step="0.01" oninput="finPrecCalc()" class="fin-acc-focus w-full pl-7 pr-2 py-1.5 bg-neutral-950 border border-neutral-800 text-white num font-black text-right text-sm"></div>
+      </div>`;
+    const auto = (label, id, hint) => `
+      <div class="py-2.5 flex items-center gap-3">
+        <span class="font-bold text-neutral-400 text-sm flex-1">${label} <span class="text-neutral-600 font-normal text-[10px]">${hint}</span></span>
+        <span id="${id}" class="text-red-400 font-black num text-sm w-40 text-right pr-1">− R$ —</span>
+      </div>`;
+    let html = money('Valor da venda', 'venda');
+    html += money('Kit fotovoltaico', 'kit');
+    html += auto('Imposto', 'prec-a-imposto', `(venda − kit) × ${p.imposto_pct}%`);
+    FIN_PREC_DIRETOS.filter(x=>x.k!=='kit').forEach(x=> { html += money(x.l, x.k); });
+    html += auto('Comissão', 'prec-a-comissao', `venda × ${p.comissao_pct}%`);
+    html += auto('Royalties e fundo', 'prec-a-royalties', `venda × ${p.royalties_pct}%`);
+    host.innerHTML = html;
+  }
+  function finPrecCalc() {
+    const p = finPrecCfg || { imposto_pct:18, comissao_pct:10, royalties_pct:4.5, deducoes_pct:0, margem_min:15 };
+    const venda = finPrecNum('fin-pc-venda');
+    const kit = finPrecNum('fin-pc-kit');
+    let diretos = 0; FIN_PREC_DIRETOS.forEach(x=>{ if (x.k!=='kit') diretos += finPrecNum('fin-pc-'+x.k); });
+    const imposto   = round2((venda-kit)*(Number(p.imposto_pct)||0)/100);
+    const comissao  = round2(venda*(Number(p.comissao_pct)||0)/100);
+    const royalties = round2(venda*(Number(p.royalties_pct)||0)/100);
+    const deducoes  = round2(venda*(Number(p.deducoes_pct)||0)/100);
+    const total = kit + diretos + imposto + comissao + royalties + deducoes;
+    const lucro = venda - total;
+    const margem = venda > 0 ? lucro/venda*100 : 0;
+    const set = (id,v)=>{ const e=document.getElementById(id); if (e) e.textContent = v; };
+    set('prec-a-imposto',   '− ' + brMoney(imposto));
+    set('prec-a-comissao',  '− ' + brMoney(comissao));
+    set('prec-a-royalties', '− ' + brMoney(royalties));
+    set('prec-r-total', 'Total de custos: ' + brMoney(total));
+    set('prec-r-lucro', brMoney(lucro));
+    const min = Number(p.margem_min)||0, baixa = venda>0 && margem < min;
+    const mEl = document.getElementById('prec-r-margem');
+    if (mEl) { mEl.textContent = 'Margem ' + margem.toFixed(1) + '%' + (baixa?` · abaixo do mín ${min}%`:''); mEl.classList.toggle('text-red-400', baixa); }
+    const lEl = document.getElementById('prec-r-lucro'); if (lEl) lEl.classList.toggle('text-red-400', lucro < 0);
+  }
+  function finPrecSugerir() {
+    const p = finPrecCfg || { imposto_pct:18, comissao_pct:10, royalties_pct:4.5, deducoes_pct:0 };
+    const kit = finPrecNum('fin-pc-kit');
+    let diretos = 0; FIN_PREC_DIRETOS.forEach(x=>{ if (x.k!=='kit') diretos += finPrecNum('fin-pc-'+x.k); });
+    const i=(Number(p.imposto_pct)||0)/100, c=(Number(p.comissao_pct)||0)/100, r=(Number(p.royalties_pct)||0)/100, ded=(Number(p.deducoes_pct)||0)/100;
+    const m = finPrecNum('fin-pc-alvo')/100;
+    const box = document.getElementById('prec-sug');
+    const denom = 1 - i - c - r - ded - m;
+    if (denom <= 0) { if (box) { box.classList.remove('hidden'); box.classList.add('text-red-400'); box.textContent = 'Margem-alvo inviável com esses percentuais.'; } return; }
+    const venda = (kit*(1-i) + diretos) / denom;
+    const vEl = document.getElementById('fin-pc-venda'); if (vEl) vEl.value = venda.toFixed(2);
+    finPrecCalc();
+    if (box) { box.classList.remove('hidden','text-red-400'); box.innerHTML = `Preço sugerido: <span class="fin-acc num">${brMoney(venda)}</span> aplicado acima.`; }
+    finToast('Preço de venda calculado', 'ok');
   }
   function finNovoPrecItem() {
     finEnsureChrome();
@@ -799,13 +940,30 @@
     catch (_) { return; }
     closeFinModal(); finToast('Item adicionado', 'ok'); renderPrec();
   }
-  async function finEditPrecItem(id, valor) {
-    const nv = prompt('Novo valor:', valor);
-    if (nv === null) return;
-    const n = parseFloat(String(nv).replace(',','.'));
+  function finEditPrecItem(id, valor) {
+    const it = ((finPrecData && finPrecData.itens) || []).find(x => x.id === id) || { rotulo:'', valor };
+    finEnsureChrome();
+    document.getElementById('fin-modal-card').innerHTML = `
+      <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
+        <div><div class="text-[10px] font-black uppercase tracking-[0.2em] fin-acc-strong">Composição</div>
+          <h3 class="text-lg font-black text-white mt-1">Editar item</h3></div>
+        <button onclick="closeFinModal()" class="shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Rótulo</label>
+          <input id="fin-pe-rot" type="text" value="${(it.rotulo||'').replace(/"/g,'&quot;')}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white text-sm font-bold"></div>
+        <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Valor</label>
+          <input id="fin-pe-val" type="number" step="0.01" value="${Number(valor)||0}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black"></div>
+        <button onclick="finEditPrecItemSubmit('${id}')" class="w-full py-3 fin-acc-solid text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4 stroke-[3]"></i>Salvar item</button>
+      </div>`;
+    document.getElementById('fin-modal').classList.add('is-open');
+    finIcons();
+  }
+  async function finEditPrecItemSubmit(id) {
+    const n = parseFloat(document.getElementById('fin-pe-val').value);
     if (isNaN(n)) { finToast('Valor inválido', 'warn'); return; }
-    try { await finRpc('update_fin_precificacao_item', { p_id:id, p_rotulo:'', p_valor:n }); } catch (_) { return; }
-    finToast('Item atualizado', 'ok'); renderPrec();
+    try { await finRpc('update_fin_precificacao_item', { p_id:id, p_rotulo: document.getElementById('fin-pe-rot').value||'', p_valor:n }); } catch (_) { return; }
+    closeFinModal(); finToast('Item atualizado', 'ok'); renderPrec();
   }
   async function finDelPrecItem(id) {
     if (!window.confirm('Remover este item da composição?')) return;
@@ -823,7 +981,7 @@
       const s = parcStMap[p.status] || parcStMap.em_dia;
       return `<div onclick="finOpenParcDetail('${p.id}')" class="metric-card p-5 cursor-pointer">
         <div class="flex items-start justify-between gap-2 mb-4">
-          <div class="min-w-0"><div class="font-black text-white truncate">${p.cli}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">${p.n}× · ${brMoney(p.total)}</div></div>
+          <div class="min-w-0"><div class="font-black text-white truncate">${escapeHTML(p.cli)}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">${p.n}× · ${brMoney(p.total)}</div></div>
           <span class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest border ${s.c}">${s.l}</span>
         </div>
         <div class="flex justify-between text-[10px] font-bold mb-1.5"><span class="text-neutral-400">${p.pagas} de ${p.n} parcelas</span><span class="text-white num">${pct}%</span></div>
@@ -899,17 +1057,92 @@
     finToast('Parcela baixada', 'ok');
     finOpenParcDetail(planoId); renderParc();
   }
-  async function renderDre() {
-    const host = document.getElementById('dre-rows'); if (!host) return;
-    let d;
-    try { d = await finRpc('get_fin_dre', { p_period: finDrePeriod }); } catch (_) { return; }
+  /* DRE calculadora-simulador.
+     - O DRE é por OBRA/VENDA (como a planilha do contábil). finDreProjeto = obra selecionada (null = consolidado de todas).
+     - finDreBase: números REAIS vindos da RPC (nunca alterados).
+     - finDreSim: null = modo real; objeto = modo simulação (cascata editável em JS), TUDO client-side. */
+  const round2 = v => Math.round((Number(v)||0)*100)/100;
+  let finDreBase = null;
+  let finDreProjeto = null, finDreObraNome = '';
+  let finDreSim = null;
+  let _finDreObras = [];
+  const finDreScenKey = () => `fin_dre_cenario_${finDreProjeto||'all'}_${finDrePeriod}`;
 
+  async function renderDre() {
+    if (!document.getElementById('dre-rows')) return;
+    const args = { p_period: finDrePeriod };
+    if (finDreProjeto) args.p_projeto_id = finDreProjeto;
+    try { finDreBase = await finRpc('get_fin_dre', args); } catch (_) { return; }
+    finDreLoadObras();
+    finDreWireControls();
+    finDreSyncControls();
+    finDreRender();
+  }
+
+  // Inicializa a simulação a partir dos números reais: cada linha vira um valor editável.
+  function finDreInitSim(saved) {
+    const b = finDreBase, num = x => Number(x)||0;
+    const vals = { receita: num(b.receita_bruta), deducoes: num(b.deducoes) };
+    (b.custos||[]).forEach(c => { vals[c.chave] = num(c.valor); });
+    finDreSim = { vals, extras: [] };
+    if (saved && saved.vals) { finDreSim.vals = Object.assign(vals, saved.vals); finDreSim.extras = Array.isArray(saved.extras) ? saved.extras : []; }
+  }
+
+  // Objeto EFETIVO exibido: base puro (real) ou recomputado a partir dos valores editados na cascata.
+  function finDreEffective() {
+    const b = finDreBase; if (!b) return null;
+    if (!finDreSim) return b;
+    const num = x => Number(x)||0, V = finDreSim.vals;
+    const custos = (b.custos||[]).map(c => Object.assign({}, c, { valor: num(V[c.chave]) }));
+    const extrasRec  = finDreSim.extras.filter(e=>e.tipo==='receita');
+    finDreSim.extras.filter(e=>e.tipo==='despesa').forEach((e,idx)=>custos.push({ chave:'extra'+idx, rotulo:e.rotulo||'Despesa avulsa', valor:num(e.valor), origem:'manual' }));
+    const recVendas = num(V.receita);
+    const receita = recVendas + extrasRec.reduce((s,e)=>s+num(e.valor),0);
+    const totalCustos = custos.reduce((s,c)=>s+num(c.valor),0);
+    const deducoes = num(V.deducoes);
+    const lucro = receita - totalCustos;
+    const lucroLiq = lucro - deducoes;
+    return Object.assign({}, b, {
+      _recVendas: recVendas, _extrasRec: extrasRec,
+      receita_bruta: receita, custos, deducoes,
+      total_custos: totalCustos, lucro, lucro_liquido: lucroLiq,
+      margem_pct: receita>0 ? round2(lucroLiq/receita*100) : 0,
+    });
+  }
+
+  function finDreSetKpis(d) {
     const setT = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
     setT('dre-k-receita', brMoney(d.receita_bruta));
+    setT('dre-k-recebido', 'Recebido (caixa) ' + brMoney(d.recebido));
     setT('dre-k-custos',  brMoney(d.total_custos));
     setT('dre-k-lucro',   brMoney(d.lucro_liquido));
     setT('dre-k-margem',  'Margem ' + (Number(d.margem_pct)||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%');
+  }
+  function finDreRenderProjetos(d) {
+    const ph = document.getElementById('dre-projetos'); if (!ph) return;
+    const ps = d.por_projeto || [];
+    ph.innerHTML = ps.length ? ps.map(p=>`
+      <div onclick="finDrePickObra('${p.projeto_id}')" title="Abrir DRE desta obra" class="px-5 py-3.5 flex items-center gap-4 cursor-pointer hover:bg-neutral-900/40 transition-colors">
+        <span class="font-bold text-white text-sm flex-1 truncate">${escapeHTML(p.cli)}</span>
+        <span class="hidden sm:block text-neutral-500 num text-[11px] w-28 text-right">${brMoney(p.receita)}</span>
+        <span class="num text-sm w-28 text-right ${Number(p.lucro)>=0?'text-emerald-400':'text-red-400'}">${brMoney(p.lucro)}</span>
+        <span class="num text-[11px] w-16 text-right text-neutral-400">${(Number(p.margem_pct)||0).toFixed(1)}%</span>
+        <i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600 shrink-0"></i>
+      </div>`).join('') : `<div class="px-5 py-6 text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Sem obras no período</div>`;
+  }
 
+  function finDreRender() {
+    const host = document.getElementById('dre-rows'); if (!host) return;
+    const d = finDreEffective(); if (!d) return;
+    finDreSetKpis(d);
+    finDreRenderProjetos(d);
+    if (finDreSim) finDreRenderEdit(host);
+    else finDreRenderReadonly(host, d);
+    finIcons();
+  }
+
+  // Cascata SOMENTE LEITURA (modo real).
+  function finDreRenderReadonly(host, d) {
     const rec = Number(d.receita_bruta) || 0;
     const pctW = v => rec > 0 ? Math.max(0, Math.min(Math.abs(Number(v)||0)/rec*100, 100)) : 0;
     const lines = [{ l:'Receita bruta (venda)', v:rec, t:'pos', w:100 }];
@@ -921,7 +1154,6 @@
     lines.push({ l:'Lucro operacional',  v:Number(d.lucro)||0,           t:'sub', w:pctW(d.lucro) });
     if ((Number(d.deducoes)||0) !== 0) lines.push({ l:'(−) Deduções', v:-(Number(d.deducoes)||0), t:'neg', w:pctW(d.deducoes) });
     lines.push({ l:'Lucro líquido',      v:Number(d.lucro_liquido)||0,   t:'res', w:pctW(d.lucro_liquido) });
-
     const tone = { pos:'text-white', neg:'text-red-400', sub:'fin-acc', res:'text-emerald-400' };
     host.innerHTML = lines.map(x => {
       const strong = (x.t==='sub'||x.t==='res');
@@ -931,19 +1163,66 @@
         <div class="hidden sm:block w-40 h-2 bg-neutral-900"><div class="h-full" style="width:${x.w}%;background:${x.t==='neg'?'#52525b':'var(--fin)'}"></div></div>
         <span class="${tone[x.t]} font-black num text-sm w-32 text-right">${money}</span>
       </div>`;}).join('');
+  }
 
-    const ph = document.getElementById('dre-projetos');
-    if (ph) {
-      const ps = d.por_projeto || [];
-      ph.innerHTML = ps.length ? ps.map(p=>`
-        <div class="px-5 py-3.5 flex items-center gap-4">
-          <span class="font-bold text-white text-sm flex-1 truncate">${p.cli}</span>
-          <span class="hidden sm:block text-neutral-500 num text-[11px] w-28 text-right">${brMoney(p.receita)}</span>
-          <span class="num text-sm w-28 text-right ${Number(p.lucro)>=0?'text-emerald-400':'text-red-400'}">${brMoney(p.lucro)}</span>
-          <span class="num text-[11px] w-16 text-right text-neutral-400">${(Number(p.margem_pct)||0).toFixed(1)}%</span>
-        </div>`).join('') : `<div class="px-5 py-6 text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Sem projetos no período</div>`;
-    }
+  // Cascata EDITÁVEL (modo simulação) — estilo planilha: cada item já listado com seu campo.
+  function finDreRenderEdit(host) {
+    const V = finDreSim.vals;
+    const moneyRow = (label, key, neg) => `
+      <div class="px-5 py-2 flex items-center gap-3">
+        <span class="font-bold text-neutral-300 text-sm flex-1">${label}</span>
+        <span class="text-[12px] font-black ${neg?'text-red-400':'fin-acc'} w-4 text-center">${neg?'−':'+'}</span>
+        <div class="relative w-36"><span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">R$</span>
+          <input type="number" step="0.01" value="${Number(V[key])||0}" oninput="finDreSimVal('${key}',this.value)" class="fin-acc-focus w-full pl-7 pr-2 py-1.5 bg-neutral-950 border border-neutral-800 text-white num font-black text-right text-sm"></div>
+      </div>`;
+    const totRow = (label, id, tone) => `
+      <div class="px-5 py-3 flex items-center gap-3 border-t border-neutral-800">
+        <span class="font-black text-white text-sm flex-1">${label}</span>
+        <span id="${id}" class="${tone} font-black num text-sm w-36 text-right pr-1">—</span>
+      </div>`;
+    let html = moneyRow('Receita bruta (venda)', 'receita', false);
+    (finDreBase.custos||[]).forEach(c => { html += moneyRow(c.rotulo, c.chave, true); });
+    html += `<div class="px-5 py-3 bg-neutral-950/40 border-y border-neutral-800/60">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Linhas extras (avulsas)</span>
+        <button onclick="finDreAddExtra()" class="text-[9px] font-black uppercase tracking-widest fin-acc hover:text-white inline-flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i>Adicionar linha</button>
+      </div>
+      <div class="space-y-2">${finDreSim.extras.map((e,i)=>dreExtraRow(e,i)).join('') || `<div class="text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Nenhuma linha extra — opcional</div>`}</div>
+    </div>`;
+    html += moneyRow('(−) Deduções', 'deducoes', true);
+    html += totRow('Total de custos',  'dre-tot-custos',  'fin-acc');
+    html += totRow('Lucro operacional', 'dre-tot-lucroop', 'fin-acc');
+    html += totRow('Lucro líquido',     'dre-tot-lucroliq','text-emerald-400');
+    host.innerHTML = html;
+    finDreUpdateTotals();
+  }
+  function dreExtraRow(e, i) {
+    return `<div class="flex items-center gap-2">
+      <select onchange="finDreExtra(${i},'tipo',this.value)" class="px-2 py-1.5 bg-neutral-950 border border-neutral-800 text-white text-[11px] font-bold">
+        <option value="despesa"${e.tipo==='despesa'?' selected':''}>Despesa</option>
+        <option value="receita"${e.tipo==='receita'?' selected':''}>Receita</option>
+      </select>
+      <input type="text" value="${(e.rotulo||'').replace(/"/g,'&quot;')}" oninput="finDreExtra(${i},'rotulo',this.value)" placeholder="Descrição" class="flex-1 min-w-0 px-2 py-1.5 bg-neutral-950 border border-neutral-800 text-white text-[11px] font-bold">
+      <input type="number" step="0.01" value="${Number(e.valor)||0}" oninput="finDreExtra(${i},'valor',this.value)" class="w-28 px-2 py-1.5 bg-neutral-950 border border-neutral-800 text-white num font-black text-[11px] text-right">
+      <button onclick="finDreDelExtra(${i})" class="w-7 h-7 grid place-items-center text-neutral-500 hover:text-red-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+    </div>`;
+  }
+  // Atualiza só os totais/KPIs ao vivo, sem re-renderizar os campos (preserva o foco enquanto digita).
+  function finDreUpdateTotals() {
+    const d = finDreEffective(); if (!d) return;
+    finDreSetKpis(d);
+    const set = (id,v)=>{ const e=document.getElementById(id); if (e) e.textContent = v; };
+    set('dre-tot-custos',  '− ' + brMoney(d.total_custos));
+    set('dre-tot-lucroop', brMoney(d.lucro));
+    set('dre-tot-lucroliq', brMoney(d.lucro_liquido));
+  }
+  function finDreSimVal(key, val) { if (!finDreSim) return; finDreSim.vals[key] = parseFloat(val)||0; finDreUpdateTotals(); }
+  function finDreExtra(i, field, val) { if (!finDreSim || !finDreSim.extras[i]) return; finDreSim.extras[i][field] = field==='valor'?(parseFloat(val)||0):val; finDreUpdateTotals(); }
+  function finDreAddExtra() { if (!finDreSim) return; finDreSim.extras.push({ tipo:'despesa', rotulo:'', valor:0 }); finDreRender(); }
+  function finDreDelExtra(i) { if (!finDreSim) return; finDreSim.extras.splice(i,1); finDreRender(); }
 
+  // Liga os eventos do seletor de período (uma vez).
+  function finDreWireControls() {
     const pbar = document.getElementById('dre-period');
     if (pbar && !pbar.dataset.wired) {
       pbar.dataset.wired = '1';
@@ -952,10 +1231,61 @@
         finDrePeriod = b.dataset.p;
         pbar.querySelectorAll('.dre-per').forEach(x => { x.classList.remove('fin-acc-solid'); x.classList.add('text-neutral-400'); });
         b.classList.add('fin-acc-solid'); b.classList.remove('text-neutral-400');
+        if (finDreSim) finDreSim = null; // sair de simulação ao trocar período
         renderDre();
       });
     }
-    finIcons();
+  }
+
+  // Reflete na UI a obra selecionada e o estado do simulador.
+  function finDreSyncControls() {
+    const esc = finDreProjeto ? 'obra' : 'consolidado';
+    const chip = document.getElementById('dre-obra-current');
+    if (chip) chip.textContent = finDreProjeto ? finDreObraNome : 'Consolidado (todas as obras)';
+    const sel = document.getElementById('dre-obra-select'); if (sel && sel.value !== (finDreProjeto||'')) sel.value = finDreProjeto || '';
+    // "Resultado por obra" só faz sentido no consolidado; some quando uma obra está selecionada.
+    const porObra = document.getElementById('dre-por-obra-card'); if (porObra) porObra.classList.toggle('hidden', esc==='obra');
+    const panel = document.getElementById('dre-sim-panel'); if (panel) panel.classList.toggle('hidden', !finDreSim);
+    const tg = document.getElementById('dre-sim-toggle');
+    if (tg) { tg.classList.toggle('fin-acc-solid', !!finDreSim); tg.classList.toggle('text-neutral-400', !finDreSim); }
+    const badge = document.getElementById('dre-sim-badge'); if (badge) badge.classList.toggle('hidden', !finDreSim);
+  }
+
+  // Popula o seletor de obras (uma vez) com list_fin_projetos_basicos.
+  async function finDreLoadObras() {
+    const sel = document.getElementById('dre-obra-select'); if (!sel || sel.dataset.loaded) return;
+    let rows = [];
+    try { rows = await finRpc('list_fin_projetos_basicos') || []; } catch (_) { return; }
+    _finDreObras = rows;
+    sel.dataset.loaded = '1';
+    sel.innerHTML = `<option value="">Consolidado (todas as obras)</option>` +
+      rows.map(o=>`<option value="${o.id}">${escapeHTML(o.cli||'—')} · ${brMoney(o.valor)}</option>`).join('');
+    sel.value = finDreProjeto || '';
+  }
+  function finDrePickObra(id) {
+    finDreProjeto = id || null;
+    const o = _finDreObras.find(x => x.id === id);
+    finDreObraNome = o ? `${o.cli} · ${brMoney(o.valor)}` : '';
+    if (finDreSim) finDreSim = null; // sair de simulação ao trocar o escopo
+    renderDre();
+  }
+
+  function finDreToggleSim() {
+    if (finDreSim) { finDreSim = null; finDreSyncControls(); finDreRender(); return; }
+    let saved = null; try { saved = JSON.parse(localStorage.getItem(finDreScenKey())); } catch (_) {}
+    finDreInitSim(saved);
+    if (saved) finToast('Cenário salvo carregado', 'info');
+    finDreSyncControls(); finDreRender();
+  }
+  function finDreSaveScenario() {
+    if (!finDreSim) return;
+    try { localStorage.setItem(finDreScenKey(), JSON.stringify(finDreSim)); finToast('Cenário salvo neste navegador', 'ok'); }
+    catch (_) { finToast('Não foi possível salvar', 'err'); }
+  }
+  function finDreClearSim() {
+    if (!finDreSim) return;
+    try { localStorage.removeItem(finDreScenKey()); } catch (_) {}
+    finDreSim = null; finDreSyncControls(); finDreRender(); finToast('Simulação limpa', 'info');
   }
 
   /* --------------------------------------------------------- FUNIL */
@@ -997,7 +1327,7 @@
     const sc = scoreMap[c.sc] || scoreMap.saudavel;
     return `<div onclick="finOpenFunilDetail(${gi})" class="bg-neutral-950 border border-neutral-800 hover:border-[color:var(--fin-border-30)] transition-colors p-3 cursor-pointer">
       <div class="flex items-start justify-between gap-2 mb-2">
-        <div class="min-w-0"><div class="font-black text-white text-sm truncate">${c.cli}</div></div>
+        <div class="min-w-0"><div class="font-black text-white text-sm truncate">${escapeHTML(c.cli)}</div></div>
         <span class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest border ${sc.c}"><span class="w-1 h-1 bg-current"></span>${sc.l}</span>
       </div>
       <div class="text-white font-black num mb-2">${brMoney(c.val)}</div>
@@ -1020,7 +1350,7 @@
       <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
         <div class="min-w-0">
           <div class="text-[10px] font-black uppercase tracking-[0.2em] fin-acc-strong">Etapa ${c.st+1}/9 · ${funilStages[c.st]}</div>
-          <h3 class="text-xl font-black text-white mt-1 truncate">${c.cli}</h3>
+          <h3 class="text-xl font-black text-white mt-1 truncate">${escapeHTML(c.cli)}</h3>
         </div>
         <button onclick="closeFinModal()" class="shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
@@ -1063,8 +1393,8 @@
     host.innerHTML = rows.length ? rows.map(r=>`
       <div class="flex items-center justify-between gap-3 px-5 py-3.5">
         <div class="min-w-0">
-          <div class="font-black text-white truncate">${r.cli}</div>
-          <div class="text-[10px] text-neutral-500 font-bold">${r.proj} · vence ${r.venc||'—'}</div>
+          <div class="font-black text-white truncate">${escapeHTML(r.cli)}</div>
+          <div class="text-[10px] text-neutral-500 font-bold">${escapeHTML(r.proj)} · vence ${r.venc||'—'}</div>
         </div>
         <div class="flex items-center gap-3 shrink-0">
           <span class="text-white font-black num">${brMoney(r.saldo)}</span>
@@ -1093,8 +1423,8 @@
     host.innerHTML = rows.length ? rows.map(p=>`
       <div class="flex items-center justify-between gap-3 px-5 py-3.5">
         <div class="min-w-0">
-          <div class="font-black text-white truncate">${p.descricao}</div>
-          <div class="text-[10px] text-neutral-500 font-bold">${p.fornecedor} · ${p.categoria}${p.venc?' · '+p.venc:''}</div>
+          <div class="font-black text-white truncate">${escapeHTML(p.descricao)}</div>
+          <div class="text-[10px] text-neutral-500 font-bold">${escapeHTML(p.fornecedor)} · ${escapeHTML(p.categoria)}${p.venc?' · '+p.venc:''}</div>
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <span class="text-white font-black num">${brMoney(p.valor)}</span>
@@ -1163,7 +1493,7 @@
       <div class="metric-card p-4 flex items-center justify-between gap-3">
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-9 h-9 grid place-items-center ${a.tipo==='comissao'?'fin-acc-chip border border-[color:var(--fin-border-30)]':'bg-yellow-500/10 text-yellow-400 border border-yellow-500/25'} shrink-0"><i data-lucide="${a.tipo==='comissao'?'users':'credit-card'}" class="w-4 h-4"></i></div>
-          <div class="min-w-0"><div class="font-black text-white truncate">${a.titulo}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">${a.sub}</div></div>
+          <div class="min-w-0"><div class="font-black text-white truncate">${escapeHTML(a.titulo)}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">${escapeHTML(a.sub)}</div></div>
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <span class="text-white font-black num">${brMoney(a.valor)}</span>
@@ -1226,7 +1556,7 @@
       else acoes = `<div class="text-center text-[10px] font-bold uppercase tracking-widest text-emerald-400 inline-flex items-center justify-center gap-1.5 w-full py-1"><i data-lucide="check-check" class="w-3.5 h-3.5"></i>Kit comprado</div>`;
       return `<div class="metric-card p-5 flex flex-col">
         <div class="flex items-start justify-between gap-2 mb-3">
-          <div class="min-w-0"><div class="font-black text-white truncate">${o.cli}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">${o.fornecedor} · ${o.codigo}</div></div>
+          <div class="min-w-0"><div class="font-black text-white truncate">${escapeHTML(o.cli)}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">${escapeHTML(o.fornecedor)} · ${escapeHTML(o.codigo)}</div></div>
           <span class="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 border text-[9px] font-black uppercase tracking-widest ${s.c}">${s.l}</span>
         </div>
         <div class="text-white font-black text-lg num mb-3">${brMoney(o.valor)}</div>
@@ -1277,7 +1607,7 @@
     box.innerHTML = matches.length ? matches.map(o=>{
       const k = custoCalc(o.pj), s = custoStatus(k);
       return `<button type="button" onclick="finPickCusto(${o.i})" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-neutral-900 transition-colors border-b border-neutral-800/60 last:border-0 ${o.i===cstSel?'bg-neutral-900':''}">
-        <span class="text-[12px] font-bold text-white truncate">${o.pj.cli}</span>
+        <span class="text-[12px] font-bold text-white truncate">${escapeHTML(o.pj.cli)}</span>
         <span class="shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${s.c}">${k.mr.toFixed(1)}%</span>
       </button>`;
     }).join('') : `<div class="px-3 py-3 text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Nenhum projeto encontrado</div>`;
@@ -1304,7 +1634,10 @@
       return `<div class="py-2.5 border-b border-neutral-800/60 last:border-0">
         <div class="flex items-center justify-between mb-1.5">
           <span class="text-[11px] font-bold text-neutral-300">${c.c}</span>
-          <span class="text-[10px] font-black num ${over?'text-red-400':d<0?'text-emerald-400':'text-neutral-500'}">${d===0?'—':(over?'+':'')+fmtR(d)}</span>
+          <span class="flex items-center gap-2">
+            <span class="text-[10px] font-black num ${over?'text-red-400':d<0?'text-emerald-400':'text-neutral-500'}">${d===0?'—':(over?'+':'')+fmtR(d)}</span>
+            <button onclick="finCustoEdit('${c.id}')" title="Editar custo" class="text-neutral-600 hover:fin-acc transition-colors"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+          </span>
         </div>
         <div class="flex gap-1.5 items-center">
           <div class="flex-1 h-1.5 bg-neutral-900"><div class="h-full bg-neutral-600" style="width:${Math.round(c.p/max*100)}%"></div></div>
@@ -1335,9 +1668,9 @@
     const alerts = [];
     custosProjetos.forEach(pj=>{
       const k = custoCalc(pj);
-      if (k.mr < MARGEM_MIN) alerts.push({t:'red', i:'percent', txt:`${pj.cli}: margem ${k.mr.toFixed(1)}% abaixo do mínimo (${MARGEM_MIN}%)`});
-      if (k.desvio > 0) alerts.push({t:'yellow', i:'trending-up', txt:`${pj.cli}: custo realizado ${fmtR(k.desvio)} acima do previsto`});
-      if (pj.recReal < pj.recPrev) alerts.push({t:'yellow', i:'arrow-down-right', txt:`${pj.cli}: receita recebida abaixo da prevista`});
+      if (k.mr < MARGEM_MIN) alerts.push({t:'red', i:'percent', txt:`${escapeHTML(pj.cli)}: margem ${k.mr.toFixed(1)}% abaixo do mínimo (${MARGEM_MIN}%)`});
+      if (k.desvio > 0) alerts.push({t:'yellow', i:'trending-up', txt:`${escapeHTML(pj.cli)}: custo realizado ${fmtR(k.desvio)} acima do previsto`});
+      if (pj.recReal < pj.recPrev) alerts.push({t:'yellow', i:'arrow-down-right', txt:`${escapeHTML(pj.cli)}: receita recebida abaixo da prevista`});
     });
     const tone = { red:'bg-red-500/10 text-red-400 border-red-500/25', yellow:'bg-yellow-500/10 text-yellow-400 border-yellow-500/25' };
     host.innerHTML = alerts.length ? alerts.map(a=>`
@@ -1352,7 +1685,7 @@
     if (tbl) tbl.innerHTML = custosProjetos.map((pj,i)=>{
       const k = custoCalc(pj), s = custoStatus(k);
       return `<tr onclick="finPickCustoFromTable(${i})" class="border-b border-neutral-800/60 hover:bg-neutral-900/40 transition-colors cursor-pointer">
-        <td class="px-5 py-3.5 font-black text-white"><span class="inline-flex items-center gap-1.5">${pj.cli}${i===cstSel?'<i data-lucide="eye" class="w-3.5 h-3.5 fin-acc"></i>':''}</span></td>
+        <td class="px-5 py-3.5 font-black text-white"><span class="inline-flex items-center gap-1.5">${escapeHTML(pj.cli)}${i===cstSel?'<i data-lucide="eye" class="w-3.5 h-3.5 fin-acc"></i>':''}</span></td>
         <td class="px-3 py-3.5 text-right text-neutral-300 num">${fmtR(pj.recReal)}</td>
         <td class="px-3 py-3.5 text-right text-neutral-400 num">${fmtR(k.cp)}</td>
         <td class="px-3 py-3.5 text-right num ${k.desvio>0?'text-red-400':'text-neutral-300'}">${fmtR(k.cr)}</td>
@@ -1365,7 +1698,7 @@
     if (cards) cards.innerHTML = custosProjetos.map(pj=>{
       const k = custoCalc(pj), s = custoStatus(k);
       return `<div class="metric-card p-4">
-        <div class="flex items-start justify-between gap-2"><div class="font-black text-white truncate">${pj.cli}</div><span class="inline-flex px-2.5 py-1 text-[9px] font-black uppercase tracking-widest border ${s.c}">${s.l}</span></div>
+        <div class="flex items-start justify-between gap-2"><div class="font-black text-white truncate">${escapeHTML(pj.cli)}</div><span class="inline-flex px-2.5 py-1 text-[9px] font-black uppercase tracking-widest border ${s.c}">${s.l}</span></div>
         <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-neutral-800 text-center">
           <div><div class="text-[8px] font-black uppercase tracking-widest text-neutral-600">Custo real.</div><div class="text-[11px] font-black ${k.desvio>0?'text-red-400':'text-neutral-300'} num">${fmtR(k.cr)}</div></div>
           <div><div class="text-[8px] font-black uppercase tracking-widest text-neutral-600">Lucro real.</div><div class="text-[11px] font-black fin-acc num">${fmtR(k.lr)}</div></div>
@@ -1435,6 +1768,40 @@
     try { await finRpc('create_fin_custo', { p_fin_projeto_id: proj, p_categoria: cat, p_previsto: parseFloat(document.getElementById('fin-ct-prev').value)||0, p_realizado: parseFloat(document.getElementById('fin-ct-real').value)||0 }); }
     catch (_) { return; }
     closeFinModal(); finToast('Custo lançado', 'ok'); renderCustos();
+  }
+  // Edição manual inline de um custo já lançado (previsto/realizado) via update_fin_custo.
+  function finCustoFindCat(catId) {
+    for (const pj of custosProjetos) { const c = pj.cats.find(x => x.id === catId); if (c) return { pj, c }; }
+    return null;
+  }
+  function finCustoEdit(catId) {
+    const f = finCustoFindCat(catId); if (!f) return;
+    finEnsureChrome();
+    document.getElementById('fin-modal-card').innerHTML = `
+      <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
+        <div class="min-w-0"><div class="text-[10px] font-black uppercase tracking-[0.2em] fin-acc-strong">Editar custo</div>
+          <h3 class="text-lg font-black text-white mt-1 truncate">${f.c.c}</h3>
+          <div class="text-[11px] text-neutral-500 font-bold truncate">${escapeHTML(f.pj.cli)}</div></div>
+        <button onclick="closeFinModal()" class="shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Previsto</label>
+            <input id="fin-ce-prev" type="number" step="0.01" value="${Number(f.c.p)||0}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black"></div>
+          <div><label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Realizado</label>
+            <input id="fin-ce-real" type="number" step="0.01" value="${Number(f.c.r)||0}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black"></div>
+        </div>
+        <button onclick="finCustoEditSubmit('${catId}')" class="w-full py-3 fin-acc-solid text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4 stroke-[3]"></i>Salvar custo</button>
+      </div>`;
+    document.getElementById('fin-modal').classList.add('is-open');
+    finIcons();
+  }
+  async function finCustoEditSubmit(catId) {
+    const prev = parseFloat(document.getElementById('fin-ce-prev').value);
+    const real = parseFloat(document.getElementById('fin-ce-real').value);
+    if (isNaN(prev) || isNaN(real)) { finToast('Valores inválidos', 'warn'); return; }
+    try { await finRpc('update_fin_custo', { p_id: catId, p_previsto: prev, p_realizado: real }); } catch (_) { return; }
+    closeFinModal(); finToast('Custo atualizado', 'ok'); renderCustos();
   }
 
   /* ----------------------------------- PAINÉIS ESTRUTURAIS (fases) */
@@ -1783,34 +2150,45 @@
     return `
       <div class="mb-5">
         <div class="text-[10px] font-black uppercase tracking-[0.25em] fin-acc-strong mb-1">Financeiro · Precificação</div>
-        <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Tabela de preços &amp; markup</h1>
+        <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Calculadora de precificação</h1>
+        <p class="text-neutral-500 text-sm font-medium mt-1">Mesma conta da planilha do contábil — preencha os custos e o valor da venda; imposto, comissão e royalties saem automáticos.</p>
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
-        <div class="fin-deep relative overflow-hidden p-5 lg:col-span-1">
-          <div class="fin-deep-label text-[10px] font-black uppercase tracking-[0.18em] mb-3">Markup padrão</div>
-          <div id="fin-prec-markup" class="text-white font-black text-4xl tracking-tighter num">—</div>
-          <div id="fin-prec-alvo" class="fin-deep-pill inline-flex items-center gap-2 px-3 py-2 text-[9px] font-black uppercase tracking-widest mt-4"><i data-lucide="percent" class="w-3 h-3"></i>Margem-alvo —</div>
-        </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div class="metric-card p-5 lg:col-span-2">
-          <div class="flex items-center justify-between mb-4">
-            <span class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Composição do preço</span>
-            <button id="fin-prec-add" onclick="finNovoPrecItem()" class="hidden text-[9px] font-black uppercase tracking-widest fin-acc hover:text-white transition-colors inline-flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i>Item</button>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Custos da obra</span>
+            <input id="fin-pc-cli" type="text" placeholder="Cliente (opcional)" class="fin-acc-focus px-3 py-1.5 bg-neutral-950 border border-neutral-800 text-white text-[11px] font-bold w-48 max-w-[55%]">
           </div>
-          <div id="fin-prec-comp" class="space-y-3"></div>
+          <div id="prec-rows" class="divide-y divide-neutral-800/70"></div>
         </div>
-      </div>
-      <div class="metric-card p-5">
-        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300 mb-4">Simulador de preço</div>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-          <div><label class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Custo (R$)</label>
-            <input id="fin-sim-custo" type="number" step="0.01" oninput="finPrecSimular()" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black"></div>
-          <div><label class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Markup (×)</label>
-            <input id="fin-sim-markup" type="number" step="0.01" oninput="finPrecSimular()" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black"></div>
-          <div><div class="text-[9px] font-black uppercase tracking-widest text-neutral-600">Preço sugerido</div><div id="fin-sim-preco" class="text-xl font-black fin-acc num mt-1.5">R$ —</div></div>
-          <div><div class="text-[9px] font-black uppercase tracking-widest text-neutral-600">Margem</div><div id="fin-sim-margem" class="text-xl font-black text-white num mt-1.5">—</div></div>
+        <div class="flex flex-col gap-3">
+          <div class="fin-deep relative overflow-hidden p-5">
+            <div class="fin-deep-label text-[10px] font-black uppercase tracking-[0.18em] mb-2">Lucro líquido</div>
+            <div id="prec-r-lucro" class="text-white font-black text-3xl tracking-tighter num">R$ —</div>
+            <div id="prec-r-margem" class="fin-deep-pill inline-flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest mt-3">Margem —</div>
+            <div id="prec-r-total" class="text-[10px] font-bold text-neutral-400 num mt-3">Total de custos: —</div>
+          </div>
+          <div class="metric-card p-5">
+            <div class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300 mb-3">Preço p/ margem-alvo</div>
+            <label class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Margem desejada (%)</label>
+            <input id="fin-pc-alvo" type="number" step="0.1" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white num font-black">
+            <button onclick="finPrecSugerir()" class="w-full mt-3 py-2.5 fin-acc-solid text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="wand-2" class="w-3.5 h-3.5"></i>Calcular preço de venda</button>
+            <div id="prec-sug" class="hidden text-[11px] text-neutral-400 font-bold mt-3"></div>
+          </div>
         </div>
       </div>`;
   }
+  // Linhas da calculadora: editáveis (custo direto) + automáticas (fórmula). Espelha a planilha.
+  const FIN_PREC_DIRETOS = [
+    { k:'kit',        l:'Kit fotovoltaico' },
+    { k:'projeto',    l:'Projeto c/ ART' },
+    { k:'instalacao', l:'Instalação' },
+    { k:'eletrica',   l:'Elétrica' },
+    { k:'placas',     l:'Placas de advertência' },
+    { k:'ajuda',      l:'Ajuda de custo instalação' },
+    { k:'vistoria',   l:'Vistoria' },
+    { k:'outros',     l:'Outros custos' },
+  ];
 
   function parcelamentosHTML() {
     return `
@@ -1829,23 +2207,45 @@
 
   function dreHTML() {
     return `
-      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-5">
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
         <div>
-          <div class="text-[10px] font-black uppercase tracking-[0.25em] fin-acc-strong mb-1">Financeiro · DRE</div>
-          <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Demonstrativo simplificado</h1>
+          <div class="text-[10px] font-black uppercase tracking-[0.25em] fin-acc-strong mb-1">Financeiro · DRE por obra</div>
+          <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight inline-flex items-center gap-2">Resultado da obra<span id="dre-sim-badge" class="hidden px-2 py-0.5 text-[9px] font-black uppercase tracking-widest fin-acc-chip border border-[color:var(--fin-border-30)] align-middle">Simulação</span></h1>
         </div>
-        <div id="dre-period" class="flex items-center gap-1 bg-neutral-900/60 border border-neutral-800 p-1">
-          <button data-p="mes"  class="dre-per px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-neutral-400">Mês</button>
-          <button data-p="ano"  class="dre-per px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-neutral-400">Ano</button>
-          <button data-p="tudo" class="dre-per px-3 py-1.5 text-[10px] font-black uppercase tracking-widest fin-acc-solid">Tudo</button>
+        <div class="flex items-center gap-2">
+          <button id="dre-sim-toggle" onclick="finDreToggleSim()" class="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-neutral-800 bg-neutral-900/60 text-neutral-400 inline-flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>Simular</button>
+          <div id="dre-period" class="flex items-center gap-1 bg-neutral-900/60 border border-neutral-800 p-1">
+            <button data-p="mes"  class="dre-per px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-neutral-400">Mês</button>
+            <button data-p="ano"  class="dre-per px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-neutral-400">Ano</button>
+            <button data-p="tudo" class="dre-per px-3 py-1.5 text-[10px] font-black uppercase tracking-widest fin-acc-solid">Tudo</button>
+          </div>
+        </div>
+      </div>
+      <div class="metric-card p-3 mb-3 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="text-[9px] font-black uppercase tracking-widest text-neutral-600 shrink-0">Obra / venda:</span>
+          <select id="dre-obra-select" onchange="finDrePickObra(this.value)" class="fin-acc-focus flex-1 min-w-0 px-3 py-2 bg-neutral-950 border border-neutral-800 text-white text-[12px] font-bold">
+            <option value="">Consolidado (todas as obras)</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="text-[9px] font-black uppercase tracking-widest text-neutral-600">Escopo:</span>
+          <span id="dre-obra-current" class="text-[11px] font-black fin-acc">Consolidado (todas as obras)</span>
+        </div>
+      </div>
+      <div id="dre-sim-panel" class="hidden metric-card p-3 mb-3 border-[color:var(--fin-border-30)] flex items-center justify-between gap-3 flex-wrap">
+        <span class="text-[11px] text-neutral-300 font-bold inline-flex items-center gap-2"><i data-lucide="calculator" class="w-4 h-4 fin-acc shrink-0"></i>Modo simulação — edite qualquer valor na cascata abaixo; os totais recalculam sozinhos. Nada é gravado no sistema.</span>
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="finDreSaveScenario()" class="px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest border border-neutral-800 bg-neutral-900 text-neutral-300 hover:text-white inline-flex items-center gap-1"><i data-lucide="save" class="w-3 h-3"></i>Salvar cenário</button>
+          <button onclick="finDreClearSim()" class="px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest border border-neutral-800 bg-neutral-900 text-neutral-300 hover:text-red-400 inline-flex items-center gap-1"><i data-lucide="eraser" class="w-3 h-3"></i>Limpar</button>
         </div>
       </div>
       <div class="metric-card p-4 mb-3 flex items-start gap-3 border-[color:var(--fin-border-30)]">
         <div class="w-9 h-9 grid place-items-center fin-acc-chip shrink-0"><i data-lucide="calculator" class="w-4 h-4"></i></div>
-        <div class="text-[11px] text-neutral-400 font-medium leading-relaxed">Modelo do contábil: imposto <span class="text-white font-bold">18%</span> sobre (venda − kit), comissão <span class="text-white font-bold">10%</span> e royalties + fundo <span class="text-white font-bold">4,5%</span> sobre a venda. Custos diretos (kit, instalação, elétrica…) vêm dos lançamentos por projeto.</div>
+        <div class="text-[11px] text-neutral-400 font-medium leading-relaxed">DRE <span class="text-white font-bold">por obra/venda</span> (como a planilha do contábil) — escolha a obra acima, ou veja o consolidado. Modelo: imposto <span class="text-white font-bold">18%</span> sobre (venda − kit), comissão <span class="text-white font-bold">10%</span> e royalties + fundo <span class="text-white font-bold">4,5%</span> sobre a venda; custos diretos vêm dos lançamentos. <span class="fin-acc font-bold">Clique em "Simular"</span> para editar qualquer valor direto na cascata (estilo planilha) sem alterar nada de verdade. "Recebido" é o caixa real da obra.</div>
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
-        <div class="metric-card p-5"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Receita bruta</div><div id="dre-k-receita" class="text-2xl font-black text-white mt-2 num">—</div></div>
+        <div class="metric-card p-5"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Receita bruta</div><div id="dre-k-receita" class="text-2xl font-black text-white mt-2 num">—</div><div id="dre-k-recebido" class="text-[10px] font-bold text-neutral-500 num mt-1">Recebido (caixa) —</div></div>
         <div class="metric-card p-5"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Total de custos</div><div id="dre-k-custos" class="text-2xl font-black fin-acc mt-2 num">—</div></div>
         <div class="fin-deep p-5"><div class="fin-deep-label text-[9px] font-black uppercase tracking-widest">Lucro líquido</div><div id="dre-k-lucro" class="text-2xl font-black text-white mt-2 num">—</div><div id="dre-k-margem" class="fin-deep-pill inline-flex px-2.5 py-1 text-[9px] font-black uppercase tracking-widest mt-3">—</div></div>
       </div>
@@ -1853,10 +2253,10 @@
         <div class="px-5 py-4 border-b border-neutral-800"><span class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Cascata do resultado</span></div>
         <div id="dre-rows" class="divide-y divide-neutral-800/70"></div>
       </div>
-      <div class="metric-card">
+      <div id="dre-por-obra-card" class="metric-card">
         <div class="px-5 py-4 border-b border-neutral-800 flex items-center justify-between">
           <span class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Resultado por obra</span>
-          <span class="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Venda · Lucro · Margem</span>
+          <span class="text-[9px] font-bold uppercase tracking-widest text-neutral-500">Clique p/ abrir · Venda · Lucro · Margem</span>
         </div>
         <div id="dre-projetos" class="divide-y divide-neutral-800/70"></div>
       </div>`;
@@ -2001,7 +2401,7 @@
       <button onclick="setTab('${p.atalho}')" class="metric-card p-4 w-full text-left flex items-center justify-between gap-3 hover:border-[color:var(--fin-border-30)] transition-colors">
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-9 h-9 grid place-items-center border ${finPendTone[p.sev]||finPendTone['2']} shrink-0"><i data-lucide="${finPendIcon[p.tipo]||'alert-circle'}" class="w-4 h-4"></i></div>
-          <div class="min-w-0"><div class="font-black text-white truncate">${p.titulo}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest truncate">${p.sub}</div></div>
+          <div class="min-w-0"><div class="font-black text-white truncate">${escapeHTML(p.titulo)}</div><div class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest truncate">${escapeHTML(p.sub)}</div></div>
         </div>
         <div class="flex items-center gap-2 shrink-0"><span class="text-white font-black num">${brMoney(p.valor)}</span><i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600"></i></div>
       </button>`).join('') : `<div class="metric-card p-8 text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Nenhuma pendência 🎉</div>`;
@@ -2023,7 +2423,7 @@
         <div class="px-5 py-4 border-b border-neutral-800"><span class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Margem por projeto</span></div>
         <div class="overflow-x-auto no-scrollbar"><table class="w-full text-left">
           <thead><tr class="text-[9px] font-black uppercase tracking-widest text-neutral-600 border-b border-neutral-800">
-            <th class="px-5 py-3">Projeto</th><th class="px-3 py-3 text-right">Receita</th><th class="px-3 py-3 text-right">Custo real.</th><th class="px-3 py-3 text-right">Lucro</th><th class="px-5 py-3 text-center">Margem</th>
+            <th class="px-5 py-3">Projeto</th><th class="px-3 py-3 text-right">Receita</th><th class="px-3 py-3 text-right">Custo total</th><th class="px-3 py-3 text-right">Lucro líq.</th><th class="px-5 py-3 text-center">Margem</th>
           </tr></thead>
           <tbody id="fin-rel-table" class="text-sm"></tbody>
         </table></div>
@@ -2045,24 +2445,27 @@
       kpi('Custo realizado', d.custo_realizado);
     const tb = document.getElementById('fin-rel-table');
     const proj = d.por_projeto || [];
+    if (!finPrecCfg) { try { finPrecCfg = await finRpc('get_fin_precificacao'); } catch (_) {} }
+    const min = Number(finPrecCfg && finPrecCfg.margem_min) || 15;
     if (tb) tb.innerHTML = proj.length ? proj.map(p=>{
-      const lucro = (Number(p.receita)||0)-(Number(p.custo)||0);
-      const mg = p.receita>0 ? (lucro/p.receita*100) : 0;
+      const receita = Number(p.receita)||0, mg = Number(p.margem_pct)||0;
+      const lucro = receita * mg/100;            // lucro líquido real (planilha)
+      const custoTotal = receita - lucro;        // total de custos da planilha
       return `<tr class="border-b border-neutral-800/60">
-        <td class="px-5 py-3 font-black text-white">${p.cli}</td>
-        <td class="px-3 py-3 text-right text-neutral-300 num">${brMoney(p.receita)}</td>
-        <td class="px-3 py-3 text-right text-neutral-400 num">${brMoney(p.custo)}</td>
+        <td class="px-5 py-3 font-black text-white">${escapeHTML(p.cli)}</td>
+        <td class="px-3 py-3 text-right text-neutral-300 num">${brMoney(receita)}</td>
+        <td class="px-3 py-3 text-right text-neutral-400 num">${brMoney(custoTotal)}</td>
         <td class="px-3 py-3 text-right fin-acc font-bold num">${brMoney(lucro)}</td>
-        <td class="px-5 py-3 text-center num font-black ${mg<15?'text-red-400':'text-white'}">${mg.toFixed(1)}%</td>
+        <td class="px-5 py-3 text-center num font-black ${mg<min?'text-red-400':'text-white'}">${mg.toFixed(1)}%</td>
       </tr>`;}).join('') : `<tr><td colspan="5" class="px-5 py-10 text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Sem dados ainda</td></tr>`;
     finIcons();
   }
   function finExportRelatorio() {
     if (!finRelData) { finToast('Nada para exportar', 'warn'); return; }
-    const lin = [['Projeto','Receita','Custo realizado','Lucro','Margem %']];
+    const lin = [['Projeto','Receita','Custo total','Lucro líquido','Margem %']];
     (finRelData.por_projeto||[]).forEach(p=>{
-      const lucro=(Number(p.receita)||0)-(Number(p.custo)||0); const mg=p.receita>0?(lucro/p.receita*100):0;
-      lin.push([p.cli, p.receita, p.custo, lucro, mg.toFixed(1)]);
+      const receita=Number(p.receita)||0, mg=Number(p.margem_pct)||0; const lucro=receita*mg/100;
+      lin.push([p.cli, receita, (receita-lucro).toFixed(2), lucro.toFixed(2), mg.toFixed(1)]);
     });
     const csv = lin.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
     const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8'});
@@ -2110,7 +2513,7 @@
     try { users = await finRpc('list_fin_users') || []; } catch (_) {}
     if (ub) ub.innerHTML = users.map(u=>`
       <div class="flex items-center justify-between gap-3 px-3 py-2 bg-neutral-950/60 border border-neutral-800">
-        <div class="min-w-0"><div class="text-[12px] font-bold text-white truncate">${u.nome}</div><div class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">${u.role||'—'}</div></div>
+        <div class="min-w-0"><div class="text-[12px] font-bold text-white truncate">${escapeHTML(u.nome)}</div><div class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">${escapeHTML(u.role||'—')}</div></div>
         <button onclick="finToggleFinEnabled('${u.user_id}', ${u.fin_enabled?'false':'true'})" class="shrink-0 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border ${u.fin_enabled?'fin-acc-chip border-[color:var(--fin-border-30)]':'bg-neutral-900 text-neutral-500 border-neutral-800'}">${u.fin_enabled?'Liberado':'Bloqueado'}</button>
       </div>`).join('');
     finIcons();
@@ -2311,13 +2714,14 @@
     renderFinRoute,
     finResolveTab,
     finToast,
-    // recebíveis (ações + lançamento)
-    finTitBaixar, finBaixarSubmit, finTitReneg, finTitCancelar,
+    // recebíveis (ações + lançamento + edição)
+    finTitBaixar, finBaixarSubmit, finTitReneg, finTitRenegSubmit, finTitCancelar,
+    finTitEdit, finTitEditSubmit,
     finLancamentoModal, finLancClienteSearch, finLancPick, finLancamentoSubmit,
     // funil
     finOpenFunilDetail, closeFinModal, finFunilMove,
     // comissões
-    finComLiberar, finComPagar, finComAjustar,
+    finComLiberar, finComPagar, finComAjustar, finComCalc, finComAjustarSubmit,
     // pagamentos (conferência: recebimentos + contas a pagar)
     finPagAprovar, finPagRecusarPg, finPagPagar, finNovoPagamento, finNovoPagamentoSubmit,
     // aprovações
@@ -2329,9 +2733,12 @@
     // custos
     finCustoSearch: custoSearch, finCustoOpenResults: custoOpenResults,
     finCustoToggleResults: custoToggleResults, finPickCusto, finPickCustoFromTable,
-    finNovoCusto, finNovoCustoSubmit,
+    finNovoCusto, finNovoCustoSubmit, finCustoEdit, finCustoEditSubmit,
     // precificação
-    finPrecSimular, finNovoPrecItem, finNovoPrecItemSubmit, finEditPrecItem, finDelPrecItem,
+    finPrecCalc, finPrecSugerir, finNovoPrecItem, finNovoPrecItemSubmit, finEditPrecItem, finEditPrecItemSubmit, finDelPrecItem,
+    // DRE calculadora-simulador
+    finDreToggleSim, finDrePickObra,
+    finDreSimVal, finDreExtra, finDreAddExtra, finDreDelExtra, finDreSaveScenario, finDreClearSim,
     // relatórios
     finExportRelatorio,
     // config

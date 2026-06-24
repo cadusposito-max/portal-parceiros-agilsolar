@@ -41,6 +41,7 @@ function _renderProfileTabs() {
     _profileTabBtn('dados',  'MEUS DADOS', 'user'),
     _profileTabBtn('senha',  'SENHA',      'lock'),
     _profileTabBtn('2fa',    '2FA',        'shield-check'),
+    _profileTabBtn('passkey','PASSKEY',    'fingerprint'),
   ].join('');
   lucide.createIcons();
 }
@@ -51,8 +52,10 @@ function _renderProfileBody() {
   if (_profileTab === 'dados')  el.innerHTML = _profileDadosHTML();
   if (_profileTab === 'senha')  el.innerHTML = _profileSenhaHTML();
   if (_profileTab === '2fa')    el.innerHTML = _profile2FAHTML();
+  if (_profileTab === 'passkey') el.innerHTML = _profilePasskeyHTML();
   lucide.createIcons();
   if (_profileTab === '2fa') _load2FAStatus();
+  if (_profileTab === 'passkey') _loadPasskeys();
 }
 
 function _renderProfileModal() {
@@ -446,6 +449,91 @@ function _disable2FA(factorId) {
       _load2FAStatus();
     },
     'DESATIVAR 2FA'
+  );
+}
+
+// ─── ABA: PASSKEY (Face ID / biometria) ───────────────────────
+// Aditiva ao 2FA. Permite entrar sem digitar senha usando Face ID/digital/PIN do
+// aparelho. Funciona no domínio de produção; no de teste o login por senha segue.
+function _profilePasskeyHTML() {
+  return `
+    <div class="flex flex-col gap-4">
+      <div class="flex items-center gap-3 bg-neutral-900/60 border border-neutral-800 p-4">
+        <i data-lucide="fingerprint" class="w-8 h-8 text-orange-400 shrink-0"></i>
+        <div>
+          <p class="text-white font-black text-sm uppercase tracking-wider">Chave de Acesso (Passkey)</p>
+          <p class="text-neutral-500 text-[10px] mt-0.5">Entre com Face ID, digital ou PIN do aparelho, sem digitar senha.</p>
+        </div>
+      </div>
+      <div id="passkey-status-area" class="text-neutral-500 text-[10px] font-bold uppercase tracking-widest text-center py-4">
+        <i data-lucide="loader-2" class="w-5 h-5 animate-spin inline-block mr-2"></i> Carregando...
+      </div>
+    </div>
+  `;
+}
+
+async function _loadPasskeys() {
+  const area = document.getElementById('passkey-status-area');
+  if (!area) return;
+
+  if (!supabaseClient.auth || typeof supabaseClient.auth.registerPasskey !== 'function' || !supabaseClient.auth.passkey) {
+    area.innerHTML = `<p class="text-neutral-500 text-[10px] p-2 normal-case tracking-normal">Passkey indisponível nesta versão do app ou navegador.</p>`;
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.passkey.list();
+  if (error) { area.innerHTML = `<p class="text-red-500 text-xs">${escapeHTML(error.message)}</p>`; return; }
+
+  const passkeys = data || [];
+  const lista = passkeys.length ? passkeys.map(p => `
+    <div class="flex items-center justify-between gap-3 bg-neutral-900/60 border border-neutral-800 p-3">
+      <div class="flex items-center gap-2 min-w-0">
+        <i data-lucide="key-round" class="w-4 h-4 text-orange-400 shrink-0"></i>
+        <span class="text-white font-bold text-xs truncate normal-case tracking-normal">${escapeHTML(p.friendly_name || 'Chave de acesso')}</span>
+      </div>
+      <button onclick="_deletePasskey('${escapeHTML(p.id)}')" class="text-red-500 hover:text-red-400 text-[9px] font-black uppercase tracking-widest shrink-0 transition-colors">Remover</button>
+    </div>
+  `).join('') : `<p class="text-neutral-600 text-[10px] text-center py-2 normal-case tracking-normal">Nenhuma chave cadastrada ainda.</p>`;
+
+  area.innerHTML = `
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-2">${lista}</div>
+      <button onclick="_registerPasskey()"
+        class="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black py-3 font-black uppercase tracking-widest text-sm transition-all">
+        <i data-lucide="fingerprint" class="w-4 h-4 stroke-[3px]"></i> CADASTRAR ESTE DISPOSITIVO
+      </button>
+      <p class="text-neutral-600 text-[9px] text-center normal-case tracking-normal">Disponível no domínio de produção. No de teste, use e-mail e senha.</p>
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+async function _registerPasskey() {
+  const area = document.getElementById('passkey-status-area');
+  if (area) {
+    area.innerHTML = `<div class="text-neutral-500 text-[10px] font-bold uppercase tracking-widest text-center py-4"><i data-lucide="loader-2" class="w-5 h-5 animate-spin inline-block mr-2"></i> Aguardando o dispositivo...</div>`;
+    lucide.createIcons();
+  }
+  try {
+    const { error } = await supabaseClient.auth.registerPasskey();
+    if (error) { showToast('Não foi possível cadastrar: ' + (error.message || 'erro')); _loadPasskeys(); return; }
+    showToast('PASSKEY CADASTRADA COM SUCESSO!');
+  } catch (_) {
+    showToast('Cadastro cancelado ou não suportado neste dispositivo.');
+  }
+  _loadPasskeys();
+}
+
+function _deletePasskey(passkeyId) {
+  showConfirmModal(
+    'Remover esta chave de acesso? Você não poderá mais entrar com ela neste dispositivo.',
+    async () => {
+      const { error } = await supabaseClient.auth.passkey.delete({ passkeyId });
+      if (error) { showToast('Erro: ' + error.message); return; }
+      showToast('CHAVE REMOVIDA.');
+      _loadPasskeys();
+    },
+    'REMOVER CHAVE'
   );
 }
 

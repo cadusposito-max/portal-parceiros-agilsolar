@@ -148,6 +148,18 @@
           <span>ENTRAR NO SISTEMA</span>
         </button>
 
+        <!-- Login alternativo por passkey (Face ID / biometria). Aditivo: não substitui a senha. -->
+        <div class="flex items-center gap-3 py-1">
+          <div class="flex-1 h-px bg-neutral-800"></div>
+          <span class="text-[9px] text-neutral-600 font-black uppercase tracking-widest">ou</span>
+          <div class="flex-1 h-px bg-neutral-800"></div>
+        </div>
+        <button type="button" id="btn-login-passkey" onclick="loginWithPasskey()"
+          class="w-full py-3.5 bg-neutral-900 border border-neutral-700 hover:border-orange-500 text-white font-black uppercase tracking-widest text-sm transition-all active:scale-95 flex justify-center items-center gap-2">
+          <i data-lucide="fingerprint" class="w-5 h-5 stroke-[2.5px]"></i>
+          <span>ENTRAR COM FACE ID / PASSKEY</span>
+        </button>
+
         <div class="text-center pt-2">
           <button type="button" id="btn-forgot-password" onclick="handleForgotPassword()"
             class="text-[10px] text-neutral-600 hover:text-orange-400 font-bold uppercase tracking-widest transition-colors">
@@ -1089,11 +1101,11 @@
   function w(src)            { document.write('<script src="' + src + '"><\/script>'); }
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
 
-  local('config.js',           '20260622-fin-grupos');
+  local('config.js',           '20260624-passkey');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20260615-om-central-propostas');
   local('api.js',              '20260615-om-central-propostas');
-  local('auth.js',             '20260619-fin-v1');
+  local('auth.js',             '20260624-passkey');
   local('comunicados.js',      '20260615-om-central-propostas');
   local('dashboard.js',        '20260615-om-central-propostas');
   local('clientes.js',         '20260615-om-central-propostas');
@@ -1101,12 +1113,12 @@
   local('proposta-builder.js', '20260615-om-central-propostas');
   local('vendas.js',           '20260615-om-central-propostas');
   local('admin.js',            '20260615-om-central-propostas');
-  local('profile.js',          '20260615-om-central-propostas');
+  local('profile.js',          '20260624-passkey');
   local('chat.js',             '20260615-om-central-propostas');
   local('om.js',               '20260617-om-perfis');
   w('https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js');
   local('om-os.js',            '20260623-os-checklist-foto');
-  local('financeiro.js',       '20260622-fin-dash');
+  local('financeiro.js',       '20260623-fin-xss-escape');
   local('app.js',              '20260622-fin-grupos');
   local('update-notice.js',    '20260615-om-central-propostas');
 })();
