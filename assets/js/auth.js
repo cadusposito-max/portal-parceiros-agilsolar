@@ -502,6 +502,8 @@ async function loginWithPasskey() {
       return;
     }
     _bfClear();
+    // Espelha o fluxo de senha: fetchProfile()/etc. dependem de state.currentUser.
+    state.currentUser = data.user;
     await _finishLogin(data.user, data.user.email || '');
   } catch (e) {
     if (errorEl) {
