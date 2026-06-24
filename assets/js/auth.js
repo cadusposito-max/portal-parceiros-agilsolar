@@ -463,6 +463,15 @@ async function loginWithPasskey() {
     return;
   }
 
+  // O projeto exige CAPTCHA (Turnstile) nas chamadas de Auth. O widget resolve
+  // sozinho ao abrir a tela; reaproveitamos esse token (single-use) tambem no passkey.
+  if (!_captchaToken) {
+    if (errorEl) { errorEl.innerText = 'Aguarde a verificação de segurança concluir e toque novamente.'; errorEl.classList.remove('hidden'); }
+    return;
+  }
+  const captchaToken = _captchaToken;
+  _captchaToken = null;
+
   _passkeyInFlight = true;
   if (errorEl) errorEl.classList.add('hidden');
   const originalHtml = btn ? btn.innerHTML : '';
@@ -473,7 +482,7 @@ async function loginWithPasskey() {
   }
 
   try {
-    const { data, error } = await supabaseClient.auth.signInWithPasskey();
+    const { data, error } = await supabaseClient.auth.signInWithPasskey({ options: { captchaToken } });
     if (error) {
       console.error('[passkey login] erro:', error.code || error.name, error.message, error);
       if (errorEl) {
@@ -504,6 +513,8 @@ async function loginWithPasskey() {
   } finally {
     // Libera sempre, mesmo em erro/cancelamento, para a proxima tentativa ser limpa.
     _passkeyInFlight = false;
+    // Token Turnstile e single-use: reseta para gerar um novo para a proxima tentativa.
+    if (typeof window.turnstile !== 'undefined') { try { window.turnstile.reset(); } catch (_) {} }
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = originalHtml;
