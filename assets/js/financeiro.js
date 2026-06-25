@@ -1322,6 +1322,33 @@
       </div>`;
     }).join('');
     finIcons();
+    finFunilNav();
+  }
+  // Navegação do board: setas ‹ › nas bordas + fade nas laterais.
+  function finFunilNav() {
+    const board = document.getElementById('funil-board'); if (!board) return;
+    const fl = document.getElementById('funil-fade-l');
+    const fr = document.getElementById('funil-fade-r');
+    const al = document.getElementById('funil-arrow-l');
+    const ar = document.getElementById('funil-arrow-r');
+    const COL = 270 + 12; // largura da coluna + gap-3
+    const update = () => {
+      const atStart = board.scrollLeft <= 2;
+      const atEnd   = board.scrollLeft + board.clientWidth >= board.scrollWidth - 2;
+      const canScroll = board.scrollWidth > board.clientWidth + 2;
+      fl && fl.classList.toggle('is-on', canScroll && !atStart);
+      fr && fr.classList.toggle('is-on', canScroll && !atEnd);
+      al && al.classList.toggle('is-on', canScroll && !atStart);
+      ar && ar.classList.toggle('is-on', canScroll && !atEnd);
+    };
+    if (!board.dataset.navBound) {
+      board.dataset.navBound = '1';
+      al && al.addEventListener('click', () => board.scrollBy({ left: -COL, behavior: 'smooth' }));
+      ar && ar.addEventListener('click', () => board.scrollBy({ left:  COL, behavior: 'smooth' }));
+      board.addEventListener('scroll', update, { passive: true });
+      window.addEventListener('resize', update);
+    }
+    update();
   }
   function funilCard(c, gi) {
     const sc = scoreMap[c.sc] || scoreMap.saudavel;
@@ -2072,7 +2099,13 @@
           <span class="flex items-center gap-1.5"><span class="w-2 h-2 bg-neutral-500"></span>Bloqueado</span>
         </div>
       </div>
-      <div id="funil-board" class="flex gap-3 overflow-x-auto pb-4 no-scrollbar"></div>`;
+      <div class="relative funil-wrap">
+        <div id="funil-board" class="flex gap-3 overflow-x-auto pb-4 no-scrollbar"></div>
+        <div id="funil-fade-l" class="funil-fade funil-fade-l"></div>
+        <div id="funil-fade-r" class="funil-fade funil-fade-r"></div>
+        <button id="funil-arrow-l" type="button" aria-label="Etapas anteriores" class="funil-arrow funil-arrow-l"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+        <button id="funil-arrow-r" type="button" aria-label="Próximas etapas" class="funil-arrow funil-arrow-r"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+      </div>`;
   }
 
   function recebiveisHTML() {

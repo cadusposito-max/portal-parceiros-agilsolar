@@ -1559,6 +1559,21 @@ html[data-theme="light"] {
 .fin-toast-in { animation:finToastIn .3s cubic-bezier(.34,1.56,.64,1) both; }
 @keyframes finToastIn { from{opacity:0;transform:translateY(-12px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
 
+/* Funil — navegação (setas + fade nas bordas) */
+.funil-fade { position:absolute; top:0; bottom:16px; width:56px; pointer-events:none; z-index:2;
+  opacity:0; transition:opacity .2s ease; }
+.funil-fade.is-on { opacity:1; }
+.funil-fade-l { left:0;  background:linear-gradient(to right, #0a0a0a 0%, rgba(10,10,10,.7) 38%, transparent 100%); }
+.funil-fade-r { right:0; background:linear-gradient(to left,  #0a0a0a 0%, rgba(10,10,10,.7) 38%, transparent 100%); }
+.funil-arrow { position:absolute; top:50%; transform:translateY(-50%) scale(.92); z-index:3;
+  width:34px; height:46px; display:grid; place-items:center; cursor:pointer;
+  background:rgba(10,10,10,.92); border:1px solid #262626; color:#a3a3a3;
+  opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease, color .2s ease, border-color .2s ease; }
+.funil-arrow.is-on { opacity:1; pointer-events:auto; transform:translateY(-50%) scale(1); }
+.funil-arrow:hover { color:var(--fin-soft); border-color:var(--fin-border-30); box-shadow:0 0 14px var(--fin-shadow); }
+.funil-arrow-l { left:0; }
+.funil-arrow-r { right:0; }
+
 /* ==========================================
    LAUNCHER — tela inicial de escolha de ambiente
    ========================================== */
