@@ -1111,8 +1111,11 @@ function omPropRowDate(p) {
 function omPropApplyPreset(preset) {
   const f = state.omPropFilters;
   f.datePreset = preset;
-  if (preset === 'mes')          Object.assign(f, omPropMonthRange(0));
-  else if (preset === 'mes_passado') Object.assign(f, omPropMonthRange(-1));
+  if (preset === 'mes' || preset === 'mes_passado') {
+    const r = omPropMonthRange(preset === 'mes' ? 0 : -1);
+    f.dateFrom = r.from;
+    f.dateTo   = r.to;
+  }
   // 'personalizado' preserva dateFrom/dateTo atuais
 }
 
