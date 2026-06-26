@@ -1087,15 +1087,57 @@ function omPropMatchesSearch(p, term) {
     .some(v => String(v || '').toLowerCase().includes(q));
 }
 
-function omPropFilteredRows() {
+// --- Filtro de data (vendas "fechadas" = aprovadas) ---------------------
+function omPropToISODate(d) {
+  // Local YYYY-MM-DD (evita deslocamento de fuso do toISOString)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+// Intervalo do mês corrente (offset 0) ou de meses anteriores (offset -1 etc.)
+function omPropMonthRange(offset = 0) {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const to   = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+  return { from: omPropToISODate(from), to: omPropToISODate(to) };
+}
+// Data de "atividade" da linha: aprovação quando houver, senão criação.
+function omPropRowDate(p) {
+  const raw = p.aprovada_em || p.created_at;
+  if (!raw) return '';
+  const m = String(raw).match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
+  const d = new Date(raw);
+  return isNaN(d) ? '' : omPropToISODate(d);
+}
+function omPropApplyPreset(preset) {
+  const f = state.omPropFilters;
+  f.datePreset = preset;
+  if (preset === 'mes')          Object.assign(f, omPropMonthRange(0));
+  else if (preset === 'mes_passado') Object.assign(f, omPropMonthRange(-1));
+  // 'personalizado' preserva dateFrom/dateTo atuais
+}
+
+// Filtro-base compartilhado: data + tipo + responsável + busca (sem status).
+function omPropBaseRows() {
   const f = state.omPropFilters || {};
   return (omPropListCache || []).filter(p => {
-    if (f.status !== 'Todos' && p.statusLabel !== f.status) return false;
     if (f.tipo !== 'Todos' && p.tipo_servico !== f.tipo) return false;
     if (f.responsavel !== 'Todos' && p.responsavel !== f.responsavel) return false;
     if (!omPropMatchesSearch(p, f.search)) return false;
+    const d = omPropRowDate(p);
+    if (f.dateFrom && d && d < f.dateFrom) return false;
+    if (f.dateTo   && d && d > f.dateTo)   return false;
+    if ((f.dateFrom || f.dateTo) && !d) return false;
     return true;
   });
+}
+// Tabela / export: base + filtro de status do dropdown.
+function omPropFilteredRows() {
+  const f = state.omPropFilters || {};
+  return omPropBaseRows().filter(p => f.status === 'Todos' || p.statusLabel === f.status);
+}
+// KPIs: base + apenas aprovadas (ignora o dropdown de status).
+function omPropApprovedRows() {
+  return omPropBaseRows().filter(p => p.status === 'aprovada');
 }
 
 function omPropResultsHTML() {
@@ -1131,6 +1173,44 @@ function omPropResultsHTML() {
     </div>`;
 }
 
+// --- Painel de métricas (vendas fechadas = aprovadas no período) --------
+function omPropMetrics(rows) {
+  const count = rows.length;
+  const totalBRL = rows.reduce((s, p) => s + (Number(p.valor_final) || 0), 0);
+  const ticketMedio = count ? totalBRL / count : 0;
+  return { count, totalBRL, ticketMedio };
+}
+function omPropPeriodoLabel() {
+  const f = state.omPropFilters || {};
+  if (f.datePreset === 'mes') return 'Mês atual';
+  if (f.datePreset === 'mes_passado') return 'Mês passado';
+  if (f.dateFrom || f.dateTo) return `${omFormatDate(f.dateFrom)} – ${omFormatDate(f.dateTo)}`;
+  return 'Todo o período';
+}
+function omPropStatCard({ label, value, sub, icon, iconTint, valueColor }) {
+  return `
+    <div class="bg-neutral-900/60 border border-neutral-800 p-5 relative overflow-hidden">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-[10px] font-black uppercase tracking-widest text-neutral-500">${label}</span>
+        <div class="w-9 h-9 flex items-center justify-center ${iconTint}">
+          <i data-lucide="${icon}" class="w-4 h-4"></i>
+        </div>
+      </div>
+      <div class="text-4xl font-black tracking-tight leading-none ${valueColor || 'text-white'}">${value}</div>
+      <div class="text-[10px] font-bold uppercase tracking-widest text-neutral-600 mt-2.5">${sub}</div>
+    </div>`;
+}
+function omPropMetricsHTML() {
+  const m = omPropMetrics(omPropApprovedRows());
+  const periodo = omPropPeriodoLabel();
+  return `
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+      ${omPropStatCard({ label: 'Total em vendas', value: omFormatBRL(m.totalBRL), sub: `${periodo} · aprovadas`, icon: 'dollar-sign', iconTint: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20', valueColor: 'text-emerald-400' })}
+      ${omPropStatCard({ label: 'Total de vendas', value: String(m.count), sub: `${periodo} · propostas aprovadas`, icon: 'check-circle-2', iconTint: 'bg-blue-500/10 text-blue-400 border border-blue-500/20' })}
+      ${omPropStatCard({ label: 'Ticket médio', value: m.count ? omFormatBRL(m.ticketMedio) : '—', sub: `${periodo} · por venda`, icon: 'trending-up', iconTint: 'bg-amber-500/10 text-amber-400 border border-amber-500/20' })}
+    </div>`;
+}
+
 // Re-renderiza só a tabela de resultados — preserva o foco do campo de busca
 function omPropRefreshResults() {
   const el = document.getElementById('om-prop-results');
@@ -1138,11 +1218,24 @@ function omPropRefreshResults() {
   el.innerHTML = omPropResultsHTML();
   queueAppLucideCreateIcons();
 }
+// Atualiza painel de métricas + tabela (sem recriar o campo de busca)
+function omPropRefreshAll() {
+  const metEl = document.getElementById('om-prop-metrics');
+  if (metEl) metEl.innerHTML = omPropMetricsHTML();
+  const resEl = document.getElementById('om-prop-results');
+  if (resEl) resEl.innerHTML = omPropResultsHTML();
+  if (!metEl && !resEl) { renderContent(); return; }
+  queueAppLucideCreateIcons();
+}
 
 async function renderOMPropostas(container) {
   if (state.omPropostaDetailId) return renderOMPropostaDetail(container, state.omPropostaDetailId);
-  if (!state.omPropFilters) state.omPropFilters = { status: 'Todos', tipo: 'Todos', responsavel: 'Todos', search: '' };
+  if (!state.omPropFilters) {
+    const mes = omPropMonthRange(0);
+    state.omPropFilters = { status: 'Todos', tipo: 'Todos', responsavel: 'Todos', search: '', datePreset: 'mes', dateFrom: mes.from, dateTo: mes.to };
+  }
   if (state.omPropFilters.search === undefined) state.omPropFilters.search = '';
+  if (state.omPropFilters.datePreset === undefined) { const mes = omPropMonthRange(0); Object.assign(state.omPropFilters, { datePreset: 'mes', dateFrom: mes.from, dateTo: mes.to }); }
   const f = state.omPropFilters;
 
   container.innerHTML = `<div class="om-env animate-fade-in-up">${omPropLoadingHTML('Carregando propostas…')}</div>`;
@@ -1162,7 +1255,8 @@ async function renderOMPropostas(container) {
     icon: 'file-signature',
     title: 'Propostas O&M',
     subtitle: 'Propostas de limpeza, manutenção, vistoria e serviços corretivos — passo comercial antes da OS.',
-    actions: omBtnPrimary('Nova proposta O&M', 'plus', 'omOpenCreateProposta()')
+    actions: omBtnPrimary('Nova proposta O&M', 'plus', 'omOpenCreateProposta()') +
+             omBtnGhost('Exportar', 'download', 'omPropExportXLSX()')
   });
 
   let body;
@@ -1174,25 +1268,66 @@ async function renderOMPropostas(container) {
       actionHTML: omBtnPrimary('Nova proposta O&M', 'plus', 'omOpenCreateProposta()')
     });
   } else {
+    const metrics = `<div id="om-prop-metrics">${omPropMetricsHTML()}</div>`;
+    const presetOpts = [['mes', 'Este mês'], ['mes_passado', 'Mês passado'], ['personalizado', 'Personalizado']];
     const filtros = `
       <div class="bg-neutral-900/40 border border-neutral-800 p-4 mb-4">
         <input id="om-prop-search" type="text" value="${omEsc(f.search)}" oninput="omPropSearch(this.value)"
           placeholder="Buscar por nº, cliente, serviço ou responsável"
           class="${OM_INPUT_CLS} mb-3" />
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          ${omField('Período', `<select id="om-prop-preset" onchange="omPropSetPreset(this.value)" class="${OM_INPUT_CLS}">${presetOpts.map(([v, l]) => `<option value="${v}" ${v === f.datePreset ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
+          ${omField('De', `<input id="om-prop-date-from" type="date" value="${omEsc(f.dateFrom || '')}" onchange="omPropSetDate('from', this.value)" class="${OM_INPUT_CLS}" style="color-scheme: dark;" />`)}
+          ${omField('Até', `<input id="om-prop-date-to" type="date" value="${omEsc(f.dateTo || '')}" onchange="omPropSetDate('to', this.value)" class="${OM_INPUT_CLS}" style="color-scheme: dark;" />`)}
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           ${omField('Status', `<select onchange="omPropSet('status', this.value)" class="${OM_INPUT_CLS}">${['Todos', ...OM_PROP_STATUSES].map(s => `<option ${s === f.status ? 'selected' : ''}>${s}</option>`).join('')}</select>`)}
           ${omField('Tipo de serviço', `<select onchange="omPropSet('tipo', this.value)" class="${OM_INPUT_CLS}">${['Todos', ...OM_PROP_TIPOS].map(s => `<option ${s === f.tipo ? 'selected' : ''}>${s}</option>`).join('')}</select>`)}
           ${omField('Responsável', `<select onchange="omPropSet('responsavel', this.value)" class="${OM_INPUT_CLS}">${responsaveis.map(s => `<option ${s === f.responsavel ? 'selected' : ''}>${omEsc(s)}</option>`).join('')}</select>`)}
         </div>
       </div>`;
-    body = filtros + `<div id="om-prop-results">${omPropResultsHTML()}</div>`;
+    body = metrics + filtros + `<div id="om-prop-results">${omPropResultsHTML()}</div>`;
   }
 
   container.innerHTML = `<div class="om-env animate-fade-in-up">${header}${body}</div>`;
   queueAppLucideCreateIcons();
 }
-function omPropSet(field, val) { state.omPropFilters[field] = val; omPropRefreshResults(); }
-function omPropSearch(term) { state.omPropFilters.search = term; omPropRefreshResults(); }
+function omPropSet(field, val) { state.omPropFilters[field] = val; omPropRefreshAll(); }
+function omPropSearch(term) { state.omPropFilters.search = term; omPropRefreshAll(); }
+function omPropSetPreset(preset) {
+  omPropApplyPreset(preset);
+  const f = state.omPropFilters;
+  const fromEl = document.getElementById('om-prop-date-from');
+  const toEl   = document.getElementById('om-prop-date-to');
+  if (fromEl) fromEl.value = f.dateFrom || '';
+  if (toEl)   toEl.value   = f.dateTo   || '';
+  omPropRefreshAll();
+}
+function omPropSetDate(which, val) {
+  const f = state.omPropFilters;
+  if (which === 'from') f.dateFrom = val; else f.dateTo = val;
+  f.datePreset = 'personalizado';
+  const presetEl = document.getElementById('om-prop-preset');
+  if (presetEl) presetEl.value = 'personalizado';
+  omPropRefreshAll();
+}
+function omPropExportXLSX() {
+  const rows = omPropFilteredRows();
+  if (!rows.length) { if (typeof showToast === 'function') showToast('Nenhuma proposta para exportar.'); return; }
+  const columns = [
+    { header: 'Nº',          value: p => p.numero || '' },
+    { header: 'Cliente',     value: p => p.cliente || '' },
+    { header: 'Cidade',      value: p => p.cidade || '' },
+    { header: 'Serviço',     value: p => p.tipo_servico || '' },
+    { header: 'Valor (R$)',  value: p => (p.valor_final == null ? '' : Number(p.valor_final)) },
+    { header: 'Validade',    value: p => omFormatDate(p.validade) },
+    { header: 'Responsável', value: p => p.responsavel || '' },
+    { header: 'Status',      value: p => p.statusLabel || '' },
+    { header: 'Data',        value: p => omFormatDate(omPropRowDate(p)) },
+  ];
+  exportToXLSX(rows, columns, `propostas-om_${omPropToISODate(new Date())}`);
+  if (typeof showToast === 'function') showToast('Planilha exportada!');
+}
 function omOpenPropostaDetail(id) { state.omPropostaDetailId = id; if (state.environment === 'om' && state.omActiveTab !== 'propostas') { state.omActiveTab = 'propostas'; renderTabs(); } renderContent(); }
 function omClosePropostaDetail() { state.omPropostaDetailId = null; omPropDetailCache = { id: null, data: null }; renderContent(); }
 
