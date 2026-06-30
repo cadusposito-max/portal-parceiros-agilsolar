@@ -1043,6 +1043,321 @@
   }
 
   // ==========================================================================
+  // AGENDA — calendário de OS (Mês / Semana / Dia) sobre os mesmos dados da aba
+  // OS (listRows / list_om_os). Cor por status + filtro por técnico, painel de
+  // "Não agendadas" e reagendamento (drag-and-drop / seletor de data).
+  // ==========================================================================
+  const AG_MESES_LONG = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const AG_DIAS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const AG_DIAS_LONG  = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  // Fundo + texto + barra à esquerda, por status (verde de verdade na concluída).
+  const AG_TONE = {
+    agendada:       'bg-yellow-500/15 text-yellow-200 border-l-2 border-yellow-400',
+    deslocamento:   'bg-orange-500/15 text-orange-200 border-l-2 border-orange-400',
+    em_atendimento: 'bg-blue-500/15 text-blue-200 border-l-2 border-blue-400',
+    finalizada:     'bg-emerald-500/15 text-emerald-200 border-l-2 border-emerald-400',
+    cancelada:      'bg-neutral-700/40 text-neutral-400 border-l-2 border-neutral-500',
+  };
+  const AG_DOT = {
+    agendada: 'bg-yellow-400', deslocamento: 'bg-orange-400', em_atendimento: 'bg-blue-400',
+    finalizada: 'bg-emerald-400', cancelada: 'bg-neutral-500',
+  };
+
+  let agDragId = null;
+
+  // ---------- helpers de data ----------------------------------------------
+  function ymd(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function parseYmd(s) { const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+  function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function addMonths(d, n) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
+  function startOfWeek(d) { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); x.setHours(0, 0, 0, 0); return x; }
+  function sameYmd(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+  function agState() { if (!state.omAgenda) state.omAgenda = { view: 'mes', anchor: null, tecnico: 'todos' }; if (!state.omAgenda.anchor) state.omAgenda.anchor = ymd(new Date()); return state.omAgenda; }
+  function agAnchorDate() { return parseYmd(agState().anchor); }
+  function agToLocalInput(iso) {
+    const d = iso ? new Date(iso) : new Date();
+    if (isNaN(d)) return '';
+    const p = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function agDefaultInput() { const d = new Date(); d.setHours(8, 0, 0, 0); return agToLocalInput(d.toISOString()); }
+
+  // ---------- dados ---------------------------------------------------------
+  function agFiltered() {
+    const tec = agState().tecnico;
+    let rows = listRows || [];
+    if (tec && tec !== 'todos') rows = rows.filter(o => String(o.tecnico_id) === String(tec));
+    return rows;
+  }
+  function agScheduledByDay(rows) {
+    const map = {};
+    rows.forEach(o => { if (!o.agendado_para) return; const k = ymd(new Date(o.agendado_para)); (map[k] || (map[k] = [])).push(o); });
+    Object.keys(map).forEach(k => map[k].sort((a, b) => new Date(a.agendado_para) - new Date(b.agendado_para)));
+    return map;
+  }
+  function agUnscheduled(rows) {
+    const open = ['agendada', 'deslocamento', 'em_atendimento'];
+    return rows.filter(o => !o.agendado_para && open.indexOf(o.status) >= 0);
+  }
+  function agTecnicos() {
+    const m = new Map();
+    (listRows || []).forEach(o => { if (o.tecnico_id) m.set(String(o.tecnico_id), o.tecnico_nome || 'Técnico'); });
+    return Array.from(m, ([id, nome]) => ({ id, nome })).sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
+  // ---------- rótulo do período --------------------------------------------
+  function agPeriodLabel() {
+    const a = agAnchorDate(), v = agState().view;
+    if (v === 'mes') return AG_MESES_LONG[a.getMonth()] + ' ' + a.getFullYear();
+    if (v === 'dia') return AG_DIAS_LONG[a.getDay()] + ', ' + a.getDate() + ' ' + MESES[a.getMonth()] + ' ' + a.getFullYear();
+    const s = startOfWeek(a), e = addDays(s, 6);
+    if (s.getMonth() === e.getMonth()) return s.getDate() + '–' + e.getDate() + ' ' + MESES[s.getMonth()] + ' ' + s.getFullYear();
+    return s.getDate() + ' ' + MESES[s.getMonth()] + ' – ' + e.getDate() + ' ' + MESES[e.getMonth()] + ' ' + e.getFullYear();
+  }
+
+  // ---------- chips / linhas de evento -------------------------------------
+  function agChip(o, detailed) {
+    const tone = AG_TONE[o.status] || AG_TONE.agendada;
+    const hora = omFmtHoraISO(o.agendado_para);
+    const cli = esc(o.cliente || o.tipo_servico || o.numero || 'OS');
+    const sub = detailed && (o.cidade || o.tecnico_nome)
+      ? `<div class="text-[9px] opacity-70 truncate pl-0.5">${esc([o.cidade, o.tecnico_nome].filter(Boolean).join(' · '))}</div>` : '';
+    return `<div draggable="true" ondragstart="omAgDragStart(event,'${esc(o.id)}')" onclick="omAgAbrirOS('${esc(o.id)}')"
+        title="${esc((o.numero ? o.numero + ' · ' : '') + (o.cliente || '') + ' · ' + omFmtDataHoraISO(o.agendado_para))}"
+        class="block ${tone} px-1.5 ${detailed ? 'py-1' : 'py-0.5'} cursor-pointer hover:brightness-125 transition">
+        <div class="flex items-center gap-1">
+          <span class="num text-[10px] font-black shrink-0">${hora}</span>
+          <span class="text-[10px] font-bold truncate flex-1 min-w-0">${cli}</span>
+        </div>${sub}</div>`;
+  }
+  function agDayRow(o) {
+    const st = STATUS[o.status] || STATUS.agendada;
+    const chip = (typeof omChip === 'function') ? omChip(st.label, st.tone) : esc(st.label);
+    return `<div class="flex items-center gap-3 px-4 py-3 hover:bg-blue-500/[0.06] transition-colors cursor-pointer" onclick="omAgAbrirOS('${esc(o.id)}')">
+        <span class="num text-sm font-black text-white w-14 shrink-0">${omFmtHoraISO(o.agendado_para)}</span>
+        <div class="min-w-0 flex-1">
+          <div class="text-[13px] font-black text-white truncate">${esc(o.cliente || o.tipo_servico || o.numero)}</div>
+          <div class="text-[11px] text-neutral-500 truncate">${esc(o.numero || '')}${o.cidade ? ' · ' + esc(o.cidade) : ''}${o.tecnico_nome ? ' · ' + esc(o.tecnico_nome) : ''}</div>
+        </div>
+        <div class="shrink-0">${chip}</div>
+        <button onclick="event.stopPropagation();omAgReagendarPrompt('${esc(o.id)}')" title="Reagendar"
+          class="shrink-0 w-8 h-8 grid place-items-center border border-neutral-800 hover:border-blue-500/40 text-neutral-400 hover:text-blue-300">
+          <i data-lucide="calendar-clock" class="w-4 h-4"></i></button>
+      </div>`;
+  }
+
+  // ---------- visões --------------------------------------------------------
+  function agMonthHTML() {
+    const a = agAnchorDate(), today = new Date();
+    const byDay = agScheduledByDay(agFiltered());
+    const start = startOfWeek(new Date(a.getFullYear(), a.getMonth(), 1));
+    const headers = AG_DIAS_SHORT.map(d =>
+      `<div class="bg-neutral-950 text-[9px] font-black uppercase tracking-widest text-neutral-500 text-center py-1.5">${d}</div>`).join('');
+    let cells = '';
+    for (let i = 0; i < 42; i++) {
+      const d = addDays(start, i), key = ymd(d);
+      const inMonth = d.getMonth() === a.getMonth(), isToday = sameYmd(d, today);
+      const evs = byDay[key] || [], shown = evs.slice(0, 3), extra = evs.length - shown.length;
+      const dayBadge = isToday
+        ? `<span class="text-[11px] font-black bg-blue-500 text-blue-950 w-5 h-5 grid place-items-center rounded-full">${d.getDate()}</span>`
+        : `<span class="text-[11px] font-black ${inMonth ? 'text-neutral-300' : 'text-neutral-600'}">${d.getDate()}</span>`;
+      cells += `<div ondragover="omAgDragOver(event)" ondrop="omAgDrop(event,'${key}')"
+          class="min-h-[104px] p-1.5 flex flex-col gap-1 ${inMonth ? 'bg-[#0b0b0b]' : 'bg-[#070707]'}">
+          <div class="flex items-center justify-between">${dayBadge}${evs.length ? `<span class="text-[9px] font-bold text-neutral-500">${evs.length}</span>` : ''}</div>
+          <div class="flex flex-col gap-0.5 overflow-hidden">
+            ${shown.map(o => agChip(o, false)).join('')}
+            ${extra > 0 ? `<button onclick="omAgOpenDay('${key}')" class="text-[9px] font-black uppercase tracking-wider text-neutral-500 hover:text-blue-300 text-left px-1">+${extra} mais</button>` : ''}
+          </div>
+        </div>`;
+    }
+    return `<div class="grid grid-cols-7 gap-px bg-neutral-800 border border-neutral-800">${headers}${cells}</div>`;
+  }
+  function agWeekHTML() {
+    const a = agAnchorDate(), today = new Date(), start = startOfWeek(a);
+    const byDay = agScheduledByDay(agFiltered());
+    let cols = '';
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(start, i), key = ymd(d), evs = byDay[key] || [], isToday = sameYmd(d, today);
+      cols += `<div ondragover="omAgDragOver(event)" ondrop="omAgDrop(event,'${key}')" class="bg-[#0b0b0b] min-h-[380px] flex flex-col">
+          <div class="px-2 py-2 border-b border-neutral-800 ${isToday ? 'bg-blue-500/10' : ''}">
+            <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">${AG_DIAS_SHORT[d.getDay()]}</div>
+            <div class="text-sm font-black ${isToday ? 'text-blue-300' : 'text-neutral-200'}">${d.getDate()}</div>
+          </div>
+          <div class="flex-1 p-1 flex flex-col gap-1">
+            ${evs.length ? evs.map(o => agChip(o, true)).join('') : '<div class="text-[9px] text-neutral-700 text-center py-4">—</div>'}
+          </div>
+        </div>`;
+    }
+    return `<div class="grid grid-cols-7 gap-px bg-neutral-800 border border-neutral-800 overflow-x-auto">${cols}</div>`;
+  }
+  function agDayHTML() {
+    const a = agAnchorDate(), key = ymd(a), isToday = sameYmd(a, new Date());
+    const evs = agScheduledByDay(agFiltered())[key] || [];
+    const list = evs.length
+      ? `<div class="border border-neutral-800 divide-y divide-neutral-800 bg-neutral-900/20">${evs.map(agDayRow).join('')}</div>`
+      : `<div class="border border-neutral-800 bg-neutral-900/20 py-12 text-center text-[12px] text-neutral-500">Nenhuma OS agendada para este dia.</div>`;
+    return `<div ondragover="omAgDragOver(event)" ondrop="omAgDrop(event,'${key}')">
+        <div class="text-[11px] font-black uppercase tracking-widest text-neutral-400 mb-2">${AG_DIAS_LONG[a.getDay()]}, ${a.getDate()} ${MESES[a.getMonth()]} ${a.getFullYear()}${isToday ? ' · Hoje' : ''}</div>
+        ${list}</div>`;
+  }
+  function agBodyHTML() {
+    const v = agState().view;
+    if (v === 'semana') return agWeekHTML();
+    if (v === 'dia') return agDayHTML();
+    return agMonthHTML();
+  }
+
+  // ---------- toolbar / painel de não agendadas ----------------------------
+  function agToolbarHTML() {
+    const v = agState().view;
+    const vbtn = (id, icon, label) => `<button onclick="omAgViewSet('${id}')"
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${v === id ? 'bg-neutral-800 text-white' : 'text-neutral-500 hover:text-neutral-300'}">
+      <i data-lucide="${icon}" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">${label}</span></button>`;
+    const tecs = agTecnicos();
+    const tecSel = `<select onchange="omAgTecnico(this.value)" class="bg-neutral-900/40 border border-neutral-800 text-neutral-300 text-[12px] px-2.5 py-2 outline-none focus:border-blue-500/60">
+        <option value="todos" ${agState().tecnico === 'todos' ? 'selected' : ''}>Todos os técnicos</option>
+        ${tecs.map(t => `<option value="${esc(t.id)}" ${String(agState().tecnico) === String(t.id) ? 'selected' : ''}>${esc(t.nome)}</option>`).join('')}
+      </select>`;
+    const legend = ['agendada', 'deslocamento', 'em_atendimento', 'finalizada'].map(s =>
+      `<span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500"><span class="w-2 h-2 ${AG_DOT[s]}"></span>${STATUS[s].label}</span>`).join('');
+    return `
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1">
+              <button onclick="omAgNav(-1)" class="w-8 h-8 grid place-items-center border border-neutral-800 hover:border-neutral-600 text-neutral-300"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+              <button onclick="omAgHoje()" class="px-3 h-8 border border-neutral-800 hover:border-neutral-600 text-[10px] font-black uppercase tracking-wider text-neutral-300">Hoje</button>
+              <button onclick="omAgNav(1)" class="w-8 h-8 grid place-items-center border border-neutral-800 hover:border-neutral-600 text-neutral-300"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+            </div>
+            <div class="text-[14px] font-black text-white capitalize">${agPeriodLabel()}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${tecSel}
+            <div class="flex border border-neutral-800 bg-neutral-900/40">${vbtn('mes', 'calendar-days', 'Mês')}${vbtn('semana', 'calendar-range', 'Semana')}${vbtn('dia', 'calendar', 'Dia')}</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">${legend}</div>
+      </div>`;
+  }
+  function agUnscheduledHTML() {
+    const list = agUnscheduled(agFiltered());
+    if (!list.length) {
+      return `<div class="mt-3 flex items-center gap-2 px-3 py-2 border border-neutral-800 bg-neutral-900/20 text-[11px] font-bold text-neutral-500">
+        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>Tudo agendado — nenhuma OS sem data.</div>`;
+    }
+    const chips = list.map(o => `<div draggable="true" ondragstart="omAgDragStart(event,'${esc(o.id)}')"
+        class="shrink-0 flex items-center gap-2 px-2.5 py-1.5 border border-neutral-800 bg-neutral-950 hover:border-blue-500/40 cursor-pointer"
+        onclick="omAgAbrirOS('${esc(o.id)}')" title="Arraste para um dia ou clique no calendário para reagendar">
+        <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>
+        <span class="text-[11px] font-bold text-neutral-200 truncate max-w-[160px]">${esc(o.cliente || o.tipo_servico || o.numero)}</span>
+        <button onclick="event.stopPropagation();omAgReagendarPrompt('${esc(o.id)}')" title="Reagendar" class="text-neutral-500 hover:text-blue-300"><i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i></button>
+      </div>`).join('');
+    return `<div class="mt-3 border border-amber-500/20 bg-amber-500/[0.04] p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <i data-lucide="calendar-x" class="w-4 h-4 text-amber-400"></i>
+          <span class="text-[11px] font-black uppercase tracking-widest text-amber-300">Não agendadas</span>
+          <span class="text-[10px] font-bold text-amber-400/70">${list.length}</span>
+        </div>
+        <div class="flex gap-2 overflow-x-auto pb-1">${chips}</div>
+      </div>`;
+  }
+
+  // ---------- render / repaint ---------------------------------------------
+  function agPaintShell() {
+    const shell = document.getElementById('om-agenda-shell');
+    if (!shell) return;
+    shell.innerHTML = agToolbarHTML() + agUnscheduledHTML() + `<div class="mt-3">${agBodyHTML()}</div>`;
+    icons();
+  }
+  async function omRenderAgendaTab(container) {
+    if (!listRows) {
+      container.innerHTML = loadingHTML('Carregando agenda…'); icons();
+      const { data, error } = await sb.rpc('list_om_os');
+      if (error) { container.innerHTML = erroHTML(error); icons(); return; }
+      listRows = data || [];
+    }
+    agState();
+    const head = (typeof omPageHeader === 'function')
+      ? omPageHeader({ icon: 'calendar-days', title: 'Agenda', subtitle: 'Tudo que está agendado — e o que ainda falta agendar.' })
+      : `<h1 class="text-xl font-black text-white mb-4">Agenda</h1>`;
+    container.innerHTML = `<div class="om-env animate-fade-in-up">${head}<div id="om-agenda-shell"></div></div>`;
+    agPaintShell();
+  }
+
+  // ---------- navegação / filtros ------------------------------------------
+  function omAgViewSet(v) { agState().view = v; agPaintShell(); }
+  function omAgNav(delta) {
+    const a = agAnchorDate(), v = agState().view;
+    const n = v === 'mes' ? addMonths(a, delta) : v === 'semana' ? addDays(a, 7 * delta) : addDays(a, delta);
+    agState().anchor = ymd(n); agPaintShell();
+  }
+  function omAgHoje() { agState().anchor = ymd(new Date()); agPaintShell(); }
+  function omAgTecnico(v) { agState().tecnico = v; agPaintShell(); }
+  function omAgOpenDay(key) { agState().anchor = key; agState().view = 'dia'; agPaintShell(); }
+  function omAgAbrirOS(id) {
+    if (typeof setTab === 'function') setTab('os');
+    else { state.omActiveTab = 'os'; if (typeof renderTabs === 'function') renderTabs(); }
+    omOsAbrir(id);
+  }
+
+  // ---------- reagendar -----------------------------------------------------
+  function omAgDragStart(ev, id) { agDragId = id; try { ev.dataTransfer.setData('text/plain', id); ev.dataTransfer.effectAllowed = 'move'; } catch (_) {} }
+  function omAgDragOver(ev) { ev.preventDefault(); try { ev.dataTransfer.dropEffect = 'move'; } catch (_) {} }
+  function omAgDrop(ev, key) {
+    ev.preventDefault();
+    const id = agDragId || (ev.dataTransfer && ev.dataTransfer.getData('text/plain'));
+    agDragId = null;
+    if (!id) return;
+    const o = (listRows || []).find(x => x.id === id);
+    if (!o) return;
+    let hh = 8, mm = 0;
+    if (o.agendado_para) { const d = new Date(o.agendado_para); hh = d.getHours(); mm = d.getMinutes(); }
+    const dt = parseYmd(key); dt.setHours(hh, mm, 0, 0);
+    omAgReagendar(id, dt.toISOString());
+  }
+  function omAgReagendarPrompt(id) {
+    const o = (listRows || []).find(x => x.id === id);
+    if (!o) return;
+    const val = o.agendado_para ? agToLocalInput(o.agendado_para) : agDefaultInput();
+    if (typeof omOpenModal !== 'function') {
+      const r = window.prompt('Nova data e hora (AAAA-MM-DD HH:MM):', val.replace('T', ' '));
+      if (!r) return;
+      const dt = new Date(r.replace(' ', 'T'));
+      if (isNaN(dt)) { toast('Data inválida.'); return; }
+      omAgReagendar(id, dt.toISOString());
+      return;
+    }
+    omOpenModal({
+      title: 'Reagendar OS', icon: 'calendar-clock',
+      subtitle: esc((o.numero ? o.numero + ' · ' : '') + (o.cliente || '')),
+      bodyHTML: `<label class="block"><span class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Data e hora</span>
+        <input type="datetime-local" id="om-ag-reag-input" value="${val}" class="mt-1 w-full bg-neutral-900 border border-neutral-800 focus:border-blue-500/60 outline-none px-3 py-2.5 text-white text-[14px]"></label>`,
+      footerHTML: `<button onclick="omCloseModal()" class="px-4 py-2.5 bg-neutral-900 border border-neutral-800 text-neutral-300 font-black text-[10px] uppercase tracking-widest">Cancelar</button>
+        <button onclick="omAgReagendarConfirm('${esc(id)}')" class="px-4 py-2.5 bg-blue-500 hover:bg-blue-400 text-blue-950 font-black text-[10px] uppercase tracking-widest">Salvar</button>`,
+    });
+  }
+  function omAgReagendarConfirm(id) {
+    const el = document.getElementById('om-ag-reag-input');
+    if (!el || !el.value) { toast('Escolha data e hora.'); return; }
+    const iso = new Date(el.value).toISOString();
+    if (typeof omCloseModal === 'function') omCloseModal();
+    omAgReagendar(id, iso);
+  }
+  async function omAgReagendar(id, iso) {
+    try {
+      const { error } = await sb.rpc('om_os_reagendar', { p_os_id: id, p_agendado_para: iso });
+      if (error) throw error;
+      const o = (listRows || []).find(x => x.id === id);
+      if (o) o.agendado_para = iso;
+      toast('OS reagendada.');
+    } catch (e) { toast(friendlyErr(e)); }
+    agPaintShell();
+  }
+
+  // ==========================================================================
   // Exposição global (handlers usados via onclick e pelo roteador do om.js)
   // ==========================================================================
   Object.assign(window, {
@@ -1054,5 +1369,7 @@
     omOsProblemaAbrir, omOsProblemaCancelar, omOsProblemaGravidade,
     omOsProblemaRetorno, omOsProblemaFoto, omOsProblemaSalvar,
     omOsFinalizarAbrir, omOsFinalizarCancelar, omOsFinalizarEstado, omOsFinalizarConfirmar,
+    omRenderAgendaTab, omAgViewSet, omAgNav, omAgHoje, omAgTecnico, omAgOpenDay, omAgAbrirOS,
+    omAgDragStart, omAgDragOver, omAgDrop, omAgReagendarPrompt, omAgReagendarConfirm,
   });
 })();

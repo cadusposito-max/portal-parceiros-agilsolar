@@ -36,6 +36,8 @@ let state = {
   environment: 'comercial',
   // Tab ativa dentro do ambiente O&M
   omActiveTab: 'central',
+  // Estado da aba Agenda (calendário de OS). anchor = 'YYYY-MM-DD' (preenchido em runtime).
+  omAgenda: { view: 'mes', anchor: null, tecnico: 'todos' },
   // Tab ativa dentro do ambiente Financeiro
   finActiveTab: 'visao',
   // Sub-aba ativa de Pagamentos: 'conferencia' | 'comissoes'
@@ -49,6 +51,33 @@ let state = {
     recebiveis:  { search: '', f: 'todos' },
     pagamentos:  { f: 'todos' },
     ordemcompra: { f: 'todos' },
+  },
+
+  // Ambiente Vistoria (4º ambiente — operação de campo). Local-first até a fase Supabase.
+  vistoriaActiveTab: 'visao',
+  // Acesso à Vistoria (na fase atual: admin sempre; flag por perfil vem na fase Supabase)
+  canVis: false,
+
+  // Ambiente Engenharia (5º ambiente — calculadora/dimensionamento). Stateless até a fase Supabase.
+  engActiveTab: 'calculadora',
+  // Acesso à Engenharia (fase atual: admin sempre; flag eng_enabled + role 'engenheiro' vêm na fase Supabase)
+  canEng: false,
+  // Sub-estado da Engenharia: inputs, último resultado calculado, presets e projetos (estado local até o banco).
+  eng: {
+    inputs: {},
+    lastResult: null,
+    modulos: [],
+    inversores: [],
+    projetos: [],
+    currentProjectId: null,
+    currentProjectName: '',
+  },
+  // Sub-aba ativa por grupo da Vistoria (reservado para reagrupamentos futuros)
+  visSub: {},
+  // Filtros/estado por aba da Vistoria
+  visFilters: {
+    funil:  { search: '', equipe: 'todas' },
+    agenda: { equipe: 'todas', cidade: 'todas', prioridade: 'todas' },
   },
 
   // Admin global (overlay transversal, desvinculado do ambiente). Etapa 1.
@@ -174,6 +203,7 @@ const OM_TABS = [
   { id: 'central',    label: 'CENTRAL',       icon: 'radar',          secondary: true },
   { id: 'clientes',   label: 'CLIENTES',      icon: 'users',          secondary: true },
   { id: 'os',         label: 'OS',            icon: 'clipboard-list', secondary: true },
+  { id: 'agenda',     label: 'AGENDA',        icon: 'calendar-days',  secondary: true },
   { id: 'pendencias', label: 'PENDÊNCIAS',    icon: 'alert-triangle', secondary: true },
   { id: 'relatorios', label: 'RELATÓRIOS',    icon: 'file-text',      secondary: true },
   { id: 'tecnicos',   label: 'TÉCNICOS',      icon: 'hard-hat',       secondary: true }
@@ -197,4 +227,27 @@ const FIN_TABS = [
   { id: 'acoes',      label: 'AÇÕES',       icon: 'badge-check' },
   { id: 'relatorios', label: 'RELATÓRIOS',  icon: 'pie-chart' },
   { id: 'config',     label: 'CONFIG',      icon: 'settings' }
+];
+
+// Tabs do ambiente Vistoria (operação de campo). Visão Geral e Funil são primárias;
+// as demais entram na sub-nav (segunda linha), espelhando o padrão O&M/Financeiro.
+const VISTORIA_TABS = [
+  { id: 'visao',      label: 'VISÃO GERAL', icon: 'layout-dashboard' },
+  { id: 'funil',      label: 'FUNIL',       icon: 'git-merge' },
+  { id: 'agenda',     label: 'AGENDA',      icon: 'calendar-days' },
+  { id: 'os',         label: 'ORDENS',      icon: 'clipboard-list' },
+  { id: 'checklists', label: 'CHECKLISTS',  icon: 'list-checks' },
+  { id: 'fotos',      label: 'FOTOS',       icon: 'camera' },
+  { id: 'laudos',     label: 'LAUDOS',      icon: 'file-check' },
+  { id: 'pendencias', label: 'PENDÊNCIAS',  icon: 'alert-triangle' },
+  { id: 'equipes',    label: 'EQUIPES',     icon: 'users' },
+  { id: 'historico',  label: 'HISTÓRICO',   icon: 'history' },
+  { id: 'config',     label: 'CONFIG',      icon: 'settings' }
+];
+
+// Tabs do ambiente Engenharia (calculadora / dimensionamento fotovoltaico).
+const ENG_TABS = [
+  { id: 'calculadora',  label: 'CALCULADORA',  icon: 'calculator' },
+  { id: 'equipamentos', label: 'EQUIPAMENTOS', icon: 'cpu' },
+  { id: 'projetos',     label: 'PROJETOS',     icon: 'folder-open' }
 ];

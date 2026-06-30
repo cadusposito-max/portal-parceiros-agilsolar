@@ -253,6 +253,8 @@ async function checkAuth() {
       ]);
       if (typeof omRefreshAccess === 'function') await omRefreshAccess();
       if (typeof finRefreshAccess === 'function') await finRefreshAccess();
+      if (typeof visRefreshAccess === 'function') await visRefreshAccess();
+      if (typeof engRefreshAccess === 'function') await engRefreshAccess();
       renderHeaderUser();
       renderTabs();                 // prepara o header atrás do overlay
       if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
@@ -617,6 +619,8 @@ async function _finishLogin(user, email) {
   // (state.canFin via fin_can_use_current_user). Sem isto, o ambiente/funil
   // Financeiro so aparecia apos um refresh.
   if (typeof finRefreshAccess === 'function') await finRefreshAccess();
+  if (typeof visRefreshAccess === 'function') await visRefreshAccess();
+  if (typeof engRefreshAccess === 'function') await engRefreshAccess();
   renderHeaderUser();
   renderTabs();                 // prepara o header atrás do overlay
   if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {

@@ -427,6 +427,11 @@ function renderHistorico() {
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
+            ${(state.isAdmin || state.isGestor) ? `
+            <button onclick="openOrcamentoDre('${p.id}')"
+              class="flex items-center gap-1.5 bg-neutral-800 border border-neutral-700 hover:border-emerald-500/50 hover:text-emerald-400 text-neutral-400 px-3 py-2 font-black uppercase tracking-wider transition-all text-[9px]">
+              <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>DRE
+            </button>` : ''}
             <button onclick="copiarLinkExistente('${p.id}', this)"
               class="flex items-center gap-1.5 bg-neutral-800 border border-neutral-700 hover:border-orange-500/50 hover:text-orange-400 text-neutral-400 px-3 py-2 font-black uppercase tracking-wider transition-all text-[9px]">
               <i data-lucide="copy" class="w-3.5 h-3.5"></i>COPIAR LINK

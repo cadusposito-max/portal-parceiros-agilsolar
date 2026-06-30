@@ -1575,6 +1575,73 @@ html[data-theme="light"] {
 .funil-arrow-r { right:0; }
 
 /* ==========================================
+   VISTORIA — 4º ambiente (acento vermelho).
+   Espelha o padrão --fin-*. Vars mudam em dark/light.
+   ========================================== */
+:root, html[data-theme="dark"] {
+  --vis:#ef4444; --vis-soft:#f87171; --vis-strong:#dc2626; --vis-on:#fecaca;
+  --vis-chip-bg:rgba(248,113,113,0.12);
+  --vis-border-50:rgba(248,113,113,0.5); --vis-border-40:rgba(248,113,113,0.4);
+  --vis-border-30:rgba(248,113,113,0.3); --vis-border-20:rgba(248,113,113,0.2);
+  --vis-focus:rgba(248,113,113,0.6); --vis-contour:#f87171; --vis-contour-dot:rgba(248,113,113,0.45);
+  --vis-shadow:rgba(239,68,68,0.35); --vis-radial:rgba(239,68,68,0.06); --vis-radial2:rgba(220,38,38,0.04);
+  --vis-deep-grad:
+    radial-gradient(120% 120% at 15% 0%, rgba(248,113,113,0.12), transparent 50%),
+    linear-gradient(135deg,#2a0808 0%,#3d0d0d 52%,#220707 100%);
+  --vis-deep-border:rgba(220,38,38,0.5);
+}
+html[data-theme="light"] {
+  --vis:#dc2626; --vis-soft:#b91c1c; --vis-strong:#991b1b; --vis-on:#b91c1c;
+  --vis-deep-grad: linear-gradient(135deg,#3b0d0d 0%,#4d0f0f 52%,#2f0a0a 100%);
+  --vis-deep-border:rgba(220,38,38,0.45);
+}
+
+.vis-env { background:
+  radial-gradient(900px 360px at 78% -180px, var(--vis-radial), transparent 70%),
+  radial-gradient(900px 380px at 22% -200px, var(--vis-radial2), transparent 70%); }
+
+.vis-acc        { color:var(--vis-soft); }
+.vis-acc-strong { color:var(--vis); }
+.vis-acc-solid       { background:var(--vis); color:#fff; }
+.vis-acc-solid:hover { background:var(--vis-soft); }
+.vis-acc-chip   { background:var(--vis-chip-bg); color:var(--vis-soft); }
+.vis-acc-focus:focus { border-color:var(--vis-focus); outline:none; }
+
+.vis-deep       { background:var(--vis-deep-grad); border:1px solid var(--vis-deep-border); }
+.vis-deep-label { color:var(--vis-on); }
+.vis-deep-icon  { background:rgba(255,255,255,0.06); color:var(--vis-on); }
+.vis-deep-pill  { background:rgba(254,202,202,0.12); color:var(--vis-on); }
+.vis-contour      { stroke:var(--vis-contour); stroke-opacity:0.14; }
+.vis-contour-dots { background-image:radial-gradient(var(--vis-contour-dot) 1px, transparent 1px); }
+
+/* Navbar Vistoria — switcher, abas e sub-nav */
+.vis-nav-grad   { background-image:linear-gradient(to right, var(--vis-strong), var(--vis-soft)); color:#fff; }
+.vis-nav-shadow { box-shadow:0 0 12px var(--vis-shadow); }
+.vis-hover-border:hover { border-color:var(--vis-border-40); }
+
+.vis-env .metric-card { border:1px solid #1f1f1f; }
+.vis-env .metric-card:hover { border-color:var(--vis-border-30); }
+.vis-env .num { font-variant-numeric:tabular-nums; }
+.vis-env .vis-tab.is-active { background:var(--vis); color:#fff; }
+
+/* sub-abas internas */
+.vis-subtab { color:#737373; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .2s, border-color .2s; }
+.vis-subtab:hover { color:#e5e5e5; }
+.vis-subtab.is-active { color:var(--vis-soft); border-bottom-color:var(--vis); }
+
+/* animação de barras */
+@keyframes visBarFill { from { width:0 !important; } }
+.vis-env .bar-anim { animation:visBarFill 1.2s cubic-bezier(.22,1,.36,1) forwards; }
+
+/* modal + toasts da Vistoria */
+#vis-modal { display:none; }
+#vis-modal.is-open { display:flex; }
+#vis-modal-card { animation:visModalIn .3s cubic-bezier(.22,1,.36,1) both; }
+@keyframes visModalIn { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+.vis-toast-in { animation:visToastIn .3s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes visToastIn { from{opacity:0;transform:translateY(-12px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+
+/* ==========================================
    LAUNCHER — tela inicial de escolha de ambiente
    ========================================== */
 .launch-bg {

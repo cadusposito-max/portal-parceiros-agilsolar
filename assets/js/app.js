@@ -298,6 +298,8 @@ const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
 function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
+  if (state.environment === 'engenharia' && state.canEng) return ENG_TABS;
+  if (state.environment === 'vistoria' && state.canVis) return VISTORIA_TABS;
   if (state.environment === 'financeiro' && state.canFin) return FIN_TABS;
   if (state.environment === 'om' && state.canOM) {
     // Admin/Gestor/Coordenador veem o O&M completo; vendedor O&M só Propostas, Central e Clientes.
@@ -312,6 +314,8 @@ function getActiveTabsForEnvironment() {
 function getActiveTabId() {
   if (state.environment === 'om') return state.omActiveTab;
   if (state.environment === 'financeiro') return state.finActiveTab;
+  if (state.environment === 'vistoria') return state.vistoriaActiveTab;
+  if (state.environment === 'engenharia') return state.engActiveTab;
   return state.activeTab;
 }
 
@@ -339,6 +343,32 @@ async function finRefreshAccess() {
   }
 }
 
+// Lê se o usuário corrente pode ver o ambiente Vistoria.
+// Fase atual (sem Supabase): admin sempre pode; demais ficam sem acesso até a
+// flag por perfil (vis_enabled) ser criada na fase de banco. (Espelha finRefreshAccess.)
+async function visRefreshAccess() {
+  if (state.isAdmin) { state.canVis = true; return; }
+  try {
+    const { data, error } = await supabaseClient.rpc('vis_can_use_current_user');
+    state.canVis = !error && data === true;
+  } catch (_) {
+    state.canVis = false;
+  }
+}
+
+// Lê no backend se o usuário corrente pode ver o ambiente Engenharia.
+// Admin sempre pode; demais dependem da flag eng_enabled ou da role 'engenheiro'
+// (resolvido por eng_can_use_current_user). Espelha finRefreshAccess.
+async function engRefreshAccess() {
+  if (state.isAdmin) { state.canEng = true; return; }
+  try {
+    const { data, error } = await supabaseClient.rpc('eng_can_use_current_user');
+    state.canEng = !error && data === true;
+  } catch (_) {
+    state.canEng = false;
+  }
+}
+
 function renderEnvSwitcher() {
   const desktop = document.getElementById('env-switcher');
   const section = document.getElementById('menu-section');
@@ -350,7 +380,7 @@ function renderEnvSwitcher() {
     return;
   }
   // Sem acesso a NENHUM ambiente extra: esconde o seletor e mantém só o Comercial.
-  if (!state.canOM && !state.canFin) {
+  if (!state.canOM && !state.canFin && !state.canVis && !state.canEng) {
     if (state.environment !== 'comercial') state.environment = 'comercial';
     if (desktop) desktop.style.display = 'none';
     if (section) section.style.display = 'none';
@@ -368,6 +398,10 @@ function renderEnvSwitcher() {
   setDisplay('env-btn-om-mobile', Boolean(state.canOM));
   setDisplay('env-btn-financeiro', Boolean(state.canFin));
   setDisplay('env-btn-financeiro-mobile', Boolean(state.canFin));
+  setDisplay('env-btn-vistoria', Boolean(state.canVis));
+  setDisplay('env-btn-vistoria-mobile', Boolean(state.canVis));
+  setDisplay('env-btn-engenharia', Boolean(state.canEng));
+  setDisplay('env-btn-engenharia-mobile', Boolean(state.canEng));
 
   const activate = (idSuffix, isOn, env) => {
     const btn = document.getElementById(idSuffix);
@@ -383,7 +417,11 @@ function renderEnvSwitcher() {
         ? 'om-nav-grad om-nav-shadow'
         : env === 'financeiro'
           ? 'fin-nav-grad fin-nav-shadow'
-          : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[0_0_12px_rgba(234,88,12,0.3)]';
+          : env === 'vistoria'
+            ? 'vis-nav-grad vis-nav-shadow'
+            : env === 'engenharia'
+              ? 'text-black bg-gradient-to-r from-sky-600 to-indigo-500 shadow-[0_0_12px_rgba(2,132,199,0.3)]'
+              : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[0_0_12px_rgba(234,88,12,0.3)]';
       btn.className = `${root} ${tone}`;
     } else {
       btn.className = `${root} text-neutral-500 hover:text-neutral-200 bg-transparent`;
@@ -395,9 +433,13 @@ function renderEnvSwitcher() {
   activate('env-btn-comercial',          env === 'comercial',  'comercial');
   activate('env-btn-om',                  env === 'om',         'om');
   activate('env-btn-financeiro',          env === 'financeiro', 'financeiro');
+  activate('env-btn-vistoria',            env === 'vistoria',   'vistoria');
+  activate('env-btn-engenharia',          env === 'engenharia', 'engenharia');
   activate('env-btn-comercial-mobile',    env === 'comercial',  'comercial');
   activate('env-btn-om-mobile',           env === 'om',         'om');
   activate('env-btn-financeiro-mobile',   env === 'financeiro', 'financeiro');
+  activate('env-btn-vistoria-mobile',     env === 'vistoria',   'vistoria');
+  activate('env-btn-engenharia-mobile',   env === 'engenharia', 'engenharia');
 }
 
 function renderTabs() {
@@ -410,17 +452,24 @@ function renderTabs() {
   const activeId = getActiveTabId();
   const isOm  = state.environment === 'om';
   const isFin = state.environment === 'financeiro';
-  // Ambientes com sub-nav (segunda linha de abas no desktop): O&M e Financeiro.
-  const isSubnavEnv = isOm || isFin;
+  const isVis = state.environment === 'vistoria';
+  const isEng = state.environment === 'engenharia';
+  // Ambientes com sub-nav (segunda linha de abas no desktop): O&M, Financeiro, Vistoria e Engenharia.
+  const isSubnavEnv = isOm || isFin || isVis || isEng;
 
-  const navGrad = isFin ? 'fin-nav-grad fin-nav-shadow' : 'om-nav-grad om-nav-shadow';
+  // Engenharia usa gradiente azul/índigo inline (sem classe CSS dedicada, p/ não tocar main.css).
+  const ENG_NAV_GRAD = 'text-black bg-gradient-to-r from-sky-600 to-indigo-500';
+  const navGrad = isFin ? 'fin-nav-grad fin-nav-shadow'
+    : isVis ? 'vis-nav-grad vis-nav-shadow'
+    : isEng ? ENG_NAV_GRAD
+    : 'om-nav-grad om-nav-shadow';
   const activeBg = isSubnavEnv
     ? navGrad
     : 'text-black bg-gradient-to-r from-orange-600 to-yellow-500 shadow-[0_0_12px_rgba(234,88,12,0.3)]';
   const activeBgMobile = isSubnavEnv
-    ? `${isFin ? 'fin-nav-grad' : 'om-nav-grad'} shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]`
+    ? `${isFin ? 'fin-nav-grad' : isVis ? 'vis-nav-grad' : isEng ? ENG_NAV_GRAD : 'om-nav-grad'} shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]`
     : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]';
-  const hoverBorder = isFin ? 'fin-hover-border' : isOm ? 'om-hover-border' : 'hover:border-orange-500/40';
+  const hoverBorder = isFin ? 'fin-hover-border' : isVis ? 'vis-hover-border' : isEng ? 'hover:border-sky-500/40' : isOm ? 'om-hover-border' : 'hover:border-orange-500/40';
 
   const primaryTabs   = tabs.filter(t => !t.secondary);
   const secondaryTabs = tabs.filter(t =>  t.secondary);
@@ -565,9 +614,11 @@ function closeOmMoreMenuOnOutside(ev) {
 
 function setEnvironment(env) {
   if (state.isTecnico) return; // técnico não troca de ambiente
-  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro') return;
+  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia') return;
   if (env === 'om' && !state.canOM) return; // sem acesso ao O&M
   if (env === 'financeiro' && !state.canFin) return; // sem acesso ao Financeiro
+  if (env === 'vistoria' && !state.canVis) return; // sem acesso à Vistoria
+  if (env === 'engenharia' && !state.canEng) return; // sem acesso à Engenharia
   if (state.environment === env) return;
 
   // Não fecha o menu: ao trocar de seção, o usuário vê as abas da nova seção.
@@ -586,7 +637,7 @@ function setEnvironment(env) {
 // O launcher só aparece quando há escolha real (2+ ambientes). Hoje isso equivale
 function launcherShouldShow() {
   if (state.isTecnico) return false;
-  return !!state.canOM || !!state.canFin;
+  return !!state.canOM || !!state.canFin || !!state.canVis || !!state.canEng;
 }
 
 function showLauncher() {
@@ -623,6 +674,14 @@ function showLauncher() {
   // Financeiro idem — só aparece pra quem tem acesso (admin/flag).
   const finCard = document.getElementById('launcher-card-financeiro');
   if (finCard) finCard.classList.toggle('hidden', !state.canFin);
+
+  // Vistoria idem — só aparece pra quem tem acesso (admin/flag).
+  const visCard = document.getElementById('launcher-card-vistoria');
+  if (visCard) visCard.classList.toggle('hidden', !state.canVis);
+
+  // Engenharia idem — só aparece pra quem tem acesso (admin; flag/role vêm na fase Supabase).
+  const engCard = document.getElementById('launcher-card-engenharia');
+  if (engCard) engCard.classList.toggle('hidden', !state.canEng);
 
   screen.classList.remove('hidden');
   // força reflow antes de animar a opacidade
@@ -679,9 +738,11 @@ function startLauncherTypewriter() {
 // Disparado pelo clique nos cards. NÃO usa setEnvironment (que aborta quando o
 // ambiente já é o atual — caso do Comercial, que é o default).
 function enterEnvironment(env) {
-  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro') return;
+  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia') return;
   if (env === 'om' && !state.canOM) return;
   if (env === 'financeiro' && !state.canFin) return;
+  if (env === 'vistoria' && !state.canVis) return;
+  if (env === 'engenharia' && !state.canEng) return;
 
   const screen = document.getElementById('launcher-screen');
   if (screen) {
@@ -692,6 +753,8 @@ function enterEnvironment(env) {
   state.environment = env;
   if (env === 'om') state.omActiveTab = 'central';
   if (env === 'financeiro') state.finActiveTab = 'visao';
+  if (env === 'vistoria') state.vistoriaActiveTab = 'visao';
+  if (env === 'engenharia') state.engActiveTab = 'calculadora';
   renderTabs();
   renderContent();
 }
@@ -720,6 +783,26 @@ function setTab(tabId) {
     // Abas reagrupadas: um id de subárea (ex.: 'dre','orcamentos') é resolvido
     // para a aba-pai (ex.: 'margem','compras') e a sub-aba certa fica memorizada.
     state.finActiveTab = (typeof finResolveTab === 'function') ? finResolveTab(tabId) : tabId;
+    renderTabs();
+    renderContent();
+    return;
+  }
+
+  if (state.environment === 'vistoria') {
+    closeMobileMenu();
+    if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
+    stopDashboardClock();
+    state.vistoriaActiveTab = tabId;
+    renderTabs();
+    renderContent();
+    return;
+  }
+
+  if (state.environment === 'engenharia') {
+    closeMobileMenu();
+    if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
+    stopDashboardClock();
+    state.engActiveTab = tabId;
     renderTabs();
     renderContent();
     return;
@@ -857,6 +940,38 @@ function renderContent() {
       renderFinRoute(container, state.finActiveTab);
     } else {
       container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Financeiro não carregado.</div>';
+    }
+    queueAppLucideCreateIcons();
+    return;
+  }
+
+  // Ambiente Vistoria: delega para o módulo vistoria.js
+  if (state.environment === 'vistoria') {
+    stopDashboardClock();
+    if (typeof stopOmClock === 'function') stopOmClock();
+    mainToolbar.classList.add('hidden');
+    toggleContainer.classList.add('hidden');
+    if (adminBar) adminBar.classList.add('hidden');
+    if (typeof renderVistoriaRoute === 'function') {
+      renderVistoriaRoute(container, state.vistoriaActiveTab);
+    } else {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Vistoria não carregado.</div>';
+    }
+    queueAppLucideCreateIcons();
+    return;
+  }
+
+  // Ambiente Engenharia: delega para o módulo engenharia.js
+  if (state.environment === 'engenharia') {
+    stopDashboardClock();
+    if (typeof stopOmClock === 'function') stopOmClock();
+    mainToolbar.classList.add('hidden');
+    toggleContainer.classList.add('hidden');
+    if (adminBar) adminBar.classList.add('hidden');
+    if (typeof renderEngRoute === 'function') {
+      renderEngRoute(container, state.engActiveTab);
+    } else {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Engenharia não carregado.</div>';
     }
     queueAppLucideCreateIcons();
     return;
