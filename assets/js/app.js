@@ -454,20 +454,24 @@ function renderTabs() {
   const isFin = state.environment === 'financeiro';
   const isVis = state.environment === 'vistoria';
   const isEng = state.environment === 'engenharia';
-  // Ambientes com sub-nav (segunda linha de abas no desktop): O&M, Financeiro, Vistoria e Engenharia.
-  const isSubnavEnv = isOm || isFin || isVis || isEng;
+  const isComercial = state.environment === 'comercial';
+  // Ambientes com sub-nav (segunda linha de abas no desktop): Comercial, O&M, Financeiro, Vistoria e Engenharia.
+  const isSubnavEnv = isOm || isFin || isVis || isEng || isComercial;
 
   // Engenharia usa gradiente azul/índigo inline (sem classe CSS dedicada, p/ não tocar main.css).
   const ENG_NAV_GRAD = 'text-black bg-gradient-to-r from-sky-600 to-indigo-500';
+  // Comercial usa o gradiente laranja/amarelo inline (mesmo tom do switcher de ambiente).
+  const COM_NAV_GRAD = 'text-black bg-gradient-to-r from-orange-600 to-yellow-500';
   const navGrad = isFin ? 'fin-nav-grad fin-nav-shadow'
     : isVis ? 'vis-nav-grad vis-nav-shadow'
     : isEng ? ENG_NAV_GRAD
+    : isComercial ? COM_NAV_GRAD
     : 'om-nav-grad om-nav-shadow';
   const activeBg = isSubnavEnv
     ? navGrad
     : 'text-black bg-gradient-to-r from-orange-600 to-yellow-500 shadow-[0_0_12px_rgba(234,88,12,0.3)]';
   const activeBgMobile = isSubnavEnv
-    ? `${isFin ? 'fin-nav-grad' : isVis ? 'vis-nav-grad' : isEng ? ENG_NAV_GRAD : 'om-nav-grad'} shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]`
+    ? `${isFin ? 'fin-nav-grad' : isVis ? 'vis-nav-grad' : isEng ? ENG_NAV_GRAD : isComercial ? COM_NAV_GRAD : 'om-nav-grad'} shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]`
     : 'bg-gradient-to-r from-orange-600 to-yellow-500 text-black shadow-[inset_0_0_20px_rgba(0,0,0,0.15)]';
   const hoverBorder = isFin ? 'fin-hover-border' : isVis ? 'vis-hover-border' : isEng ? 'hover:border-sky-500/40' : isOm ? 'om-hover-border' : 'hover:border-orange-500/40';
 
