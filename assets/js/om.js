@@ -1040,6 +1040,12 @@ function omEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+// Converte um textarea "um item por linha" em array (trim + remove vazias).
+// Retorna null quando não sobra nenhum item, para o backend cair no coalesce (padrão do template).
+function omLinesToArray(s) {
+  const arr = String(s == null ? '' : s).split('\n').map(l => l.trim()).filter(Boolean);
+  return arr.length ? arr : null;
+}
 function omFriendlyErr(e) {
   const m = (e && e.message || '').replace(/^.*?:\s*/, '');
   return m || 'Algo deu errado. Tente novamente.';
@@ -1250,6 +1256,7 @@ async function omOpenCreateProposta(opts = {}) {
         ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}" placeholder="Detalhe o que está incluso no serviço. Na corretiva, descreva aqui o problema identificado.">${omEsc(opts.descricao || '')}</textarea>`)}
         <div id="om-prop-corretiva" style="display:${omIsCorretiva(tipo) ? 'block' : 'none'}">
           ${omField('Diagnóstico / causa provável <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="diagnostico" rows="3" class="${OM_INPUT_CLS}" placeholder="O que a equipe apurou como causa da falha.">${omEsc(opts.diagnostico || '')}</textarea>`)}
+          ${omField('O que está incluído — um item por linha <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="itensInclusos" rows="4" class="${OM_INPUT_CLS}" placeholder="Deixe em branco para usar o padrão do serviço."></textarea>`)}
         </div>
         ${omField('Observações internas', `<textarea name="obs" rows="2" class="${OM_INPUT_CLS}" placeholder="Notas que não aparecem para o cliente"></textarea>`)}
 
@@ -1613,6 +1620,7 @@ async function omSubmitProposta(nextAction = 'rascunho') {
       p_descricao: (fd.get('descricao') || '').trim() || null,
       p_observacoes_internas: (fd.get('obs') || '').trim() || null,
       p_corretiva_diagnostico: (fd.get('diagnostico') || '').trim() || null,
+      p_itens_inclusos: omLinesToArray(fd.get('itensInclusos')),
     });
     if (error || !newId) throw error || new Error('Falha ao criar a proposta.');
 
@@ -1919,6 +1927,7 @@ async function omPropEditar(id) {
         ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}">${omEsc(p.descricao || '')}</textarea>`)}
         <div id="om-prop-corretiva" style="display:${omIsCorretiva(p.tipo_servico) ? 'block' : 'none'}">
           ${omField('Diagnóstico / causa provável <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="diagnostico" rows="3" class="${OM_INPUT_CLS}" placeholder="O que a equipe apurou como causa da falha.">${omEsc(p.corretiva_diagnostico || '')}</textarea>`)}
+          ${omField('O que está incluído — um item por linha <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="itensInclusos" rows="4" class="${OM_INPUT_CLS}" placeholder="Deixe em branco para usar o padrão do serviço.">${omEsc((p.itens_inclusos || []).join('\n'))}</textarea>`)}
         </div>
         ${omField('Observações internas', `<textarea name="obsInt" rows="2" class="${OM_INPUT_CLS}" placeholder="Não aparecem para o cliente">${omEsc(p.observacoes_internas || '')}</textarea>`)}
         ${omField('Observações para o cliente', `<textarea name="obsCli" rows="2" class="${OM_INPUT_CLS}">${omEsc(p.observacoes_cliente || '')}</textarea>`)}
@@ -1963,6 +1972,7 @@ async function omSubmitPropEdit(id) {
       p_observacoes_cliente: (fd.get('obsCli') || '').trim() || null,
       p_observacoes_internas: (fd.get('obsInt') || '').trim() || null,
       p_corretiva_diagnostico: (fd.get('diagnostico') || '').trim() || null,
+      p_itens_inclusos: omLinesToArray(fd.get('itensInclusos')),
     });
     if (error) throw error;
 
