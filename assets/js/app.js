@@ -410,7 +410,7 @@ function renderEnvSwitcher() {
     // ao reescrever o className, senão o botão volta a aparecer mesmo sem acesso.
     const wasHidden = btn.classList.contains('hidden');
     const base = 'env-btn flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap';
-    const baseMobile = 'env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all';
+    const baseMobile = 'env-btn-mobile flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all';
     const root = idSuffix.endsWith('-mobile') ? baseMobile : base;
     if (isOn) {
       const tone = env === 'om'
@@ -758,7 +758,7 @@ function enterEnvironment(env) {
   if (env === 'om') state.omActiveTab = 'central';
   if (env === 'financeiro') state.finActiveTab = 'visao';
   if (env === 'vistoria') state.vistoriaActiveTab = 'visao';
-  if (env === 'engenharia') state.engActiveTab = 'calculadora';
+  if (env === 'engenharia') state.engActiveTab = 'visao';
   renderTabs();
   renderContent();
 }

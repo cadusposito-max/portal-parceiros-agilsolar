@@ -460,25 +460,25 @@
       <!-- Seletor de seção -->
       <div id="menu-section">
         <div class="px-3 pt-3 pb-1.5 text-[9px] font-black uppercase tracking-[0.25em] text-neutral-600">Seção</div>
-        <div id="env-switcher-mobile" class="flex px-2 pb-2 gap-1 border-b border-neutral-800/60">
+        <div id="env-switcher-mobile" class="grid grid-cols-2 px-2 pb-2 gap-1 border-b border-neutral-800/60">
           <button onclick="setEnvironment('comercial')" id="env-btn-comercial-mobile"
-            class="env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            class="env-btn-mobile flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
             <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>COMERCIAL
           </button>
           <button onclick="setEnvironment('om')" id="env-btn-om-mobile"
-            class="env-btn-mobile flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            class="env-btn-mobile flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
             <i data-lucide="wrench" class="w-3.5 h-3.5"></i>O&amp;M
           </button>
           <button onclick="setEnvironment('financeiro')" id="env-btn-financeiro-mobile"
-            class="env-btn-mobile hidden flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            class="env-btn-mobile hidden flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
             <i data-lucide="wallet" class="w-3.5 h-3.5"></i>FINANCEIRO
           </button>
           <button onclick="setEnvironment('vistoria')" id="env-btn-vistoria-mobile"
-            class="env-btn-mobile hidden flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            class="env-btn-mobile hidden flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
             <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i>VISTORIA
           </button>
           <button onclick="setEnvironment('engenharia')" id="env-btn-engenharia-mobile"
-            class="env-btn-mobile hidden flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
+            class="env-btn-mobile hidden flex items-center justify-center gap-1.5 px-3 py-2.5 text-[10px] font-black uppercase tracking-wider transition-all">
             <i data-lucide="ruler" class="w-3.5 h-3.5"></i>ENGENHARIA
           </button>
         </div>
@@ -1122,7 +1122,7 @@
   function w(src)            { document.write('<script src="' + src + '"><\/script>'); }
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
 
-  local('config.js',           '20260630-eng4');
+  local('config.js',           '20260630-eng7');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20260615-om-central-propostas');
   local('api.js',              '20260615-om-central-propostas');
@@ -1143,8 +1143,8 @@
   local('financeiro.js',       '20260625-funil-nav');
   local('vistoria.js',         '20260626-vistoria-full');
   local('vistoria-os.js',      '20260626-vistoria-os');
-  local('engenharia.js',       '20260630-eng5');
-  local('app.js',              '20260630-eng5');
+  local('engenharia.js',       '20260630-eng7');
+  local('app.js',              '20260630-eng7');
   local('update-notice.js',    '20260615-om-central-propostas');
 })();
 </script>

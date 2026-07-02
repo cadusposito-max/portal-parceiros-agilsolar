@@ -1315,19 +1315,135 @@ async function engExcluirProjeto(id) {
   showToast('Projeto excluído.');
 }
 
+// ==========================================
+// RENDERIZADORES — Visão Geral (dashboard) e Funil
+// ==========================================
+
+// Rótulos das 4 etapas do funil de Engenharia (eng_projetos.etapa).
+const ENG_ETAPAS = ['Aguardando dimensionamento', 'Em dimensionamento', 'Concluído', 'Documento gerado'];
+
+// Card de KPI (molde espelhado de vistoria.js kpiCard, com acento configurável).
+function engKpiCard(k) {
+  const toneIc = { sky: 'text-sky-400', emerald: 'text-emerald-400', amber: 'text-amber-400', neutral: 'text-neutral-300' }[k.tone || 'sky'];
+  return `
+    <div class="metric-card relative p-4 bg-[#0c0c0c] border border-neutral-800">
+      <div class="flex items-start justify-between">
+        <span class="text-[9px] font-black uppercase tracking-widest text-neutral-500">${engEscAttr(k.label)}</span>
+        <i data-lucide="${k.icon}" class="w-4 h-4 ${toneIc}"></i>
+      </div>
+      <div class="mt-3 text-3xl font-black text-white leading-none">${engEscAttr(k.value)}</div>
+      <div class="mt-2 text-[10px] font-medium text-neutral-500 leading-snug">${engEscAttr(k.hint || '')}</div>
+    </div>`;
+}
+
+function renderEngVisao(container) {
+  if (ENG_DB_ENABLED && !state.eng.projLoaded) {
+    engFetchProjetos().then(() => {
+      if (state.environment === 'engenharia' && state.engActiveTab === 'visao') renderEngVisao(container);
+    });
+  }
+  const projs = state.eng.projetos || [];
+  const porEtapa = [0, 1, 2, 3].map(e => projs.filter(p => (p.etapa || 0) === e).length);
+  const potTotal = projs.reduce((a, p) => a + (Number(p.potencia_pico_kwp) || 0), 0);
+
+  const kpis = [
+    { label: 'Projetos', value: String(projs.length), icon: 'folder-kanban', tone: 'sky', hint: 'na carteira' },
+    { label: 'Aguardando dim.', value: String(porEtapa[0]), icon: 'inbox', tone: 'amber', hint: 'entraram na fila' },
+    { label: 'Em dimensionamento', value: String(porEtapa[1]), icon: 'ruler', tone: 'sky', hint: 'sendo calculados' },
+    { label: 'Potência em carteira', value: engFmtNum(potTotal, 1) + ' kWp', icon: 'zap', tone: 'emerald', hint: 'soma dimensionada' },
+  ].map(engKpiCard).join('');
+
+  const recentes = projs.slice(0, 6).map(p => `
+    <button onclick="engAbrirProjeto('${p.id}')" class="w-full text-left flex items-center gap-3 px-3 py-2.5 border-b border-neutral-800/70 hover:bg-neutral-900/60 transition-colors">
+      <div class="min-w-0 flex-1">
+        <div class="text-[12px] font-black text-neutral-100 truncate">${engEscAttr(p.nome_projeto)}</div>
+        <div class="text-[10px] text-neutral-500 truncate">${engEscAttr(p.nome_cliente || '—')}${p.cidade ? ' · ' + engEscAttr(p.cidade) : ''}</div>
+      </div>
+      <div class="text-right shrink-0">
+        <div class="text-sm font-black text-sky-300">${engFmtNum(p.potencia_pico_kwp, 2)} kWp</div>
+        <div class="text-[9px] font-black uppercase tracking-widest text-neutral-600">${ENG_ETAPAS[p.etapa || 0]}</div>
+      </div>
+    </button>`).join('') || `<div class="px-3 py-8 text-center text-neutral-600 text-xs">Nenhum projeto ainda.</div>`;
+
+  const breakdown = ENG_ETAPAS.map((label, i) => `
+    <div class="flex items-center justify-between px-3 py-2.5 border-b border-neutral-800/70">
+      <div class="flex items-center gap-2.5">
+        <span class="w-5 h-5 grid place-items-center text-[9px] font-black bg-sky-500/10 text-sky-300 border border-sky-500/20">${i}</span>
+        <span class="text-[11px] font-bold text-neutral-300">${label}</span>
+      </div>
+      <span class="text-sm font-black text-white">${porEtapa[i]}</span>
+    </div>`).join('');
+
+  container.innerHTML = `
+    <div class="p-6 max-w-7xl mx-auto">
+      <!-- Hero -->
+      <div class="relative overflow-hidden border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-indigo-500/10 p-5 md:p-6 mb-6">
+        <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-sky-300">
+          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Engenharia · Visão Geral
+        </div>
+        <h1 class="mt-2 text-2xl md:text-3xl font-black text-white uppercase tracking-wide">Dimensionamento Fotovoltaico</h1>
+        <p class="mt-1 text-[12px] text-neutral-400 max-w-2xl">Portfólio de projetos, validações e estatísticas de especificação técnica.</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button onclick="setTab('calculadora')" class="inline-flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-gradient-to-r ${ENG_ACCENT.grad} text-black">
+            <i data-lucide="calculator" class="w-3.5 h-3.5"></i> Nova simulação
+          </button>
+          <button onclick="setTab('funil')" class="inline-flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-neutral-300 border border-neutral-700 hover:border-sky-500/40 transition-colors">
+            <i data-lucide="git-merge" class="w-3.5 h-3.5"></i> Ver funil
+          </button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">${kpis}</div>
+
+      <!-- Recentes + breakdown -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="border border-neutral-800 bg-[#0a0a0a]">
+          <div class="flex items-center justify-between px-3 py-2.5 border-b border-neutral-800">
+            <span class="text-[10px] font-black uppercase tracking-widest text-neutral-300 flex items-center gap-2"><i data-lucide="history" class="w-3.5 h-3.5 text-sky-400"></i> Projetos recentes</span>
+            <button onclick="setTab('projetos')" class="text-[9px] font-black uppercase tracking-widest text-sky-400 hover:underline">Ver todos</button>
+          </div>
+          <div>${recentes}</div>
+        </div>
+        <div class="border border-neutral-800 bg-[#0a0a0a]">
+          <div class="flex items-center justify-between px-3 py-2.5 border-b border-neutral-800">
+            <span class="text-[10px] font-black uppercase tracking-widest text-neutral-300 flex items-center gap-2"><i data-lucide="git-merge" class="w-3.5 h-3.5 text-sky-400"></i> Projetos por etapa</span>
+            <button onclick="setTab('funil')" class="text-[9px] font-black uppercase tracking-widest text-sky-400 hover:underline">Abrir funil</button>
+          </div>
+          <div>${breakdown}</div>
+        </div>
+      </div>
+    </div>`;
+  if (window.lucide) lucide.createIcons();
+}
+
+// Placeholder do Funil — implementação completa na Fase 8.
+function renderEngFunil(container) {
+  container.innerHTML = `
+    <div class="p-6 max-w-7xl mx-auto">
+      ${engHeader('Funil', 'Pipeline dos projetos por etapa', 'git-merge')}
+      ${engEmBreve('Funil de projetos (kanban de 4 etapas)')}
+    </div>`;
+  if (window.lucide) lucide.createIcons();
+}
+
 // --- ROTEADOR PRINCIPAL ---
 function renderEngRoute(container, tabId) {
   switch (tabId) {
+    case 'visao':        return renderEngVisao(container);
+    case 'funil':        return renderEngFunil(container);
     case 'calculadora':  return renderEngCalculadora(container);
     case 'equipamentos': return renderEngEquipamentos(container);
     case 'projetos':     return renderEngProjetos(container);
-    default:             return renderEngCalculadora(container);
+    default:             return renderEngVisao(container);
   }
 }
 
 // --- EXPOSIÇÃO GLOBAL ---
 Object.assign(window, {
   renderEngRoute,
+  renderEngVisao,
+  renderEngFunil,
   renderEngCalculadora,
   renderEngEquipamentos,
   renderEngProjetos,

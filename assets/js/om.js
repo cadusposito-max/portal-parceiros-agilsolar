@@ -1243,11 +1243,14 @@ async function omOpenCreateProposta(opts = {}) {
 
         <div class="text-[10px] font-black uppercase tracking-widest text-blue-400/80 mb-1 mt-4">2 · Serviço</div>
         ${omField('Tipo de serviço', `
-          <select name="servicoId" required class="${OM_INPUT_CLS}">
-            ${servicos.map(s => `<option value="${s.id}" ${s.tipo === tipo ? 'selected' : ''}>${omEsc(s.nome)}</option>`).join('')}
+          <select name="servicoId" required class="${OM_INPUT_CLS}" onchange="omPropToggleCorretiva(this)">
+            ${servicos.map(s => `<option value="${s.id}" data-tipo="${omEsc(s.tipo || '')}" ${s.tipo === tipo ? 'selected' : ''}>${omEsc(s.nome)}</option>`).join('')}
           </select>
         `)}
-        ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}" placeholder="Detalhe o que está incluso no serviço.">${omEsc(opts.descricao || '')}</textarea>`)}
+        ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}" placeholder="Detalhe o que está incluso no serviço. Na corretiva, descreva aqui o problema identificado.">${omEsc(opts.descricao || '')}</textarea>`)}
+        <div id="om-prop-corretiva" style="display:${omIsCorretiva(tipo) ? 'block' : 'none'}">
+          ${omField('Diagnóstico / causa provável <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="diagnostico" rows="3" class="${OM_INPUT_CLS}" placeholder="O que a equipe apurou como causa da falha.">${omEsc(opts.diagnostico || '')}</textarea>`)}
+        </div>
         ${omField('Observações internas', `<textarea name="obs" rows="2" class="${OM_INPUT_CLS}" placeholder="Notas que não aparecem para o cliente"></textarea>`)}
 
         <div class="text-[10px] font-black uppercase tracking-widest text-blue-400/80 mb-1 mt-4">3 · Sistema / equipamento <span class="text-neutral-600 normal-case tracking-normal font-bold">(opcional)</span></div>
@@ -1266,6 +1269,16 @@ async function omOpenCreateProposta(opts = {}) {
       <button onclick="omSubmitProposta('rascunho')" class="px-4 py-2.5 bg-blue-500 hover:bg-blue-400 text-blue-950 font-black text-[10px] uppercase tracking-widest inline-flex items-center gap-2"><i data-lucide="file-plus-2" class="w-3.5 h-3.5 stroke-[3]"></i>Criar proposta</button>
     `
   });
+}
+
+// Mostra/esconde o campo de Diagnóstico conforme o serviço selecionado seja corretiva.
+// Vale para os modais de criação e edição (mesmo wrapper #om-prop-corretiva).
+function omPropToggleCorretiva(sel) {
+  const wrap = document.getElementById('om-prop-corretiva');
+  if (!wrap || !sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const tipo = opt ? (opt.getAttribute('data-tipo') || opt.textContent) : '';
+  wrap.style.display = omIsCorretiva(tipo) ? 'block' : 'none';
 }
 // --- Passo "Cliente" da proposta: buscar OU criar novo -----------------
 function omPropCliStepHTML() {
@@ -1599,6 +1612,7 @@ async function omSubmitProposta(nextAction = 'rascunho') {
       p_validade: fd.get('validade') || null,
       p_descricao: (fd.get('descricao') || '').trim() || null,
       p_observacoes_internas: (fd.get('obs') || '').trim() || null,
+      p_corretiva_diagnostico: (fd.get('diagnostico') || '').trim() || null,
     });
     if (error || !newId) throw error || new Error('Falha ao criar a proposta.');
 
@@ -1767,7 +1781,12 @@ function omPaintPropostaDetail(container, p) {
           <div class="bg-neutral-900/40 border border-neutral-800 p-5">
             <div class="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-2">Serviço</div>
             <div class="text-base font-bold text-white">${omEsc(p.tipo_servico || '—')}</div>
-            <div class="text-sm text-neutral-400 mt-2 whitespace-pre-line">${omEsc(p.descricao || 'Sem descrição.')}</div>
+            <div class="text-[10px] font-black uppercase tracking-widest text-neutral-500 mt-3 mb-1">${omIsCorretiva(p.tipo_servico) ? 'Problema identificado' : 'Descrição'}</div>
+            <div class="text-sm text-neutral-400 whitespace-pre-line">${omEsc(p.descricao || 'Sem descrição.')}</div>
+            ${omIsCorretiva(p.tipo_servico) && p.corretiva_diagnostico ? `
+              <div class="text-[10px] font-black uppercase tracking-widest text-neutral-500 mt-3 mb-1">Diagnóstico · causa provável</div>
+              <div class="text-sm text-neutral-400 whitespace-pre-line">${omEsc(p.corretiva_diagnostico)}</div>
+            ` : ''}
           </div>
 
           ${omPropSistemaCardHTML(p.sistema)}
@@ -1793,8 +1812,8 @@ function omPaintPropostaDetail(container, p) {
               <div class="text-[11px] text-neutral-500 bg-neutral-950 border border-neutral-800 p-3">Publique a proposta (Marcar como enviada) para liberar o link público do cliente.</div>
             ` : `
               <div class="space-y-2">
-                <button onclick="omAbrirPropostaPublica('${token}')" class="w-full px-3 py-2.5 bg-blue-500 hover:bg-blue-400 text-blue-950 font-black text-[10px] uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="external-link" class="w-3.5 h-3.5 stroke-[3]"></i>Ver proposta pública</button>
-                <button onclick="omCopiarLinkProposta('${token}')" class="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 hover:border-blue-500/40 hover:text-blue-300 text-white font-black text-[10px] uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="link-2" class="w-3.5 h-3.5"></i>Copiar link</button>
+                <button onclick="omAbrirPropostaPublica('${token}','${omEsc(p.tipo_servico || '')}')" class="w-full px-3 py-2.5 bg-blue-500 hover:bg-blue-400 text-blue-950 font-black text-[10px] uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="external-link" class="w-3.5 h-3.5 stroke-[3]"></i>Ver proposta pública</button>
+                <button onclick="omCopiarLinkProposta('${token}','${omEsc(p.tipo_servico || '')}')" class="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 hover:border-blue-500/40 hover:text-blue-300 text-white font-black text-[10px] uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="link-2" class="w-3.5 h-3.5"></i>Copiar link</button>
                 <div class="text-[10px] text-neutral-500 text-center mt-1">Link público — o cliente abre direto, sem login.</div>
               </div>
             `}
@@ -1854,6 +1873,7 @@ const OM_PROP_FIELD_LABEL = {
   servico: 'Serviço', valor: 'Valor', desconto: 'Desconto', condicao_pagamento: 'Condição',
   validade: 'Validade', titulo: 'Título', descricao: 'Descrição',
   observacoes_cliente: 'Obs. do cliente', observacoes_internas: 'Obs. internas',
+  corretiva_diagnostico: 'Diagnóstico',
 };
 function omPropFmtVal(field, v) {
   if (v === null || v === undefined || v === '') return '—';
@@ -1892,11 +1912,14 @@ async function omPropEditar(id) {
         <input type="hidden" name="titulo" value="${omEsc(p.titulo || '')}" />
         <div class="text-[10px] font-black uppercase tracking-widest text-blue-400/80 mb-1">Serviço</div>
         ${omField('Tipo de serviço', `
-          <select name="servicoId" required class="${OM_INPUT_CLS}">
-            ${servicos.map(s => `<option value="${s.id}" ${s.id === p.servico_id ? 'selected' : ''}>${omEsc(s.nome)}</option>`).join('')}
+          <select name="servicoId" required class="${OM_INPUT_CLS}" onchange="omPropToggleCorretiva(this)">
+            ${servicos.map(s => `<option value="${s.id}" data-tipo="${omEsc(s.tipo || '')}" ${s.id === p.servico_id ? 'selected' : ''}>${omEsc(s.nome)}</option>`).join('')}
           </select>
         `)}
         ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}">${omEsc(p.descricao || '')}</textarea>`)}
+        <div id="om-prop-corretiva" style="display:${omIsCorretiva(p.tipo_servico) ? 'block' : 'none'}">
+          ${omField('Diagnóstico / causa provável <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="diagnostico" rows="3" class="${OM_INPUT_CLS}" placeholder="O que a equipe apurou como causa da falha.">${omEsc(p.corretiva_diagnostico || '')}</textarea>`)}
+        </div>
         ${omField('Observações internas', `<textarea name="obsInt" rows="2" class="${OM_INPUT_CLS}" placeholder="Não aparecem para o cliente">${omEsc(p.observacoes_internas || '')}</textarea>`)}
         ${omField('Observações para o cliente', `<textarea name="obsCli" rows="2" class="${OM_INPUT_CLS}">${omEsc(p.observacoes_cliente || '')}</textarea>`)}
 
@@ -1939,6 +1962,7 @@ async function omSubmitPropEdit(id) {
       p_descricao: (fd.get('descricao') || '').trim() || null,
       p_observacoes_cliente: (fd.get('obsCli') || '').trim() || null,
       p_observacoes_internas: (fd.get('obsInt') || '').trim() || null,
+      p_corretiva_diagnostico: (fd.get('diagnostico') || '').trim() || null,
     });
     if (error) throw error;
 
@@ -3092,23 +3116,32 @@ function renderOMRoute(container, tabId) {
 }
 
 // =======================================================================
-// Proposta pública O&M — link para a página proposta-om.html
+// Proposta pública O&M — link para a página pública correta por tipo.
+// Manutenção corretiva usa uma página própria (proposta-corretiva.html);
+// os demais tipos usam proposta-om.html.
 // =======================================================================
-const OM_PROPOSTA_PUBLIC_PATH = 'proposta-om.html';
+const OM_PROPOSTA_PUBLIC_PATH    = 'proposta-om.html';
+const OM_PROPOSTA_CORRETIVA_PATH = 'proposta-corretiva.html';
+const OM_TIPO_CORRETIVA          = 'Manutenção corretiva';
 
-function omPublicLink(token) {
-  const base = window.location.href.split('/').slice(0, -1).join('/') + '/' + OM_PROPOSTA_PUBLIC_PATH;
+function omIsCorretiva(tipo) {
+  return (tipo || '').trim().toLowerCase() === OM_TIPO_CORRETIVA.toLowerCase();
+}
+
+function omPublicLink(token, tipo) {
+  const path = omIsCorretiva(tipo) ? OM_PROPOSTA_CORRETIVA_PATH : OM_PROPOSTA_PUBLIC_PATH;
+  const base = window.location.href.split('/').slice(0, -1).join('/') + '/' + path;
   return `${base}?t=${encodeURIComponent(token)}`;
 }
 
-function omAbrirPropostaPublica(token) {
+function omAbrirPropostaPublica(token, tipo) {
   if (!token) { if (typeof showToast === 'function') showToast('Link público indisponível.'); return; }
-  window.open(omPublicLink(token), '_blank', 'noopener');
+  window.open(omPublicLink(token, tipo), '_blank', 'noopener');
 }
 
-function omCopiarLinkProposta(token) {
+function omCopiarLinkProposta(token, tipo) {
   if (!token) { if (typeof showToast === 'function') showToast('Link público indisponível.'); return; }
-  const url = omPublicLink(token);
+  const url = omPublicLink(token, tipo);
   const done = () => { if (typeof showToast === 'function') showToast('Link da proposta copiado.'); };
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(url).then(done, () => {
@@ -3130,6 +3163,7 @@ Object.assign(window, {
   // Propostas O&M
   omPropSet, omPropSearch, omOpenPropostaDetail, omClosePropostaDetail,
   omOpenCreateProposta, omSubmitProposta, omPropSetStatus, omPropEditar, omSubmitPropEdit,
+  omPropToggleCorretiva,
   omPropCliReset, omPropCliNew, omPropCliSearch, omPropCliSelect,
   omPropSisReset, omPropSisManual, omPropSisPickExistentes, omPropSisPickImport,
   omPropSisSelectExistente, omPropSisImportPick,

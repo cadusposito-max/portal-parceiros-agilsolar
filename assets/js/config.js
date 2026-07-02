@@ -58,8 +58,8 @@ let state = {
   // Acesso à Vistoria (na fase atual: admin sempre; flag por perfil vem na fase Supabase)
   canVis: false,
 
-  // Ambiente Engenharia (5º ambiente — calculadora/dimensionamento). Stateless até a fase Supabase.
-  engActiveTab: 'calculadora',
+  // Ambiente Engenharia (5º ambiente — gestão de projetos + dimensionamento).
+  engActiveTab: 'visao',
   // Acesso à Engenharia (fase atual: admin sempre; flag eng_enabled + role 'engenheiro' vêm na fase Supabase)
   canEng: false,
   // Sub-estado da Engenharia: inputs, último resultado calculado, presets e projetos (estado local até o banco).
@@ -245,9 +245,11 @@ const VISTORIA_TABS = [
   { id: 'config',     label: 'CONFIG',      icon: 'settings' }
 ];
 
-// Tabs do ambiente Engenharia (calculadora / dimensionamento fotovoltaico).
+// Tabs do ambiente Engenharia (gestão de projetos + dimensionamento fotovoltaico).
 const ENG_TABS = [
-  { id: 'calculadora',  label: 'CALCULADORA',  icon: 'calculator' },
-  { id: 'equipamentos', label: 'EQUIPAMENTOS', icon: 'cpu' },
-  { id: 'projetos',     label: 'PROJETOS',     icon: 'folder-open' }
+  { id: 'visao',        label: 'VISÃO GERAL',  icon: 'layout-dashboard' },
+  { id: 'funil',        label: 'FUNIL',        icon: 'git-merge' },
+  { id: 'calculadora',  label: 'CALCULADORA',  icon: 'calculator',   secondary: true },
+  { id: 'equipamentos', label: 'EQUIPAMENTOS', icon: 'cpu',          secondary: true },
+  { id: 'projetos',     label: 'PROJETOS',     icon: 'folder-open',  secondary: true }
 ];
