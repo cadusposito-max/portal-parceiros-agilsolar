@@ -199,13 +199,23 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
       );
     }
   } else {
-    const { data: newKit } = await supabaseClient.from('produtos').insert([productData]).select().single();
+    // Com franquia selecionada: kit exclusivo daquela unidade (não vaza para as outras).
+    // Sem franquia (admin global): kit padrão, criado para todas as franquias ativas.
+    const novoProduto = state.adminKitsFranquia
+      ? { ...productData, franquia_id: state.adminKitsFranquia }
+      : productData;
+    const { data: newKit } = await supabaseClient.from('produtos').insert([novoProduto]).select().single();
     if (newKit) {
-      // Cria precos_franquia para TODAS as franquias ativas (mesmo preço inicial)
-      const { data: todasFranquias = [] } = await supabaseClient.from('franquias').select('id').eq('ativo', true);
-      if (todasFranquias.length > 0) {
+      let alvos;
+      if (state.adminKitsFranquia) {
+        alvos = [{ id: state.adminKitsFranquia }];
+      } else {
+        const { data: todasFranquias = [] } = await supabaseClient.from('franquias').select('id').eq('ativo', true);
+        alvos = todasFranquias;
+      }
+      if (alvos.length > 0) {
         await supabaseClient.from('precos_franquia').upsert(
-          todasFranquias.map(f => ({ produto_id: newKit.id, franquia_id: f.id, price: productData.price, list_price: productData.list_price })),
+          alvos.map(f => ({ produto_id: newKit.id, franquia_id: f.id, price: productData.price, list_price: productData.list_price })),
           { onConflict: 'produto_id,franquia_id' }
         );
       }
@@ -225,6 +235,22 @@ async function deleteItem(id) {
     return;
   }
 
+  const kit = (Array.isArray(state.data) ? state.data : []).find(k => String(k.id) === String(id));
+  const franquiaId = state.adminKitsFranquia || null;
+  const kitFranquiaId = kit && kit.franquia_id ? String(kit.franquia_id) : '';
+  const isExclusivaDestaUnidade = kitFranquiaId !== '' && kitFranquiaId === String(franquiaId || '');
+
+  // Kit do catálogo padrão visto numa unidade: "remover" apenas oculta nesta unidade (não apaga globalmente).
+  if (franquiaId && kit && !isExclusivaDestaUnidade) {
+    if (!confirm('OCULTAR ESTE KIT NESTA UNIDADE? As outras unidades não são afetadas.')) return;
+    await supabaseClient.from('precos_franquia').delete().eq('produto_id', id).eq('franquia_id', franquiaId);
+    await fetchProducts();
+    showToast('KIT OCULTADO NESTA UNIDADE');
+    renderContent();
+    return;
+  }
+
+  // Kit exclusivo desta unidade (ou modo admin global): remoção definitiva do produto.
   if (confirm('TEM CERTEZA? ESSA AÇÃO NÃO PODE SER DESFEITA.')) {
     await supabaseClient.from('produtos').delete().eq('id', id);
     await fetchProducts();
@@ -486,9 +512,11 @@ function mapImportedRowsToProducts(rows) {
 }
 
 async function importMappedKits(mappedRows) {
+  const franquiaId = state.adminKitsFranquia || null;
+
   const { data: existing = [], error: existingErr } = await supabaseClient
     .from('produtos')
-    .select('id, categoria, name, brand, power, type, tag, description');
+    .select('id, categoria, name, brand, power, type, tag, description, franquia_id');
   if (existingErr) throw existingErr;
 
   const byId = new Map(existing.map(item => [String(item.id), item]));
@@ -496,17 +524,15 @@ async function importMappedKits(mappedRows) {
 
   const toInsert = [];
   const toUpdate = [];
-  const skippedIdRows = [];
+  let skippedNoData = 0;
 
   for (const row of mappedRows) {
     let target = null;
     if (row._explicitId) {
       target = byId.get(String(row._explicitId)) || null;
-      if (!target) {
-        skippedIdRows.push(row._rowNum);
-        continue;
-      }
-    } else if (row._hasLookupKey) {
+    }
+    // Id inexistente NAO e mais descartado: cai para casamento por nome/potencia ou criacao.
+    if (!target && row._hasLookupKey) {
       target = byKey.get(buildKitMatchKey(row.name, row.brand, row.power)) || null;
     }
 
@@ -522,28 +548,35 @@ async function importMappedKits(mappedRows) {
         tag: row.tag || target.tag,
         description: row.description || target.description,
       };
-      toUpdate.push({ id: target.id, payload });
+      const exclusivaDestaUnidade = Boolean(franquiaId)
+        && String(target.franquia_id || '') === String(franquiaId);
+      toUpdate.push({ id: target.id, payload, exclusivaDestaUnidade });
     } else {
-      // Sem ID e sem correspondencia: cria novo kit apenas quando dados essenciais existem.
+      // Sem correspondencia (id novo OU sem id): cria kit quando ha dados essenciais.
       if (!row.name || !row.brand || !Number.isFinite(row.power) || row.power <= 0) {
+        skippedNoData++;
         continue;
       }
 
-      const payload = {
+      toInsert.push({
+        // Preserva o id da planilha quando informado (round-trip do export).
+        ...(row._explicitId ? { id: row._explicitId } : {}),
         categoria: row.categoria || getImportDefaultCategory(),
         name: row.name,
         brand: row.brand,
         power: row.power,
         price: row.price,
         list_price: row.list_price,
-        type: row.type || 'Bifasico',
+        type: row.type || 'Bifásico',
         tag: row.tag || 'MAIS VENDIDO',
         description: row.description || `${row.power}kWp - ${row.brand}`,
-      };
-      toInsert.push(payload);
+        // Com franquia selecionada, kit exclusivo dela; sem franquia (admin global), kit padrao.
+        ...(franquiaId ? { franquia_id: franquiaId } : {}),
+      });
     }
   }
 
+  // 1) INSERT dos novos produtos
   let insertedRows = [];
   if (toInsert.length > 0) {
     const { data, error } = await supabaseClient
@@ -554,11 +587,51 @@ async function importMappedKits(mappedRows) {
     insertedRows = data || [];
   }
 
-  const updateGlobalPrices = !state.adminKitsFranquia;
+  // 2) precos_franquia dos novos: so a franquia selecionada; se admin global, todas as ativas.
+  if (insertedRows.length > 0) {
+    let alvos;
+    if (franquiaId) {
+      alvos = [{ id: franquiaId }];
+    } else {
+      const { data: fr = [], error } = await supabaseClient
+        .from('franquias').select('id').eq('ativo', true);
+      if (error) throw error;
+      alvos = fr;
+    }
+
+    if (alvos.length > 0) {
+      const pricingRows = [];
+      for (const kit of insertedRows) {
+        for (const f of alvos) {
+          pricingRows.push({
+            produto_id: kit.id,
+            franquia_id: f.id,
+            price: Number(kit.price) || 0,
+            list_price: Number(kit.list_price) || 0,
+          });
+        }
+      }
+      const { error: pricingErr } = await supabaseClient
+        .from('precos_franquia')
+        .upsert(pricingRows, { onConflict: 'produto_id,franquia_id' });
+      if (pricingErr) throw pricingErr;
+    }
+  }
+
+  // 3) UPDATE dos existentes
+  const precoUpserts = [];
   for (const item of toUpdate) {
-    const produtoPayload = updateGlobalPrices
-      ? item.payload
-      : {
+    if (franquiaId) {
+      // Preco sempre grava na franquia selecionada (fonte de verdade da lista da unidade).
+      precoUpserts.push({
+        produto_id: item.id,
+        franquia_id: franquiaId,
+        price: Number(item.payload.price) || 0,
+        list_price: Number(item.payload.list_price) || 0,
+      });
+      // Campos de catalogo so mudam se o kit for exclusivo desta unidade (nao mexe no padrao global).
+      if (item.exclusivaDestaUnidade) {
+        const { error } = await supabaseClient.from('produtos').update({
           categoria: item.payload.categoria,
           name: item.payload.name,
           brand: item.payload.brand,
@@ -566,63 +639,28 @@ async function importMappedKits(mappedRows) {
           type: item.payload.type,
           tag: item.payload.tag,
           description: item.payload.description,
-        };
-
-    const { error } = await supabaseClient
-      .from('produtos')
-      .update(produtoPayload)
-      .eq('id', item.id);
-    if (error) throw error;
-  }
-
-  if (insertedRows.length > 0) {
-    const { data: franquias = [], error: franquiasErr } = await supabaseClient
-      .from('franquias')
-      .select('id')
-      .eq('ativo', true);
-    if (franquiasErr) throw franquiasErr;
-
-    if (franquias.length > 0) {
-      const pricingRows = [];
-      for (const kit of insertedRows) {
-        for (const franquia of franquias) {
-          pricingRows.push({
-            produto_id: kit.id,
-            franquia_id: franquia.id,
-            price: Number(kit.price) || 0,
-            list_price: Number(kit.list_price) || 0,
-          });
-        }
+        }).eq('id', item.id);
+        if (error) throw error;
       }
-
-      if (pricingRows.length > 0) {
-        const { error: pricingErr } = await supabaseClient
-          .from('precos_franquia')
-          .upsert(pricingRows, { onConflict: 'produto_id,franquia_id' });
-        if (pricingErr) throw pricingErr;
-      }
+    } else {
+      // Admin global: atualiza o produto padrao por completo (preco + catalogo).
+      const { error } = await supabaseClient
+        .from('produtos').update(item.payload).eq('id', item.id);
+      if (error) throw error;
     }
   }
 
-  if (state.adminKitsFranquia && toUpdate.length > 0) {
-    const updatePricingRows = toUpdate.map(item => ({
-      produto_id: item.id,
-      franquia_id: state.adminKitsFranquia,
-      price: Number(item.payload.price) || 0,
-      list_price: Number(item.payload.list_price) || 0,
-    }));
-
-    const { error: updatePricingErr } = await supabaseClient
+  if (precoUpserts.length > 0) {
+    const { error } = await supabaseClient
       .from('precos_franquia')
-      .upsert(updatePricingRows, { onConflict: 'produto_id,franquia_id' });
-    if (updatePricingErr) throw updatePricingErr;
+      .upsert(precoUpserts, { onConflict: 'produto_id,franquia_id' });
+    if (error) throw error;
   }
 
   return {
     insertedCount: insertedRows.length,
     updatedCount: toUpdate.length,
-    skippedIdCount: skippedIdRows.length,
-    skippedIdRows,
+    skippedNoDataCount: skippedNoData,
   };
 }
 
@@ -672,9 +710,8 @@ async function handleKitsSpreadsheetSelection(event) {
       `${result.insertedCount} novo(s)`,
       `${result.updatedCount} atualizado(s)`,
     ];
-    if (result.skippedIdCount > 0) {
-      resultParts.push(`${result.skippedIdCount} ignorado(s) por ID nao encontrado`);
-      console.warn('Importacao de kits - linhas com ID nao encontrado:', result.skippedIdRows);
+    if (result.skippedNoDataCount > 0) {
+      resultParts.push(`${result.skippedNoDataCount} ignorado(s) por falta de dados`);
     }
     if (mapped.errors.length > 0) {
       resultParts.push(`${mapped.errors.length} ignorado(s)`);

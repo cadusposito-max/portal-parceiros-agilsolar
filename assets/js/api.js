@@ -162,8 +162,8 @@ async function fetchProducts() {
       const { data, error } = await supabaseClient
         .from('produtos')
         .select(`
-          id, categoria, name, brand, power, type, description, tag, created_at, price, list_price,
-          precos_franquia(price, list_price)
+          id, categoria, name, brand, power, type, description, tag, created_at, price, list_price, franquia_id,
+          precos_franquia!inner(price, list_price)
         `)
         .eq('precos_franquia.franquia_id', targetFranquiaId)
         .order('power', { ascending: true });
@@ -186,7 +186,7 @@ async function fetchProducts() {
     const { data, error } = await supabaseClient
       .from('produtos')
       .select(`
-        id, categoria, name, brand, power, type, description, tag, created_at, price, list_price,
+        id, categoria, name, brand, power, type, description, tag, created_at, price, list_price, franquia_id,
         precos_franquia!inner(price, list_price)
       `)
       .eq('precos_franquia.franquia_id', state.franquiaId)
