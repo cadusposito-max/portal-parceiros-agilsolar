@@ -139,6 +139,7 @@ let state = {
     preset: 'all',
   },
   dashPeriod: '',           // Periodo filtro dashboard (legado)
+  dashVendedor: 'all',      // Filtro por vendedor no dashboard (admin/gestor). Session-only: não persistir (email obsoleto viraria filtro fantasma)
   dashComunicadosPage: 0,
   dashComunicadoModalOpen: false,
   dashComunicadoModalId: null,

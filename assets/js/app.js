@@ -214,6 +214,7 @@ async function toggleAdminViewMode() {
   if (!state.adminViewAll) {
     state.adminScopeFranquiaId = 'all';
   }
+  state.dashVendedor = 'all'; // vendedor selecionado pode não existir no novo escopo
   persistAdminPreferences();
   showToast(state.adminViewAll ? 'VISÃO: TODAS AS FRANQUIAS' : 'VISÃO: MINHA UNIDADE');
   await Promise.all([fetchClientes(), fetchPropostas(), fetchVendas()]);
@@ -223,12 +224,14 @@ async function toggleAdminViewMode() {
 
 function setAdminScopeFranquia(scopeId) {
   state.adminScopeFranquiaId = String(scopeId || 'all');
+  state.dashVendedor = 'all'; // trocar franquia reseta o filtro de vendedor
   persistAdminPreferences();
   renderContent();
 }
 
 async function toggleGestorViewMode() {
   state.gestorViewAll = !state.gestorViewAll;
+  state.dashVendedor = 'all'; // "apenas meus" não tem filtro de vendedor
   showToast(state.gestorViewAll ? 'VISÃO: MINHA UNIDADE' : 'VISÃO: APENAS MEUS CLIENTES');
   await Promise.all([fetchClientes(), fetchPropostas(), fetchVendas()]);
   renderHeaderUser();
