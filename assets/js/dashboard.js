@@ -111,13 +111,9 @@ function buildDashboardAdminMetrics(monthKey, clientesRows, propostasRows, venda
     }));
 
   const now = new Date();
-  const agingConfig = [
-    { status: 'NOVO', limit: 7 },
-    { status: 'PROPOSTA ENVIADA', limit: 10 },
-    { status: 'EM NEGOCIAÇÃO', limit: 14 },
-  ];
-
-  const aging = agingConfig.map((entry) => {
+  // Fonte única com a fila do dia (crm-fila.js): as duas telas cobram "parado"
+  // pela mesma régua.
+  const aging = CRM_AGING_LIMITS.map((entry) => {
     const qty = clientesRows.filter((client) => {
       if ((client?.status || 'NOVO') !== entry.status) return false;
       const created = new Date(client?.created_at || 0);
@@ -385,6 +381,19 @@ function renderDashboard(container) {
     </div>
 
     <!-- ════════════════════════════════════════
+         PARA HOJE - fila de trabalho (crm-fila.js)
+         Fica acima das métricas de propósito: o dashboard abre dizendo o que
+         FAZER, não só o que aconteceu.
+         ════════════════════════════════════════ -->
+    ${typeof renderFilaDoDiaBlock === 'function' ? renderFilaDoDiaBlock() : ''}
+
+    <!-- ════════════════════════════════════════
+         META DO MÊS + COMISSÃO ESTIMADA (crm-metas.js)
+         Só para vendedor; admin/gestor têm a visão de time mais abaixo.
+         ════════════════════════════════════════ -->
+    ${typeof renderMetaBlock === 'function' ? renderMetaBlock() : ''}
+
+    <!-- ════════════════════════════════════════
          FILTRO DE PERÍODO (Métricas de venda)
          ════════════════════════════════════════ -->
     <div class="flex flex-wrap items-center justify-between gap-2 px-1">
@@ -396,9 +405,8 @@ function renderDashboard(container) {
           class="${_dashGeralAtivo ? 'bg-neutral-700 text-white border-neutral-600' : 'bg-transparent border-neutral-800 text-neutral-600 hover:text-neutral-300 hover:border-neutral-700'} border px-2.5 py-1 font-black uppercase text-[8px] tracking-widest transition-all">GERAL</button>
         ${_dashBtns}
         ${dashScopeSelectorHTML}
-        <button onclick="refreshData()" title="Atualizar dados"
-          class="border border-neutral-800 text-neutral-600 hover:text-white hover:border-neutral-600 px-2 py-1 transition-all flex items-center gap-1 text-[8px] font-black uppercase tracking-widest ml-1">
-          <i id="refresh-data-icon" data-lucide="refresh-cw" class="w-3 h-3 transition-transform"></i>
+        <button onclick="refreshData()" title="Atualizar dados" class="btn btn-ghost btn-sm ml-1">
+          <i id="refresh-data-icon" data-lucide="refresh-cw" class="transition-transform"></i>
         </button>
       </div>
     </div>
@@ -408,8 +416,8 @@ function renderDashboard(container) {
          ════════════════════════════════════════ -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
 
-      <!-- Clientes -->
-      <div class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-default">
+      <!-- Clientes (clicável → aba Clientes) -->
+      <div onclick="setTab('clientes')" class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-pointer hover:border-blue-500/30 transition-colors">
         <div class="absolute -top-6 -right-6 w-28 h-28 bg-blue-500 opacity-[0.05] rounded-full blur-2xl group-hover:opacity-[0.1] transition-opacity duration-700 pointer-events-none"></div>
         <div class="flex justify-between items-start relative z-10">
           <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Meus Clientes</span>
@@ -421,18 +429,13 @@ function renderDashboard(container) {
           <div class="text-3xl md:text-5xl font-black text-white tabular-nums leading-none" data-count="${totalClientes}">0</div>
           <div class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest mt-1">na carteira</div>
         </div>
-        <div class="relative z-10 space-y-1.5">
-          <div class="flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest">
-            <span>Meta</span><span class="text-blue-500">${Math.min(totalClientes * 10, 100)}%</span>
-          </div>
-          <div class="w-full h-px bg-neutral-900 rounded-full">
-            <div class="h-full bg-gradient-to-r from-blue-600 to-blue-400 bar-animated rounded-full" style="width: ${Math.min(totalClientes * 10, 100)}%"></div>
-          </div>
+        <div class="relative z-10 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-neutral-700 group-hover:text-blue-400 transition-colors mt-auto">
+          Ver clientes <i data-lucide="arrow-right" class="w-3 h-3"></i>
         </div>
       </div>
 
-      <!-- Propostas -->
-      <div class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-default" style="animation-delay: 80ms">
+      <!-- Propostas (clicável → aba Propostas) -->
+      <div onclick="setTab('propostas')" class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-pointer hover:border-orange-500/30 transition-colors" style="animation-delay: 80ms">
         <div class="absolute -top-6 -right-6 w-28 h-28 bg-orange-500 opacity-[0.05] rounded-full blur-2xl group-hover:opacity-[0.1] transition-opacity duration-700 pointer-events-none"></div>
         <div class="flex justify-between items-start relative z-10">
           <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Propostas</span>
@@ -444,18 +447,13 @@ function renderDashboard(container) {
           <div class="text-3xl md:text-5xl font-black text-white tabular-nums leading-none" data-count="${propostasReais}">0</div>
           <div class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest mt-1">orçamentos gerados</div>
         </div>
-        <div class="relative z-10 space-y-1.5">
-          <div class="flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest">
-            <span>Volume</span><span class="text-orange-400">${Math.min(propostasReais * 5, 100)}%</span>
-          </div>
-          <div class="w-full h-px bg-neutral-900 rounded-full">
-            <div class="h-full bg-gradient-to-r from-orange-600 to-yellow-400 bar-animated rounded-full" style="width: ${Math.min(propostasReais * 5, 100)}%"></div>
-          </div>
+        <div class="relative z-10 flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-neutral-700 group-hover:text-orange-400 transition-colors mt-auto">
+          Ver propostas <i data-lucide="arrow-right" class="w-3 h-3"></i>
         </div>
       </div>
 
-      <!-- Fechados -->
-      <div class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-default" style="animation-delay: 160ms">
+      <!-- Fechados (clicável → aba Vendas; barra de conversão é dado real) -->
+      <div onclick="setTab('vendas')" class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-pointer hover:border-green-500/30 transition-colors" style="animation-delay: 160ms">
         <div class="absolute -top-6 -right-6 w-28 h-28 bg-green-500 opacity-[0.05] rounded-full blur-2xl group-hover:opacity-[0.1] transition-opacity duration-700 pointer-events-none"></div>
         <div class="flex justify-between items-start relative z-10">
           <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Negócios Fechados</span>
@@ -477,8 +475,8 @@ function renderDashboard(container) {
         </div>
       </div>
 
-      <!-- Ticket Médio -->
-      <div class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-default" style="animation-delay: 240ms">
+      <!-- Ticket Médio (clicável → aba Vendas) -->
+      <div onclick="setTab('vendas')" class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-pointer hover:border-blue-400/30 transition-colors" style="animation-delay: 240ms">
         <div class="absolute -top-6 -right-6 w-28 h-28 bg-blue-400 opacity-[0.04] rounded-full blur-2xl group-hover:opacity-[0.08] transition-opacity duration-700 pointer-events-none"></div>
         <div class="flex justify-between items-start relative z-10">
           <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Ticket Médio</span>
@@ -490,13 +488,8 @@ function renderDashboard(container) {
           <div class="text-xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 tabular-nums leading-none pb-0.5 break-all" data-count="${ticketMedio}" data-count-currency="true">R$ 0</div>
           <div class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest mt-1">${qtdVendas > 0 ? `${qtdVendas} venda${qtdVendas > 1 ? 's' : ''} no período` : 'nenhuma venda registrada'}</div>
         </div>
-        <div class="relative z-10 space-y-1.5">
-          <div class="flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest gap-1 min-w-0">
-            <span class="shrink-0">Total vendido</span><span class="text-blue-500 truncate text-right">${formatCurrency(totalVendido)}</span>
-          </div>
-          <div class="w-full h-px bg-neutral-900 rounded-full">
-            <div class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 bar-animated rounded-full" style="width: ${Math.min(qtdVendas * 20, 100)}%"></div>
-          </div>
+        <div class="relative z-10 flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest gap-1 min-w-0 mt-auto">
+          <span class="shrink-0">Total vendido</span><span class="text-blue-500 truncate text-right">${formatCurrency(totalVendido)}</span>
         </div>
       </div>
     </div>
@@ -595,6 +588,10 @@ function renderDashboard(container) {
          COMUNICADOS + LATERAL
          ════════════════════════════════════════ -->
     ${state.isAdmin && adminDashMetrics ? renderDashboardAdminSection(adminDashMetrics) : ''}
+
+    <!-- Metas vs realizado do time (crm-metas.js) — admin E gestor -->
+    ${typeof renderMetasEquipeBlock === 'function' ? renderMetasEquipeBlock() : ''}
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-4">
 
       <!-- Comunicados -->
@@ -618,38 +615,9 @@ function renderDashboard(container) {
       <!-- Coluna lateral -->
       <div class="flex flex-col gap-3">
 
-        <!-- Materiais Úteis -->
-        <div class="dash-materials-panel border border-neutral-800/60 p-5 flex flex-col gap-3" style="background: #0d0d0d;">
-          <h3 class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-            <div class="p-1.5 bg-blue-500/10 border border-blue-500/20">
-              <i data-lucide="folder-down" class="w-3 h-3 text-blue-400"></i>
-            </div>
-            Materiais Úteis
-          </h3>
-          <a href="#" class="flex items-center justify-between p-3 border border-neutral-800/50 hover:border-red-500/40 hover:bg-red-500/4 transition-all group">
-            <div class="flex items-center gap-2.5">
-              <div class="p-1.5 bg-red-500/10 shrink-0"><i data-lucide="file-text" class="w-3.5 h-3.5 text-red-400"></i></div>
-              <span class="text-[10px] font-bold text-neutral-400 group-hover:text-white uppercase tracking-wider transition-colors">Apresentação Ágil</span>
-            </div>
-            <i data-lucide="download" class="w-3 h-3 text-neutral-700 group-hover:text-red-400 shrink-0 transition-colors"></i>
-          </a>
-          <a href="#" class="flex items-center justify-between p-3 border border-neutral-800/50 hover:border-green-500/40 hover:bg-green-500/4 transition-all group">
-            <div class="flex items-center gap-2.5">
-              <div class="p-1.5 bg-green-500/10 shrink-0"><i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-green-400"></i></div>
-              <span class="text-[10px] font-bold text-neutral-400 group-hover:text-white uppercase tracking-wider transition-colors">Tabela de Juros</span>
-            </div>
-            <i data-lucide="download" class="w-3 h-3 text-neutral-700 group-hover:text-green-400 shrink-0 transition-colors"></i>
-          </a>
-          <a href="#" class="flex items-center justify-between p-3 border border-neutral-800/50 hover:border-orange-500/40 hover:bg-orange-500/4 transition-all group">
-            <div class="flex items-center gap-2.5">
-              <div class="p-1.5 bg-orange-500/10 shrink-0"><i data-lucide="file-check-2" class="w-3.5 h-3.5 text-orange-400"></i></div>
-              <span class="text-[10px] font-bold text-neutral-400 group-hover:text-white uppercase tracking-wider transition-colors">Ficha Inversores</span>
-            </div>
-            <i data-lucide="download" class="w-3 h-3 text-neutral-700 group-hover:text-orange-400 shrink-0 transition-colors"></i>
-          </a>
-        </div>
-
         <!-- CTA Ação Rápida -->
+        <!-- (o painel "Materiais Úteis" foi removido: eram links href="#" sem
+             arquivo real. Recolocar só quando existirem materiais de verdade.) -->
         <div class="dash-quick-panel relative overflow-hidden border border-orange-500/15 p-5 flex flex-col gap-4"
           style="background: linear-gradient(135deg, rgba(234,88,12,0.06) 0%, #080808 60%);">
           <div class="absolute inset-0 bg-grid-sm opacity-30 pointer-events-none"></div>
@@ -657,12 +625,11 @@ function renderDashboard(container) {
             <div class="text-[8px] font-black text-orange-400/50 uppercase tracking-[0.3em] mb-2">Ação Rápida</div>
             <p class="text-sm font-bold text-neutral-300 leading-snug">Tem um cliente em mente?<br>Crie o orçamento agora.</p>
           </div>
-          <button onclick="setTab('clientes')"
-            class="relative z-10 flex items-center gap-2 bg-gradient-to-r from-orange-600 to-yellow-500
-              hover:from-orange-500 hover:to-yellow-400 text-black px-4 py-2.5 font-black uppercase
-              tracking-widest text-[10px] transition-all active:scale-95
-              shadow-[0_0_20px_rgba(234,88,12,0.2)] hover:shadow-[0_0_30px_rgba(234,88,12,0.5)]">
-            <i data-lucide="users" class="w-3.5 h-3.5"></i> Ir para Clientes
+          <button onclick="openNovaPropostaPicker()" class="btn btn-primary relative z-10">
+            <i data-lucide="file-plus-2"></i> Nova Proposta
+          </button>
+          <button onclick="setTab('clientes')" class="btn btn-ghost btn-sm relative z-10">
+            <i data-lucide="users"></i> Ir para Clientes
           </button>
         </div>
 

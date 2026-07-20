@@ -162,8 +162,8 @@ async function fetchProducts() {
       const { data, error } = await supabaseClient
         .from('produtos')
         .select(`
-          id, categoria, name, brand, power, type, description, tag, created_at, price, list_price,
-          precos_franquia(price, list_price)
+          id, categoria, name, brand, power, type, description, tag, ativo, created_at, price, list_price, franquia_id,
+          precos_franquia!inner(price, list_price)
         `)
         .eq('precos_franquia.franquia_id', targetFranquiaId)
         .order('power', { ascending: true });
@@ -186,7 +186,7 @@ async function fetchProducts() {
     const { data, error } = await supabaseClient
       .from('produtos')
       .select(`
-        id, categoria, name, brand, power, type, description, tag, created_at, price, list_price,
+        id, categoria, name, brand, power, type, description, tag, created_at, price, list_price, franquia_id,
         precos_franquia!inner(price, list_price)
       `)
       .eq('precos_franquia.franquia_id', state.franquiaId)
@@ -207,12 +207,87 @@ async function fetchClientes() {
   const query = supabaseClient
     .from('clientes')
     .select('*')
+    .is('merged_into', null)   // oculta perdedores de mesclagens
+    .is('arquivado_em', null)  // oculta o que a higiene do funil arquivou
     .order('created_at', { ascending: false });
 
   applyOperationalScopeToQuery(query);
 
   const { data, error } = await query;
   if (!error) state.clientes = data || [];
+
+  // Enriquecimentos do CRM (flags O&M + última atividade) — falha silenciosa,
+  // a lista funciona sem eles.
+  await Promise.all([fetchOmFlags(), fetchCrmLastAtividades()]).catch(() => {});
+}
+
+// Flags O&M por cliente (badge nos cards + aba O&M do painel 360°)
+async function fetchOmFlags() {
+  try {
+    const ids = (state.clientes || []).map((c) => c.id);
+    if (ids.length === 0) { state.omFlags = {}; return; }
+
+    const { data, error } = await supabaseClient.rpc('get_om_flags', { p_cliente_ids: ids });
+    if (error) return;
+
+    const map = {};
+    (data || []).forEach((row) => { map[row.cliente_id] = row; });
+    state.omFlags = map;
+  } catch (err) {
+    console.warn('[fetchOmFlags] Falha silenciosa.', err);
+  }
+}
+
+// Histórico de mudanças de status (aba ANÁLISE: tempo médio por etapa).
+// As linhas são gravadas pelo trigger trg_clientes_log_status, com meta
+// {de, para, motivo}. RLS escopa via a policy de crm_atividades.
+// Lazy: só a aba Análise chama, para não pesar o boot de quem não usa.
+async function fetchCrmStatusHistory() {
+  if (!state.currentUser) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from('crm_atividades')
+      .select('cliente_id, created_at, meta')
+      .eq('tipo', 'status')
+      .order('created_at', { ascending: true });
+    if (error) { console.warn('[fetchCrmStatusHistory] Falha silenciosa.', error); return; }
+    state.crmStatusHistory = data || [];
+  } catch (err) {
+    console.warn('[fetchCrmStatusHistory] Falha silenciosa.', err);
+  }
+}
+
+// Metas mensais de venda (crm_metas). A RLS já escopa: vendedor recebe só a
+// própria meta e a da franquia; gestor/admin recebem as do time.
+async function fetchCrmMetas() {
+  if (!state.currentUser) return;
+  try {
+    const hoje = new Date();
+    // Mês atual + anterior: o dashboard compara o progresso com o mês passado.
+    const desde = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+    const { data, error } = await supabaseClient
+      .from('crm_metas')
+      .select('*')
+      .gte('mes', desde.toISOString().slice(0, 10));
+    if (error) { console.warn('[fetchCrmMetas] Falha silenciosa.', error); return; }
+    state.crmMetas = data || [];
+  } catch (err) {
+    console.warn('[fetchCrmMetas] Falha silenciosa.', err);
+  }
+}
+
+// Última atividade CRM por cliente ("atividade há 12d" nos cards)
+async function fetchCrmLastAtividades() {
+  try {
+    const { data, error } = await supabaseClient.rpc('get_crm_last_atividades');
+    if (error) return;
+
+    const map = {};
+    (data || []).forEach((row) => { map[row.cliente_id] = row; });
+    state.crmLastAtividade = map;
+  } catch (err) {
+    console.warn('[fetchCrmLastAtividades] Falha silenciosa.', err);
+  }
 }
 
 async function fetchPropostas() {
@@ -225,7 +300,12 @@ async function fetchPropostas() {
   applyOperationalScopeToQuery(query);
 
   const { data, error } = await query;
-  if (!error) state.propostas = data || [];
+  if (error) {
+    console.error('[fetchPropostas] Falha ao carregar propostas.', error);
+    if (typeof showToast === 'function') showToast('Não foi possível carregar as propostas. Tente atualizar.');
+    return;
+  }
+  state.propostas = data || [];
 }
 
 async function fetchVendas() {
@@ -238,7 +318,12 @@ async function fetchVendas() {
   applyOperationalScopeToQuery(query);
 
   const { data, error } = await query;
-  if (!error) state.vendas = data || [];
+  if (error) {
+    console.error('[fetchVendas] Falha ao carregar vendas.', error);
+    if (typeof showToast === 'function') showToast('Não foi possível carregar as vendas. Tente atualizar.');
+    return;
+  }
+  state.vendas = data || [];
 }
 
 async function fetchFranquia() {
@@ -272,6 +357,24 @@ async function fetchComponentes() {
     console.warn('[fetchComponentes] v_componentes_public indisponivel. Mantendo fluxo sem componentes.', error);
     _fetchComponentesWarned = true;
   }
+}
+
+// Catálogo completo de equipamentos individuais (com preço/custo/inativos) para
+// a gestão na aba PRODUTOS. Lê a base direto: só admin vê tudo (RLS componentes_
+// admin_write ALL); demais só ativos. Chamado lazy ao abrir a seção EQUIPAMENTOS.
+async function fetchEquipamentos() {
+  if (!state.currentUser) return;
+  const { data, error } = await supabaseClient
+    .from('componentes')
+    .select('*')
+    .order('tipo', { ascending: true })
+    .order('nome', { ascending: true });
+  if (error) {
+    console.error('[fetchEquipamentos] Falha ao carregar equipamentos.', error);
+    if (typeof showToast === 'function') showToast('Não foi possível carregar os equipamentos.');
+    return;
+  }
+  state.equipamentos = data || [];
 }
 
 async function fetchComunicados(options = {}) {

@@ -142,13 +142,31 @@ function renderAdminPanel(container) {
   if (otherBar) otherBar.classList.add('hidden');
 
   if (state.adminSection === 'produtos') {
-    state.isEditMode = true;
-    if (adminBar) adminBar.classList.remove('hidden');
-    renderAdminKitsSection(content);
+    // Kits agora moram na aba PRODUTOS do Comercial (gestão completa lá).
+    // Este card cobre quem cai aqui por estado antigo/persistido.
+    if (adminBar) adminBar.classList.add('hidden');
+    content.innerHTML = `
+      <div class="py-14 text-center border border-dashed border-neutral-800/60 bg-neutral-950/40 flex flex-col items-center gap-4">
+        <i data-lucide="package" class="w-10 h-10 text-neutral-600"></i>
+        <p class="text-neutral-400 font-black uppercase tracking-widest text-sm">Os kits mudaram de casa</p>
+        <p class="text-neutral-600 text-xs max-w-md">A gestão do catálogo (cadastrar, importar planilha, ativar/desativar, preços por unidade) agora fica na aba <b class="text-white">PRODUTOS</b> do Comercial.</p>
+        <button onclick="adminIrParaAbaProdutos()" class="btn btn-primary"><i data-lucide="arrow-right"></i>Abrir aba Produtos</button>
+      </div>`;
+    lucide.createIcons();
   } else {
     if (adminBar) adminBar.classList.add('hidden');
-    if (state.adminSection === 'financiadoras') renderAdminFinanciadoras(content);
-    else if (state.adminSection === 'componentes') renderAdminComponentes(content);
+    if (state.adminSection === 'componentes') {
+      // Equipamentos individuais também migraram para a aba PRODUTOS.
+      content.innerHTML = `
+        <div class="py-14 text-center border border-dashed border-neutral-800/60 bg-neutral-950/40 flex flex-col items-center gap-4">
+          <i data-lucide="boxes" class="w-10 h-10 text-neutral-600"></i>
+          <p class="text-neutral-400 font-black uppercase tracking-widest text-sm">Equipamentos mudaram de casa</p>
+          <p class="text-neutral-600 text-xs max-w-md">O cadastro de itens avulsos (módulo, inversor, estrutura, cabos, serviço) agora fica na aba <b class="text-white">PRODUTOS</b> → seção <b class="text-white">Equipamentos</b>.</p>
+          <button onclick="adminIrParaEquipamentos()" class="btn btn-primary"><i data-lucide="arrow-right"></i>Abrir Equipamentos</button>
+        </div>`;
+      lucide.createIcons();
+    }
+    else if (state.adminSection === 'financiadoras') renderAdminFinanciadoras(content);
     else if (state.adminSection === 'custos')      renderAdminCustos(content);
     else if (state.adminSection === 'usuarios')    renderAdminUsuarios(content);
     else if (state.adminSection === 'vendedores')  renderAdminVendedores(content);
@@ -159,10 +177,35 @@ function renderAdminPanel(container) {
 
 function setAdminSection(section) {
   if (!_requireAdminOrGestor()) return;
+  // Kits e Equipamentos: redirecionam para a aba PRODUTOS do Comercial (gestão mora lá).
+  if (section === 'produtos') { adminIrParaAbaProdutos(); return; }
+  if (section === 'componentes') { adminIrParaEquipamentos(); return; }
   state.adminSection = section;
   // No overlay, re-renderiza no container próprio; senão, no #main-container (legado Comercial).
   const container = document.getElementById(state.adminOpen ? 'admin-overlay-content' : 'main-container');
   if (container) renderAdminPanel(container);
+}
+
+// Sai do Admin e cai na aba PRODUTOS do Comercial (nova casa dos kits).
+function adminIrParaAbaProdutos() {
+  if (state.adminOpen && typeof closeAdmin === 'function') closeAdmin();
+  if (state.environment !== 'comercial') {
+    state.environment = 'comercial';
+    renderTabs();
+  }
+  if (typeof setProdutosSecao === 'function') setProdutosSecao('kits');
+  setTab('produtos');
+}
+
+// Aba PRODUTOS na seção Equipamentos (nova casa dos itens avulsos).
+function adminIrParaEquipamentos() {
+  if (state.adminOpen && typeof closeAdmin === 'function') closeAdmin();
+  if (state.environment !== 'comercial') {
+    state.environment = 'comercial';
+    renderTabs();
+  }
+  setTab('produtos');
+  if (typeof setProdutosSecao === 'function') setProdutosSecao('equipamentos');
 }
 
 async function renderAdminKitsSection(container) {

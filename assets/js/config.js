@@ -12,7 +12,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 });
 
 // --- CONSTANTES DE NEGOCIO ---
-const COMISSAO_POR_VENDA    = 2500;   // R$ por venda fechada (alterar conforme acordo)
+// A comissão real é o comissao_pct de cada vendedor (vendedores_stats), exibida
+// pelo crm-metas.js. A antiga constante fixa de R$/venda não era usada por nada.
 const SESSION_TIMEOUT_HOURS = 6;      // Logout automatico apos N horas sem atividade
 const MAX_LOGIN_ATTEMPTS    = 3;      // Tentativas antes de bloquear login
 const LOGIN_LOCKOUT_SECONDS = 30;     // Segundos de bloqueio apos exceder tentativas
@@ -25,6 +26,10 @@ let state = {
   propostas: [],
   vendas: [],
   franquiasCatalog: [],
+  // Metas mensais de venda (crm_metas) — mês atual + anterior. Ver crm-metas.js.
+  crmMetas: [],
+  // Histórico de mudanças de status (aba ANÁLISE, carga lazy). Ver analise.js.
+  crmStatusHistory: [],
 
   activeTab: 'dashboard',
   searchTerm: '',
@@ -58,8 +63,8 @@ let state = {
   // Acesso à Vistoria (na fase atual: admin sempre; flag por perfil vem na fase Supabase)
   canVis: false,
 
-  // Ambiente Engenharia (5º ambiente — calculadora/dimensionamento). Stateless até a fase Supabase.
-  engActiveTab: 'calculadora',
+  // Ambiente Engenharia (5º ambiente — gestão de projetos + dimensionamento).
+  engActiveTab: 'visao',
   // Acesso à Engenharia (fase atual: admin sempre; flag eng_enabled + role 'engenheiro' vêm na fase Supabase)
   canEng: false,
   // Sub-estado da Engenharia: inputs, último resultado calculado, presets e projetos (estado local até o banco).
@@ -89,7 +94,12 @@ let state = {
   // Clientes
   clienteFilter: 'TODOS',   // Filtro de status na aba clientes (vendedor/gestor)
   clienteSort:   'recent',  // Ordenacao: 'recent' | 'alpha' (vendedor/gestor)
+  clienteViewMode: 'list',  // 'list' | 'kanban' (vendedor/gestor)
   adminClientesViewMode: 'list', // 'list' | 'kanban'
+
+  // CRM (enriquecimentos por cliente)
+  omFlags: {},              // cliente_id -> { status_om, sistemas }
+  crmLastAtividade: {},     // cliente_id -> { last_at, last_tipo }
   adminClientesFilters: {
     search: '',
     status: 'TODOS',
@@ -106,8 +116,8 @@ let state = {
   pbCategory: 'kitsInversor',
   pbSearch: '',
   pbViewMode: 'list',
-  pbMainTab: 'kits',        // 'kits' | 'financiamento' | 'historico'
-  componentes: [],          // modulos e inversores (sem preco)
+  componentes: [],          // view pública (sem preço) — futuro montador de proposta
+  equipamentos: [],         // catálogo completo p/ gestão admin (com preço/custo/inativos)
   pbEquipDraft: {
     descricao:      '',
     valorEquip:     '',
@@ -139,7 +149,7 @@ let state = {
   isTecnico: false,
 
   // Admin
-  adminSection: 'produtos',
+  adminSection: 'usuarios', // kits migraram p/ aba PRODUTOS do Comercial (14/07/2026)
   adminComunicadosSearch: '',
   adminComunicadosStatus: 'all',
   adminKitsFranquia: null,
@@ -192,9 +202,69 @@ let state = {
 };
 
 const TABS = [
-  { id: 'dashboard', label: 'DASHBOARD',      icon: 'layout-dashboard' },
-  { id: 'clientes',  label: 'MEUS CLIENTES',  icon: 'users' },
-  { id: 'vendas',    label: 'VENDAS',         icon: 'trophy' }
+  { id: 'dashboard', label: 'VISÃO GERAL', icon: 'layout-dashboard' },
+  { id: 'funil',     label: 'FUNIL',       icon: 'git-merge' },
+  { id: 'clientes',  label: 'CLIENTES',    icon: 'users' },
+  { id: 'propostas', label: 'PROPOSTAS',   icon: 'file-signature' },
+  { id: 'vendas',    label: 'VENDAS',      icon: 'trophy' },
+  { id: 'analise',   label: 'ANÁLISE',     icon: 'bar-chart-3' },
+  { id: 'produtos',  label: 'PRODUTOS',    icon: 'package' }
+];
+
+// Abas do Comercial restritas a admin/gestor (vendedor nem vê o botão).
+// PRODUTOS = gestão de catálogo; ANÁLISE = leitura do time inteiro.
+const TABS_GESTAO = ['produtos', 'analise'];
+
+// --- CRM: origem do lead -------------------------------------------------
+// Lista única para o cadastro (index.html) e a ficha 360 (crm.js), que antes
+// divergiam em opções e default. Só o que o vendedor sabe responder na hora:
+// os tokens de sistema ('comercial', 'crm', 'proposta', 'om') continuam válidos
+// no banco — entram por outros fluxos e são rotulados como legado na leitura.
+const CLIENT_ORIGENS = [
+  { v: 'indicacao', l: 'INDICAÇÃO' },
+  { v: 'whatsapp',  l: 'WHATSAPP' },
+  { v: 'trafego',   l: 'TRÁFEGO PAGO' },
+  { v: 'porta',     l: 'PORTA A PORTA' },
+  { v: 'evento',    l: 'FEIRA / EVENTO' },
+  { v: 'antigo',    l: 'CLIENTE ANTIGO' },
+  { v: 'manual',    l: 'OUTRO' },
+];
+// clientes.origem é NOT NULL: "não informado" precisa de token próprio.
+const CLIENT_ORIGEM_VAZIA = 'nao_informado';
+// Tokens legados/de sistema que não são escolha de vendedor (aparecem só na leitura).
+// 'comercial' era o default automático de 335 das 348 linhas — não significa nada.
+const CLIENT_ORIGEM_LEGADO = {
+  [CLIENT_ORIGEM_VAZIA]: 'NÃO INFORMADO',
+  comercial: 'NÃO INFORMADO',
+  proposta: 'NÃO INFORMADO',
+  crm: 'NÃO INFORMADO',
+  om: 'O&M',
+};
+function clientOrigemLabel(origem) {
+  const v = String(origem || '').trim().toLowerCase();
+  if (!v) return 'NÃO INFORMADO';
+  const known = CLIENT_ORIGENS.find((o) => o.v === v);
+  return known ? known.l : (CLIENT_ORIGEM_LEGADO[v] || v.toUpperCase());
+}
+// Opções do <select>. Um valor legado do cliente vira uma opção própria e
+// selecionada: abrir a ficha e salvar não pode reescrever a origem sozinho.
+function clientOrigemOptionsHTML(atual) {
+  const v = String(atual || '').trim().toLowerCase();
+  const conhecida = !v || v === CLIENT_ORIGEM_VAZIA || CLIENT_ORIGENS.some((o) => o.v === v);
+  const opts = [
+    `<option value="${CLIENT_ORIGEM_VAZIA}" ${!v || v === CLIENT_ORIGEM_VAZIA ? 'selected' : ''}>NÃO INFORMADO</option>`,
+    ...CLIENT_ORIGENS.map((o) => `<option value="${o.v}" ${v === o.v ? 'selected' : ''}>${o.l}</option>`),
+  ];
+  if (!conhecida) opts.push(`<option value="${v}" selected>${clientOrigemLabel(v)}</option>`);
+  return opts.join('');
+}
+
+// --- CRM: limiares de "cliente parado" (dias no status) ------------------
+// Fonte única: dashboard (alertas de aging) e fila do dia (crm-fila.js).
+const CRM_AGING_LIMITS = [
+  { status: 'NOVO', limit: 7 },
+  { status: 'PROPOSTA ENVIADA', limit: 10 },
+  { status: 'EM NEGOCIAÇÃO', limit: 14 },
 ];
 
 // Tabs do ambiente O&M (Operação & Manutenção)
@@ -245,9 +315,11 @@ const VISTORIA_TABS = [
   { id: 'config',     label: 'CONFIG',      icon: 'settings' }
 ];
 
-// Tabs do ambiente Engenharia (calculadora / dimensionamento fotovoltaico).
+// Tabs do ambiente Engenharia (gestão de projetos + dimensionamento fotovoltaico).
 const ENG_TABS = [
-  { id: 'calculadora',  label: 'CALCULADORA',  icon: 'calculator' },
-  { id: 'equipamentos', label: 'EQUIPAMENTOS', icon: 'cpu' },
-  { id: 'projetos',     label: 'PROJETOS',     icon: 'folder-open' }
+  { id: 'visao',        label: 'VISÃO GERAL',  icon: 'layout-dashboard' },
+  { id: 'funil',        label: 'FUNIL',        icon: 'git-merge' },
+  { id: 'calculadora',  label: 'CALCULADORA',  icon: 'calculator',   secondary: true },
+  { id: 'equipamentos', label: 'EQUIPAMENTOS', icon: 'cpu',          secondary: true },
+  { id: 'projetos',     label: 'PROJETOS',     icon: 'folder-open',  secondary: true }
 ];

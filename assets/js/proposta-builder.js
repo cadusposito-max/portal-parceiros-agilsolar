@@ -219,9 +219,11 @@ function getPBDefaultEquipDraft() {
 function resetPBEquipDraft() {
   state.pbEquipDraft = getPBDefaultEquipDraft();
 }
+// O construtor vive DENTRO da ficha CRM 360 (aba NOVA PROPOSTA): este wrapper
+// só valida e abre a ficha na aba certa. Todos os call sites antigos (card do
+// cliente, seletor "Nova Proposta", dashboard) continuam funcionando.
 function openProposalBuilder(clientId) {
-  state.pbActiveClient = state.clientes.find(c => c.id === clientId);
-  const client = state.pbActiveClient;
+  const client = state.clientes.find(c => c.id === clientId);
 
   if (!client) {
     showToast('Cliente nao encontrado.');
@@ -232,84 +234,30 @@ function openProposalBuilder(clientId) {
     return;
   }
 
-  // Atualiza header do modal
-  const nome    = client.nome;
-  const initial = nome.charAt(0).toUpperCase();
-  const GRADS   = ['from-orange-600 to-orange-400','from-yellow-600 to-yellow-400','from-green-600 to-emerald-400',
-                   'from-blue-600 to-blue-400','from-purple-600 to-purple-400','from-pink-600 to-pink-400'];
-  const grad    = GRADS[nome.charCodeAt(0) % GRADS.length];
+  openCrm360(clientId, 'nova');
+}
 
-  const avatarEl = document.getElementById('pb-client-avatar');
-  if (avatarEl) {
-    avatarEl.textContent  = initial;
-    avatarEl.className    = `shrink-0 w-10 h-10 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center text-black font-black text-lg select-none avatar-pulse`;
-  }
-  document.getElementById('pb-client-name').innerText = nome;
+// Prepara o painel embutido (#pb-embedded-panel) para o cliente da ficha.
+// Chamado pelo renderCrm360 depois de mover o painel para o slot da aba.
+// Quando é o MESMO cliente, não reseta nada: o painel foi movido (não
+// recriado), então busca, modo e lista renderizada continuam de pé.
+function pbEmbedSetup(client) {
+  if (!client) return;
+  const mesmoCliente = state.pbActiveClient && state.pbActiveClient.id === client.id;
+  state.pbActiveClient = client;
+  if (mesmoCliente) return;
 
   state.pbCategory     = 'kitsInversor';
   state.pbSearch       = '';
-  state.pbMainTab      = 'kits';
   state.pbProposalMode = PB_PROPOSAL_MODES.PROMOCIONAL;
   resetPBEquipDraft();
 
   const searchEl = document.getElementById('pb-search');
   if (searchEl) searchEl.value = '';
   syncEquipInputsFromState();
-
-  setPBMainTab('kits');
   updatePBTabsUI();
-  setPBProposalMode(PB_PROPOSAL_MODES.PROMOCIONAL);
   updatePBPersonalizadaRoleBadge();
-
-  document.getElementById('proposal-builder-modal').classList.remove('hidden');
-  lucide.createIcons();
-}
-
-function closeProposalBuilder() {
-  document.getElementById('proposal-builder-modal').classList.add('hidden');
-  state.pbActiveClient  = null;
-  state.pbSearch        = '';
-  state.pbProposalMode  = PB_PROPOSAL_MODES.PROMOCIONAL;
-  resetPBEquipDraft();
-
-  const searchEl = document.getElementById('pb-search');
-  if (searchEl) searchEl.value = '';
-  syncEquipInputsFromState();
-  updatePBModeUI();
-}
-
-// ==========================================
-// ABAS PRINCIPAIS DO MODAL
-// ==========================================
-function setPBMainTab(tab) {
-  state.pbMainTab = tab;
-  const SECTIONS = ['kits', 'financiamento', 'historico'];
-  SECTIONS.forEach(s => {
-    const section = document.getElementById(`pb-section-${s}`);
-    const btn     = document.getElementById(`pb-main-tab-${s}`);
-    if (section) section.classList.add('hidden');
-    if (btn) {
-      if (s === tab) {
-        btn.className = 'flex items-center gap-1.5 px-3 py-2 text-[9px] font-black uppercase tracking-wider transition-all bg-gradient-to-r from-orange-600 to-yellow-500 text-black' + (s !== 'kits' ? ' border-l border-neutral-800' : '');
-      } else {
-        btn.className = 'flex items-center gap-1.5 px-3 py-2 text-[9px] font-black uppercase tracking-wider transition-all text-neutral-500 hover:text-white border-l border-neutral-800';
-      }
-    }
-  });
-  const active = document.getElementById(`pb-section-${tab}`);
-  if (active) active.classList.remove('hidden');
-
-  if (tab === 'kits') {
-    updatePBModeUI();
-    if (state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA || state.pbProposalMode === PB_PROPOSAL_MODES.EQUIPAMENTOS) {
-      syncEquipInputsFromState();
-      updateEquipamentosPreview();
-    }
-  }
-
-  if (tab === 'financiamento') renderFinanciamento();
-  if (tab === 'historico')     renderHistorico();
-  lucide.createIcons();
+  setPBProposalMode(PB_PROPOSAL_MODES.PROMOCIONAL); // atualiza modo + renderiza kits
 }
 
 // ==========================================
@@ -365,85 +313,6 @@ function renderFinanciamento() {
   `;
   lucide.createIcons();
 }
-
-// ==========================================
-// SECAO: HISTORICO DE PROPOSTAS
-// ==========================================
-function renderHistorico() {
-  const container = document.getElementById('pb-section-historico');
-  if (!container || !state.pbActiveClient) return;
-
-  const clienteNome = state.pbActiveClient.nome;
-  const propostas = state.propostas.filter((p) =>
-    p.cliente_nome && p.cliente_nome.toUpperCase() === clienteNome.toUpperCase()
-  );
-  const vendasCliente = state.vendas.filter((v) =>
-    v.cliente_nome && v.cliente_nome.toUpperCase() === clienteNome.toUpperCase()
-  );
-
-  if (propostas.length === 0) {
-    container.innerHTML = `
-      <div class="flex flex-col items-center justify-center h-full gap-4 text-center py-20">
-        <i data-lucide="file-clock" class="w-14 h-14 text-neutral-700"></i>
-        <p class="text-neutral-500 font-black uppercase tracking-widest text-sm">Nenhuma proposta gerada ainda</p>
-        <p class="text-neutral-700 text-xs">Va ate a aba KITS e gere a primeira proposta para este cliente.</p>
-      </div>`;
-    lucide.createIcons();
-    return;
-  }
-
-  const vendasKits = new Set(vendasCliente.map(v => v.kit_nome));
-
-  container.innerHTML = `
-    <div class="mb-5 flex items-center justify-between flex-wrap gap-3">
-      <div>
-        <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 mb-1">
-          <i data-lucide="history" class="w-3.5 h-3.5"></i> HISTORICO
-        </p>
-        <h3 class="text-xl font-black text-white uppercase tracking-tighter">
-          ${propostas.length} Proposta${propostas.length > 1 ? 's' : ''} Gerada${propostas.length > 1 ? 's' : ''}
-          ${vendasCliente.length > 0 ? `<span class="text-green-400 ml-2">- ${vendasCliente.length} Venda${vendasCliente.length > 1 ? 's' : ''} Fechada${vendasCliente.length > 1 ? 's' : ''} OK</span>` : ''}
-        </h3>
-      </div>
-    </div>
-    <div class="space-y-3">
-      ${propostas.map((p) => {
-        const isVendido       = vendasKits.has(p.kit_nome);
-        const isPersonalizada = p.proposal_mode === 'PERSONALIZADA' || p.proposal_mode === 'EQUIPAMENTOS';
-        const displayPrice    = isPersonalizada ? (p.custom_total_price || p.kit_price) : p.kit_price;
-        const displayPower    = isPersonalizada ? (p.custom_system_power_kwp || p.kit_power) : p.kit_power;
-        return `
-        <div class="metric-card border ${isVendido ? 'border-green-900/40' : isPersonalizada ? 'border-orange-900/40' : 'border-neutral-800'} p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 group">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap mb-1">
-              <span class="text-white font-black text-sm uppercase truncate group-hover:text-orange-400 transition-colors">${escapeHTML(p.kit_nome) || 'Proposta Personalizada'}</span>
-              ${isVendido ? '<span class="text-[8px] bg-green-500/15 text-green-400 border border-green-500/30 px-2 py-0.5 font-black uppercase tracking-widest">VENDIDO</span>' : ''}
-              ${isPersonalizada ? '<span class="text-[8px] bg-orange-500/15 text-orange-400 border border-orange-500/30 px-2 py-0.5 font-black uppercase tracking-widest">PERSONALIZADA</span>' : ''}
-            </div>
-            <div class="flex flex-wrap gap-x-3 text-[10px] text-neutral-600 font-mono">
-              <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-2.5 h-2.5"></i>${formatDate(p.created_at)}</span>
-              <span class="flex items-center gap-1 text-orange-400/70 font-bold">${formatCurrency(displayPrice)}</span>
-              ${displayPower ? `<span class="flex items-center gap-1"><i data-lucide="zap" class="w-2.5 h-2.5"></i>${displayPower} kWp</span>` : ''}
-            </div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            ${(state.isAdmin || state.isGestor) ? `
-            <button onclick="openOrcamentoDre('${p.id}')"
-              class="flex items-center gap-1.5 bg-neutral-800 border border-neutral-700 hover:border-emerald-500/50 hover:text-emerald-400 text-neutral-400 px-3 py-2 font-black uppercase tracking-wider transition-all text-[9px]">
-              <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>DRE
-            </button>` : ''}
-            <button onclick="copiarLinkExistente('${p.id}', this)"
-              class="flex items-center gap-1.5 bg-neutral-800 border border-neutral-700 hover:border-orange-500/50 hover:text-orange-400 text-neutral-400 px-3 py-2 font-black uppercase tracking-wider transition-all text-[9px]">
-              <i data-lucide="copy" class="w-3.5 h-3.5"></i>COPIAR LINK
-            </button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-  `;
-  lucide.createIcons();
-}
-
 
 function setPBTab(category) {
   state.pbCategory = category;
@@ -650,6 +519,7 @@ async function handleEquipamentosProposalSubmit(event) {
       vendedor_email:          seller.vendedor_email,
       vendedor_nome:           seller.vendedor_nome,
       vendedor_telefone:       seller.vendedor_telefone,
+      cliente_id:              client.id,
       cliente_nome:            client.nome,
       cliente_telefone:        client.telefone,
       cliente_cidade:          client.cidade,
@@ -658,7 +528,7 @@ async function handleEquipamentosProposalSubmit(event) {
       kit_power:               potencia,
       kit_price:               total,
       kit_list_price:          total,
-      geracao_estimada:        calcularGeracaoEstimada(potencia),
+      geracao_estimada:        calcularGeracaoEstimada(potencia, undefined, client.hsp),
       custom_system_power_kwp: potencia,
       custom_equipment_price:  equip,
       custom_service_price:    null,
@@ -682,18 +552,19 @@ async function handleEquipamentosProposalSubmit(event) {
 
     if (submitBtn) {
       submitBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 inline mr-1"></i> GERADO E COPIADO!';
-      submitBtn.classList.remove('bg-orange-600', 'hover:bg-orange-500');
-      submitBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+      submitBtn.classList.remove('btn-primary');
+      submitBtn.classList.add('btn-success');
       lucide.createIcons();
       setTimeout(() => {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled  = false;
-        submitBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
-        submitBtn.classList.add('bg-orange-600', 'hover:bg-orange-500');
+        submitBtn.classList.remove('btn-success');
+        submitBtn.classList.add('btn-primary');
         lucide.createIcons();
       }, 3000);
     }
     showToast('PROPOSTA PERSONALIZADA GERADA E LINK COPIADO!');
+    showProposalSharePanel(data[0].id, linkFinal);
   } catch (err) {
     console.error('Erro ao gerar proposta personalizada:', err);
     showToast('Erro ao gerar a proposta personalizada. Tente novamente.');
@@ -716,12 +587,19 @@ function renderModalProducts() {
     return;
   }
 
-  let list = state.data.filter(k => k.categoria === state.pbCategory);
+  // Kits fora de linha (ativo=false) não aparecem para o vendedor.
+  let list = state.data.filter(k => k.categoria === state.pbCategory && k.ativo !== false);
+
+  // HSP da cidade do cliente em atendimento: quando existe, a geração exibida
+  // e usada na busca é recalculada com ele (senão vale o _estGeneration da franquia).
+  const clienteHsp = Number(state.pbActiveClient?.hsp) > 0 ? Number(state.pbActiveClient.hsp) : null;
 
   if (state.pbSearch) {
     const searchNum = parseInt(state.pbSearch, 10);
     list = list.filter(item => {
-      const estGeneration = Number(item._estGeneration ?? calcularGeracaoEstimada(item.power, item.categoria));
+      const estGeneration = clienteHsp
+        ? calcularGeracaoEstimada(item.power, item.categoria, clienteHsp)
+        : Number(item._estGeneration ?? calcularGeracaoEstimada(item.power, item.categoria));
       const searchBlob = item._searchBlob || `${item.name || ''} ${item.brand || ''} ${item.power || ''}`.toLowerCase();
       const textMatch = searchBlob.includes(state.pbSearch);
       const generationMatch = !isNaN(searchNum) && Math.abs(estGeneration - searchNum) <= 50;
@@ -740,12 +618,15 @@ function renderModalProducts() {
   emptyEl.classList.remove('flex');
   container.classList.remove('hidden');
 
+  // Sem scroll interno: o painel vive dentro da ficha CRM 360, que já rola.
   container.className = state.pbViewMode === 'list'
-    ? 'flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-3 bg-[#050505] content-start'
-    : 'flex-1 overflow-y-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-[#050505] content-start';
+    ? 'p-3 md:p-4 flex flex-col gap-3 bg-[#050505]'
+    : 'p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-[#050505]';
 
   container.innerHTML = list.map(item => {
-    const estGenerationNum  = Number(item._estGeneration ?? calcularGeracaoEstimada(item.power, item.categoria)) || 0;
+    const estGenerationNum  = clienteHsp
+      ? (calcularGeracaoEstimada(item.power, item.categoria, clienteHsp) || 0)
+      : (Number(item._estGeneration ?? calcularGeracaoEstimada(item.power, item.categoria)) || 0);
     const estGeneration     = estGenerationNum.toFixed(0);
     const formattedPrice    = formatCurrency(item.price);
     const formattedListPrice= formatCurrency(item.list_price);
@@ -754,61 +635,54 @@ function renderModalProducts() {
     const safeBrand         = escapeHTML(item.brand);
     const safePower         = escapeHTML(String(item.power));
 
+    // Cards container-aware: nada de breakpoints de viewport ditando linha/coluna
+    // (o painel vive dentro da ficha e a largura do container é quem manda).
+    // flex-wrap: quando falta espaço, preço e botão descem de linha em vez de
+    // esmagar o nome do kit.
     if (state.pbViewMode === 'grid') {
       return `
-        <div class="bg-[#0f0f0f] border border-neutral-800 hover:border-orange-500 p-5 flex flex-col gap-4 group transition-all rounded-sm shadow-xl">
-          <div class="flex justify-between items-start">
-            <span class="text-[10px] bg-orange-600/20 text-orange-500 px-2 py-0.5 font-bold uppercase tracking-widest border border-orange-500/30">${safeBrand}</span>
-            <span class="text-[10px] text-neutral-500 line-through decoration-red-500 font-bold">DE: ${formattedListPrice}</span>
+        <div class="bg-[#0d0d0f] border border-neutral-800 hover:border-orange-500/40 p-4 flex flex-col gap-3 group transition-all">
+          <div class="flex justify-between items-start gap-2">
+            <span class="text-[9px] bg-orange-600/15 text-orange-500 px-2 py-0.5 font-black uppercase tracking-widest border border-orange-500/30">${safeBrand}</span>
+            <span class="text-[10px] text-neutral-600 line-through decoration-red-500/70 font-bold shrink-0">De: ${formattedListPrice}</span>
           </div>
           <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors">${safeName}</h3>
-          <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="grid grid-cols-2 gap-2">
             <div class="bg-black p-2 border border-neutral-800 flex flex-col items-center justify-center">
-              <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Potencia</span>
-              <span class="text-orange-500 font-black flex items-center gap-1 mt-1 text-sm"><i data-lucide="zap" class="w-3 h-3"></i> ${safePower} kWp</span>
+              <span class="text-[8px] text-neutral-500 font-black uppercase tracking-widest">Potência</span>
+              <span class="text-orange-500 font-black flex items-center gap-1 mt-0.5 text-sm"><i data-lucide="zap" class="w-3 h-3"></i>${safePower} kWp</span>
             </div>
-            <div class="bg-neutral-900 p-2 border border-neutral-800 flex flex-col items-center justify-center shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]">
-              <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Geracao Est.</span>
-              <span class="text-blue-400 font-black flex items-center gap-1 mt-1 text-sm"><i data-lucide="sun" class="w-3 h-3"></i> ${estGeneration} kWh</span>
+            <div class="bg-black p-2 border border-neutral-800 flex flex-col items-center justify-center">
+              <span class="text-[8px] text-neutral-500 font-black uppercase tracking-widest">Geração est.</span>
+              <span class="text-blue-400 font-black flex items-center gap-1 mt-0.5 text-sm"><i data-lucide="sun" class="w-3 h-3"></i>~${estGeneration} kWh</span>
             </div>
           </div>
-          <div class="mt-auto pt-4 border-t border-neutral-800 flex items-center justify-between gap-3">
-            <div class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-1 pr-1 inline-block">${formattedPrice}</div>
-            <button data-kit-id="${safeId}" onclick="copyProposalLinkById(this.dataset.kitId, event)" aria-label="Gerar proposta para ${safeName}" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] text-[10px] font-black uppercase tracking-widest min-w-[110px]">
-              <i data-lucide="file-text" class="w-4 h-4"></i> GERAR PROPOSTA
+          <div class="mt-auto pt-3 border-t border-neutral-800/60 flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-0.5 pr-1">${formattedPrice}</div>
+            <button data-kit-id="${safeId}" onclick="copyProposalLinkById(this.dataset.kitId, event)" aria-label="Gerar proposta para ${safeName}" class="btn btn-primary">
+              <i data-lucide="file-text"></i> GERAR
             </button>
           </div>
         </div>`;
     }
 
     return `
-      <div class="bg-[#0f0f0f] border border-neutral-800 hover:border-orange-500 p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group transition-all rounded-sm shadow-xl">
-        <div class="flex-1 min-w-0 flex flex-col gap-2">
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] bg-orange-600/20 text-orange-500 px-2 py-0.5 font-bold uppercase tracking-widest border border-orange-500/30">${safeBrand}</span>
-            <span class="text-[10px] text-neutral-500 line-through decoration-red-500 font-bold hidden md:inline-block">DE: ${formattedListPrice}</span>
-          </div>
-          <h3 class="text-white font-black text-sm md:text-base uppercase leading-tight group-hover:text-orange-400 transition-colors truncate" title="${safeName}">${safeName}</h3>
-        </div>
-        <div class="flex items-center gap-4 md:px-6 md:border-x border-neutral-800 shrink-0">
-          <div class="flex flex-col items-center justify-center">
-            <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Potencia</span>
-            <span class="text-orange-500 font-black flex items-center gap-1 text-sm"><i data-lucide="zap" class="w-3 h-3"></i> ${safePower} kWp</span>
-          </div>
-          <div class="flex flex-col items-center justify-center">
-            <span class="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">Geracao Est.</span>
-            <span class="text-blue-400 font-black flex items-center gap-1 text-sm"><i data-lucide="sun" class="w-3 h-3"></i> ${estGeneration} kWh</span>
+      <div class="bg-[#0d0d0f] border border-neutral-800 hover:border-orange-500/40 p-4 flex flex-wrap items-center gap-x-6 gap-y-3 group transition-all">
+        <div class="flex-1 min-w-[240px]">
+          <span class="text-[9px] bg-orange-600/15 text-orange-500 px-2 py-0.5 font-black uppercase tracking-widest border border-orange-500/30 inline-block">${safeBrand}</span>
+          <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors mt-1.5">${safeName}</h3>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[10px] font-bold">
+            <span class="text-orange-500 flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i>${safePower} kWp</span>
+            <span class="text-blue-400 flex items-center gap-1"><i data-lucide="sun" class="w-3 h-3"></i>~${estGeneration} kWh/mês</span>
           </div>
         </div>
-        <div class="flex items-center justify-between w-full md:w-auto md:justify-end gap-4 shrink-0 mt-2 md:mt-0 pt-3 md:pt-0 border-t md:border-0 border-neutral-800">
-          <div class="text-right">
-            <span class="text-[10px] text-neutral-500 line-through decoration-red-500 font-bold md:hidden block">DE: ${formattedListPrice}</span>
-            <div class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-1 pr-1 inline-block">${formattedPrice}</div>
-          </div>
-          <button data-kit-id="${safeId}" onclick="copyProposalLinkById(this.dataset.kitId, event)" aria-label="Gerar proposta para ${safeName}" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] text-[10px] font-black uppercase tracking-widest min-w-[110px]">
-            <i data-lucide="file-text" class="w-4 h-4"></i> GERAR PROPOSTA
-          </button>
+        <div class="text-right shrink-0 ml-auto">
+          <div class="text-[10px] text-neutral-600 line-through decoration-red-500/70 font-bold">De: ${formattedListPrice}</div>
+          <div class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-0.5 pr-1">${formattedPrice}</div>
         </div>
+        <button data-kit-id="${safeId}" onclick="copyProposalLinkById(this.dataset.kitId, event)" aria-label="Gerar proposta para ${safeName}" class="btn btn-primary shrink-0">
+          <i data-lucide="file-text"></i> GERAR PROPOSTA
+        </button>
       </div>`;
   }).join('');
 
@@ -858,6 +732,7 @@ async function copyProposalLink(kit, event) {
       vendedor_email:    seller.vendedor_email,
       vendedor_nome:     seller.vendedor_nome,
       vendedor_telefone: seller.vendedor_telefone,
+      cliente_id:        client.id,
       cliente_nome:      client.nome,
       cliente_telefone:  client.telefone,
       cliente_cidade:    client.cidade,
@@ -866,7 +741,7 @@ async function copyProposalLink(kit, event) {
       kit_power:         kit.power,
       kit_price:         kit.price,
       kit_list_price:    kit.list_price,
-      geracao_estimada:  calcularGeracaoEstimada(kit.power, kit.categoria),
+      geracao_estimada:  calcularGeracaoEstimada(kit.power, kit.categoria, client.hsp),
       franquia_id:       state.franquiaId
     }]).select();
 
@@ -887,15 +762,16 @@ async function copyProposalLink(kit, event) {
     }
 
     btnCopiar.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> GERADO E COPIADO!';
-    btnCopiar.classList.remove('bg-blue-600', 'hover:bg-blue-500');
-    btnCopiar.classList.add('bg-green-600', 'hover:bg-green-500');
+    btnCopiar.classList.remove('btn-primary');
+    btnCopiar.classList.add('btn-success');
     lucide.createIcons();
     showToast('LINK DA PROPOSTA COPIADO!');
+    showProposalSharePanel(data[0].id, linkFinal);
 
     setTimeout(() => {
       btnCopiar.innerHTML = originalText;
-      btnCopiar.classList.remove('bg-green-600', 'hover:bg-green-500');
-      btnCopiar.classList.add('bg-blue-600', 'hover:bg-blue-500');
+      btnCopiar.classList.remove('btn-success');
+      btnCopiar.classList.add('btn-primary');
       lucide.createIcons();
     }, 3000);
 
@@ -964,6 +840,108 @@ function tryOpenExternalBrowser(link) {
   }
 }
 
+// Marca a proposta como ENVIADA no 1º envio (ciclo GERADA→ENVIADA→VISTA→ACEITA).
+// Falha silenciosa de propósito: não pode travar o envio do link.
+async function marcarPropostaEnviada(propostaId) {
+  if (!propostaId) return;
+  try {
+    const enviadaEm = new Date().toISOString();
+    const { error } = await supabaseClient
+      .from('propostas')
+      .update({ status: 'ENVIADA', enviada_em: enviadaEm })
+      .eq('id', propostaId)
+      .eq('status', 'GERADA');
+    if (error) { console.warn('[propostas] Falha ao marcar ENVIADA.', error); return; }
+    const row = (state.propostas || []).find((p) => p.id === propostaId);
+    if (row && (!row.status || row.status === 'GERADA')) {
+      row.status = 'ENVIADA';
+      row.enviada_em = enviadaEm;
+    }
+    await agendarFollowUpDaProposta(row || (state.propostas || []).find((p) => p.id === propostaId));
+  } catch (err) {
+    console.warn('[propostas] Falha ao marcar ENVIADA.', err);
+  }
+}
+
+// Automação: proposta enviada agenda o próprio follow-up (+48h). O follow-up
+// esquecido é a causa nº1 de negócio parado — e ninguém agenda na mão (a base
+// tinha 681 propostas e ZERO follow-ups). Só age se o cliente não tem um passo
+// futuro marcado: nunca sobrescreve decisão de vendedor. Falha silenciosa.
+async function agendarFollowUpDaProposta(proposta) {
+  try {
+    if (!proposta || !proposta.cliente_id) return;
+    const client = (state.clientes || []).find((c) => c.id === proposta.cliente_id);
+    if (!client) return;
+
+    const jaTemFuturo = client.proxima_acao_em && new Date(client.proxima_acao_em) > new Date();
+    if (jaTemFuturo) return;
+
+    const quandoIso = typeof filaDataEm === 'function'
+      ? filaDataEm(2)
+      : new Date(Date.now() + 48 * 3600000).toISOString();
+    const nota = 'Follow-up da proposta enviada';
+
+    const { error } = await supabaseClient.from('clientes')
+      .update({ proxima_acao_em: quandoIso, proxima_acao_nota: nota })
+      .eq('id', client.id);
+    if (error) { console.warn('[propostas] Falha ao agendar follow-up.', error); return; }
+
+    client.proxima_acao_em = quandoIso;
+    client.proxima_acao_nota = nota;
+
+    await supabaseClient.from('crm_atividades').insert([{
+      cliente_id: client.id,
+      franquia_id: client.franquia_id || state.franquiaId,
+      autor_email: state.currentUser?.email || 'sistema',
+      tipo: 'proxima_acao',
+      descricao: `${nota} — ${new Date(quandoIso).toLocaleDateString('pt-BR')}`,
+      meta: { origem: 'auto_proposta_enviada', proposta_id: proposta.id },
+    }]);
+  } catch (err) {
+    console.warn('[propostas] Falha ao agendar follow-up.', err);
+  }
+}
+
+// Painel pós-geração: o passo seguinte óbvio para o vendedor — mandar o link
+// direto no WhatsApp DO CLIENTE, sem trocar de app e colar na mão.
+function showProposalSharePanel(propostaId, link) {
+  const client = state.pbActiveClient;
+  const digits = digitsOnly(client?.telefone || '');
+  const primeiroNome = String(client?.nome || 'cliente').trim().split(' ')[0];
+  const nomeBonito = primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1).toLowerCase();
+  const waMsg = encodeURIComponent(`Olá, ${nomeBonito}! Segue a sua proposta de energia solar da Ágil Solar: ${link}\nQualquer dúvida, é só me chamar por aqui.`);
+  const waLink = digits.length >= 10 ? `https://wa.me/55${digits}?text=${waMsg}` : null;
+
+  const existing = document.getElementById('pb-share-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pb-share-overlay';
+  overlay.className = 'fixed inset-0 z-[97] flex items-center justify-center bg-black/90 backdrop-blur-md p-4';
+  overlay.innerHTML = `
+    <div class="bg-neutral-900 border-2 border-green-600/40 w-full max-w-sm shadow-[0_0_50px_rgba(22,163,74,0.15)] animate-fade-in-up">
+      <div class="flex justify-between items-center p-5 border-b border-neutral-800 bg-black/50">
+        <p class="text-green-500 text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4"></i> Proposta gerada!</p>
+        <button onclick="closeProposalSharePanel()" class="text-neutral-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="p-5 space-y-3">
+        <p class="text-neutral-400 text-xs leading-relaxed">O link já foi copiado. Agora é só mandar para <b class="text-white">${escapeHTML(nomeBonito)}</b>:</p>
+        ${waLink
+          ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${propostaId}')" class="btn btn-success btn-lg btn-block"><i data-lucide="message-circle"></i> Enviar no WhatsApp</a>`
+          : '<p class="text-yellow-500/90 text-[10px] font-bold uppercase tracking-widest">Cliente sem WhatsApp cadastrado — envie o link copiado por outro canal.</p>'}
+        <button onclick="copiarTextoBlindado('${link}'); marcarPropostaEnviada('${propostaId}'); showToast('LINK COPIADO!')" class="btn btn-secondary btn-block"><i data-lucide="copy"></i> Copiar link de novo</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeProposalSharePanel(); });
+  document.body.appendChild(overlay);
+  lucide.createIcons();
+}
+
+function closeProposalSharePanel() {
+  const el = document.getElementById('pb-share-overlay');
+  if (el) el.remove();
+}
+
 // ==========================================
 // FECHAR VENDA
 // ==========================================
@@ -989,18 +967,20 @@ function openFechaVenda(clientId) {
   const select = document.getElementById('fv-kit-select');
   select.innerHTML = '<option value="">» SELECIONE O KIT «</option>';
 
-  // Adiciona kits do catálogo + propostas do cliente como opçÃµes
-  const clientPropostas = state.propostas.filter(
-    p => p.cliente_nome && p.cliente_nome.toUpperCase() === client.nome.toUpperCase()
-  );
+  // Propostas do cliente: match por cliente_id (confiável); fallback por nome
+  // só para o legado sem vínculo. Match por nome puro misturava homônimos.
+  const clientPropostas = state.propostas.filter((p) => {
+    if (p.cliente_id) return String(p.cliente_id) === String(client.id);
+    return p.cliente_nome && p.cliente_nome.toUpperCase() === client.nome.toUpperCase();
+  });
 
   // Se tem propostas, exibe só elas; caso contrário exibe todos os kits
   if (clientPropostas.length > 0) {
     const group = document.createElement('optgroup');
-    group.label = 'Propostas Enviadas para este Cliente';
+    group.label = 'Propostas deste Cliente';
     clientPropostas.forEach(p => {
       const opt = document.createElement('option');
-      opt.value = JSON.stringify({ nome: p.kit_nome, preco: p.kit_price, power: p.kit_power, brand: p.kit_brand });
+      opt.value = JSON.stringify({ nome: p.kit_nome, preco: p.kit_price, power: p.kit_power, brand: p.kit_brand, proposta_id: p.id });
       opt.textContent = `${p.kit_nome} → ${formatCurrency(p.kit_price)}`;
       group.appendChild(opt);
     });
@@ -1009,13 +989,20 @@ function openFechaVenda(clientId) {
 
   const groupAll = document.createElement('optgroup');
   groupAll.label = clientPropostas.length > 0 ? 'Todos os Kits do Catálogo' : 'Kits do Catálogo';
-  state.data.forEach(k => {
+  state.data.filter(k => k.ativo !== false).forEach(k => {
     const opt = document.createElement('option');
     opt.value = JSON.stringify({ nome: k.name, preco: k.price, power: k.power, brand: k.brand });
     opt.textContent = `${k.name} → ${formatCurrency(k.price)}`;
     groupAll.appendChild(opt);
   });
   select.appendChild(groupAll);
+
+  // Pré-seleciona a proposta mais recente (state.propostas já vem em ordem
+  // desc): na maioria dos casos o kit vendido é o da última proposta.
+  if (clientPropostas.length > 0) {
+    select.selectedIndex = 1; // índice 0 é o placeholder "» SELECIONE O KIT «"
+    onFvKitChange();
+  }
 
   document.getElementById('fecha-venda-modal').classList.remove('hidden');
   lucide.createIcons();
@@ -1024,6 +1011,29 @@ function openFechaVenda(clientId) {
 function closeFechaVenda() {
   document.getElementById('fecha-venda-modal').classList.add('hidden');
   _fechaVendaClientId = null;
+}
+
+// Escape do interceptor: marca FECHADO sem criar venda. Existe para o caso
+// legado (venda registrada fora da plataforma) — por isso pede confirmação e
+// avisa o custo: sem venda não há faturamento, comissão nem ranking.
+function fecharSemRegistrarVenda() {
+  const clientId = _fechaVendaClientId;
+  const client = state.clientes.find((c) => c.id === clientId);
+  if (!client) return;
+
+  if (normalizeClientStatus(client.status) === 'FECHADO') {
+    closeFechaVenda();
+    return;
+  }
+
+  showConfirmModal(
+    `Marcar ${client.nome} como FECHADO sem registrar a venda? A venda não vai aparecer no seu total do mês, no ranking nem no financeiro.`,
+    async () => {
+      closeFechaVenda();
+      await crmSetClientStatus(clientId, 'FECHADO', null, { skipVenda: true });
+    },
+    'FECHAR SEM VENDA'
+  );
 }
 
 function onFvKitChange() {
@@ -1089,6 +1099,7 @@ async function confirmarFechaVenda() {
       kit_brand:         kit.brand || '',
       kit_power:         Number(kit.power) || 0,
       kit_price:         Number(kit.preco) || 0,
+      proposta_id:       kit.proposta_id || null,
       franquia_id:       state.franquiaId
     }]);
 
@@ -1100,10 +1111,33 @@ async function confirmarFechaVenda() {
       throw new Error(msg);
     }
 
-    // Atualiza status do cliente para FECHADO localmente + remotamente
+    // Atualiza status do cliente para FECHADO localmente + remotamente.
+    // Update direto de propósito: não passa por crmSetClientStatus para não
+    // reentrar no interceptor que abriu este modal. Follow-up é encerrado junto —
+    // cliente ganho não pode continuar na fila do dia.
     const idx = state.clientes.findIndex(c => c.id === client.id);
-    if (idx > -1) state.clientes[idx].status = 'FECHADO';
-    await supabaseClient.from('clientes').update({ status: 'FECHADO' }).eq('id', client.id);
+    if (idx > -1) {
+      state.clientes[idx].status = 'FECHADO';
+      state.clientes[idx].proxima_acao_em = null;
+      state.clientes[idx].proxima_acao_nota = null;
+    }
+    await supabaseClient.from('clientes')
+      .update({ status: 'FECHADO', proxima_acao_em: null, proxima_acao_nota: null })
+      .eq('id', client.id);
+
+    // Venda veio de uma proposta? Fecha o ciclo dela: ACEITA.
+    if (kit.proposta_id) {
+      const { error: aceitaError } = await supabaseClient
+        .from('propostas')
+        .update({ status: 'ACEITA' })
+        .eq('id', kit.proposta_id);
+      if (aceitaError) {
+        console.warn('[confirmarFechaVenda] Venda registrada, mas falhou ao marcar proposta ACEITA.', aceitaError);
+      } else {
+        const prop = (state.propostas || []).find((p) => p.id === kit.proposta_id);
+        if (prop) prop.status = 'ACEITA';
+      }
+    }
 
     // Atualiza lista de vendas (silencioso se der erro)
     await fetchVendas();
@@ -1115,6 +1149,9 @@ async function confirmarFechaVenda() {
     showSalesCelebration();
         showToast(`\u{1F389} VENDA FECHADA! ${kit.nome}`);
     renderContent();
+    // Ficha aberta por baixo? Reflete FECHADO + contador de vendas na hora.
+    const fichaAberta = document.getElementById('crm360-overlay')?.classList.contains('is-open');
+    if (fichaAberta && typeof renderCrm360 === 'function') renderCrm360();
 
   } catch (err) {
     console.error('[confirmarFechaVenda]', err);

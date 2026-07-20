@@ -259,20 +259,23 @@ body.proposta::before{
   /* empilha tudo numa coluna única. display:contents "achata" .detail e .aside
      no flex do .doc-desktop, permitindo intercalar o preço+vendedor no meio dos
      blocos via order. Ordem desejada:
-     intro → por que vale a pena → incluso → fora do escopo →
-     preço → vendedor → dados do sistema → como funciona → sobre */
+     intro → por que vale a pena → problema → diagnóstico → incluso → fora do escopo →
+     preço → vendedor → dados do sistema → como funciona → sobre
+     (problema/diagnóstico só existem na corretiva; na O&M as regras são no-op) */
   .doc-desktop{display:flex;flex-direction:column;gap:14px}
   .doc-desktop .detail,
   .doc-desktop .aside{display:contents}
   #m-intro{order:1}
   #bloco-beneficios{order:2}
-  .scope-in{order:3}
-  .scope-out{order:4}
-  #bloco-preco{order:5}
-  #resp-card{order:6}
-  #bloco-sistema{order:7}
-  #bloco-como{order:8}
-  .about{order:9}
+  #bloco-problema{order:3}      /* corretiva — override do .scope-out por ID */
+  #bloco-diagnostico{order:4}   /* corretiva — tira do order:0 (antes da logo) */
+  .scope-in{order:5}
+  .scope-out{order:6}
+  #bloco-preco{order:7}
+  #resp-card{order:8}
+  #bloco-sistema{order:9}
+  #bloco-como{order:10}
+  .about{order:11}
   /* o card de preço (agora no meio) mostra aprovar/recusar; o mesmo aprovar segue na barra fixa */
   /* zona segura no fim: a barra fixa não cobre o rodapé ao aparecer */
   .foot{padding-bottom:96px}

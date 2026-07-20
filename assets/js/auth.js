@@ -249,6 +249,7 @@ async function checkAuth() {
         fetchVendas(),
         fetchComponentes(),
         fetchComunicados(),
+        fetchCrmMetas(),
         updateVendedorStats(session.user.email),
       ]);
       if (typeof omRefreshAccess === 'function') await omRefreshAccess();
@@ -257,13 +258,19 @@ async function checkAuth() {
       if (typeof engRefreshAccess === 'function') await engRefreshAccess();
       renderHeaderUser();
       renderTabs();                 // prepara o header atrás do overlay
-      if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
+      // F5 mantém onde o usuário estava: se o hash tem uma rota válida
+      // (#app/<env>/<tab>), restaura direto e pula o launcher.
+      const savedRoute = (typeof appRouteParse === 'function') ? appRouteParse(window.location.hash) : null;
+      if (savedRoute && typeof appRouteApply === 'function') {
+        appRouteApply(savedRoute);
+      } else if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
         showLauncher();             // espera a escolha; renderContent() roda no enterEnvironment()
       } else {
         renderContent();            // caminho atual: 1 ambiente / técnico
       }
       if (typeof chatBoot === 'function') await chatBoot();
       if (typeof identifyUser === 'function') identifyUser(session.user);
+      if (typeof filaAvisoPosLogin === 'function') filaAvisoPosLogin();
     } else {
       document.getElementById('login-screen').classList.remove('hidden');
       document.getElementById('splash-screen').classList.add('hidden');
@@ -613,6 +620,7 @@ async function _finishLogin(user, email) {
     fetchVendas(),
     fetchComponentes(),
     fetchComunicados(),
+    fetchCrmMetas(),
   ]);
   if (typeof omRefreshAccess === 'function') await omRefreshAccess();
   // Espelha o caminho de boot/restore: resolve tambem o acesso ao Financeiro
@@ -623,13 +631,19 @@ async function _finishLogin(user, email) {
   if (typeof engRefreshAccess === 'function') await engRefreshAccess();
   renderHeaderUser();
   renderTabs();                 // prepara o header atrás do overlay
-  if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
+  // Sessão expirou no meio do trabalho? Se o hash guarda uma rota válida,
+  // volta direto para onde o usuário estava (mesma lógica do boot).
+  const savedRoute = (typeof appRouteParse === 'function') ? appRouteParse(window.location.hash) : null;
+  if (savedRoute && typeof appRouteApply === 'function') {
+    appRouteApply(savedRoute);
+  } else if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
     showLauncher();             // espera a escolha; renderContent() roda no enterEnvironment()
   } else {
     renderContent();            // caminho atual: 1 ambiente / técnico
   }
   if (typeof chatBoot === 'function') await chatBoot();
   if (typeof identifyUser === 'function') identifyUser(user);
+  if (typeof filaAvisoPosLogin === 'function') filaAvisoPosLogin();
   if (typeof captureEvent === 'function') captureEvent('login_success', { source: 'portal' });
 }
 

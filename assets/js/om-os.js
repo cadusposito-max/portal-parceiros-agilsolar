@@ -1020,16 +1020,17 @@
     const obs = ta ? ta.value.trim() : '';
     const d = cache.detalhe;
     const itensPend = (d.checklist || []).filter(i => !i.feito).length;
+    // Trava: checklist incompleto impede finalizar (não é ignorável).
+    if (itensPend) {
+      toast(`Conclua o checklist antes de finalizar · ${itensPend} item(ns) pendente(s).`);
+      return;
+    }
     const fotos = (d.fotos || []).filter(f => f.categoria !== 'checklist');
     const faltaFoto = fotos.filter(f => f.categoria === 'antes').length < 2
       || fotos.filter(f => f.categoria === 'depois').length < 2
       || fotos.filter(f => f.categoria === 'inversor').length < 1;
-    if (itensPend || faltaFoto) {
-      const msg = 'Há pendências'
-        + (itensPend ? ` · ${itensPend} item(ns) do checklist` : '')
-        + (faltaFoto ? ' · fotos mínimas não atingidas' : '')
-        + '.\n\nFinalizar o atendimento mesmo assim?';
-      if (!confirm(msg)) return;
+    if (faltaFoto) {
+      if (!confirm('Fotos mínimas não atingidas.\n\nFinalizar o atendimento mesmo assim?')) return;
     }
     flowBusy = true;
     const { data, error } = await sb.rpc('os_finalizar', {

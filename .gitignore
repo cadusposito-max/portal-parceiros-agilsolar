@@ -1,0 +1,7 @@
+*.bak
+_archive/
+claude-design/uploads/*
+!claude-design/uploads/.gitkeep
+Thumbs.db
+.DS_Store
+node_modules/
