@@ -222,6 +222,12 @@ async function carregarProposta() {
     if (error || !data) { showError(); return; }
 
     renderData(data);
+    // Registra a visualização na própria proposta (status VISTA + contador) —
+    // é isso que avisa o vendedor na aba Propostas. Fire-and-forget: falha
+    // aqui não pode atrapalhar o cliente vendo a proposta.
+    supabaseClient.rpc('registrar_proposta_view', { p_id: propostaId }).then(({ error: viewErr }) => {
+      if (viewErr) console.warn('[proposta] Falha ao registrar visualização.', viewErr);
+    });
     if (typeof captureEvent === 'function') {
       captureEvent('public_proposal_viewed', { source: 'public_page' });
     }
@@ -256,7 +262,6 @@ function renderData(data) {
   const economiaMensal   = valorFaturaIdeal * 0.85;
   const economiaAnual    = economiaMensal * 12;
   const economia25Anos   = economiaAnual * 25;
-  const contaPosSistema  = Math.max(0, valorFaturaIdeal - economiaMensal);
   const arvoresPlantadas = Math.round(displayPower * 3);
 
   const mesesTotaisPayback= economiaMensal > 0 ? Math.ceil(displayPrice / economiaMensal) : 0;
@@ -269,36 +274,13 @@ function renderData(data) {
   if (mesesRestantes > 0)                 textoPayback += `${mesesRestantes} ${mesesRestantes > 1 ? 'meses' : 'mês'}`;
   if (textoPayback === '')                textoPayback = 'Menos de 1 mês';
 
-  const taxa18x = TAXAS_CARTAO[MAX_PARCELAS] || 0;
-  const totalCartao18x = displayPrice > 0 ? displayPrice / (1 - (taxa18x / 100)) : 0;
-  const parcela18x = totalCartao18x > 0 ? totalCartao18x / MAX_PARCELAS : 0;
-  const melhorPagamento = parcela18x > 0
-    ? `${MAX_PARCELAS}x de ${formatter.format(parcela18x)}`
-    : `Ate ${MAX_PARCELAS}x no cartao`;
-
   const clientePrimeiroNome = (data.cliente_nome || 'Cliente').trim().split(' ')[0] || 'Cliente';
-  const heroSystemMeta = (displayPower > 0 && estGeneration > 0)
-    ? `${displayPower} kWp - ${estGeneration.toFixed(0)} kWh/mes estimados`
-    : 'Projeto tecnico sob medida para seu perfil';
 
   document.getElementById('client-name').innerText    = clientePrimeiroNome;
   document.getElementById('kit-brand').innerText      = displayBrand;
   const brandWrapper = document.getElementById('kit-brand-wrapper');
   if (isCustomMode && brandWrapper) brandWrapper.classList.add('hidden');
   document.getElementById('kit-name').innerText       = displayName;
-
-  const heroInvestmentEl = document.getElementById('hero-investment');
-  const heroEconomyEl = document.getElementById('hero-economy-month');
-  const heroPaymentEl = document.getElementById('hero-best-payment');
-  const heroPaybackEl = document.getElementById('hero-payback');
-  const heroSystemNameEl = document.getElementById('hero-system-name');
-  const heroSystemMetaEl = document.getElementById('hero-system-meta');
-  if (heroInvestmentEl) heroInvestmentEl.innerText = formatter.format(displayPrice);
-  if (heroEconomyEl) heroEconomyEl.innerText = formatter.format(economiaMensal);
-  if (heroPaymentEl) heroPaymentEl.innerText = melhorPagamento;
-  if (heroPaybackEl) heroPaybackEl.innerText = textoPayback;
-  if (heroSystemNameEl) heroSystemNameEl.innerText = displayName;
-  if (heroSystemMetaEl) heroSystemMetaEl.innerText = heroSystemMeta;
 
   // Para EQUIPAMENTOS: oculta potência e geração apenas se não houver dados de sistema
   const powerGenGrid = document.querySelector('#kit-power')?.closest('.grid');
@@ -333,9 +315,6 @@ function renderData(data) {
   // Oculta seção ambiental e de economia/ROI para EQUIPAMENTOS sem dados de potência
   const ecoSection = document.querySelector('#eco-month')?.closest('.bg-neutral-900.border');
   const envSection = document.querySelector('#env-trees')?.closest('.flex.flex-col.md\\:flex-row');
-  const ecoCurrentBillEl = document.getElementById('eco-current-bill');
-  const ecoPostBillEl = document.getElementById('eco-post-bill');
-  const paymentCardBestEl = document.getElementById('payment-card-best');
   if (isCustomMode && estGeneration <= 0) {
     if (ecoSection) ecoSection.classList.add('hidden');
     if (envSection) envSection.classList.add('hidden');
@@ -345,11 +324,7 @@ function renderData(data) {
     document.getElementById('eco-25years').innerText  = formatter.format(economia25Anos);
     document.getElementById('env-trees').innerText    = '+' + arvoresPlantadas;
     document.getElementById('eco-payback').innerText  = textoPayback;
-    if (ecoCurrentBillEl) ecoCurrentBillEl.innerText = formatter.format(valorFaturaIdeal);
-    if (ecoPostBillEl) ecoPostBillEl.innerText = formatter.format(contaPosSistema);
-
   }
-  if (paymentCardBestEl) paymentCardBestEl.innerText = melhorPagamento;
 
   // --- Urgency countdown ---
   if (data.created_at) startCountdown(data.created_at);
@@ -367,22 +342,16 @@ function renderData(data) {
     : null;
 
   const finalCta    = document.getElementById('final-cta-btn');
-  const heroCta     = document.getElementById('hero-cta-btn');
-  const ecoCta      = document.getElementById('eco-cta-btn');
+  const finalCtaRow = document.getElementById('final-cta-row');
   const floatWa     = document.getElementById('floating-whatsapp');
   const vendorWaBtn = document.getElementById('vendor-whatsapp-btn');
   if (waLink) {
     if (finalCta)    finalCta.href    = waLink;
-    if (heroCta)     heroCta.href     = waLink;
-    if (ecoCta)      ecoCta.href      = waLink;
     if (floatWa)     floatWa.href     = waLink;
     if (vendorWaBtn) vendorWaBtn.href = waLink;
   } else {
     // Sem telefone: oculta botões de contato para não deixar href vazio ou apontando para '#'
-    if (finalCta)    finalCta.style.display    = 'none';
-    if (heroCta)     heroCta.style.display     = 'none';
-    if (ecoCta)      ecoCta.style.display      = 'none';
-    if (floatWa)     floatWa.style.display     = 'none';
+    if (finalCtaRow) finalCtaRow.style.display = 'none';
     if (vendorWaBtn) vendorWaBtn.style.display = 'none';
   }
 
@@ -408,9 +377,9 @@ function renderData(data) {
     comNoteRow.classList.remove('hidden');
   }
 
-  // --- Show floating CTA ---
+  // --- Show floating CTA (só se houver telefone do consultor) ---
   const floatingDiv = document.getElementById('floating-cta');
-  if (floatingDiv) {
+  if (floatingDiv && waLink) {
     floatingDiv.classList.remove('hidden');
     lucide.createIcons();
   }

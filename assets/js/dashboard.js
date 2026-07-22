@@ -7,6 +7,78 @@ function getDashboardScopedRows(rows) {
   return state.isAdmin ? applyAdminGlobalScope(list) : list;
 }
 
+// --- Filtro por vendedor (client-side sobre os dados já escopados) ---
+// Admin/gestor já recebem em memória as linhas de todos os vendedores do
+// escopo deles, então filtrar por vendedor_email não precisa de refetch.
+function canUseDashVendedorFilter() {
+  return state.isAdmin || (state.isGestor && state.gestorViewAll);
+}
+
+function getDashboardVendedorOptions(rowsList) {
+  const emails = new Set();
+  (Array.isArray(rowsList) ? rowsList : []).forEach((rows) => {
+    (Array.isArray(rows) ? rows : []).forEach((item) => {
+      const email = String(item?.vendedor_email || '').trim().toLowerCase();
+      if (email) emails.add(email);
+    });
+  });
+  return [...emails].sort();
+}
+
+function applyDashboardVendedorFilter(rows) {
+  const selected = String(state.dashVendedor || 'all').toLowerCase();
+  if (selected === 'all' || !canUseDashVendedorFilter()) return rows;
+  return rows.filter((item) => String(item?.vendedor_email || '').trim().toLowerCase() === selected);
+}
+
+function setDashVendedor(email) {
+  state.dashVendedor = String(email || 'all').toLowerCase();
+  renderContent();
+}
+
+function dashVendedorNome(email) {
+  const base = String(email || '').split('@')[0];
+  if (!base) return email;
+  return base.split(/[._-]/).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
+function getDashboardVendedorSelectorHTML(options) {
+  if (!canUseDashVendedorFilter()) return '';
+  const selected = String(state.dashVendedor || 'all').toLowerCase();
+  const filtrado = selected !== 'all';
+  return `
+    <label>
+      <select onchange="setDashVendedor(this.value)" class="bg-black border ${filtrado ? 'border-orange-500/60 text-orange-400' : 'border-neutral-800 text-neutral-300'} px-2.5 py-1 text-[8px] font-black uppercase tracking-widest">
+        <option value="all">TODOS VENDEDORES</option>
+        ${options.map((email) => `<option value="${escapeHTML(email)}" ${selected === email ? 'selected' : ''}>${escapeHTML(dashVendedorNome(email).toUpperCase())}</option>`).join('')}
+      </select>
+    </label>
+  `;
+}
+
+function toPrevMonthKey(monthKey) {
+  const [y, m] = String(monthKey || '').split('-').map(Number);
+  if (!y || !m) return '';
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Chip "+X% vs mês ant.". Sem base de comparação (mês anterior zerado) ou em
+// GERAL não mostra nada — delta enganoso é pior que delta ausente.
+function dashDeltaChip(current, previous) {
+  if (state.dashPeriod === 'all' || !previous) return '';
+  const delta = ((current - previous) / previous) * 100;
+  const up = delta >= 0.5;
+  const down = delta <= -0.5;
+  const cls = up
+    ? 'text-green-400 bg-green-500/10 border-green-500/25'
+    : down
+      ? 'text-red-400 bg-red-500/10 border-red-500/25'
+      : 'text-neutral-500 bg-neutral-500/10 border-neutral-600/25';
+  const icon = up ? 'trending-up' : down ? 'trending-down' : 'minus';
+  return `<span class="inline-flex items-center gap-1 text-[8px] font-black tracking-wider px-1.5 py-0.5 border ${cls}"><i data-lucide="${icon}" class="w-2.5 h-2.5 shrink-0"></i>${delta >= 0 ? '+' : ''}${delta.toFixed(0)}% vs mês ant.</span>`;
+}
+
 function getDashboardMonthRange(monthKey) {
   const now = new Date();
   const [yearRaw, monthRaw] = String(monthKey || '').split('-');
@@ -25,12 +97,6 @@ function isDateWithinDashboardRange(dateString, start, end) {
   const date = new Date(dateString || 0);
   if (Number.isNaN(date.getTime())) return false;
   return date >= start && date <= end;
-}
-
-function pctDelta(current, previous) {
-  if (!previous && !current) return 0;
-  if (!previous) return 100;
-  return ((current - previous) / previous) * 100;
 }
 
 function getDashboardScopeSelectorHTML(baseRows) {
@@ -53,29 +119,44 @@ function getDashboardScopeSelectorHTML(baseRows) {
   `;
 }
 
-function buildDashboardAdminMetrics(monthKey, clientesRows, propostasRows, vendasRows) {
-  const range = getDashboardMonthRange(monthKey);
+// Métricas da faixa de análise (admin sempre; gestor com "minha unidade").
+// periodKey aceita 'all' (GERAL = toda a base, sem deltas) — antes caía
+// silenciosamente no mês corrente e descasava dos cards de cima.
+// clientesRows/propostasRows/vendasRows JÁ vêm com o filtro de vendedor;
+// vendasEscopoRows vem SEM ele (ranking de vendedores com 1 nome é inútil).
+function buildDashboardAdminMetrics(periodKey, clientesRows, propostasRows, vendasRows, vendasEscopoRows) {
+  const geral = periodKey === 'all';
+  const range = geral ? null : getDashboardMonthRange(periodKey);
+  const noPeriodo = (rows) => geral
+    ? rows
+    : rows.filter((item) => isDateWithinDashboardRange(item?.created_at, range.start, range.end));
+  const noAnterior = (rows) => geral
+    ? []
+    : rows.filter((item) => isDateWithinDashboardRange(item?.created_at, range.prevStart, range.prevEnd));
 
-  const clientesPeriodo = clientesRows.filter((item) => isDateWithinDashboardRange(item?.created_at, range.start, range.end));
-  const propostasPeriodo = propostasRows.filter((item) => isDateWithinDashboardRange(item?.created_at, range.start, range.end));
-  const vendasPeriodo = vendasRows.filter((item) => isDateWithinDashboardRange(item?.created_at, range.start, range.end));
+  const clientesPeriodo = noPeriodo(clientesRows);
+  const propostasPeriodo = noPeriodo(propostasRows);
+  const vendasPeriodo = noPeriodo(vendasRows);
 
-  const propostasPrev = propostasRows.filter((item) => isDateWithinDashboardRange(item?.created_at, range.prevStart, range.prevEnd));
-  const vendasPrev = vendasRows.filter((item) => isDateWithinDashboardRange(item?.created_at, range.prevStart, range.prevEnd));
+  const clientesPrev = noAnterior(clientesRows);
+  const propostasPrev = noAnterior(propostasRows);
+  const vendasPrev = noAnterior(vendasRows);
 
   const receita = vendasPeriodo.reduce((sum, item) => sum + (Number(item?.kit_price) || 0), 0);
   const receitaPrev = vendasPrev.reduce((sum, item) => sum + (Number(item?.kit_price) || 0), 0);
   const ticket = vendasPeriodo.length > 0 ? receita / vendasPeriodo.length : 0;
   const ticketPrev = vendasPrev.length > 0 ? receitaPrev / vendasPrev.length : 0;
 
+  // Taxa proposta→venda do MESMO recorte; null = n/d (sem propostas na base)
   const propostaToVenda = propostasPeriodo.length > 0
     ? Math.round((vendasPeriodo.length / propostasPeriodo.length) * 100)
-    : 0;
+    : null;
 
   const topSellerMap = new Map();
   const topFranchiseMap = new Map();
 
-  vendasPeriodo.forEach((sale) => {
+  const vendasRanking = noPeriodo(Array.isArray(vendasEscopoRows) ? vendasEscopoRows : vendasRows);
+  vendasRanking.forEach((sale) => {
     const email = String(sale?.vendedor_email || '').trim().toLowerCase();
     const franquiaId = String(sale?.franquia_id || '').trim() || 'sem_franquia';
     const value = Number(sale?.kit_price) || 0;
@@ -95,10 +176,10 @@ function buildDashboardAdminMetrics(monthKey, clientesRows, propostasRows, venda
 
   const topSellers = [...topSellerMap.values()]
     .sort((a, b) => b.total - a.total)
-    .slice(0, 3)
+    .slice(0, 5)
     .map((item) => ({
       ...item,
-      nome: item.email.split('@')[0] || item.email,
+      nome: dashVendedorNome(item.email),
       ticket: item.qtd > 0 ? item.total / item.qtd : 0,
     }));
 
@@ -111,13 +192,9 @@ function buildDashboardAdminMetrics(monthKey, clientesRows, propostasRows, venda
     }));
 
   const now = new Date();
-  const agingConfig = [
-    { status: 'NOVO', limit: 7 },
-    { status: 'PROPOSTA ENVIADA', limit: 10 },
-    { status: 'EM NEGOCIAÇÃO', limit: 14 },
-  ];
-
-  const aging = agingConfig.map((entry) => {
+  // Fonte única com a fila do dia (crm-fila.js): as duas telas cobram "parado"
+  // pela mesma régua.
+  const aging = CRM_AGING_LIMITS.map((entry) => {
     const qty = clientesRows.filter((client) => {
       if ((client?.status || 'NOVO') !== entry.status) return false;
       const created = new Date(client?.created_at || 0);
@@ -130,15 +207,18 @@ function buildDashboardAdminMetrics(monthKey, clientesRows, propostasRows, venda
   });
 
   return {
-    monthKey,
+    geral,
     receita,
+    receitaPrev,
     propostas: propostasPeriodo.length,
+    propostasPrev: propostasPrev.length,
     vendas: vendasPeriodo.length,
+    vendasPrev: vendasPrev.length,
     clientes: clientesPeriodo.length,
+    clientesPrev: clientesPrev.length,
     propostaToVenda,
     ticket,
-    receitaDelta: pctDelta(receita, receitaPrev),
-    ticketDelta: pctDelta(ticket, ticketPrev),
+    ticketPrev,
     topSellers,
     topFranchises,
     aging,
@@ -146,34 +226,66 @@ function buildDashboardAdminMetrics(monthKey, clientesRows, propostasRows, venda
 }
 
 function renderDashboardAdminSection(metrics) {
-  const receitaDeltaLabel = `${metrics.receitaDelta >= 0 ? '+' : ''}${metrics.receitaDelta.toFixed(1)}%`;
-  const ticketDeltaLabel = `${metrics.ticketDelta >= 0 ? '+' : ''}${metrics.ticketDelta.toFixed(1)}%`;
+  // sublinha do KPI: em GERAL = "toda a base"; num mês = chip de delta (ou nada sem base)
+  const kpiSub = (current, previous, fallback) => {
+    if (metrics.geral) return '<p class="text-[9px] text-neutral-600 font-bold">toda a base</p>';
+    const chip = dashDeltaChip(current, previous);
+    return chip ? `<p class="mt-0.5">${chip}</p>` : `<p class="text-[9px] text-neutral-600 font-bold">${fallback}</p>`;
+  };
 
+  const selectedVendedor = String(state.dashVendedor || 'all').toLowerCase();
   const topSellersHTML = metrics.topSellers.length > 0
-    ? metrics.topSellers.map((item, idx) => `<div class="flex items-center justify-between border border-neutral-800 px-3 py-2"><div><p class="text-[10px] font-black text-white uppercase tracking-wider">#${idx + 1} ${escapeHTML(item.nome)}</p><p class="text-[9px] text-neutral-600 font-bold">${item.qtd} vendas · ticket ${formatCurrency(item.ticket)}</p></div><p class="text-[10px] font-black text-green-400">${formatCurrency(item.total)}</p></div>`).join('')
-    : '<p class="text-[10px] text-neutral-600 font-bold uppercase">Sem vendas no período.</p>';
+    ? metrics.topSellers.map((item, idx) => {
+      const isSelected = selectedVendedor === item.email;
+      const encoded = encodeURIComponent(item.email);
+      return `<div onclick="setDashVendedor(decodeURIComponent('${isSelected ? 'all' : encoded}'))"
+          class="flex items-center justify-between border px-3 py-2 cursor-pointer transition-all ${isSelected ? 'border-orange-500/60 bg-orange-500/5' : 'border-neutral-800 hover:border-neutral-600'}">
+          <div>
+            <p class="text-[10px] font-black text-white uppercase tracking-wider">#${idx + 1} ${escapeHTML(item.nome)}${isSelected ? ' <span class="text-orange-400">· filtrando</span>' : ''}</p>
+            <p class="text-[9px] text-neutral-600 font-bold">${item.qtd} venda${item.qtd > 1 ? 's' : ''} · ticket ${formatCurrency(item.ticket)}</p>
+          </div>
+          <p class="text-[10px] font-black text-green-400 tabular-nums">${formatCurrency(item.total)}</p>
+        </div>`;
+    }).join('')
+    : '<p class="text-[10px] text-neutral-600 font-bold uppercase">Sem vendas no recorte.</p>';
 
+  const mostraTopFranquias = state.isAdmin && state.adminViewAll && String(state.adminScopeFranquiaId || 'all') === 'all';
   const topFranchisesHTML = metrics.topFranchises.length > 0
-    ? metrics.topFranchises.map((item, idx) => `<div class="flex items-center justify-between border border-neutral-800 px-3 py-2"><div><p class="text-[10px] font-black text-white uppercase tracking-wider">#${idx + 1} ${escapeHTML(item.nome)}</p><p class="text-[9px] text-neutral-600 font-bold">${item.qtd} vendas</p></div><p class="text-[10px] font-black text-cyan-300">${formatCurrency(item.total)}</p></div>`).join('')
-    : '<p class="text-[10px] text-neutral-600 font-bold uppercase">Sem franquias com vendas no período.</p>';
+    ? metrics.topFranchises.map((item, idx) => `<div class="flex items-center justify-between border border-neutral-800 px-3 py-2"><div><p class="text-[10px] font-black text-white uppercase tracking-wider">#${idx + 1} ${escapeHTML(item.nome)}</p><p class="text-[9px] text-neutral-600 font-bold">${item.qtd} venda${item.qtd > 1 ? 's' : ''}</p></div><p class="text-[10px] font-black text-cyan-300 tabular-nums">${formatCurrency(item.total)}</p></div>`).join('')
+    : '<p class="text-[10px] text-neutral-600 font-bold uppercase">Sem vendas no recorte.</p>';
 
+  const agingScopeLabel = selectedVendedor !== 'all' && canUseDashVendedorFilter()
+    ? 'de ' + escapeHTML(dashVendedorNome(selectedVendedor))
+    : 'todo o recorte';
   const agingHTML = metrics.aging
-    .map((item) => `<div class="flex items-center justify-between border border-neutral-800 px-3 py-2"><span class="text-[10px] font-black uppercase tracking-widest text-neutral-300">${escapeHTML(item.status)}</span><span class="text-[10px] font-black ${item.qty > 0 ? 'text-red-400' : 'text-green-400'}">${item.qty}</span></div>`)
+    .map((item) => `<div class="flex items-center justify-between border border-neutral-800 px-3 py-2"><span class="text-[10px] font-black uppercase tracking-widest text-neutral-300">${escapeHTML(item.status)} <span class="text-neutral-700">+${item.limit}d</span></span><span class="text-[10px] font-black tabular-nums ${item.qty > 0 ? 'text-red-400' : 'text-green-400'}">${item.qty}</span></div>`)
     .join('');
 
   return `
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-3 stagger-4">
-      <section class="xl:col-span-3 grid grid-cols-2 lg:grid-cols-5 gap-2 border border-neutral-800/60 p-4" style="background: linear-gradient(135deg, #0d0d0d 0%, #080808 100%);">
-        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Receita no período</p><p class="text-lg font-black text-green-400">${formatCurrency(metrics.receita)}</p><p class="text-[9px] font-bold ${metrics.receitaDelta >= 0 ? 'text-green-400' : 'text-red-400'}">${receitaDeltaLabel} vs período anterior</p></article>
-        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Propostas no período</p><p class="text-lg font-black text-orange-400">${metrics.propostas}</p><p class="text-[9px] text-neutral-600 font-bold">Base temporal coerente</p></article>
-        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Taxa proposta-venda</p><p class="text-lg font-black text-purple-400">${metrics.propostaToVenda}%</p><p class="text-[9px] text-neutral-600 font-bold">${metrics.vendas} vendas / ${metrics.propostas} propostas</p></article>
-        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Ticket médio</p><p class="text-lg font-black text-blue-400">${formatCurrency(metrics.ticket)}</p><p class="text-[9px] font-bold ${metrics.ticketDelta >= 0 ? 'text-green-400' : 'text-red-400'}">${ticketDeltaLabel} vs período anterior</p></article>
-        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Clientes no período</p><p class="text-lg font-black text-white">${metrics.clientes}</p><p class="text-[9px] text-neutral-600 font-bold">cadastros no mesmo período</p></article>
+    <div class="grid grid-cols-1 ${mostraTopFranquias ? 'xl:grid-cols-3' : 'xl:grid-cols-2'} gap-3 stagger-4">
+      <section class="${mostraTopFranquias ? 'xl:col-span-3' : 'xl:col-span-2'} grid grid-cols-2 lg:grid-cols-5 gap-2 border border-neutral-800/60 p-4" style="background: linear-gradient(135deg, #0d0d0d 0%, #080808 100%);">
+        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Receita no recorte</p><p class="text-lg font-black text-green-400 tabular-nums">${formatCurrency(metrics.receita)}</p>${kpiSub(metrics.receita, metrics.receitaPrev, 'sem base de comparação')}</article>
+        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Propostas</p><p class="text-lg font-black text-orange-400 tabular-nums">${metrics.propostas}</p>${kpiSub(metrics.propostas, metrics.propostasPrev, 'sem base de comparação')}</article>
+        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Propostas → Vendas</p><p class="text-lg font-black text-purple-400 tabular-nums">${metrics.propostaToVenda === null ? 'n/d' : metrics.propostaToVenda + '%'}</p><p class="text-[9px] text-neutral-600 font-bold">${metrics.vendas} venda${metrics.vendas === 1 ? '' : 's'} / ${metrics.propostas} proposta${metrics.propostas === 1 ? '' : 's'}</p></article>
+        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Ticket médio</p><p class="text-lg font-black text-blue-400 tabular-nums">${formatCurrency(metrics.ticket)}</p>${kpiSub(metrics.ticket, metrics.ticketPrev, 'sem base de comparação')}</article>
+        <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Clientes novos</p><p class="text-lg font-black text-white tabular-nums">${metrics.clientes}</p>${kpiSub(metrics.clientes, metrics.clientesPrev, 'sem base de comparação')}</article>
       </section>
 
-      <section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;"><h3 class="text-[10px] font-black text-white uppercase tracking-widest mb-3">Top vendedores</h3><div class="flex flex-col gap-2">${topSellersHTML}</div></section>
-      <section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;"><h3 class="text-[10px] font-black text-white uppercase tracking-widest mb-3">Top franquias</h3><div class="flex flex-col gap-2">${topFranchisesHTML}</div></section>
-      <section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;"><h3 class="text-[10px] font-black text-white uppercase tracking-widest mb-3">Alertas de aging</h3><div class="flex flex-col gap-2">${agingHTML}</div></section>
+      <section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-[10px] font-black text-white uppercase tracking-widest">Vendedores no recorte</h3>
+          <span class="text-[8px] text-neutral-700 font-bold uppercase tracking-widest hidden md:inline">clique para filtrar</span>
+        </div>
+        <div class="flex flex-col gap-2">${topSellersHTML}</div>
+      </section>
+      ${mostraTopFranquias ? `<section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;"><h3 class="text-[10px] font-black text-white uppercase tracking-widest mb-3">Franquias no recorte</h3><div class="flex flex-col gap-2">${topFranchisesHTML}</div></section>` : ''}
+      <section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-[10px] font-black text-white uppercase tracking-widest">Clientes parados</h3>
+          <span class="text-[8px] text-neutral-700 font-bold uppercase tracking-widest">${agingScopeLabel}</span>
+        </div>
+        <div class="flex flex-col gap-2">${agingHTML}</div>
+      </section>
     </div>
   `;
 }
@@ -181,13 +293,25 @@ function renderDashboard(container) {
   container.className = 'flex flex-col gap-5 w-full';
 
   // --- Dados ---
-  const clientesDash = getDashboardScopedRows(state.clientes || []);
-  const propostasDash = getDashboardScopedRows(state.propostas || []);
-  const allVendasDash = getDashboardScopedRows(state.vendas || []);
+  // Pipeline de filtragem: escopo do papel → franquia (admin) → vendedor → período
+  const clientesScope = getDashboardScopedRows(state.clientes || []);
+  const propostasScope = getDashboardScopedRows(state.propostas || []);
+  const vendasScope = getDashboardScopedRows(state.vendas || []);
+
+  // Opções do filtro de vendedor derivam do ESCOPO (antes do filtro de vendedor)
+  const vendedorOptions = getDashboardVendedorOptions([clientesScope, propostasScope, vendasScope]);
+  if (String(state.dashVendedor || 'all').toLowerCase() !== 'all'
+      && !vendedorOptions.includes(String(state.dashVendedor).toLowerCase())) {
+    state.dashVendedor = 'all'; // vendedor fora do escopo atual (ex.: trocou de franquia)
+  }
+
+  const clientesDash = applyDashboardVendedorFilter(clientesScope);
+  const propostasDash = applyDashboardVendedorFilter(propostasScope);
+  const allVendasDash = applyDashboardVendedorFilter(vendasScope);
 
   const totalClientes = clientesDash.length;
-  const propostasReais = propostasDash.length;
 
+  // Funil = snapshot da carteira inteira do recorte (imune ao período)
   const funil = { 'NOVO': 0, 'PROPOSTA ENVIADA': 0, 'EM NEGOCIAÇÃO': 0, 'FECHADO': 0 };
   clientesDash.forEach((c) => {
     const s = c.status || 'NOVO';
@@ -199,19 +323,27 @@ function renderDashboard(container) {
   const dashCurrMonth = `${nowDash.getFullYear()}-${String(nowDash.getMonth() + 1).padStart(2, '0')}`;
   if (!state.dashPeriod) state.dashPeriod = dashCurrMonth;
 
-  const availMonthsDash = [...new Set(allVendasDash.map((v) => toMonthKey(v.created_at)).filter(Boolean))].sort().reverse();
+  // Meses disponíveis: união clientes ∪ propostas ∪ vendas (só vendas deixava
+  // mês com propostas e sem vendas inselecionável)
+  const availMonthsDash = [...new Set(
+    [...clientesDash, ...propostasDash, ...allVendasDash].map((r) => toMonthKey(r.created_at)).filter(Boolean)
+  )].sort().reverse();
   if (!availMonthsDash.includes(dashCurrMonth)) availMonthsDash.unshift(dashCurrMonth);
+  if (state.dashPeriod !== 'all' && !availMonthsDash.includes(state.dashPeriod)) state.dashPeriod = dashCurrMonth;
 
-  const vendasDashFilt = state.dashPeriod === 'all'
-    ? allVendasDash
-    : allVendasDash.filter((v) => toMonthKey(v.created_at) === state.dashPeriod);
+  // Partição por período — TODOS os cards obedecem (antes Propostas ignorava)
+  const _dashGeralAtivo = state.dashPeriod === 'all';
+  const dashPrevKey = _dashGeralAtivo ? '' : toPrevMonthKey(state.dashPeriod);
+  const byMonth = (rows, mk) => rows.filter((r) => toMonthKey(r.created_at) === mk);
 
-  const clientesDashFiltForConv = state.dashPeriod === 'all'
-    ? clientesDash
-    : clientesDash.filter((c) => toMonthKey(c.created_at) === state.dashPeriod);
+  const clientesPer  = _dashGeralAtivo ? clientesDash  : byMonth(clientesDash, state.dashPeriod);
+  const propostasPer = _dashGeralAtivo ? propostasDash : byMonth(propostasDash, state.dashPeriod);
+  const vendasDashFilt = _dashGeralAtivo ? allVendasDash : byMonth(allVendasDash, state.dashPeriod);
+  const clientesPrev  = _dashGeralAtivo ? [] : byMonth(clientesDash, dashPrevKey);
+  const propostasPrev = _dashGeralAtivo ? [] : byMonth(propostasDash, dashPrevKey);
+  const vendasPrevArr = _dashGeralAtivo ? [] : byMonth(allVendasDash, dashPrevKey);
 
   // Botões de período pré-calculados
-  const _dashGeralAtivo = state.dashPeriod === 'all';
   const _dashBtns = availMonthsDash.map(m => {
     const ativo   = state.dashPeriod === m;
     const ehAtual = m === dashCurrMonth;
@@ -221,13 +353,19 @@ function renderDashboard(container) {
     const label = formatMonthLabel(m) + (ehAtual ? ' ●' : '');
     return `<button onclick="setDashPeriod('${m}')" class="${cls} border px-2.5 py-1 font-black uppercase text-[8px] tracking-widest transition-all whitespace-nowrap">${label}</button>`;
   }).join('');
-  const dashScopeSelectorHTML = getDashboardScopeSelectorHTML([...clientesDash, ...propostasDash, ...allVendasDash]);
+  const dashScopeSelectorHTML = getDashboardScopeSelectorHTML([...clientesScope, ...propostasScope, ...vendasScope]);
+  const dashVendedorSelectorHTML = getDashboardVendedorSelectorHTML(vendedorOptions);
 
   const totalVendido = vendasDashFilt.reduce((s, v) => s + (Number(v.kit_price) || 0), 0);
+  const totalVendidoPrev = vendasPrevArr.reduce((s, v) => s + (Number(v.kit_price) || 0), 0);
   const qtdVendas = vendasDashFilt.length;
   const ticketMedio = qtdVendas > 0 ? totalVendido / qtdVendas : 0;
-  const baseConversao = clientesDashFiltForConv.length;
-  const taxaConversao = baseConversao > 0 ? Math.round((qtdVendas / baseConversao) * 100) : 0;
+  const ticketMedioPrev = vendasPrevArr.length > 0 ? totalVendidoPrev / vendasPrevArr.length : 0;
+
+  // Conversão honesta: propostas → vendas do MESMO recorte; sem propostas = n/d
+  // (a antiga vendas÷clientes-criados podia passar de 100%)
+  const convPV = propostasPer.length > 0 ? Math.round((qtdVendas / propostasPer.length) * 100) : null;
+  const convPVLabel = convPV === null ? 'n/d' : convPV + '%';
 
   // Percentuais do funil (relativo ao total de clientes)
   const maxF   = totalClientes || 1;
@@ -240,8 +378,23 @@ function renderDashboard(container) {
   const convNeg = toNum('PROPOSTA ENVIADA', 'EM NEGOCIAÇÃO');
   const convFech = toNum('EM NEGOCIAÇÃO', 'FECHADO');
 
-  const adminDashMetrics = state.isAdmin
-    ? buildDashboardAdminMetrics(state.dashPeriod === 'all' ? dashCurrMonth : state.dashPeriod, clientesDash, propostasDash, allVendasDash)
+  // Contexto exibido na barra de filtros
+  const ctxPeriodo = _dashGeralAtivo ? 'GERAL (toda a base)' : formatMonthLabel(state.dashPeriod);
+  const ctxFranquia = state.isAdmin
+    ? (!state.adminViewAll
+        ? (state.franquiaNome || 'Minha unidade')
+        : (String(state.adminScopeFranquiaId || 'all') === 'all' ? 'Todas as franquias' : getFranquiaNameById(state.adminScopeFranquiaId)))
+    : (state.franquiaNome || '');
+  const dashVendSel = String(state.dashVendedor || 'all').toLowerCase();
+  const vendedorFiltrado = dashVendSel !== 'all' && canUseDashVendedorFilter();
+  const ctxVendedor = canUseDashVendedorFilter()
+    ? (dashVendSel === 'all' ? 'Todos os vendedores' : dashVendedorNome(dashVendSel))
+    : 'Minha carteira';
+
+  // Faixa de análise: admin sempre; gestor quando vê a unidade inteira
+  const mostraAnalise = state.isAdmin || (state.isGestor && state.gestorViewAll);
+  const adminDashMetrics = mostraAnalise
+    ? buildDashboardAdminMetrics(state.dashPeriod, clientesDash, propostasDash, allVendasDash, vendasScope)
     : null;
 
   // Saudação
@@ -345,31 +498,29 @@ function renderDashboard(container) {
 
   container.innerHTML = `
     <!-- ════════════════════════════════════════
-         HERO HEADER - saudação + relógio
+         HERO HEADER compacto - saudação + escopo + relógio
          ════════════════════════════════════════ -->
-    <div class="dash-hero stagger-1 relative overflow-hidden border border-neutral-800/60 p-6 md:p-8 group" style="background: linear-gradient(135deg, #0f0f0f 0%, #080808 100%);">
+    <div class="dash-hero stagger-1 relative overflow-hidden border border-neutral-800/60 px-5 py-4 md:px-6 md:py-5 group" style="background: linear-gradient(135deg, #0f0f0f 0%, #080808 100%);">
       <div class="absolute inset-0 bg-grid opacity-50 pointer-events-none"></div>
-      <div class="absolute -right-16 -top-16 w-64 h-64 bg-orange-600/5 rounded-full blur-[80px] group-hover:bg-orange-600/8 transition-all duration-1000 pointer-events-none"></div>
-      <div class="absolute -left-8 -bottom-8 w-48 h-48 bg-yellow-500/3 rounded-full blur-[60px] pointer-events-none"></div>
+      <div class="absolute -right-16 -top-16 w-56 h-56 bg-orange-600/5 rounded-full blur-[70px] group-hover:bg-orange-600/8 transition-all duration-1000 pointer-events-none"></div>
 
-      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-        <div>
-          <p class="text-[9px] font-black uppercase tracking-[0.4em] text-neutral-600 mb-2">${dateStr}</p>
-          <h2 class="text-3xl md:text-4xl font-black text-white leading-none tracking-tight">
+      <div class="relative z-10 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-col gap-1.5">
+          <p class="text-[8px] font-black uppercase tracking-[0.35em] text-neutral-600">${dateStr}</p>
+          <h2 class="text-xl md:text-2xl font-black text-white leading-none tracking-tight">
             ${greeting}${firstName
               ? `, <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-300">${escapeHTML(firstName)}</span>.`
               : '.'}
           </h2>
-          <p class="text-neutral-500 text-sm font-medium mt-2.5">Aqui está o resumo da sua carteira.</p>
           ${state.isAdmin
-            ? `<div class="flex items-center gap-2 mt-3">
+            ? `<div class="flex items-center gap-2 mt-1">
                 <span class="text-[8px] px-2 py-1 border ${state.adminViewAll ? 'border-purple-500/40 bg-purple-500/10 text-purple-400' : 'border-orange-500/40 bg-orange-500/10 text-orange-400'} font-black uppercase tracking-widest flex items-center gap-1.5">
                   <i data-lucide="${state.adminViewAll ? 'layers' : 'building-2'}" class="w-3 h-3"></i>
                   ${state.adminViewAll ? 'VISÃO CONSOLIDADA - TODAS AS FRANQUIAS' : 'VISÃO: MINHA UNIDADE - ' + escapeHTML(state.franquiaNome)}
                 </span>
               </div>`
             : state.franquiaNome
-              ? `<div class="flex items-center gap-2 mt-3">
+              ? `<div class="flex items-center gap-2 mt-1">
                   <span class="text-[8px] px-2 py-1 border border-neutral-700 bg-neutral-900/60 text-neutral-400 font-black uppercase tracking-widest flex items-center gap-1.5">
                     <i data-lucide="map-pin" class="w-3 h-3"></i> ${escapeHTML(state.franquiaNome)}
                   </span>
@@ -377,29 +528,59 @@ function renderDashboard(container) {
               : ''
           }
         </div>
-        <div class="flex flex-col items-start md:items-end gap-1 shrink-0">
-          <div id="dashboard-clock" class="text-4xl md:text-5xl font-black text-white live-clock tabular-nums leading-none">00:00:00</div>
-          <span class="text-[9px] text-neutral-700 font-bold uppercase tracking-[0.3em]">Horário local</span>
+        <div class="flex flex-col items-end gap-0.5 shrink-0">
+          <div id="dashboard-clock" class="text-2xl md:text-3xl font-black text-white live-clock tabular-nums leading-none">00:00:00</div>
+          <span class="text-[8px] text-neutral-700 font-bold uppercase tracking-[0.3em]">Horário local</span>
         </div>
       </div>
     </div>
 
     <!-- ════════════════════════════════════════
-         FILTRO DE PERÍODO (Métricas de venda)
+         PARA HOJE (crm-fila.js) — REMOVIDO TEMPORARIAMENTE do dashboard a
+         pedido do usuário (20/07/2026). Para reativar, recolocar aqui a
+         chamada: typeof renderFilaDoDiaBlock === 'function' ? renderFilaDoDiaBlock() : ''
+         (interpolada em template string). O bloco continua vivo em crm-fila.js.
          ════════════════════════════════════════ -->
-    <div class="flex flex-wrap items-center justify-between gap-2 px-1">
-      <span class="text-[8px] text-neutral-700 font-black uppercase tracking-widest flex items-center gap-1.5">
-        <i data-lucide="calendar" class="w-3 h-3"></i> Métricas de venda
-      </span>
-      <div class="flex flex-wrap gap-1 items-center">
-        <button onclick="setDashPeriod('all')"
-          class="${_dashGeralAtivo ? 'bg-neutral-700 text-white border-neutral-600' : 'bg-transparent border-neutral-800 text-neutral-600 hover:text-neutral-300 hover:border-neutral-700'} border px-2.5 py-1 font-black uppercase text-[8px] tracking-widest transition-all">GERAL</button>
-        ${_dashBtns}
-        ${dashScopeSelectorHTML}
-        <button onclick="refreshData()" title="Atualizar dados"
-          class="border border-neutral-800 text-neutral-600 hover:text-white hover:border-neutral-600 px-2 py-1 transition-all flex items-center gap-1 text-[8px] font-black uppercase tracking-widest ml-1">
-          <i id="refresh-data-icon" data-lucide="refresh-cw" class="w-3 h-3 transition-transform"></i>
-        </button>
+
+    <!-- ════════════════════════════════════════
+         META DO MÊS + COMISSÃO ESTIMADA (crm-metas.js)
+         Só para vendedor; admin/gestor têm a visão de time mais abaixo.
+         ════════════════════════════════════════ -->
+    ${typeof renderMetaBlock === 'function' ? renderMetaBlock() : ''}
+
+    <!-- ════════════════════════════════════════
+         BARRA DE FILTROS UNIFICADA
+         Todo número abaixo dela obedece: período × franquia × vendedor.
+         ════════════════════════════════════════ -->
+    <div class="stagger-2 border border-neutral-800/60 p-3 md:px-4 flex flex-col gap-2.5" style="background: rgba(8,8,8,0.85); border-left: 2px solid #f97316;">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[8px] text-neutral-500 font-black uppercase tracking-widest flex items-center gap-1.5 mr-1">
+          <i data-lucide="sliders-horizontal" class="w-3 h-3 text-orange-400"></i> Filtros
+        </span>
+        <div class="flex flex-wrap gap-1 items-center">
+          <button onclick="setDashPeriod('all')"
+            class="${_dashGeralAtivo ? 'bg-neutral-700 text-white border-neutral-600' : 'bg-transparent border-neutral-800 text-neutral-600 hover:text-neutral-300 hover:border-neutral-700'} border px-2.5 py-1 font-black uppercase text-[8px] tracking-widest transition-all">GERAL</button>
+          ${_dashBtns}
+        </div>
+        <div class="flex flex-wrap gap-1.5 items-center ml-auto">
+          ${dashScopeSelectorHTML}
+          ${dashVendedorSelectorHTML}
+          <button onclick="refreshData()" title="Atualizar dados" class="btn btn-ghost btn-sm">
+            <i id="refresh-data-icon" data-lucide="refresh-cw" class="transition-transform"></i>
+          </button>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 border-t border-neutral-900 pt-2">
+        <i data-lucide="eye" class="w-3 h-3 text-neutral-600"></i>
+        <span class="text-[8px] font-bold uppercase tracking-widest text-neutral-600">Exibindo:</span>
+        <span class="text-[9px] font-black uppercase tracking-widest text-white border border-neutral-700 px-1.5 py-0.5">${escapeHTML(ctxPeriodo)}</span>
+        ${ctxFranquia ? `<span class="text-neutral-800">·</span>
+        <span class="text-[9px] font-black uppercase tracking-widest text-white border border-neutral-700 px-1.5 py-0.5">${escapeHTML(ctxFranquia)}</span>` : ''}
+        <span class="text-neutral-800">·</span>
+        <span class="text-[9px] font-black uppercase tracking-widest ${vendedorFiltrado ? 'text-orange-400 border-orange-500/50' : 'text-white border-neutral-700'} border px-1.5 py-0.5">${escapeHTML(ctxVendedor)}</span>
+        ${vendedorFiltrado
+          ? `<button onclick="setDashVendedor('all')" class="text-[8px] font-black uppercase tracking-widest text-neutral-500 hover:text-white transition-colors ml-1">✕ limpar vendedor</button>`
+          : ''}
       </div>
     </div>
 
@@ -408,31 +589,31 @@ function renderDashboard(container) {
          ════════════════════════════════════════ -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
 
-      <!-- Clientes -->
-      <div class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-default">
+      <!-- Clientes (clicável → aba Clientes) -->
+      <div onclick="setTab('clientes')" class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-pointer hover:border-blue-500/30 transition-colors">
         <div class="absolute -top-6 -right-6 w-28 h-28 bg-blue-500 opacity-[0.05] rounded-full blur-2xl group-hover:opacity-[0.1] transition-opacity duration-700 pointer-events-none"></div>
         <div class="flex justify-between items-start relative z-10">
-          <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Meus Clientes</span>
+          <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Clientes</span>
           <div class="p-1.5 md:p-2 bg-blue-500/10 border border-blue-500/20 group-hover:border-blue-500/40 transition-colors shrink-0">
             <i data-lucide="users" class="w-3 h-3 md:w-3.5 md:h-3.5 text-blue-400"></i>
           </div>
         </div>
         <div class="relative z-10">
-          <div class="text-3xl md:text-5xl font-black text-white tabular-nums leading-none" data-count="${totalClientes}">0</div>
-          <div class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest mt-1">na carteira</div>
+          <div class="text-3xl md:text-5xl font-black text-white tabular-nums leading-none" data-count="${clientesPer.length}">0</div>
+          <div class="flex items-center gap-2 flex-wrap mt-1">
+            <span class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest">${_dashGeralAtivo ? 'na carteira' : 'novos no período'}</span>
+            ${dashDeltaChip(clientesPer.length, clientesPrev.length)}
+          </div>
         </div>
-        <div class="relative z-10 space-y-1.5">
-          <div class="flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest">
-            <span>Meta</span><span class="text-blue-500">${Math.min(totalClientes * 10, 100)}%</span>
-          </div>
-          <div class="w-full h-px bg-neutral-900 rounded-full">
-            <div class="h-full bg-gradient-to-r from-blue-600 to-blue-400 bar-animated rounded-full" style="width: ${Math.min(totalClientes * 10, 100)}%"></div>
-          </div>
+        <div class="relative z-10 flex items-center justify-between gap-1 text-[8px] font-black uppercase tracking-widest text-neutral-700 mt-auto">
+          ${_dashGeralAtivo
+            ? `<span class="flex items-center gap-1 group-hover:text-blue-400 transition-colors">Ver clientes <i data-lucide="arrow-right" class="w-3 h-3"></i></span>`
+            : `<span>Carteira total</span><span class="text-blue-400">${totalClientes}</span>`}
         </div>
       </div>
 
-      <!-- Propostas -->
-      <div class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-default" style="animation-delay: 80ms">
+      <!-- Propostas (clicável → aba Propostas) -->
+      <div onclick="setTab('propostas')" class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-pointer hover:border-orange-500/30 transition-colors" style="animation-delay: 80ms">
         <div class="absolute -top-6 -right-6 w-28 h-28 bg-orange-500 opacity-[0.05] rounded-full blur-2xl group-hover:opacity-[0.1] transition-opacity duration-700 pointer-events-none"></div>
         <div class="flex justify-between items-start relative z-10">
           <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Propostas</span>
@@ -441,21 +622,21 @@ function renderDashboard(container) {
           </div>
         </div>
         <div class="relative z-10">
-          <div class="text-3xl md:text-5xl font-black text-white tabular-nums leading-none" data-count="${propostasReais}">0</div>
-          <div class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest mt-1">orçamentos gerados</div>
+          <div class="text-3xl md:text-5xl font-black text-white tabular-nums leading-none" data-count="${propostasPer.length}">0</div>
+          <div class="flex items-center gap-2 flex-wrap mt-1">
+            <span class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest">${_dashGeralAtivo ? 'orçamentos gerados' : 'criadas no período'}</span>
+            ${dashDeltaChip(propostasPer.length, propostasPrev.length)}
+          </div>
         </div>
-        <div class="relative z-10 space-y-1.5">
-          <div class="flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest">
-            <span>Volume</span><span class="text-orange-400">${Math.min(propostasReais * 5, 100)}%</span>
-          </div>
-          <div class="w-full h-px bg-neutral-900 rounded-full">
-            <div class="h-full bg-gradient-to-r from-orange-600 to-yellow-400 bar-animated rounded-full" style="width: ${Math.min(propostasReais * 5, 100)}%"></div>
-          </div>
+        <div class="relative z-10 flex items-center justify-between gap-1 text-[8px] font-black uppercase tracking-widest text-neutral-700 mt-auto">
+          ${_dashGeralAtivo
+            ? `<span class="flex items-center gap-1 group-hover:text-orange-400 transition-colors">Ver propostas <i data-lucide="arrow-right" class="w-3 h-3"></i></span>`
+            : `<span>Base total</span><span class="text-orange-400">${propostasDash.length}</span>`}
         </div>
       </div>
 
-      <!-- Fechados -->
-      <div class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-default" style="animation-delay: 160ms">
+      <!-- Fechados (clicável → aba Vendas; barra = taxa proposta→venda do recorte) -->
+      <div onclick="setTab('vendas')" class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-pointer hover:border-green-500/30 transition-colors" style="animation-delay: 160ms">
         <div class="absolute -top-6 -right-6 w-28 h-28 bg-green-500 opacity-[0.05] rounded-full blur-2xl group-hover:opacity-[0.1] transition-opacity duration-700 pointer-events-none"></div>
         <div class="flex justify-between items-start relative z-10">
           <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Negócios Fechados</span>
@@ -465,20 +646,23 @@ function renderDashboard(container) {
         </div>
         <div class="relative z-10">
           <div class="text-3xl md:text-5xl font-black text-white tabular-nums leading-none neon-green" data-count="${qtdVendas}">0</div>
-          <div class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest mt-1">${qtdVendas > 0 ? `${qtdVendas} venda${qtdVendas > 1 ? 's' : ''} confirmada${qtdVendas > 1 ? 's' : ''}` : 'nenhuma venda registrada'}</div>
+          <div class="flex items-center gap-2 flex-wrap mt-1">
+            <span class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest">${qtdVendas > 0 ? `${qtdVendas} venda${qtdVendas > 1 ? 's' : ''} no recorte` : 'nenhuma venda no recorte'}</span>
+            ${dashDeltaChip(qtdVendas, vendasPrevArr.length)}
+          </div>
         </div>
         <div class="relative z-10 space-y-1.5">
           <div class="flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest">
-            <span>Conversão</span><span class="text-green-400">${taxaConversao}%</span>
+            <span>Propostas → Vendas</span><span class="text-green-400">${convPVLabel}</span>
           </div>
           <div class="w-full h-px bg-neutral-900 rounded-full">
-            <div class="h-full bg-gradient-to-r from-green-600 to-green-400 bar-animated rounded-full" style="width: ${taxaConversao}%"></div>
+            <div class="h-full bg-gradient-to-r from-green-600 to-green-400 bar-animated rounded-full" style="width: ${convPV === null ? 0 : Math.min(convPV, 100)}%"></div>
           </div>
         </div>
       </div>
 
-      <!-- Ticket Médio -->
-      <div class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-default" style="animation-delay: 240ms">
+      <!-- Ticket Médio (clicável → aba Vendas) -->
+      <div onclick="setTab('vendas')" class="metric-card dash-metric-card stagger-2 shine-effect border border-neutral-800/60 p-3 md:p-6 flex flex-col gap-3 md:gap-4 relative overflow-hidden group cursor-pointer hover:border-blue-400/30 transition-colors" style="animation-delay: 240ms">
         <div class="absolute -top-6 -right-6 w-28 h-28 bg-blue-400 opacity-[0.04] rounded-full blur-2xl group-hover:opacity-[0.08] transition-opacity duration-700 pointer-events-none"></div>
         <div class="flex justify-between items-start relative z-10">
           <span class="text-[8px] md:text-[9px] text-neutral-600 font-black uppercase tracking-widest leading-tight">Ticket Médio</span>
@@ -488,15 +672,13 @@ function renderDashboard(container) {
         </div>
         <div class="relative z-10 min-w-0">
           <div class="text-xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400 tabular-nums leading-none pb-0.5 break-all" data-count="${ticketMedio}" data-count-currency="true">R$ 0</div>
-          <div class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest mt-1">${qtdVendas > 0 ? `${qtdVendas} venda${qtdVendas > 1 ? 's' : ''} no período` : 'nenhuma venda registrada'}</div>
+          <div class="flex items-center gap-2 flex-wrap mt-1">
+            <span class="text-[8px] md:text-[9px] text-neutral-600 font-bold uppercase tracking-widest">${qtdVendas > 0 ? `sobre ${qtdVendas} venda${qtdVendas > 1 ? 's' : ''}` : 'sem vendas no recorte'}</span>
+            ${dashDeltaChip(ticketMedio, ticketMedioPrev)}
+          </div>
         </div>
-        <div class="relative z-10 space-y-1.5">
-          <div class="flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest gap-1 min-w-0">
-            <span class="shrink-0">Total vendido</span><span class="text-blue-500 truncate text-right">${formatCurrency(totalVendido)}</span>
-          </div>
-          <div class="w-full h-px bg-neutral-900 rounded-full">
-            <div class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 bar-animated rounded-full" style="width: ${Math.min(qtdVendas * 20, 100)}%"></div>
-          </div>
+        <div class="relative z-10 flex justify-between text-[8px] text-neutral-700 font-bold uppercase tracking-widest gap-1 min-w-0 mt-auto">
+          <span class="shrink-0">Total vendido</span><span class="text-blue-500 truncate text-right">${formatCurrency(totalVendido)}</span>
         </div>
       </div>
     </div>
@@ -507,16 +689,14 @@ function renderDashboard(container) {
     <div class="dash-pipeline stagger-3 relative overflow-hidden border border-neutral-800/60 p-6 md:p-7" style="background: linear-gradient(135deg, #0e0e0e 0%, #080808 100%);">
       <div class="absolute right-0 top-0 w-48 h-48 bg-purple-600/4 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div class="flex items-center justify-between mb-6 relative z-10">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-6 relative z-10">
         <div class="flex items-center gap-2.5">
           <div class="p-1.5 bg-purple-500/10 border border-purple-500/25">
             <i data-lucide="git-merge" class="w-3.5 h-3.5 text-purple-400"></i>
           </div>
-          <h3 class="text-[10px] font-black text-white uppercase tracking-widest">Pipeline de Vendas</h3>
+          <h3 class="text-[10px] font-black text-white uppercase tracking-widest">Funil da Carteira</h3>
         </div>
-        <div class="text-[9px] text-neutral-600 font-bold">
-          Conversão global: <span class="text-purple-400 font-black">${taxaConversao}%</span>
-        </div>
+        <span class="text-[9px] font-bold px-2 py-0.5 border border-neutral-800 text-neutral-500 uppercase tracking-widest">snapshot atual · não muda com o período</span>
       </div>
 
       <div class="grid grid-cols-4 gap-2 md:gap-5 relative z-10">
@@ -592,9 +772,13 @@ function renderDashboard(container) {
     </div>
 
     <!-- ════════════════════════════════════════
-         COMUNICADOS + LATERAL
+         ANÁLISE DO RECORTE (admin sempre; gestor com "minha unidade")
          ════════════════════════════════════════ -->
-    ${state.isAdmin && adminDashMetrics ? renderDashboardAdminSection(adminDashMetrics) : ''}
+    ${adminDashMetrics ? renderDashboardAdminSection(adminDashMetrics) : ''}
+
+    <!-- Metas vs realizado do time (crm-metas.js) — admin E gestor -->
+    ${typeof renderMetasEquipeBlock === 'function' ? renderMetasEquipeBlock() : ''}
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-4">
 
       <!-- Comunicados -->
@@ -618,38 +802,9 @@ function renderDashboard(container) {
       <!-- Coluna lateral -->
       <div class="flex flex-col gap-3">
 
-        <!-- Materiais Úteis -->
-        <div class="dash-materials-panel border border-neutral-800/60 p-5 flex flex-col gap-3" style="background: #0d0d0d;">
-          <h3 class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-            <div class="p-1.5 bg-blue-500/10 border border-blue-500/20">
-              <i data-lucide="folder-down" class="w-3 h-3 text-blue-400"></i>
-            </div>
-            Materiais Úteis
-          </h3>
-          <a href="#" class="flex items-center justify-between p-3 border border-neutral-800/50 hover:border-red-500/40 hover:bg-red-500/4 transition-all group">
-            <div class="flex items-center gap-2.5">
-              <div class="p-1.5 bg-red-500/10 shrink-0"><i data-lucide="file-text" class="w-3.5 h-3.5 text-red-400"></i></div>
-              <span class="text-[10px] font-bold text-neutral-400 group-hover:text-white uppercase tracking-wider transition-colors">Apresentação Ágil</span>
-            </div>
-            <i data-lucide="download" class="w-3 h-3 text-neutral-700 group-hover:text-red-400 shrink-0 transition-colors"></i>
-          </a>
-          <a href="#" class="flex items-center justify-between p-3 border border-neutral-800/50 hover:border-green-500/40 hover:bg-green-500/4 transition-all group">
-            <div class="flex items-center gap-2.5">
-              <div class="p-1.5 bg-green-500/10 shrink-0"><i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-green-400"></i></div>
-              <span class="text-[10px] font-bold text-neutral-400 group-hover:text-white uppercase tracking-wider transition-colors">Tabela de Juros</span>
-            </div>
-            <i data-lucide="download" class="w-3 h-3 text-neutral-700 group-hover:text-green-400 shrink-0 transition-colors"></i>
-          </a>
-          <a href="#" class="flex items-center justify-between p-3 border border-neutral-800/50 hover:border-orange-500/40 hover:bg-orange-500/4 transition-all group">
-            <div class="flex items-center gap-2.5">
-              <div class="p-1.5 bg-orange-500/10 shrink-0"><i data-lucide="file-check-2" class="w-3.5 h-3.5 text-orange-400"></i></div>
-              <span class="text-[10px] font-bold text-neutral-400 group-hover:text-white uppercase tracking-wider transition-colors">Ficha Inversores</span>
-            </div>
-            <i data-lucide="download" class="w-3 h-3 text-neutral-700 group-hover:text-orange-400 shrink-0 transition-colors"></i>
-          </a>
-        </div>
-
         <!-- CTA Ação Rápida -->
+        <!-- (o painel "Materiais Úteis" foi removido: eram links href="#" sem
+             arquivo real. Recolocar só quando existirem materiais de verdade.) -->
         <div class="dash-quick-panel relative overflow-hidden border border-orange-500/15 p-5 flex flex-col gap-4"
           style="background: linear-gradient(135deg, rgba(234,88,12,0.06) 0%, #080808 60%);">
           <div class="absolute inset-0 bg-grid-sm opacity-30 pointer-events-none"></div>
@@ -657,12 +812,11 @@ function renderDashboard(container) {
             <div class="text-[8px] font-black text-orange-400/50 uppercase tracking-[0.3em] mb-2">Ação Rápida</div>
             <p class="text-sm font-bold text-neutral-300 leading-snug">Tem um cliente em mente?<br>Crie o orçamento agora.</p>
           </div>
-          <button onclick="setTab('clientes')"
-            class="relative z-10 flex items-center gap-2 bg-gradient-to-r from-orange-600 to-yellow-500
-              hover:from-orange-500 hover:to-yellow-400 text-black px-4 py-2.5 font-black uppercase
-              tracking-widest text-[10px] transition-all active:scale-95
-              shadow-[0_0_20px_rgba(234,88,12,0.2)] hover:shadow-[0_0_30px_rgba(234,88,12,0.5)]">
-            <i data-lucide="users" class="w-3.5 h-3.5"></i> Ir para Clientes
+          <button onclick="openNovaPropostaPicker()" class="btn btn-primary relative z-10">
+            <i data-lucide="file-plus-2"></i> Nova Proposta
+          </button>
+          <button onclick="setTab('clientes')" class="btn btn-ghost btn-sm relative z-10">
+            <i data-lucide="users"></i> Ir para Clientes
           </button>
         </div>
 

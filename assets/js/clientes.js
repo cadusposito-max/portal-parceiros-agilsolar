@@ -4,7 +4,10 @@
 // ==========================================
 
 const CLIENT_STATUS_SEQUENCE = ['NOVO', 'PROPOSTA ENVIADA', 'EM NEGOCIAÇÃO', 'FECHADO'];
-const CLIENT_STATUS_OPTIONS = ['TODOS', ...CLIENT_STATUS_SEQUENCE];
+// 'PERDIDO' é status terminal (fora do caminho "ganho" da pipeline-bar)
+const CLIENT_STATUS_TERMINAL = ['PERDIDO'];
+const CLIENT_STATUS_ALL = [...CLIENT_STATUS_SEQUENCE, ...CLIENT_STATUS_TERMINAL];
+const CLIENT_STATUS_OPTIONS = ['TODOS', ...CLIENT_STATUS_ALL];
 const CLIENT_SORT_OPTIONS = [
   { v: 'recent', l: 'MAIS RECENTES' },
   { v: 'alpha', l: 'A-Z' },
@@ -22,6 +25,7 @@ const CLIENT_STATUS_STYLE = {
   'PROPOSTA ENVIADA': { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30' },
   'EM NEGOCIAÇÃO': { bg: 'bg-yellow-500/10', text: 'text-yellow-300', border: 'border-yellow-500/30' },
   FECHADO: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30' },
+  PERDIDO: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30' },
 };
 const CLIENT_AVATAR_COLORS = [
   'from-orange-600 to-orange-400',
@@ -31,6 +35,31 @@ const CLIENT_AVATAR_COLORS = [
   'from-purple-600 to-purple-400',
   'from-pink-600 to-pink-400',
 ];
+
+// =======================================================================
+// Renderização em lotes (Clientes/Funil) — bases grandes travavam a aba:
+// centenas de cards + createIcons de uma vez. Vale para TODO perfil.
+// Só a RENDERIZAÇÃO é limitada — busca, filtros, contadores e export XLSX
+// continuam operando sobre a base completa.
+// =======================================================================
+const CLIENTES_RENDER_LOTE = 10;
+let _clientesRenderLimit = CLIENTES_RENDER_LOTE;
+let _funilColLimit = {};
+
+function resetClientesRenderLimit() {
+  _clientesRenderLimit = CLIENTES_RENDER_LOTE;
+  _funilColLimit = {};
+}
+
+function clientesMostrarMais() {
+  _clientesRenderLimit += 20;
+  renderContent();
+}
+
+function funilMostrarMaisColuna(status) {
+  _funilColLimit[status] = (_funilColLimit[status] || CLIENTES_RENDER_LOTE) + 20;
+  renderContent();
+}
 
 function getDefaultAdminClientesFilters() {
   return {
@@ -59,7 +88,7 @@ function ensureAdminClientesFiltersState() {
 function normalizeClientStatus(status) {
   if (!status) return 'NOVO';
   const value = String(status).trim().toUpperCase();
-  return CLIENT_STATUS_SEQUENCE.includes(value) ? value : 'NOVO';
+  return CLIENT_STATUS_ALL.includes(value) ? value : 'NOVO';
 }
 
 function digitsOnly(value) {
@@ -259,7 +288,10 @@ function renderClientMetaChips(client, options = {}) {
   ];
 
   if (client?.cidade) {
-    chips.push(`<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-2.5 h-2.5"></i>${escapeHTML(client.cidade)}</span>`);
+    const hspBadge = Number(client?.hsp) > 0
+      ? ` <span class="text-yellow-500/90">· ☀ ${client.hsp} HSP</span>`
+      : '';
+    chips.push(`<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-2.5 h-2.5"></i>${escapeHTML(client.cidade)}${hspBadge}</span>`);
   }
 
   chips.push(`<span class="flex items-center gap-1"><i data-lucide="calendar" class="w-2.5 h-2.5"></i>${formatDate(client?.created_at)}</span>`);
@@ -277,6 +309,15 @@ function renderClientMetaChips(client, options = {}) {
 
 function renderClientPipelineBar(status) {
   const current = normalizeClientStatus(status);
+
+  // Cliente perdido: barra toda vermelha (fora do caminho "ganho")
+  if (current === 'PERDIDO') {
+    return CLIENT_STATUS_SEQUENCE.map((stage, idx) => {
+      const radius = idx === 0 ? 'rounded-l' : (idx === CLIENT_STATUS_SEQUENCE.length - 1 ? 'rounded-r' : '');
+      return `<div class="flex-1 h-1 bg-red-500/40 ${radius} transition-all duration-500"></div>`;
+    }).join('');
+  }
+
   const stageIdx = CLIENT_STATUS_SEQUENCE.indexOf(current);
 
   return CLIENT_STATUS_SEQUENCE.map((stage, idx) => {
@@ -289,57 +330,114 @@ function renderClientPipelineBar(status) {
 }
 function renderClientActions(client, compact = false) {
   const waLink = buildClientWhatsappLink(client);
-  const shared = compact ? 'text-[8px] px-2.5 py-1.5' : 'text-[9px] px-3 py-2';
+  const sz = compact ? 'btn-sm' : '';
 
   const waButton = waLink
-    ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer"
-        class="w-full min-w-0 flex items-center justify-center gap-1.5 bg-green-600 border border-green-500 hover:bg-green-700 hover:border-green-400 text-white ${shared} font-black uppercase tracking-wider transition-all active:scale-95">
-        <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
-        <span>WhatsApp</span>
+    ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"
+        class="btn btn-primary ${sz} w-full md:w-auto">
+        <i data-lucide="message-circle"></i><span>WhatsApp</span>
       </a>`
-    : `<button disabled class="w-full min-w-0 flex items-center justify-center gap-1.5 bg-neutral-900 border border-neutral-800 text-neutral-600 ${shared} font-black uppercase tracking-wider cursor-not-allowed">
-        <i data-lucide="message-circle-off" class="w-3.5 h-3.5"></i>
-        <span>Sem WhatsApp</span>
+    : `<button disabled onclick="event.stopPropagation()" class="btn btn-secondary ${sz} w-full md:w-auto opacity-50 cursor-not-allowed">
+        <i data-lucide="message-circle-off"></i><span>Sem WhatsApp</span>
       </button>`;
 
   if (compact) {
     return `
       <div class="relative z-10 mt-4 pt-3 border-t border-neutral-800/60 grid grid-cols-2 gap-2 min-w-0">
         ${waButton}
-        <button onclick="openProposalBuilder('${client.id}')"
-          class="w-full min-w-0 bg-neutral-800/50 border border-neutral-700/50 hover:border-orange-500/50 hover:bg-orange-500/8 hover:text-orange-400 text-neutral-400 ${shared} font-black uppercase tracking-wider transition-all active:scale-95 flex gap-1.5 items-center justify-center">
-          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-          <span>Expandir</span>
+        <button onclick="event.stopPropagation(); openCrm360('${client.id}')" class="btn btn-secondary btn-sm w-full">
+          <i data-lucide="maximize-2"></i><span>Abrir ficha</span>
         </button>
-        <button onclick="openFechaVenda('${client.id}')"
-          class="col-span-2 w-full min-w-0 bg-green-600 border border-green-500 hover:bg-green-700 hover:border-green-400 text-white ${shared} font-black uppercase tracking-wider transition-all active:scale-95 flex gap-1.5 items-center justify-center">
-          <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
-          <span>Fechar venda</span>
+        <button onclick="event.stopPropagation(); openFechaVenda('${client.id}')" class="btn btn-success btn-sm w-full col-span-2">
+          <i data-lucide="trophy"></i><span>Fechar venda</span>
         </button>
       </div>
     `;
   }
 
+  // Mobile: grade 2×2 (botões grandes, com rótulo, nada corta na borda).
+  // Desktop (md+): linha única como antes.
   return `
-    <div class="relative z-10 flex gap-2 mt-4 pt-3 border-t border-neutral-800/60">
-      <div class="shrink-0">${waButton}</div>
-      <button onclick="openProposalBuilder('${client.id}')"
-        class="flex-1 bg-neutral-800/50 border border-neutral-700/50 hover:border-orange-500/50 hover:bg-orange-500/8 hover:text-orange-400 text-neutral-400 ${shared} font-black uppercase tracking-wider transition-all active:scale-95 flex gap-2 items-center justify-center">
-        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-        EXPANDIR
+    <div class="relative z-10 grid grid-cols-2 md:flex gap-2 mt-4 pt-3 border-t border-neutral-800/60">
+      ${waButton}
+      <button onclick="event.stopPropagation(); openCrm360('${client.id}')" class="btn btn-secondary w-full md:w-auto md:flex-1">
+        <i data-lucide="maximize-2"></i>ABRIR FICHA
       </button>
-      <button onclick="openFechaVenda('${client.id}')"
-        class="bg-green-600 border border-green-500 hover:bg-green-700 hover:border-green-400 text-white ${shared} font-black uppercase tracking-wider transition-all active:scale-95 flex gap-1.5 items-center justify-center shrink-0">
-        <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
-        <span class="hidden md:inline">FECHAR</span>
+      <button onclick="event.stopPropagation(); openProposalBuilder('${client.id}')" class="btn btn-secondary w-full md:w-auto md:shrink-0">
+        <i data-lucide="file-plus-2"></i><span>PROPOSTA</span>
+      </button>
+      <button onclick="event.stopPropagation(); openFechaVenda('${client.id}')" class="btn btn-success w-full md:w-auto md:shrink-0">
+        <i data-lucide="trophy"></i><span>FECHAR</span>
       </button>
     </div>
   `;
 }
+// Card enxuto e dedicado do Funil (kanban). Diferente do card grande da
+// lista: só o essencial glanceável numa coluna estreita — avatar+nome,
+// cidade, nº propostas/vendas, alerta de follow-up atrasado, acento de cor
+// pelo status e ações só como ícones. Reaproveita os mesmos helpers/dados.
+function renderClienteKanbanCard(client, index, options = {}) {
+  const showSeller = Boolean(options.showSeller);
+
+  const status = normalizeClientStatus(client?.status);
+  const statusStyle = CLIENT_STATUS_STYLE[status] || CLIENT_STATUS_STYLE.NOVO;
+  const initial = String(client?.nome || '?').charAt(0).toUpperCase();
+  const color = CLIENT_AVATAR_COLORS[(String(client?.nome || 'A').charCodeAt(0) || 0) % CLIENT_AVATAR_COLORS.length];
+
+  const nPropostas = _crmAgg.propostasByCliente[client?.id] || 0;
+  const nVendas = _crmAgg.vendasByCliente[client?.id] || 0;
+  const waLink = buildClientWhatsappLink(client);
+
+  const followAtrasado = client?.proxima_acao_em && new Date(client.proxima_acao_em) < new Date();
+  const followBadge = followAtrasado
+    ? `<span class="shrink-0 text-red-400" title="Follow-up atrasado: ${escapeHTML(client.proxima_acao_nota || 'agendado')}"><i data-lucide="alarm-clock" class="w-3 h-3"></i></span>`
+    : '';
+
+  // Valor em aberto (última proposta): a coluna do funil precisa somar dinheiro,
+  // não só nomes.
+  const valorEstimado = getClienteValorEstimado(client?.id);
+
+  const meta = [];
+  if (client?.cidade) {
+    meta.push(`<span class="flex items-center gap-1 min-w-0"><i data-lucide="map-pin" class="w-2.5 h-2.5 shrink-0"></i><span class="truncate">${escapeHTML(client.cidade)}</span></span>`);
+  }
+  meta.push(`<span class="flex items-center gap-1 ${nPropostas > 0 ? 'text-yellow-500/80' : 'text-neutral-700'}"><i data-lucide="file-text" class="w-2.5 h-2.5"></i>${nPropostas}</span>`);
+  if (nVendas > 0) {
+    meta.push(`<span class="flex items-center gap-1 text-green-500/90"><i data-lucide="trophy" class="w-2.5 h-2.5"></i>${nVendas}</span>`);
+  }
+  if (showSeller && client?.vendedor_email) {
+    meta.push(`<span class="flex items-center gap-1 text-purple-400/80"><i data-lucide="user" class="w-2.5 h-2.5"></i>${escapeHTML(String(client.vendedor_email).split('@')[0])}</span>`);
+  }
+
+  return `
+    <article draggable="true" ondragstart="crmDragStart(event, '${client.id}')" onclick="openCrm360('${client.id}')"
+      class="group relative bg-[#0d0d0f] border border-neutral-800 border-l-2 ${statusStyle.border} hover:border-orange-500/40 p-2.5 cursor-pointer transition-all active:cursor-grabbing">
+      <div class="flex items-center gap-2 mb-1.5">
+        <div class="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br ${color} flex items-center justify-center text-black font-black text-[11px] ring-1 ring-black select-none">${escapeHTML(initial)}</div>
+        <span class="flex-1 min-w-0 text-white font-black text-xs uppercase truncate group-hover:text-orange-400 transition-colors">${escapeHTML(client?.nome || 'CLIENTE')}</span>
+        ${followBadge}
+      </div>
+      ${valorEstimado > 0 ? `<div class="text-[11px] font-black text-green-400/90 mb-1 pl-0.5 num">${formatCurrency(valorEstimado)}</div>` : ''}
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] font-bold text-neutral-500 mb-2 pl-0.5">
+        ${meta.join('')}
+      </div>
+      <div class="flex items-center justify-between gap-1">
+        <button onclick="openClientStatusMenu(event, '${client.id}')"
+          class="text-[8px] px-1.5 py-1 uppercase font-black tracking-widest border transition-all ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} hover:brightness-125 min-w-0 truncate"
+          title="Toque para alterar o status">${escapeHTML(status)} ▾</button>
+        <div class="flex items-center gap-1 shrink-0">
+          ${waLink ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp" class="btn btn-primary btn-icon"><i data-lucide="message-circle"></i></a>` : ''}
+          <button onclick="event.stopPropagation(); openCrm360('${client.id}')" title="Abrir ficha" class="btn btn-secondary btn-icon"><i data-lucide="maximize-2"></i></button>
+        </div>
+      </div>
+    </article>`;
+}
+
 function renderClienteCard(client, index, options = {}) {
   const compact = Boolean(options.compact);
   const showSeller = Boolean(options.showSeller);
   const showFranquia = Boolean(options.showFranquia);
+  const draggable = Boolean(options.draggable);
 
   const status = normalizeClientStatus(client?.status);
   const statusStyle = CLIENT_STATUS_STYLE[status] || CLIENT_STATUS_STYLE.NOVO;
@@ -352,8 +450,38 @@ function renderClienteCard(client, index, options = {}) {
   const cardPadding = compact ? 'p-4' : 'p-5';
   const titleSize = compact ? 'text-sm' : 'text-sm md:text-base';
 
+  // --- Indicadores CRM: propostas, vendas, última atividade, O&M, follow-up
+  const nPropostas = _crmAgg.propostasByCliente[client?.id] || 0;
+  const nVendas = _crmAgg.vendasByCliente[client?.id] || 0;
+  const omFlag = (state.omFlags || {})[client?.id];
+  const lastAt = (state.crmLastAtividade || {})[client?.id];
+
+  const crmChips = [];
+  crmChips.push(`<span class="flex items-center gap-1 ${nPropostas > 0 ? 'text-yellow-500/80' : 'text-neutral-700'}"><i data-lucide="file-text" class="w-2.5 h-2.5"></i>${nPropostas} proposta${nPropostas === 1 ? '' : 's'}</span>`);
+  crmChips.push(`<span class="flex items-center gap-1 ${nVendas > 0 ? 'text-green-500/90' : 'text-neutral-700'}"><i data-lucide="trophy" class="w-2.5 h-2.5"></i>${nVendas} venda${nVendas === 1 ? '' : 's'}</span>`);
+  if (lastAt && lastAt.last_at && typeof crmTimeAgo === 'function') {
+    crmChips.push(`<span class="flex items-center gap-1 text-neutral-500"><i data-lucide="history" class="w-2.5 h-2.5"></i>atividade ${crmTimeAgo(lastAt.last_at)}</span>`);
+  }
+
+  const badges = [];
+  if (omFlag) {
+    badges.push('<span class="text-[8px] px-1.5 py-0.5 uppercase font-black tracking-widest border bg-blue-500/10 text-blue-400 border-blue-500/30 shrink-0">O&M</span>');
+  }
+  if (client?.proxima_acao_em) {
+    const vencida = new Date(client.proxima_acao_em) < new Date();
+    const cls = vencida
+      ? 'bg-red-500/10 text-red-400 border-red-500/30'
+      : 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30';
+    badges.push(`<span class="text-[8px] px-1.5 py-0.5 uppercase font-black tracking-widest border ${cls} shrink-0" title="${escapeHTML(client.proxima_acao_nota || 'Follow-up agendado')}">⏰ ${vencida ? 'ATRASADO' : formatDate(client.proxima_acao_em)}</span>`);
+  }
+
+  const dragAttrs = draggable
+    ? `draggable="true" ondragstart="crmDragStart(event, '${client.id}')"`
+    : '';
+
   return `
-    <article class="metric-card client-metric-card shine-effect ${stagger} relative border border-neutral-800 hover:border-orange-500/25 ${cardPadding} group transition-all duration-300 bg-[#080808]">
+    <article ${dragAttrs} onclick="openCrm360('${client.id}')"
+      class="metric-card client-metric-card shine-effect ${stagger} relative border border-neutral-800 hover:border-orange-500/25 ${cardPadding} group transition-all duration-300 bg-[#080808] cursor-pointer ${draggable ? 'active:cursor-grabbing' : ''}">
       <div class="absolute top-0 right-0 w-24 h-24 bg-orange-500/4 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
 
       <div class="relative z-10 flex items-start gap-4">
@@ -365,20 +493,22 @@ function renderClienteCard(client, index, options = {}) {
           <div class="flex items-center gap-2 flex-wrap mb-0.5">
             <h3 class="text-white font-black ${titleSize} uppercase truncate group-hover:text-orange-400 transition-colors leading-tight">${escapeHTML(client?.nome || 'CLIENTE')}</h3>
             <button
-              onclick="handleCycleClientStatus('${client.id}', '${status}')"
+              onclick="openClientStatusMenu(event, '${client.id}')"
               class="text-[8px] px-2 py-0.5 uppercase font-black tracking-widest border transition-all ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} hover:brightness-125 shrink-0"
-              title="Clique para avançar o status"
+              title="Clique para alterar o status"
               aria-label="Status ${escapeHTML(status)}">
-              ${escapeHTML(status)}
+              ${escapeHTML(status)} ▾
             </button>
+            ${badges.join('')}
           </div>
 
-          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-neutral-600 font-mono mb-3 mt-1">${meta}</div>
+          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-neutral-600 font-mono mt-1">${meta}</div>
+          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-mono mb-3 mt-0.5">${crmChips.join('')}</div>
 
           <div class="mb-0">
             <div class="flex gap-0.5 mb-1">${pipelineBar}</div>
             <div class="flex justify-between text-[8px] text-neutral-700 font-bold uppercase">
-              <span>Novo</span><span>Proposta</span><span>Negoc.</span><span>Fechado</span>
+              <span>Novo</span><span>Proposta</span><span>Negoc.</span><span>${status === 'PERDIDO' ? '<span class="text-red-500/70">Perdido</span>' : 'Fechado'}</span>
             </div>
           </div>
         </div>
@@ -450,15 +580,17 @@ function renderAdminClientesToolbar(baseRows, filteredRows) {
 
         <div class="flex items-center gap-2 flex-wrap">
           ${globalScopeSelect}
-          <div class="flex items-center gap-2">
-            <button onclick="setAdminClientesViewMode('list')" class="px-3 py-2 text-[9px] font-black uppercase tracking-widest border ${state.adminClientesViewMode === 'list' ? 'bg-neutral-700 text-white border-neutral-600' : 'bg-black border-neutral-800 text-neutral-500 hover:text-white'}">Lista</button>
-            <button onclick="setAdminClientesViewMode('kanban')" class="px-3 py-2 text-[9px] font-black uppercase tracking-widest border ${state.adminClientesViewMode === 'kanban' ? 'bg-orange-600 text-black border-orange-500' : 'bg-black border-neutral-800 text-neutral-500 hover:text-white'}">Kanban</button>
-          </div>
-          <button onclick="exportClientesXLSX()" class="flex items-center gap-2 bg-neutral-900 border border-neutral-700 hover:border-green-500 hover:text-green-400 text-neutral-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i> XLSX
+          <button onclick="openCrmDuplicatas()" title="Revisar e mesclar cadastros duplicados (mesmo telefone)" class="btn btn-secondary btn-sm">
+            <i data-lucide="merge"></i> DUPLICATAS
           </button>
-          <button onclick="openClientModal()" class="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]">
-            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> NOVO CLIENTE
+          <button onclick="adminEnriquecerCidades()" title="Preenche coordenadas e HSP dos clientes antigos a partir da cidade" class="btn btn-secondary btn-sm">
+            <i data-lucide="sun"></i> HSP
+          </button>
+          <button onclick="exportClientesXLSX()" class="btn btn-ghost btn-sm">
+            <i data-lucide="download"></i> XLSX
+          </button>
+          <button onclick="openClientModal()" class="btn btn-primary btn-sm">
+            <i data-lucide="user-plus"></i> NOVO CLIENTE
           </button>
         </div>
       </div>
@@ -550,8 +682,8 @@ function renderRegularClientesToolbar(filteredRows) {
           <p class="text-neutral-600 text-[10px] font-bold uppercase tracking-widest mt-1">${filteredRows.length} exibindo · ${state.clienteFilter !== 'TODOS' ? escapeHTML(state.clienteFilter) : 'Todos os status'}</p>
         </div>
         <div class="flex gap-2 flex-wrap">
-          <button onclick="exportClientesXLSX()" class="flex items-center gap-2 bg-neutral-900 border border-neutral-700 hover:border-green-500 hover:text-green-400 text-neutral-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]"><i data-lucide="download" class="w-3.5 h-3.5"></i> XLSX</button>
-          <button onclick="openClientModal()" class="flex items-center gap-2 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]"><i data-lucide="user-plus" class="w-3.5 h-3.5"></i> NOVO CLIENTE</button>
+          <button onclick="exportClientesXLSX()" class="btn btn-ghost btn-sm"><i data-lucide="download"></i> XLSX</button>
+          <button onclick="openClientModal()" class="btn btn-primary btn-sm"><i data-lucide="user-plus"></i> NOVO CLIENTE</button>
         </div>
       </div>
 
@@ -562,21 +694,38 @@ function renderRegularClientesToolbar(filteredRows) {
     </section>
   `;
 }
-function renderAdminClientesKanbanView(rows) {
+function renderClientesKanbanView(rows, options = {}) {
+  const showSeller = Boolean(options.showSeller);
+  const showFranquia = Boolean(options.showFranquia);
+
   return `
-    <section class="grid grid-cols-1 xl:grid-cols-4 gap-3">
-      ${CLIENT_STATUS_SEQUENCE.map((status) => {
+    <section class="grid grid-cols-1 xl:grid-cols-5 gap-3">
+      ${CLIENT_STATUS_ALL.map((status) => {
         const items = rows.filter((row) => normalizeClientStatus(row?.status) === status);
+        const isPerdido = status === 'PERDIDO';
+        // Lote por coluna (ver _funilColLimit): colunas cheias não travam o funil.
+        const limite = _funilColLimit[status] || CLIENTES_RENDER_LOTE;
+        const itensVisiveis = items.slice(0, limite);
+        const restantes = items.length - itensVisiveis.length;
+        // Soma da coluna sobre a base COMPLETA (não a fatia renderizada).
+        const totalColuna = items.reduce((sum, row) => sum + getClienteValorEstimado(row?.id), 0);
         return `
-          <div class="border border-neutral-800 bg-[#080808] min-h-[220px] flex flex-col">
-            <div class="px-3 py-2.5 border-b border-neutral-800 flex items-center justify-between gap-2">
-              <span class="text-[10px] font-black uppercase tracking-widest text-white">${escapeHTML(status)}</span>
-              <span class="text-[9px] font-black text-orange-400">${items.length}</span>
+          <div class="border ${isPerdido ? 'border-red-900/40' : 'border-neutral-800'} bg-[#080808] min-h-[220px] flex flex-col transition-all"
+            ondragover="crmDragOver(event)" ondragleave="crmDragLeave(event)" ondrop="crmDropStatus(event, '${status}')">
+            <div class="px-3 py-2.5 border-b ${isPerdido ? 'border-red-900/40' : 'border-neutral-800'}">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] font-black uppercase tracking-widest ${isPerdido ? 'text-red-400' : 'text-white'}">${escapeHTML(status)}</span>
+                <span class="text-[9px] font-black ${isPerdido ? 'text-red-400' : 'text-orange-400'}">${items.length}</span>
+              </div>
+              ${totalColuna > 0 ? `<div class="text-[9px] font-black num ${isPerdido ? 'text-red-500/60' : 'text-green-500/70'} mt-0.5">${formatCurrency(totalColuna)}</div>` : ''}
             </div>
-            <div class="p-2.5 flex flex-col gap-2">
+            <div class="p-2.5 flex flex-col gap-2 flex-1">
               ${items.length > 0
-                ? items.map((item, index) => renderClienteCard(item, index, { compact: true, showSeller: Boolean(item?.vendedor_email), showFranquia: state.adminViewAll })).join('')
-                : `<div class="py-8 text-center border border-dashed border-neutral-800/60 text-neutral-600 text-[10px] font-bold uppercase tracking-widest">Sem clientes</div>`}
+                ? itensVisiveis.map((item, index) => renderClienteKanbanCard(item, index, { showSeller: showSeller && Boolean(item?.vendedor_email) })).join('')
+                : `<div class="py-8 text-center border border-dashed border-neutral-800/60 text-neutral-600 text-[10px] font-bold uppercase tracking-widest">Arraste um cliente aqui</div>`}
+              ${restantes > 0
+                ? `<button onclick="funilMostrarMaisColuna('${status}')" class="btn btn-ghost btn-sm btn-block"><i data-lucide="chevrons-down"></i> Ver mais ${restantes}</button>`
+                : ''}
             </div>
           </div>
         `;
@@ -585,11 +734,123 @@ function renderAdminClientesKanbanView(rows) {
   `;
 }
 
+// =======================================================================
+// ABA FUNIL — Repaginação Comercial (Fase C)
+// Promove o kanban a aba de 1ª classe. Reaproveita renderClientesKanbanView
+// e o mesmo pipeline de dados/escopo da lista de clientes (admin ou regular),
+// com toolbar própria. Drag-and-drop de status continua via crmDropStatus →
+// crmSetClientStatus → renderContent (que agora roteia de volta pra cá).
+// =======================================================================
+function renderFunil(container) {
+  container.className = 'flex flex-col gap-4';
+
+  const emptyState = document.getElementById('empty-state');
+  if (emptyState) emptyState.classList.add('hidden');
+
+  // Mesmos agregados e escopo que a lista de clientes usa.
+  if (typeof buildCrmAggregates === 'function') buildCrmAggregates();
+
+  const sourceRows = state.isAdmin
+    ? applyAdminGlobalScope(state.clientes || [])
+    : (Array.isArray(state.clientes) ? state.clientes : []);
+
+  const filteredRows = state.isAdmin
+    ? applyAdminClientesFilters(sourceRows)
+    : applyRegularClientesFilters(sourceRows);
+
+  state.lastFilteredClientes = filteredRows;
+
+  const showSeller = (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll);
+  const showFranquia = state.isAdmin && state.adminViewAll;
+
+  // Filtros persistidos da aba Clientes continuam valendo aqui — sem esse aviso
+  // o funil aparece "vazio" sem explicação. Busca própria porque a mainToolbar
+  // global fica oculta nesta aba.
+  const filtrosAtivos = funilActiveFilterCount();
+  const searchValue = state.isAdmin ? (state.adminClientesFilters?.search || '') : (state.searchTerm || '');
+
+  const html = `
+    <section class="relative bg-[#080808] bg-grid overflow-hidden p-6 md:p-8 border border-neutral-800 mb-2">
+      <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute -top-10 -left-10 w-48 h-48 bg-orange-600/8 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-8 -right-8 w-32 h-32 bg-yellow-500/6 rounded-full blur-3xl"></div>
+      </div>
+      <div class="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] mb-1 flex items-center gap-2"><i data-lucide="git-merge" class="w-3.5 h-3.5"></i> FUNIL DE VENDAS</p>
+          <h2 class="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter leading-none">Funil <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">${filteredRows.length}</span></h2>
+          <p class="text-neutral-600 text-[10px] font-bold uppercase tracking-widest mt-1">Arraste os cards ou toque no status para mudar de etapa</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn btn-ghost btn-sm" onclick="exportClientesXLSX()"><i data-lucide="download"></i>XLSX</button>
+          <button class="btn btn-primary" onclick="openClientModal()"><i data-lucide="user-plus"></i>Novo Lead</button>
+        </div>
+      </div>
+      <div class="relative z-10 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-4">
+        <div class="relative flex-1 sm:max-w-md">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-neutral-600 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input type="text" value="${escapeHTML(searchValue)}" oninput="handleFunilSearchInput(this.value)" placeholder="Buscar por nome, telefone ou cidade" class="w-full bg-black border border-neutral-800 text-white pl-9 pr-3 py-2.5 text-[11px] font-bold tracking-wide">
+        </div>
+        ${filtrosAtivos > 0 ? `<button onclick="funilLimparFiltros()" class="btn btn-ghost btn-sm shrink-0"><i data-lucide="filter-x"></i>${filtrosAtivos} filtro${filtrosAtivos > 1 ? 's' : ''} da aba Clientes ativo${filtrosAtivos > 1 ? 's' : ''} — limpar</button>` : ''}
+      </div>
+    </section>
+    ${typeof renderHigieneBanner === 'function' ? renderHigieneBanner() : ''}
+    ${renderClientesKanbanView(filteredRows, { showSeller, showFranquia })}
+  `;
+
+  container.innerHTML = html;
+  lucide.createIcons();
+}
+
+// Filtros herdados da aba Clientes que afetam o funil (a busca não conta:
+// ela tem campo visível aqui).
+function funilActiveFilterCount() {
+  if (state.isAdmin) {
+    ensureAdminClientesFiltersState();
+    const f = state.adminClientesFilters;
+    let n = 0;
+    if (f.status && f.status !== 'TODOS') n++;
+    if (f.vendedor_email && f.vendedor_email !== 'all') n++;
+    if (state.adminViewAll && f.franquia_id && f.franquia_id !== 'all') n++;
+    if (f.cidade && f.cidade !== 'all') n++;
+    if (f.mes && f.mes !== 'all') n++;
+    if (f.preset && f.preset !== 'all') n++;
+    return n;
+  }
+  return (state.clienteFilter && state.clienteFilter !== 'TODOS') ? 1 : 0;
+}
+
+const _funilRegularSearchDebounced = debounce((value) => {
+  state.searchTerm = value;
+  renderContent();
+}, 180);
+
+function handleFunilSearchInput(value) {
+  if (state.isAdmin) {
+    handleAdminClientesSearchInput(value);
+    return;
+  }
+  _funilRegularSearchDebounced(String(value || ''));
+}
+
+function funilLimparFiltros() {
+  if (state.isAdmin) {
+    resetAdminClientesFilters();
+    return;
+  }
+  state.clienteFilter = 'TODOS';
+  state.searchTerm = '';
+  renderContent();
+}
+
 function renderClientesList(container) {
   container.className = 'flex flex-col gap-4';
 
   const emptyState = document.getElementById('empty-state');
   const emptyBtn = document.getElementById('empty-state-btn');
+
+  // Agregados CRM (propostas/vendas por cliente) usados nos cards
+  if (typeof buildCrmAggregates === 'function') buildCrmAggregates();
 
   const sourceRows = state.isAdmin
     ? applyAdminGlobalScope(state.clientes || [])
@@ -633,12 +894,20 @@ function renderClientesList(container) {
     return;
   }
 
-  if (state.isAdmin && state.adminClientesViewMode === 'kanban') {
-    html += renderAdminClientesKanbanView(filteredRows);
-  } else {
-    const showSeller = (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll);
-    const showFranquia = state.isAdmin && state.adminViewAll;
-    html += `<section class="grid grid-cols-1 gap-2">${filteredRows.map((item, index) => renderClienteCard(item, index, { compact: false, showSeller, showFranquia })).join('')}</section>`;
+  const showSeller = (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll);
+  const showFranquia = state.isAdmin && state.adminViewAll;
+
+  // Clientes é só lista — o kanban virou a aba Funil (ver renderFunil).
+  // Renderiza em lotes (ver _clientesRenderLimit): o restante entra pelo
+  // botão "Carregar mais" — evita travar em bases grandes.
+  const visiveis = filteredRows.slice(0, _clientesRenderLimit);
+  html += `<section class="grid grid-cols-1 gap-2">${visiveis.map((item, index) => renderClienteCard(item, index, { compact: false, showSeller, showFranquia })).join('')}</section>`;
+
+  if (filteredRows.length > visiveis.length) {
+    html += `
+      <button onclick="clientesMostrarMais()" class="btn btn-secondary btn-block">
+        <i data-lucide="chevrons-down"></i> Carregar mais — mostrando ${visiveis.length} de ${filteredRows.length}
+      </button>`;
   }
 
   container.innerHTML = html;
@@ -700,21 +969,10 @@ function setClienteSort(sort) {
   renderContent();
 }
 
-function handleCycleClientStatus(id, currentStatus) {
-  const seq = CLIENT_STATUS_SEQUENCE;
-  const nextIdx = (seq.indexOf(normalizeClientStatus(currentStatus)) + 1) % seq.length;
-
-  if (nextIdx === 0) {
-    showConfirmModal(
-      'Rebaixar o status de volta para "NOVO"? O progresso atual sera perdido.',
-      () => cycleClientStatus(id, currentStatus)
-    );
-    return;
-  }
-
-  cycleClientStatus(id, currentStatus);
-}
-
+// cycleClientStatus segue vivo: é chamado ao gerar proposta (NOVO → PROPOSTA
+// ENVIADA). O clique-que-cicla que o embrulhava (handleCycleClientStatus) e o
+// toggle lista/kanban (setClienteViewMode) saíram — o kanban virou a aba Funil
+// e o status mudou para o popover openClientStatusMenu.
 async function cycleClientStatus(id, currentStatus) {
   const seq = CLIENT_STATUS_SEQUENCE;
   let nextIdx = seq.indexOf(normalizeClientStatus(currentStatus)) + 1;
@@ -722,16 +980,21 @@ async function cycleClientStatus(id, currentStatus) {
 
   const newStatus = seq[nextIdx];
   const index = (state.clientes || []).findIndex((item) => item.id === id);
+  const statusAnterior = index > -1 ? state.clientes[index].status : null;
   if (index > -1) state.clientes[index].status = newStatus;
 
   renderContent();
 
-  try {
-    await supabaseClient.from('clientes').update({ status: newStatus }).eq('id', id);
-    showToast(`STATUS: ${newStatus}`);
-  } catch (error) {
+  const { error } = await supabaseClient.from('clientes').update({ status: newStatus }).eq('id', id);
+  if (error) {
     console.warn('[cycleClientStatus] Falha ao persistir status do cliente.', { id, currentStatus, newStatus, error });
+    // Reverte o otimista: a UI não pode ficar mostrando um status que não persistiu.
+    if (index > -1) state.clientes[index].status = statusAnterior;
+    renderContent();
+    showToast('Erro ao atualizar o status. Tente novamente.');
+    return;
   }
+  showToast(`STATUS: ${newStatus}`);
 }
 function exportClientesXLSX() {
   const filtered = Array.isArray(state.lastFilteredClientes) ? state.lastFilteredClientes : [];
@@ -764,9 +1027,113 @@ function exportClientesXLSX() {
   showToast('EXPORTAÇÃO XLSX CONCLUÍDA!');
 }
 
+// Cidade escolhida no autocomplete + HSP resolvido + resultado da checagem de duplicata
+let _clientModalCidade = null;
+let _clientModalHsp = null;
+let _clientModalDup = null;
+let _clientModalInit = false;
+
+function _clientModalSetCidade(mun) {
+  _clientModalCidade = mun;
+  _clientModalHsp = null;
+  const hspEl = document.getElementById('client-cidade-hsp');
+  if (!hspEl) return;
+
+  if (!mun) {
+    hspEl.classList.add('hidden');
+    hspEl.innerText = '';
+    return;
+  }
+
+  hspEl.classList.remove('hidden');
+  hspEl.innerText = 'BUSCANDO HSP DA CIDADE...';
+  getHspForCidade(mun).then((hspData) => {
+    // Ignora resposta atrasada se o usuário já trocou de cidade
+    if (_clientModalCidade !== mun) return;
+    if (hspData && hspData.hsp_anual) {
+      _clientModalHsp = hspData.hsp_anual;
+      hspEl.innerText = `☀ HSP DA CIDADE: ${hspData.hsp_anual} kWh/m²·dia`;
+    } else {
+      hspEl.innerText = 'HSP SERÁ CALCULADO DEPOIS (NASA INDISPONÍVEL)';
+    }
+  });
+}
+
+function _clientModalRenderDupWarning() {
+  const warnEl = document.getElementById('client-dup-warning');
+  const btnSave = document.getElementById('btn-save-client');
+  if (!warnEl || !btnSave) return;
+
+  const dup = _clientModalDup;
+  if (!dup || !dup.existe) {
+    warnEl.classList.add('hidden');
+    warnEl.innerHTML = '';
+    btnSave.disabled = false;
+    return;
+  }
+
+  warnEl.classList.remove('hidden');
+
+  if (dup.e_meu) {
+    warnEl.className = 'text-[10px] font-bold p-2.5 border mt-1 bg-blue-500/10 border-blue-500/30 text-blue-300';
+    warnEl.innerHTML = `Você já tem <strong>${escapeHTML(dup.nome || 'este cliente')}</strong> cadastrado com este telefone.`;
+    btnSave.disabled = true;
+    return;
+  }
+
+  if (state.isAdmin) {
+    warnEl.className = 'text-[10px] font-bold p-2.5 border mt-1 bg-yellow-500/10 border-yellow-500/30 text-yellow-300';
+    warnEl.innerHTML = `⚠ Já existe cadastro com este telefone${dup.nome ? ` (<strong>${escapeHTML(dup.nome)}</strong>)` : ''}. Como admin você pode salvar mesmo assim (ex.: telefone de familiar).`;
+    btnSave.disabled = false;
+    return;
+  }
+
+  warnEl.className = 'text-[10px] font-bold p-2.5 border mt-1 bg-red-500/10 border-red-500/30 text-red-300';
+  warnEl.innerHTML = '⚠ Já existe um cadastro com este telefone no sistema. Verifique com seu gestor antes de criar um novo.';
+  btnSave.disabled = true;
+}
+
+const _clientModalDupCheckDebounced = debounce(async (telefone) => {
+  const digits = digitsOnly(telefone);
+  if (digits.length < 10) {
+    _clientModalDup = null;
+    _clientModalRenderDupWarning();
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient.rpc('check_cliente_telefone', { p_telefone: digits });
+    _clientModalDup = error ? null : data;
+  } catch (err) {
+    console.warn('[clientes] Falha na checagem de duplicata.', err);
+    _clientModalDup = null;
+  }
+  _clientModalRenderDupWarning();
+}, 350);
+
+function _initClientModalEnhancements() {
+  if (_clientModalInit) return;
+  _clientModalInit = true;
+
+  attachCidadeAutocomplete(document.getElementById('client-cidade'), _clientModalSetCidade);
+
+  document.getElementById('client-telefone').addEventListener('input', (event) => {
+    _clientModalDupCheckDebounced(event.target.value);
+  });
+}
+
 function openClientModal() {
   document.getElementById('client-modal-overlay').classList.remove('hidden');
   document.getElementById('client-form').reset();
+  const origemEl = document.getElementById('client-origem');
+  if (origemEl) origemEl.innerHTML = clientOrigemOptionsHTML('');
+  _clientModalCidade = null;
+  _clientModalHsp = null;
+  _clientModalDup = null;
+  _clientModalRenderDupWarning();
+  const hspEl = document.getElementById('client-cidade-hsp');
+  if (hspEl) { hspEl.classList.add('hidden'); hspEl.innerText = ''; }
+  _initClientModalEnhancements();
 }
 
 function closeClientModal() {
@@ -792,31 +1159,60 @@ document.getElementById('client-form').addEventListener('submit', async (event) 
     return;
   }
 
+  const telefone = document.getElementById('client-telefone').value;
+  if (digitsOnly(telefone).length < 10) {
+    showToast('Informe o telefone com DDD.');
+    return;
+  }
+
+  // Bloqueio de duplicata: só admin pode criar mesmo assim (telefone de familiar).
+  if (_clientModalDup && _clientModalDup.existe && !state.isAdmin) {
+    _clientModalRenderDupWarning();
+    showToast('Já existe um cadastro com este telefone.');
+    return;
+  }
+
+  const cidadeTexto = document.getElementById('client-cidade').value.trim();
+  if (!cidadeTexto) {
+    showToast('Informe a cidade do cliente.');
+    return;
+  }
+
+  // Se o usuário digitou sem escolher da lista, tenta casar o texto livre.
+  const mun = _clientModalCidade || (typeof parseCidadeLivre === 'function' ? parseCidadeLivre(cidadeTexto) : null);
+
   const btnSave = document.getElementById('btn-save-client');
   btnSave.innerText = 'SALVANDO...';
 
   const newClient = {
     vendedor_email: state.currentUser.email,
     nome: document.getElementById('client-nome').value.toUpperCase(),
-    telefone: document.getElementById('client-telefone').value,
-    cidade: document.getElementById('client-cidade').value,
+    telefone,
+    cidade: mun ? `${mun.nome.toUpperCase()}/${mun.uf}` : cidadeTexto.toUpperCase(),
+    email: document.getElementById('client-email').value.trim() || null,
+    origem: document.getElementById('client-origem').value || CLIENT_ORIGEM_VAZIA,
+    cidade_ibge: mun ? mun.ibge : null,
+    uf: mun ? mun.uf : null,
+    latitude: mun ? mun.lat : null,
+    longitude: mun ? mun.lon : null,
+    hsp: _clientModalHsp,
     status: 'NOVO',
     franquia_id: state.franquiaId,
   };
 
-  let { error } = await supabaseClient.from('clientes').insert([newClient]);
-
-  if (error && error.code === '42703') {
-    delete newClient.status;
-    const fallback = await supabaseClient.from('clientes').insert([newClient]);
-    error = fallback.error;
-  }
+  const { data, error } = await supabaseClient.from('clientes').insert([newClient]).select();
 
   if (error) {
     console.error('Erro ao salvar cliente:', error);
     showToast(`Erro ao salvar cliente: ${error.message}`);
     btnSave.innerText = 'SALVAR CLIENTE';
     return;
+  }
+
+  // HSP pendente (NASA lenta/fora do ar): enriquece async sem travar o fluxo.
+  const savedId = data && data[0] ? data[0].id : null;
+  if (savedId && mun && !_clientModalHsp) {
+    enrichClienteHsp(savedId, mun);
   }
 
   await fetchClientes();

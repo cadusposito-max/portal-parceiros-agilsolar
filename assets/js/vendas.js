@@ -332,9 +332,9 @@ function renderVendaCard(sale, index, options = {}) {
 
         <div class="shrink-0 flex flex-col items-end gap-1">
           ${waLink
-            ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 bg-green-600 border border-green-500 hover:bg-green-700 hover:border-green-400 text-white px-3 py-1.5 font-black uppercase text-[8px] tracking-widest transition-all"><i data-lucide="message-circle" class="w-3 h-3"></i> WhatsApp</a>`
+            ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm"><i data-lucide="message-circle"></i> WhatsApp</a>`
             : ''}
-          ${state.isAdmin ? `<button onclick="deleteVenda('${sale.id}')" class="flex items-center gap-1.5 bg-red-600 border border-red-500 hover:bg-red-700 hover:border-red-400 text-white px-3 py-1.5 font-black uppercase text-[8px] tracking-widest transition-all"><i data-lucide="trash-2" class="w-3 h-3"></i> Excluir</button>` : ''}
+          ${state.isAdmin ? `<button onclick="deleteVenda('${sale.id}')" class="btn btn-danger btn-sm"><i data-lucide="trash-2"></i> Excluir</button>` : ''}
           <p class="text-neutral-700 text-[9px] font-mono uppercase">${escapeHTML(sale?.kit_brand || '')}</p>
         </div>
       </div>
@@ -395,7 +395,7 @@ function renderAdminVendasToolbar(sourceRows, filteredRows) {
 
         <div class="flex items-center gap-2 flex-wrap">
           ${scopeSelect}
-          <button onclick="exportVendasXLSX()" class="flex items-center gap-2 bg-neutral-900 border border-neutral-700 hover:border-green-500 hover:text-green-400 text-neutral-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]"><i data-lucide="download" class="w-3.5 h-3.5"></i> XLSX</button>
+          <button onclick="exportVendasXLSX()" class="btn btn-ghost btn-sm"><i data-lucide="download"></i> XLSX</button>
         </div>
       </div>
 
@@ -559,7 +559,7 @@ function renderRegularVendasToolbar(sourceRows, vendas, summary) {
           <h2 class="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter leading-none">Minhas Vendas <span class="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">${summary.qtd}</span></h2>
           <p class="text-neutral-600 text-[10px] font-bold uppercase tracking-widest mt-1">${summary.ultima ? `Última: ${formatDate(summary.ultima.created_at)}` : 'Nenhuma venda ainda'}</p>
         </div>
-        <button onclick="exportVendasXLSX()" class="flex items-center gap-2 bg-neutral-900 border border-neutral-700 hover:border-green-500 hover:text-green-400 text-neutral-500 px-4 py-2.5 font-black uppercase tracking-wider transition-all text-[10px]"><i data-lucide="download" class="w-3.5 h-3.5"></i> XLSX</button>
+        <button onclick="exportVendasXLSX()" class="btn btn-ghost btn-sm"><i data-lucide="download"></i> XLSX</button>
       </div>
 
       <div class="relative z-10 flex flex-wrap items-center gap-1.5 mt-4 pt-4 border-t border-neutral-800/40">
@@ -628,6 +628,8 @@ function deleteVenda(id) {
   showConfirmModal(
     'Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.',
     async () => {
+      const vendaExcluida = (state.vendas || []).find((item) => item.id === id) || null;
+
       const { error } = await supabaseClient.from('vendas').delete().eq('id', id);
       if (error) {
         showToast('ERRO AO EXCLUIR VENDA: ' + error.message);
@@ -635,6 +637,26 @@ function deleteVenda(id) {
       }
 
       state.vendas = (state.vendas || []).filter((item) => item.id !== id);
+
+      // Sem essa venda, o cliente não pode continuar "FECHADO" órfão:
+      // se não sobrou nenhuma outra venda dele, volta para a etapa anterior.
+      const clienteId = vendaExcluida?.cliente_id || null;
+      if (clienteId && !(state.vendas || []).some((v) => v.cliente_id === clienteId)) {
+        const cliente = (state.clientes || []).find((c) => c.id === clienteId);
+        if (cliente && String(cliente.status).toUpperCase() === 'FECHADO') {
+          const temProposta = (state.propostas || []).some((p) => p.cliente_id === clienteId);
+          const novoStatus = temProposta ? 'PROPOSTA ENVIADA' : 'NOVO';
+          const { error: statusError } = await supabaseClient.from('clientes').update({ status: novoStatus }).eq('id', clienteId);
+          if (!statusError) {
+            cliente.status = novoStatus;
+            showToast(`VENDA EXCLUÍDA. Cliente voltou para ${novoStatus}.`);
+            renderContent();
+            return;
+          }
+          console.warn('[deleteVenda] Venda excluída, mas falhou ao reverter status do cliente.', statusError);
+        }
+      }
+
       showToast('VENDA EXCLUÍDA COM SUCESSO.');
       renderContent();
     },

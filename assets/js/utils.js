@@ -153,6 +153,16 @@ function formatDate(dateString) {
   return d.toLocaleDateString('pt-BR');
 }
 
+// Converte um timestamp ISO para o formato de <input type="datetime-local">
+// em HORA LOCAL ("YYYY-MM-DDTHH:mm"). toISOString() puro devolve UTC e
+// deslocaria o horário exibido (ex.: -3h no Brasil).
+function toLocalDatetimeInputValue(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 // Retorna label legível para um período 'YYYY-MM' ou 'all'
 function formatMonthLabel(yyyymm) {
   if (!yyyymm || yyyymm === 'all') return 'GERAL';
@@ -353,15 +363,19 @@ function getStatusColor(status) {
     case 'PROPOSTA ENVIADA':  return 'text-yellow-400 border-yellow-500/50 bg-yellow-500/10 hover:bg-yellow-500/20';
     case 'EM NEGOCIAÇÃO':     return 'text-orange-500 border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20';
     case 'FECHADO':           return 'text-green-400 border-green-500/50 bg-green-500/10 hover:bg-green-500/20';
+    case 'PERDIDO':           return 'text-red-400 border-red-500/50 bg-red-500/10 hover:bg-red-500/20';
     default:                  return 'text-blue-400 border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20';
   }
 }
 
 // Estima geração mensal em kWh
-// Usa hsp_medio da franquia do usuário logado (carregado via fetchFranquia).
-// Fallback: 5.4 HSP (Araçatuba) quando não logado (ex: proposta.html pública).
-function calcularGeracaoEstimada(potencia_kWp, categoria) {
-  const hsp        = (typeof state !== 'undefined' && state.franquiaHsp) ? state.franquiaHsp : 5.4;
+// Prioridade do HSP: hspOverride (HSP da cidade do cliente, via NASA POWER)
+// → hsp_medio da franquia (carregado via fetchFranquia) → 5.4 (Araçatuba).
+function calcularGeracaoEstimada(potencia_kWp, categoria, hspOverride) {
+  const hspCliente = Number(hspOverride);
+  const hsp        = hspCliente > 0
+    ? hspCliente
+    : ((typeof state !== 'undefined' && state.franquiaHsp) ? state.franquiaHsp : 5.4);
   const eficiencia = categoria === 'kitsMicro' ? 0.81 : 0.76;
   return potencia_kWp * hsp * 30 * eficiencia;
 }

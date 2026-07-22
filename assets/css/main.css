@@ -1707,3 +1707,166 @@ html[data-theme="light"] {
   .launcher-caret { animation: none; }
 }
 
+
+/* ==========================================
+   CRM: painel 360° do cliente + autocomplete de cidade
+   ========================================== */
+.crm360-input {
+  width: 100%;
+  background: #000;
+  border: 1px solid #404040;
+  padding: 0.6rem 0.8rem;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  transition: border-color 0.2s;
+}
+.crm360-input:focus {
+  outline: none;
+  border-color: #f97316;
+}
+.crm360-input::placeholder { color: #525252; font-weight: 500; }
+select.crm360-input { appearance: auto; }
+
+
+/* ==========================================
+   SISTEMA DE BOTÕES — Repaginação do Comercial (Fase A)
+   Portado de claude-design/comercial-novo. Valores literais (sem CSS vars
+   novas). Nenhuma marcação usa estas classes ainda → zero impacto visual
+   até a migração aba-a-aba (Fase F).
+   Hierarquia: primary = ação principal (1 por tela); secondary = apoio;
+   ghost = terciário/toolbar; success = confirmação; danger = destrutivo.
+   ========================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  line-height: 1;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:active { transform: translateY(1px); }
+.btn i { width: 14px; height: 14px; }
+
+/* Tamanhos */
+.btn-sm { padding: 0.45rem 0.7rem; font-size: 9px; }
+.btn-lg { padding: 0.85rem 1.4rem; font-size: 11px; }
+.btn-block { width: 100%; }
+/* Só-ícone: padding quadrado (para botões compactos, ex.: cards do Funil). */
+.btn-icon { padding: 0.5rem; }
+
+/* PRIMÁRIO — só para a ação principal da tela. Um por contexto. */
+.btn-primary {
+  background: linear-gradient(135deg, #f97316, #eab308);
+  color: #0b0b0c;
+  border-color: transparent;
+  box-shadow: 0 0 0 rgba(249, 115, 22, 0);
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.28);
+}
+
+/* SECUNDÁRIO — ações de apoio. Neutro; nunca compete com o primário. */
+.btn-secondary {
+  background: #0f0f10;
+  color: #d4d4d8;
+  border-color: #2a2a2b;
+}
+.btn-secondary:hover {
+  color: #fff;
+  border-color: #52525b;
+  background: #16161a;
+}
+
+/* GHOST — ações terciárias / toolbars. Sem caixa até o hover. */
+.btn-ghost {
+  background: transparent;
+  color: #9ca3af;
+  border-color: transparent;
+}
+.btn-ghost:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* DANGER — destrutivo. Vermelho, só quando destrói/perde. */
+.btn-danger {
+  background: transparent;
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+.btn-danger:hover {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fca5a5;
+}
+
+/* SUCCESS — confirmações positivas (fechar venda). */
+.btn-success {
+  background: transparent;
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.35);
+}
+.btn-success:hover {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.6);
+}
+
+
+/* ==========================================
+   CRM 360 — aba full-page (Fase E)
+   Converte o popup centralizado em uma aba que preenche a tela do topo ao
+   fim, com slide-up. A barra "← Voltar" ocupa o lugar da topbar. Mantém o
+   mesmo container #crm360-overlay; o toggle passou de .hidden para .is-open.
+   ========================================== */
+#crm360-overlay.crm360-aba {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: #050505;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(14px);
+  transition: opacity 0.28s ease,
+              transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0s linear 0.3s;
+}
+#crm360-overlay.crm360-aba.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.28s ease,
+              transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  #crm360-overlay.crm360-aba { transition: none; transform: none; }
+}
+
+.cidade-autocomplete-dropdown { border-radius: 0; }
+
+/* =======================================================================
+   COMERCIAL — sub-abas da aba ANÁLISE
+   Mesmo mecanismo das .fin-subtab (Financeiro), com o acento laranja do
+   Comercial em valores literais (o módulo não tem CSS vars próprias).
+   ======================================================================= */
+.crm-subtab { color:#737373; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .2s, border-color .2s; }
+.crm-subtab:hover { color:#e5e5e5; }
+.crm-subtab.is-active { color:#fb923c; border-bottom-color:#f97316; }
+
+/* Gráfico de linha da evolução mensal (portado do protótipo do Financeiro) */
+.crm-chart { position:relative; width:100%; user-select:none; }
+.crm-chart svg { display:block; width:100%; }
+.crm-chart-grid { stroke:#1c1c1c; stroke-width:1; vector-effect:non-scaling-stroke; }
+.crm-chart-line { fill:none; stroke-width:2; vector-effect:non-scaling-stroke; }

@@ -379,6 +379,15 @@ function renderEngCalculadora(container) {
     <div class="p-6 max-w-7xl mx-auto">
       ${engHeader('Calculadora', 'Dimensionamento de strings, MPPT, proteções CA/CC e geração estimada', 'calculator')}
 
+      ${state.eng.currentProjectId ? `
+      <div class="mb-5 flex items-center justify-between gap-3 border border-sky-500/30 bg-sky-500/5 px-4 py-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <i data-lucide="folder-open" class="w-4 h-4 text-sky-400 shrink-0"></i>
+          <span class="text-[11px] font-bold text-neutral-200 truncate">Dimensionando: <strong class="text-white">${engEscAttr(state.eng.currentProjectName || '')}</strong>${state.eng.targetKwp ? ` · alvo ${engFmtNum(state.eng.targetKwp, 2)} kWp` : ''}</span>
+        </div>
+        <button onclick="engSairProjeto()" class="text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-white shrink-0">Sair do projeto</button>
+      </div>` : ''}
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
         ${colSistema}
         ${colInversor}
@@ -444,9 +453,79 @@ function engCalcular() {
 function engLimpar() {
   state.eng.inputs = {};
   state.eng.lastResult = null;
+  engSairProjetoState();
   if (engChartInstance) { engChartInstance.destroy(); engChartInstance = null; }
   const container = document.getElementById('main-container');
   if (container) renderEngCalculadora(container);
+}
+
+// Limpa o "modo projeto" (sem re-renderizar).
+function engSairProjetoState() {
+  state.eng.currentProjectId = null;
+  state.eng.currentProjectName = '';
+  state.eng.targetKwp = null;
+}
+
+// Sai do modo projeto e re-renderiza a calculadora (mantém os inputs atuais).
+function engSairProjeto() {
+  engSairProjetoState();
+  const c = document.getElementById('main-container');
+  if (c) renderEngCalculadora(c);
+}
+
+// "Nova simulação" a partir do dashboard: começa avulsa (fora de projeto).
+function engNovaSimulacao() {
+  engSairProjetoState();
+  setTab('calculadora');
+}
+
+// Snapshot compacto do resultado para gravar em eng_projetos.resultado (jsonb).
+function engResultSnapshot(data) {
+  return {
+    potenciaPico: data.potenciaPico,
+    geracaoMedia: data.geracaoMedia,
+    totalAnnualGeneration: data.totalAnnualGeneration,
+    powerRatioPercent: data.powerRatioPercent,
+    vocCorrected: data.vocCorrected,
+    maxVStringGlobal: data.maxVStringGlobal,
+    monthlyGeneration: data.monthlyGeneration,
+    distribution: data.distribution,
+  };
+}
+
+// Salva o dimensionamento validado NO projeto atual (update) e marca como Concluído (etapa 2).
+async function engSalvarNoProjeto() {
+  const data = state.eng && state.eng.lastResult;
+  if (!data) { showToast('Valide um dimensionamento antes de salvar.'); return; }
+  const id = state.eng.currentProjectId;
+  if (!id) { return engSalvarProjeto(); } // fallback: sem projeto → salva novo
+  const patch = {
+    potencia_pico_kwp: data.potenciaPico,
+    potencia_inversor_w: data.inputs.inverterPower,
+    total_modulos: data.inputs.moduleCount,
+    geracao_media_kwh: data.geracaoMedia,
+    dados_completos: { ...data.inputs },
+    resultado: engResultSnapshot(data),
+  };
+  try {
+    if (ENG_DB_ENABLED) {
+      // etapa: avança para "Concluído" (2) se ainda estava antes disso.
+      const p0 = state.eng.projetos.find(x => String(x.id) === String(id));
+      const novaEtapa = Math.max(2, (p0 && p0.etapa) || 0);
+      const { error } = await supabaseClient.from('eng_projetos')
+        .update({ ...patch, etapa: novaEtapa, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      if (p0) Object.assign(p0, patch, { etapa: novaEtapa });
+    } else {
+      const p0 = state.eng.projetos.find(x => String(x.id) === String(id));
+      if (p0) Object.assign(p0, patch, { etapa: Math.max(2, p0.etapa || 0) });
+    }
+    showToast('Dimensionamento salvo no projeto.');
+  } catch (e) {
+    console.error('[engenharia] salvar no projeto', e);
+    showToast('Erro ao salvar: ' + (e.message || e));
+  }
 }
 
 // ==========================================
@@ -548,11 +627,16 @@ function engRenderReport(data) {
         <div class="h-64 relative bg-neutral-900/60 border border-neutral-800 p-3 mb-4"><canvas id="eng-generation-chart"></canvas></div>
         ${engRenderMonthlyTable(monthlyGeneration)}
 
+        ${state.eng.currentProjectId ? `
+        <div class="mt-6 bg-neutral-900/60 border border-neutral-800 p-3">
+          <button onclick="engSalvarNoProjeto()" class="w-full px-5 py-3 bg-neutral-800 border border-neutral-700 hover:border-sky-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 transition-colors"><i data-lucide="save" class="w-4 h-4"></i> Salvar no projeto "${engEscAttr(state.eng.currentProjectName || '')}"</button>
+          <p class="text-[10px] text-neutral-600 mt-2 text-center">Salva os dados e o resultado no projeto e marca como "Concluído".</p>
+        </div>` : `
         <div class="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 bg-neutral-900/60 border border-neutral-800 p-3">
           <input id="eng-proj-nome" placeholder="Nome do projeto" value="${engEscAttr((state.eng && state.eng.currentProjectName) || '')}" class="${ENG_INP}">
           <input id="eng-proj-cliente" placeholder="Cliente (opcional)" class="${ENG_INP}">
           <button onclick="engSalvarProjeto()" class="px-5 py-2 bg-neutral-800 border border-neutral-700 hover:border-sky-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 transition-colors"><i data-lucide="save" class="w-4 h-4"></i> Salvar Projeto</button>
-        </div>
+        </div>`}
 
         <button onclick="engGerarPdf()" id="eng-pdf-button" class="w-full mt-3 bg-gradient-to-r ${ENG_ACCENT.grad} text-black font-black uppercase tracking-widest py-3 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
           <i data-lucide="file-text" class="w-4 h-4"></i> Gerar PDF Técnico
@@ -1059,7 +1143,13 @@ function engApplyModuloPreset(id) {
     modBrand: m.marca, modModel: m.modelo, modulePower: m.potencia,
     moduleVmp: m.vmp, moduleImp: m.imp, moduleVoc: m.voc, moduleIsc: m.isc,
     tempCoef: m.coef_temp, minTemp: m.temp_min };
-  engGoToCalcWithPreset(`Módulo "${m.marca} ${m.modelo}" carregado.`);
+  // Auto-fill: no modo projeto, deriva o nº de módulos a partir do alvo de kWp.
+  let msg = `Módulo "${m.marca} ${m.modelo}" carregado.`;
+  if (state.eng.targetKwp && m.potencia > 0) {
+    const n = Math.round((state.eng.targetKwp * 1000) / m.potencia);
+    if (n > 0) { state.eng.inputs.moduleCount = n; msg += ` ${n} módulos p/ ${engFmtNum(state.eng.targetKwp, 2)} kWp.`; }
+  }
+  engGoToCalcWithPreset(msg);
 }
 
 function engApplyInversorPreset(id) {
@@ -1298,13 +1388,22 @@ async function engSalvarProjeto() {
   if (cliEl) cliEl.value = '';
 }
 
+// Abre um projeto para dimensionar: entra em "modo projeto", define o alvo de kWp
+// e pré-preenche a calculadora (dados salvos se houver; senão defaults + irradiação HSP).
 function engAbrirProjeto(id) {
   const p = state.eng.projetos.find(x => String(x.id) === String(id));
   if (!p) return;
-  state.eng.inputs = { ...(p.dados_completos || {}) };
+  state.eng.currentProjectId = p.id;
   state.eng.currentProjectName = p.nome_projeto || '';
+  state.eng.targetKwp = Number(p.potencia_pico_kwp) || null;
+
+  const base = (p.dados_completos && Object.keys(p.dados_completos).length) ? { ...p.dados_completos } : {};
+  if (base.irradiation == null && state.franquiaHsp) base.irradiation = state.franquiaHsp;
+  state.eng.inputs = base;
+
   setTab('calculadora');
-  if (typeof engCalcular === 'function') engCalcular();
+  // Se já tem dimensionamento salvo, valida direto; senão mostra o form pré-preenchido.
+  if (base.moduleCount && base.inverterPower && base.modulePower && typeof engCalcular === 'function') engCalcular();
 }
 
 async function engExcluirProjeto(id) {
@@ -1384,7 +1483,7 @@ function renderEngVisao(container) {
         <h1 class="mt-2 text-2xl md:text-3xl font-black text-white uppercase tracking-wide">Dimensionamento Fotovoltaico</h1>
         <p class="mt-1 text-[12px] text-neutral-400 max-w-2xl">Portfólio de projetos, validações e estatísticas de especificação técnica.</p>
         <div class="mt-4 flex flex-wrap gap-2">
-          <button onclick="setTab('calculadora')" class="inline-flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-gradient-to-r ${ENG_ACCENT.grad} text-black">
+          <button onclick="engNovaSimulacao()" class="inline-flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-gradient-to-r ${ENG_ACCENT.grad} text-black">
             <i data-lucide="calculator" class="w-3.5 h-3.5"></i> Nova simulação
           </button>
           <button onclick="setTab('funil')" class="inline-flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-neutral-300 border border-neutral-700 hover:border-sky-500/40 transition-colors">
@@ -1417,14 +1516,130 @@ function renderEngVisao(container) {
   if (window.lucide) lucide.createIcons();
 }
 
-// Placeholder do Funil — implementação completa na Fase 8.
+// Funil — kanban de 4 etapas lendo eng_projetos.etapa.
 function renderEngFunil(container) {
+  if (ENG_DB_ENABLED && !state.eng.projLoaded) {
+    engFetchProjetos().then(() => {
+      if (state.environment === 'engenharia' && state.engActiveTab === 'funil') renderEngFunil(container);
+    });
+  }
+  const projs = state.eng.projetos || [];
+  const cols = ENG_ETAPAS.map((label, i) => {
+    const items = projs.filter(p => (p.etapa || 0) === i);
+    const pot = items.reduce((a, p) => a + (Number(p.potencia_pico_kwp) || 0), 0);
+    const cards = items.map(engFunilCard).join('') || `<div class="px-2 py-6 text-center text-neutral-700 text-[10px]">—</div>`;
+    return `
+      <div class="flex flex-col min-w-0">
+        <div class="flex items-center justify-between px-3 py-2.5 bg-neutral-950 border border-neutral-800">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-5 h-5 grid place-items-center text-[9px] font-black bg-sky-500/10 text-sky-300 border border-sky-500/20 shrink-0">${i}</span>
+            <span class="text-[10px] font-black uppercase tracking-widest text-neutral-300 truncate">${label}</span>
+          </div>
+          <span class="text-[9px] font-black text-neutral-600 shrink-0">${items.length}</span>
+        </div>
+        <div class="px-3 py-1.5 bg-neutral-950/60 border-x border-neutral-800 text-[9px] font-bold uppercase tracking-widest text-neutral-500">${engFmtNum(pot, 1)} kWp</div>
+        <div class="flex-1 space-y-2 p-2 bg-neutral-900/20 border border-neutral-800 min-h-[120px]">${cards}</div>
+      </div>`;
+  }).join('');
+
   container.innerHTML = `
     <div class="p-6 max-w-7xl mx-auto">
-      ${engHeader('Funil', 'Pipeline dos projetos por etapa', 'git-merge')}
-      ${engEmBreve('Funil de projetos (kanban de 4 etapas)')}
+      ${engHeader('Funil', 'Do aguardando dimensionamento ao documento gerado', 'git-merge')}
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-start">${cols}</div>
     </div>`;
   if (window.lucide) lucide.createIcons();
+}
+
+function engFunilCard(p) {
+  return `
+    <div onclick="engOpenProjectDetail('${p.id}')" class="bg-neutral-950 border border-neutral-800 p-3 cursor-pointer hover:border-sky-500/40 transition-colors">
+      <div class="font-black text-white text-sm truncate mb-1">${engEscAttr(p.nome_projeto)}</div>
+      <div class="text-sky-300 font-black text-base mb-1">${engFmtNum(p.potencia_pico_kwp, 2)} kWp</div>
+      <div class="text-[10px] text-neutral-500 truncate">${engEscAttr(p.nome_cliente || '—')}${p.cidade ? ' · ' + engEscAttr(p.cidade) : ''}</div>
+    </div>`;
+}
+
+// --- Modal de detalhe do projeto ---
+function engEnsureModal() {
+  let m = document.getElementById('eng-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'eng-modal';
+    m.className = 'fixed inset-0 z-[90] hidden items-center justify-center p-4';
+    m.innerHTML = `
+      <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="engCloseModal()"></div>
+      <div id="eng-modal-card" class="relative w-full sm:max-w-lg bg-[#0a0a0a] border border-neutral-800 max-h-[92vh] overflow-y-auto"></div>`;
+    document.body.appendChild(m);
+  }
+  return m;
+}
+
+function engCloseModal() {
+  const m = document.getElementById('eng-modal');
+  if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+}
+
+function engModalRow(label, value) {
+  return `<div><span class="text-[9px] font-black uppercase tracking-widest text-neutral-600">${label}</span><div class="text-sm text-white font-bold">${value}</div></div>`;
+}
+
+function engOpenProjectDetail(id) {
+  const p = (state.eng.projetos || []).find(x => String(x.id) === String(id));
+  if (!p) return;
+  state.eng.currentProjectId = p.id;
+  state.eng.currentProjectName = p.nome_projeto || '';
+  const etapa = p.etapa || 0;
+  const m = engEnsureModal();
+  const card = m.querySelector('#eng-modal-card');
+  card.innerHTML = `
+    <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <div class="text-[10px] font-black uppercase tracking-widest text-sky-400">Etapa ${etapa + 1}/4 · ${ENG_ETAPAS[etapa]}</div>
+        <h3 class="text-lg font-black text-white mt-1 truncate">${engEscAttr(p.nome_projeto)}</h3>
+      </div>
+      <button onclick="engCloseModal()" class="p-1.5 text-neutral-500 hover:text-white shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div class="p-5">
+      <div class="text-3xl font-black text-sky-300 mb-4">${engFmtNum(p.potencia_pico_kwp, 2)} <span class="text-lg text-neutral-500">kWp</span></div>
+      <div class="grid grid-cols-2 gap-y-3 gap-x-4 py-4 border-y border-neutral-800">
+        ${engModalRow('Cliente', engEscAttr(p.nome_cliente || '—'))}
+        ${engModalRow('Cidade', engEscAttr(p.cidade || '—'))}
+        ${engModalRow('Inversor', p.potencia_inversor_w ? engFmtNum(p.potencia_inversor_w / 1000, 1) + ' kW' : '—')}
+        ${engModalRow('Módulos', p.total_modulos || '—')}
+        ${engModalRow('Geração média', p.geracao_media_kwh ? engFmtNum(p.geracao_media_kwh, 0) + ' kWh/mês' : '—')}
+        ${engModalRow('Origem', engEscAttr(p.origem || 'manual'))}
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button onclick="engProjetoMover('${p.id}', -1)" ${etapa === 0 ? 'disabled' : ''} class="flex-1 py-3 border border-neutral-800 text-neutral-300 text-[10px] font-black uppercase tracking-widest hover:border-neutral-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+          <i data-lucide="arrow-left" class="w-3.5 h-3.5 inline"></i> Voltar
+        </button>
+        <button onclick="engProjetoMover('${p.id}', 1)" ${etapa === 3 ? 'disabled' : ''} class="flex-1 py-3 bg-gradient-to-r ${ENG_ACCENT.grad} text-black text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed">
+          Avançar <i data-lucide="arrow-right" class="w-3.5 h-3.5 inline"></i>
+        </button>
+      </div>
+      <button onclick="engCloseModal(); engAbrirProjeto('${p.id}')" class="w-full mt-2 py-3 bg-neutral-900 border border-neutral-700 hover:border-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors">
+        <i data-lucide="calculator" class="w-4 h-4"></i> Dimensionar
+      </button>
+    </div>`;
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+  if (window.lucide) lucide.createIcons();
+}
+
+async function engProjetoMover(id, dir) {
+  try {
+    const { data, error } = await supabaseClient.rpc('mover_eng_projeto', { p_id: id, p_dir: dir });
+    if (error) throw error;
+    const p = state.eng.projetos.find(x => String(x.id) === String(id));
+    if (p && data && typeof data.etapa === 'number') p.etapa = data.etapa;
+    showToast('Etapa: ' + ENG_ETAPAS[p ? p.etapa : 0]);
+    const c = document.getElementById('main-container');
+    if (c && state.engActiveTab === 'funil') renderEngFunil(c);
+    engOpenProjectDetail(id);
+  } catch (e) {
+    console.error('[engenharia] mover', e);
+    showToast('Erro ao mover: ' + (e.message || e));
+  }
 }
 
 // --- ROTEADOR PRINCIPAL ---
@@ -1444,6 +1659,9 @@ Object.assign(window, {
   renderEngRoute,
   renderEngVisao,
   renderEngFunil,
+  engOpenProjectDetail,
+  engCloseModal,
+  engProjetoMover,
   renderEngCalculadora,
   renderEngEquipamentos,
   renderEngProjetos,
@@ -1460,6 +1678,9 @@ Object.assign(window, {
   engApplyModuloPreset,
   engApplyInversorPreset,
   engSalvarProjeto,
+  engSalvarNoProjeto,
+  engSairProjeto,
+  engNovaSimulacao,
   engAbrirProjeto,
   engExcluirProjeto,
 });

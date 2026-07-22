@@ -946,8 +946,54 @@ function omClientesTableHTML(rows) {
 // --- Criar cliente O&M (grava no banco via RPC) ------------------------
 // opts.next === 'proposta' → abre a Nova proposta já com o cliente selecionado.
 let _omCreateClientOpts = {};
+let _omCreateCidadeMun = null;   // município escolhido no autocomplete
+let _omCreateDup = null;         // resultado da checagem de duplicata por telefone
+
+function _omRenderDupWarning() {
+  const warnEl = document.getElementById('om-client-dup-warning');
+  if (!warnEl) return;
+  const dup = _omCreateDup;
+
+  if (!dup || !dup.existe) {
+    warnEl.classList.add('hidden');
+    warnEl.innerHTML = '';
+    return;
+  }
+
+  warnEl.classList.remove('hidden');
+  if (dup.e_meu) {
+    warnEl.className = 'text-[10px] font-bold p-2.5 border mb-3 bg-blue-500/10 border-blue-500/30 text-blue-300';
+    warnEl.innerHTML = `Você já tem <strong>${omEsc(dup.nome || 'este cliente')}</strong> cadastrado com este telefone. Use a busca de clientes em vez de criar de novo.`;
+  } else if (state.isAdmin) {
+    warnEl.className = 'text-[10px] font-bold p-2.5 border mb-3 bg-yellow-500/10 border-yellow-500/30 text-yellow-300';
+    warnEl.innerHTML = `⚠ Já existe cadastro com este telefone${dup.nome ? ` (<strong>${omEsc(dup.nome)}</strong>)` : ''}. Como admin você pode salvar mesmo assim.`;
+  } else {
+    warnEl.className = 'text-[10px] font-bold p-2.5 border mb-3 bg-red-500/10 border-red-500/30 text-red-300';
+    warnEl.innerHTML = '⚠ Já existe um cadastro com este telefone no sistema.';
+  }
+}
+
+const _omDupCheckDebounced = debounce(async (telefone) => {
+  const digits = String(telefone || '').replace(/\D/g, '');
+  if (digits.length < 10) {
+    _omCreateDup = null;
+    _omRenderDupWarning();
+    return;
+  }
+  try {
+    const { data, error } = await supabaseClient.rpc('check_cliente_telefone', { p_telefone: digits });
+    _omCreateDup = error ? null : data;
+  } catch (err) {
+    console.warn('[om] Falha na checagem de duplicata.', err);
+    _omCreateDup = null;
+  }
+  _omRenderDupWarning();
+}, 350);
+
 function omOpenCreateClient(opts = {}) {
   _omCreateClientOpts = opts || {};
+  _omCreateCidadeMun = null;
+  _omCreateDup = null;
   omOpenModal({
     title: 'Criar cliente O&M',
     subtitle: 'Cadastro — vai direto para a base de clientes',
@@ -955,9 +1001,10 @@ function omOpenCreateClient(opts = {}) {
     bodyHTML: `
       <form id="om-form-client" onsubmit="event.preventDefault(); omSubmitCreateClient();">
         ${omField('Nome / razão social', `<input name="nome" required class="${OM_INPUT_CLS}" placeholder="Nome do cliente" />`)}
+        <div id="om-client-dup-warning" class="hidden"></div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          ${omField('Telefone', `<input name="telefone" class="${OM_INPUT_CLS}" placeholder="(00) 00000-0000" />`)}
-          ${omField('Cidade', `<input name="cidade" class="${OM_INPUT_CLS}" placeholder="Cidade/UF" />`)}
+          ${omField('Telefone (com DDD) *', `<input name="telefone" id="om-client-telefone" required class="${OM_INPUT_CLS}" placeholder="(00) 00000-0000" />`)}
+          ${omField('Cidade *', `<div class="relative"><input name="cidade" id="om-client-cidade" required class="${OM_INPUT_CLS}" placeholder="Digite e escolha na lista" autocomplete="off" /></div>`)}
         </div>
         ${omField('Endereço', `<input name="endereco" class="${OM_INPUT_CLS}" placeholder="Rua, número, bairro" />`)}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -977,6 +1024,15 @@ function omOpenCreateClient(opts = {}) {
       <button onclick="document.getElementById('om-form-client').requestSubmit()" class="px-4 py-2.5 bg-blue-500 hover:bg-blue-400 text-blue-950 font-black text-[10px] uppercase tracking-widest inline-flex items-center gap-2"><i data-lucide="check" class="w-3.5 h-3.5 stroke-[3]"></i>Salvar cliente</button>
     `
   });
+
+  // Autocomplete de cidade (dataset IBGE) + checagem de duplicata por telefone
+  if (typeof attachCidadeAutocomplete === 'function') {
+    attachCidadeAutocomplete(document.getElementById('om-client-cidade'), (mun) => {
+      _omCreateCidadeMun = mun;
+    });
+  }
+  const telInput = document.getElementById('om-client-telefone');
+  if (telInput) telInput.addEventListener('input', (event) => _omDupCheckDebounced(event.target.value));
 }
 async function omSubmitCreateClient() {
   const form = document.getElementById('om-form-client');
@@ -985,22 +1041,52 @@ async function omSubmitCreateClient() {
   const nome = (fd.get('nome') || '').trim();
   if (!nome) { if (typeof showToast === 'function') showToast('Informe o nome do cliente.'); return; }
 
+  const telefone = (fd.get('telefone') || '').trim();
+  if (telefone.replace(/\D/g, '').length < 10) {
+    if (typeof showToast === 'function') showToast('Informe o telefone com DDD.');
+    return;
+  }
+
+  const cidadeTexto = (fd.get('cidade') || '').trim();
+  if (!cidadeTexto) {
+    if (typeof showToast === 'function') showToast('Informe a cidade do cliente.');
+    return;
+  }
+
+  // Bloqueio de duplicata: só admin pode criar mesmo assim.
+  if (_omCreateDup && _omCreateDup.existe && !state.isAdmin) {
+    _omRenderDupWarning();
+    if (typeof showToast === 'function') showToast('Já existe um cadastro com este telefone.');
+    return;
+  }
+
+  const mun = _omCreateCidadeMun
+    || (typeof parseCidadeLivre === 'function' ? parseCidadeLivre(cidadeTexto) : null);
+  const cidade = mun ? `${mun.nome.toUpperCase()}/${mun.uf}` : cidadeTexto;
+
   omSetModalBusy(true);
   try {
     const { data: newId, error } = await supabaseClient.rpc('create_om_cliente', {
       p_nome: nome,
-      p_telefone: (fd.get('telefone') || '').trim() || null,
-      p_cidade: (fd.get('cidade') || '').trim() || null,
+      p_telefone: telefone,
+      p_cidade: cidade,
       p_endereco: (fd.get('endereco') || '').trim() || null,
       p_documento: (fd.get('documento') || '').trim() || null,
       p_origem: (fd.get('origem') || 'manual'),
       p_observacoes: (fd.get('obs') || '').trim() || null,
       p_franquia_id: state.franquiaId || null,
+      p_cidade_ibge: mun ? mun.ibge : null,
+      p_uf: mun ? mun.uf : null,
+      p_latitude: mun ? mun.lat : null,
+      p_longitude: mun ? mun.lon : null,
+      p_hsp: null,
     });
     if (error || !newId) throw error || new Error('Falha ao cadastrar o cliente.');
 
-    const cidade = (fd.get('cidade') || '').trim();
-    const novo = { id: newId, nome: nome.toUpperCase(), cidade, telefone: (fd.get('telefone') || '').trim() };
+    // HSP chega async — nunca bloqueia o cadastro.
+    if (mun && typeof enrichClienteHsp === 'function') enrichClienteHsp(newId, mun);
+
+    const novo = { id: newId, nome: nome.toUpperCase(), cidade, telefone };
     _omClientCache[newId] = novo;
 
     const opts = _omCreateClientOpts || {};
@@ -3140,7 +3226,10 @@ function omIsCorretiva(tipo) {
 
 function omPublicLink(token, tipo) {
   const path = omIsCorretiva(tipo) ? OM_PROPOSTA_CORRETIVA_PATH : OM_PROPOSTA_PUBLIC_PATH;
-  const base = window.location.href.split('/').slice(0, -1).join('/') + '/' + path;
+  // O painel agora é um SPA com roteador por hash (#app/...), então recortar
+  // window.location.href jogava o link para dentro do #hash. O arquivo público
+  // é estático na raiz — montamos a partir da origin (mesmo padrão do crm.js).
+  const base = `${window.location.origin}/${path}`;
   return `${base}?t=${encodeURIComponent(token)}`;
 }
 
