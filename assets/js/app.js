@@ -487,11 +487,12 @@ function renderTabs() {
   const secondaryTabs = tabs.filter(t =>  t.secondary);
   const hasSecondaryActive = secondaryTabs.some(t => t.id === activeId);
 
-  // Badge da fila do dia na aba VISÃO GERAL do Comercial: o vendedor precisa ver
-  // que tem gente esperando mesmo estando em outra aba.
-  const filaCount = (isComercial && typeof buildFilaDoDia === 'function' && state.clientes?.length)
-    ? buildFilaDoDia().length
-    : 0;
+  // Badge da fila do dia na aba VISÃO GERAL: OCULTO junto com o bloco "PARA HOJE"
+  // (removido do dashboard em 20/07/2026 a pedido do usuário — ver dashboard.js).
+  // A fila continua viva em crm-fila.js; para reativar o badge, restaurar:
+  //   const filaCount = (isComercial && typeof buildFilaDoDia === 'function' && state.clientes?.length)
+  //     ? buildFilaDoDia().length : 0;
+  const filaCount = 0;
   const tabBadge = (tab) => (
     (isComercial && tab.id === 'dashboard' && filaCount > 0)
       ? `<span class="ml-1 px-1.5 py-0.5 bg-orange-500 text-black text-[8px] font-black leading-none num">${filaCount}</span>`
