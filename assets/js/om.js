@@ -3226,7 +3226,10 @@ function omIsCorretiva(tipo) {
 
 function omPublicLink(token, tipo) {
   const path = omIsCorretiva(tipo) ? OM_PROPOSTA_CORRETIVA_PATH : OM_PROPOSTA_PUBLIC_PATH;
-  const base = window.location.href.split('/').slice(0, -1).join('/') + '/' + path;
+  // O painel agora é um SPA com roteador por hash (#app/...), então recortar
+  // window.location.href jogava o link para dentro do #hash. O arquivo público
+  // é estático na raiz — montamos a partir da origin (mesmo padrão do crm.js).
+  const base = `${window.location.origin}/${path}`;
   return `${base}?t=${encodeURIComponent(token)}`;
 }
 

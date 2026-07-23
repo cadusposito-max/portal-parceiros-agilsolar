@@ -216,9 +216,32 @@ async function fetchClientes() {
   const { data, error } = await query;
   if (!error) state.clientes = data || [];
 
-  // Enriquecimentos do CRM (flags O&M + última atividade) — falha silenciosa,
-  // a lista funciona sem eles.
-  await Promise.all([fetchOmFlags(), fetchCrmLastAtividades()]).catch(() => {});
+  // Enriquecimentos do CRM (flags O&M + última atividade + nomes dos
+  // vendedores) — falha silenciosa, a lista funciona sem eles.
+  await Promise.all([fetchOmFlags(), fetchCrmLastAtividades(), fetchVendedorNomes()]).catch(() => {});
+}
+
+// Mapa email -> nome cadastrado do vendedor, para o filtro/ranking do dashboard
+// exibirem o nome real em vez do começo do email. Só admin/gestor têm o filtro,
+// então só eles buscam (a RPC também barra os demais). Falha silenciosa: sem o
+// mapa, dashVendedorNome() cai no fallback derivado do email.
+async function fetchVendedorNomes() {
+  try {
+    if (!(state.isAdmin || state.isGestor)) { state.vendedorNomes = {}; return; }
+
+    const { data, error } = await supabaseClient.rpc('get_vendedores_nomes');
+    if (error) return;
+
+    const map = {};
+    (data || []).forEach((row) => {
+      const email = String(row?.email || '').trim().toLowerCase();
+      const nome = String(row?.nome || '').trim();
+      if (email && nome) map[email] = nome;
+    });
+    state.vendedorNomes = map;
+  } catch (err) {
+    console.warn('[fetchVendedorNomes] Falha silenciosa.', err);
+  }
 }
 
 // Flags O&M por cliente (badge nos cards + aba O&M do painel 360°)

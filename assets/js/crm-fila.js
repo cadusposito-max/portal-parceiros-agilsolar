@@ -245,26 +245,12 @@ function renderFilaDoDiaBlock() {
     </div>`;
 }
 
-// Aviso de entrada: substitui (por ora) o push diário. Sem infra de agendamento,
-// o gatilho é o próprio login — que é quando o vendedor está olhando mesmo.
-// Só fala se houver algo urgente: aviso todo dia vira ruído e some da atenção.
+// Aviso de entrada (toast pós-login): desativado a pedido do usuário — reaparecia
+// a cada refresh (a restauração de sessão em auth.js chama esta função) e virou ruído.
+// Mantido como no-op para não quebrar as chamadas em auth.js; a Fila do Dia dentro
+// do painel Comercial continua intacta.
 function filaAvisoPosLogin() {
-  try {
-    if (state.environment !== 'comercial') return;
-    if (typeof buildFilaDoDia !== 'function') return;
-
-    const itens = buildFilaDoDia();
-    const atrasados = itens.filter((i) => i.tipo === 'followup_vencido').length;
-    const quentes = itens.filter((i) => i.tipo === 'proposta_vista').length;
-    if (atrasados === 0 && quentes === 0) return;
-
-    const partes = [];
-    if (quentes > 0) partes.push(`\u{1F525} ${quentes} ABRIU A PROPOSTA`);
-    if (atrasados > 0) partes.push(`${atrasados} FOLLOW-UP${atrasados > 1 ? 'S' : ''} ATRASADO${atrasados > 1 ? 'S' : ''}`);
-    setTimeout(() => showToast(partes.join(' · ')), 1200);
-  } catch (err) {
-    console.warn('[fila] Falha no aviso pós-login.', err);
-  }
+  return;
 }
 
 // =======================================================================

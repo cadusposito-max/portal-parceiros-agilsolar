@@ -37,6 +37,11 @@ function setDashVendedor(email) {
 }
 
 function dashVendedorNome(email) {
+  // Prioriza o nome cadastrado (perfil), carregado por fetchVendedorNomes.
+  const key = String(email || '').trim().toLowerCase();
+  const registrado = state.vendedorNomes && state.vendedorNomes[key];
+  if (registrado && String(registrado).trim()) return String(registrado).trim();
+  // Fallback: quando o vendedor não preencheu o nome, deriva do email.
   const base = String(email || '').split('@')[0];
   if (!base) return email;
   return base.split(/[._-]/).map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
