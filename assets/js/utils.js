@@ -147,6 +147,17 @@ function formatCurrency(val) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 }
 
+// Moeda compacta para cards de KPI: abrevia valores grandes para não estourar a
+// largura do card. Ex.: 8.450 -> "R$ 8.450,00"; 53.770 -> "R$ 53,8 mil";
+// 563.822.278 -> "R$ 563,8 mi". Abaixo de 10 mil mantém o valor cheio.
+function formatCurrencyCompact(val) {
+  const n = Number(val || 0);
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mi';
+  if (abs >= 1e4) return 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' mil';
+  return formatCurrency(n);
+}
+
 function formatDate(dateString) {
   if (!dateString) return '';
   const d = new Date(dateString);

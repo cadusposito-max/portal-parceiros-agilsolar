@@ -1144,8 +1144,26 @@ function renderPropostasList(container) {
 
   // Resumo agregado (sobre o escopo completo, não afetado pela busca).
   const now = new Date();
-  const valorTotal = rows.reduce((acc, p) => acc + propostaPreco(p), 0);
-  const ticket = rows.length ? valorTotal / rows.length : 0;
+  const somaTodas = rows.reduce((acc, p) => acc + propostaPreco(p), 0);
+  const ticket = rows.length ? somaTodas / rows.length : 0;
+
+  // Valor fechado: dinheiro que virou negócio. Conta 1 valor por cliente com
+  // status FECHADO no funil (a proposta de MAIOR valor dele) — somar todas as
+  // propostas do cliente contaria rascunhos/revisões da mesma venda. Cresce
+  // conforme a equipe marca clientes como FECHADO.
+  const clientesScopeProp = getDashboardScopedRows(state.clientes || []);
+  const fechadoIds = new Set(
+    clientesScopeProp
+      .filter((c) => String(c.status || '').toUpperCase() === 'FECHADO')
+      .map((c) => c.id)
+  );
+  const maiorFechadoPorCliente = new Map();
+  rows.forEach((p) => {
+    if (!fechadoIds.has(p.cliente_id)) return;
+    const v = propostaPreco(p);
+    if (v > (maiorFechadoPorCliente.get(p.cliente_id) || 0)) maiorFechadoPorCliente.set(p.cliente_id, v);
+  });
+  const valorFechado = [...maiorFechadoPorCliente.values()].reduce((a, b) => a + b, 0);
   const noMes = rows.filter((p) => {
     const d = new Date(p.created_at);
     return !Number.isNaN(d.getTime()) && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
@@ -1171,8 +1189,8 @@ function renderPropostasList(container) {
       <div class="p-4 border border-neutral-800 bg-[#0f0f10]"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-2">Total geradas</div><div class="text-2xl font-black text-white stat-num">${rows.length}</div></div>
       <div class="p-4 border border-neutral-800 bg-[#0f0f10]"><div class="text-[9px] font-black uppercase tracking-widest text-orange-400/80 mb-2">Vistas pelo cliente</div><div class="text-2xl font-black text-orange-400 stat-num">${nVistas}</div></div>
       <div class="p-4 border border-neutral-800 bg-[#0f0f10]"><div class="text-[9px] font-black uppercase tracking-widest text-green-500/80 mb-2">Aceitas</div><div class="text-2xl font-black text-green-400 stat-num">${nAceitas}</div></div>
-      <div class="p-4 border border-neutral-800 bg-[#0f0f10]"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-2">Valor total</div><div class="text-2xl font-black text-green-400 stat-num">${formatCurrency(valorTotal)}</div></div>
-      <div class="p-4 border border-neutral-800 bg-[#0f0f10]"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-2">Ticket médio</div><div class="text-2xl font-black text-white stat-num">${formatCurrency(ticket)}</div></div>
+      <div class="p-4 border border-neutral-800 bg-[#0f0f10]"><div class="text-[9px] font-black uppercase tracking-widest text-green-500/80 mb-2">Valor fechado</div><div class="text-2xl font-black text-green-400 stat-num">${formatCurrencyCompact(valorFechado)}</div></div>
+      <div class="p-4 border border-neutral-800 bg-[#0f0f10]"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-2">Ticket médio</div><div class="text-2xl font-black text-white stat-num">${formatCurrencyCompact(ticket)}</div></div>
     </section>
 
     <section class="flex flex-wrap items-center gap-2 border border-neutral-800 bg-[#0f0f10] p-3">
