@@ -439,7 +439,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       return;
     }
 
-    await _finishLogin(data.user, email);
+    // Email canonico do Auth, nao o que foi digitado. O campo de login nao
+    // normaliza a caixa, entao "Fulano@x.com" e "fulano@x.com" criavam linhas
+    // distintas em vendedores_stats. Cai para o digitado se o Auth nao devolver.
+    await _finishLogin(data.user, data.user.email || email);
   }
 });
 
