@@ -1,0 +1,21 @@
+# Arquivos versionados no GitHub que NAO devem ser servidos pela Vercel.
+# Este repositorio e publico e o deploy e estatico: tudo que sobe fica
+# acessivel por URL. As entradas abaixo nao sao usadas em runtime.
+#
+# Conferido em 2026-07-24: nenhum destes caminhos e referenciado por
+# index.html, pelos 31 scripts de assets/js ou pelas paginas de proposta.
+
+# Migrations e rollbacks de banco. Vivem no repositorio privado de
+# operacoes (agilsolar-ops-privado). Regra defensiva: a pasta nao existe
+# aqui e nao deve voltar a existir.
+supabase/
+
+# Workflow do GitHub Actions. Roda no GitHub, nunca na Vercel.
+.github/
+
+# Backups deixados durante edicoes. Estao versionados desde antes de
+# *.bak entrar no .gitignore, entao o .gitignore nao os remove do deploy.
+*.bak
+
+# Previa estatica de relatorio usada em desenvolvimento.
+_preview-relatorio.html
