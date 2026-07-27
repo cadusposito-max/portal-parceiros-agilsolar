@@ -847,6 +847,12 @@ function setTab(tabId) {
   if ((tabId === 'clientes' || tabId === 'funil') && typeof resetClientesRenderLimit === 'function') {
     resetClientesRenderLimit();
   }
+  // Propostas idem — e o observer do scroll infinito morre ao sair da aba.
+  resetPropostasRenderLimit();
+  if (tabId !== 'propostas' && _propostasObserver) {
+    _propostasObserver.disconnect();
+    _propostasObserver = null;
+  }
   renderTabs();
   renderContent();
   appRouteSync(true);
@@ -1029,6 +1035,20 @@ function syncSearchToolbarForActiveTab() {
 // vista_em/vista_count) → ACEITA (venda fechada vinculada por proposta_id).
 // Linhas antigas seguem GERADA — compatível.
 // =======================================================================
+// Renderização em lotes (27/07/2026): a lista desenhava até 300 cards de uma
+// vez e travava a aba. Agora entram 10 por vez e o próximo lote é anexado
+// sozinho conforme o usuário rola (sentinela + IntersectionObserver).
+// Só a RENDERIZAÇÃO é limitada — os 5 KPIs, o contador do título e a busca
+// continuam operando sobre a base completa (state.propostas).
+const PROPOSTAS_RENDER_LOTE = 10;
+let _propostasRenderLimit = PROPOSTAS_RENDER_LOTE;
+let _propostasObserver = null;
+let _propostasCarregando = false;
+
+function resetPropostasRenderLimit() {
+  _propostasRenderLimit = PROPOSTAS_RENDER_LOTE;
+}
+
 const PROPOSTA_STATUS_STYLE = {
   GERADA:  { cls: 'bg-neutral-800/60 text-neutral-400 border-neutral-700' },
   ENVIADA: { cls: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
@@ -1053,6 +1073,7 @@ function propostaPotencia(p) {
 
 const _propostasSearchDebounced = debounce((value) => {
   state.propostasSearch = String(value || '');
+  resetPropostasRenderLimit(); // busca nova recomeça do 1º lote
   renderContent();
 }, 180);
 
@@ -1129,19 +1150,106 @@ function renderNovaPropostaPickerList(term) {
   lucide.createIcons();
 }
 
+// Fonte única da lista: o render e o carregador de lote leem daqui, para o
+// append nunca trabalhar sobre um array congelado (proposta salva no meio).
+function getPropostasFiltradas() {
+  // Mesmo escopo de permissão que o Dashboard usa para propostas.
+  const rows = getDashboardScopedRows(state.propostas || []);
+  const term = String(state.propostasSearch || '').trim().toLowerCase();
+  const filtered = term
+    ? rows.filter((p) => `${p.cliente_nome || ''} ${p.kit_nome || ''}`.toLowerCase().includes(term))
+    : rows;
+  return { rows, filtered, term };
+}
+
+function propostaCardHTML(p) {
+  const kwp = propostaPotencia(p);
+  const st = propostaStatus(p);
+  const stStyle = PROPOSTA_STATUS_STYLE[st];
+  // "Cliente VIU a proposta" é o gatilho de venda — merece destaque na linha.
+  const vistaInfo = st === 'VISTA' && p.vista_em
+    ? `<span class="text-[9px] text-orange-400/80 font-bold">vista ${typeof crmTimeAgo === 'function' ? crmTimeAgo(p.vista_em) : formatDate(p.vista_em)}${Number(p.vista_count) > 1 ? ` · ${p.vista_count}x` : ''}</span>`
+    : '';
+  return `
+      <div class="border ${st === 'VISTA' ? 'border-orange-500/30' : 'border-neutral-800'} bg-[#0f0f10] p-4 flex items-center gap-4 flex-wrap hover:border-neutral-700 transition-colors">
+        <div class="flex-1 min-w-[160px]">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-white text-sm font-black uppercase truncate">${escapeHTML(p.cliente_nome || 'Sem cliente')}</span>
+            <span class="text-[8px] px-1.5 py-0.5 uppercase font-black tracking-widest border shrink-0 ${stStyle.cls}">${st}</span>
+            ${vistaInfo}
+          </div>
+          <div class="text-[10px] text-neutral-500 font-bold truncate">${escapeHTML(p.kit_nome || 'Proposta')}${p.numero ? ` · Nº ${escapeHTML(String(p.numero))}` : ''}</div>
+        </div>
+        <div class="hidden sm:block text-center"><div class="text-white text-sm font-black stat-num">${escapeHTML(String(kwp || '-'))}</div><div class="text-[8px] text-neutral-600 font-bold uppercase tracking-widest">kWp</div></div>
+        <div class="text-right"><div class="text-green-400 text-sm font-black stat-num">${formatCurrency(propostaPreco(p))}</div><div class="text-[8px] text-neutral-600 font-bold uppercase tracking-widest">${formatDate(p.created_at)}</div></div>
+        <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i data-lucide="external-link"></i>Abrir</a>
+      </div>`;
+}
+
+function propostasSentinelHTML(mostrando, total) {
+  return `
+    <div id="propostas-sentinel" class="text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest py-4">
+      Carregando mais… <span id="propostas-progress">${mostrando} de ${total}</span>
+    </div>`;
+}
+
+// O <main> não tem overflow próprio: o scroll é o da janela, então o
+// IntersectionObserver com root padrão (viewport) serve.
+function setupPropostasInfiniteScroll() {
+  if (_propostasObserver) { _propostasObserver.disconnect(); _propostasObserver = null; }
+  _propostasCarregando = false;
+  const sentinel = document.getElementById('propostas-sentinel');
+  if (!sentinel || typeof IntersectionObserver !== 'function') return;
+  _propostasObserver = new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting)) propostasCarregarMaisLote();
+  }, { rootMargin: '300px' }); // dispara um pouco antes de chegar no fim
+  _propostasObserver.observe(sentinel);
+}
+
+// Append incremental — não passa por renderContent(), para não piscar a tela
+// nem perder a posição do scroll.
+function propostasCarregarMaisLote() {
+  if (_propostasCarregando) return;
+  const listEl = document.getElementById('propostas-list');
+  const sentinel = document.getElementById('propostas-sentinel');
+  if (!listEl || !sentinel) return;
+
+  _propostasCarregando = true;
+  try {
+    const { filtered } = getPropostasFiltradas();
+    const lote = filtered.slice(_propostasRenderLimit, _propostasRenderLimit + PROPOSTAS_RENDER_LOTE);
+    if (lote.length > 0) {
+      listEl.insertAdjacentHTML('beforeend', lote.map(propostaCardHTML).join(''));
+      _propostasRenderLimit += lote.length;
+      lucide.createIcons();
+    }
+
+    if (_propostasRenderLimit >= filtered.length) {
+      if (_propostasObserver) { _propostasObserver.disconnect(); _propostasObserver = null; }
+      sentinel.remove();
+      return;
+    }
+
+    const progress = document.getElementById('propostas-progress');
+    if (progress) progress.textContent = `${_propostasRenderLimit} de ${filtered.length}`;
+    // Re-observa: em tela alta o sentinela continua visível depois do append e
+    // o observer não dispararia de novo sozinho — a lista empacaria em 10.
+    if (_propostasObserver) {
+      _propostasObserver.unobserve(sentinel);
+      _propostasObserver.observe(sentinel);
+    }
+  } finally {
+    _propostasCarregando = false;
+  }
+}
+
 function renderPropostasList(container) {
   container.className = 'flex flex-col gap-4';
 
   const emptyState = document.getElementById('empty-state');
   if (emptyState) emptyState.classList.add('hidden');
 
-  // Mesmo escopo de permissão que o Dashboard usa para propostas.
-  const rows = getDashboardScopedRows(state.propostas || []);
-
-  const term = String(state.propostasSearch || '').trim().toLowerCase();
-  const filtered = term
-    ? rows.filter((p) => `${p.cliente_nome || ''} ${p.kit_nome || ''}`.toLowerCase().includes(term))
-    : rows;
+  const { rows, filtered, term } = getPropostasFiltradas();
 
   // Resumo agregado (sobre o escopo completo, não afetado pela busca).
   const now = new Date();
@@ -1172,8 +1280,7 @@ function renderPropostasList(container) {
   const nVistas = rows.filter((p) => propostaStatus(p) === 'VISTA').length;
   const nAceitas = rows.filter((p) => propostaStatus(p) === 'ACEITA').length;
 
-  const CAP = 300; // teto de render para não travar em bases grandes
-  const visible = filtered.slice(0, CAP);
+  const visible = filtered.slice(0, _propostasRenderLimit);
 
   let html = `
     <section class="flex flex-wrap items-center justify-between gap-3">
@@ -1211,39 +1318,19 @@ function renderPropostasList(container) {
       </div>`;
     container.innerHTML = html;
     lucide.createIcons();
+    if (_propostasObserver) { _propostasObserver.disconnect(); _propostasObserver = null; }
     return;
   }
 
-  html += `<section class="flex flex-col gap-2">${visible.map((p) => {
-    const kwp = propostaPotencia(p);
-    const st = propostaStatus(p);
-    const stStyle = PROPOSTA_STATUS_STYLE[st];
-    // "Cliente VIU a proposta" é o gatilho de venda — merece destaque na linha.
-    const vistaInfo = st === 'VISTA' && p.vista_em
-      ? `<span class="text-[9px] text-orange-400/80 font-bold">vista ${typeof crmTimeAgo === 'function' ? crmTimeAgo(p.vista_em) : formatDate(p.vista_em)}${Number(p.vista_count) > 1 ? ` · ${p.vista_count}x` : ''}</span>`
-      : '';
-    return `
-      <div class="border ${st === 'VISTA' ? 'border-orange-500/30' : 'border-neutral-800'} bg-[#0f0f10] p-4 flex items-center gap-4 flex-wrap hover:border-neutral-700 transition-colors">
-        <div class="flex-1 min-w-[160px]">
-          <div class="flex items-center gap-2 min-w-0">
-            <span class="text-white text-sm font-black uppercase truncate">${escapeHTML(p.cliente_nome || 'Sem cliente')}</span>
-            <span class="text-[8px] px-1.5 py-0.5 uppercase font-black tracking-widest border shrink-0 ${stStyle.cls}">${st}</span>
-            ${vistaInfo}
-          </div>
-          <div class="text-[10px] text-neutral-500 font-bold truncate">${escapeHTML(p.kit_nome || 'Proposta')}${p.numero ? ` · Nº ${escapeHTML(String(p.numero))}` : ''}</div>
-        </div>
-        <div class="hidden sm:block text-center"><div class="text-white text-sm font-black stat-num">${escapeHTML(String(kwp || '-'))}</div><div class="text-[8px] text-neutral-600 font-bold uppercase tracking-widest">kWp</div></div>
-        <div class="text-right"><div class="text-green-400 text-sm font-black stat-num">${formatCurrency(propostaPreco(p))}</div><div class="text-[8px] text-neutral-600 font-bold uppercase tracking-widest">${formatDate(p.created_at)}</div></div>
-        <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i data-lucide="external-link"></i>Abrir</a>
-      </div>`;
-  }).join('')}</section>`;
+  html += `<section id="propostas-list" class="flex flex-col gap-2">${visible.map(propostaCardHTML).join('')}</section>`;
 
-  if (filtered.length > CAP) {
-    html += `<div class="text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest py-2">Mostrando ${CAP} de ${filtered.length} — refine a busca para ver mais</div>`;
+  if (filtered.length > visible.length) {
+    html += propostasSentinelHTML(visible.length, filtered.length);
   }
 
   container.innerHTML = html;
   lucide.createIcons();
+  setupPropostasInfiniteScroll();
 }
 
 function renderContent() {

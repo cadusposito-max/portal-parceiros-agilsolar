@@ -195,39 +195,67 @@ function _analiseConversaoHTML() {
 // Gráfico de linhas em SVG puro (mesmo espírito do gráfico do protótipo do
 // Financeiro): viewBox + preserveAspectRatio="none" para escalar sozinho, com
 // vector-effect no CSS para a linha não engordar junto.
+//
+// Só as LINHAS ficam dentro do SVG. Como o preserveAspectRatio="none" estica o
+// desenho na horizontal, qualquer <circle> ali viraria elipse e o gráfico ganha
+// cara de bitmap escalado — então marcadores e rótulos são spans posicionados em
+// %, que acompanham o resize sozinhos (mesmo truque do .fat-dot no Financeiro).
 function _analiseGraficoLinhas(labels, series) {
-  const W = 600, H = 160, PAD = 8;
+  const W = 1000, H = 260, padL = 90, padR = 60, padT = 24, padB = 28;
   const maxY = Math.max(1, ...series.flatMap((s) => s.dados));
-  const stepX = labels.length > 1 ? (W - PAD * 2) / (labels.length - 1) : 0;
-  const y = (v) => H - PAD - ((v / maxY) * (H - PAD * 2));
+  const stepX = labels.length > 1 ? (W - padL - padR) / (labels.length - 1) : 0;
+  const px = (i) => padL + i * stepX;
+  const py = (v) => padT + (1 - v / maxY) * (H - padT - padB);
+  const pctX = (v) => `${(v / W * 100).toFixed(3)}%`;
+  const pctY = (v) => `${(v / H * 100).toFixed(3)}%`;
 
   const linhas = series.map((s) => {
-    const pts = s.dados.map((v, i) => `${PAD + i * stepX},${y(v)}`).join(' ');
-    return `<polyline class="crm-chart-line" points="${pts}" style="stroke:${s.cor}"></polyline>
-      ${s.dados.map((v, i) => `<circle cx="${PAD + i * stepX}" cy="${y(v)}" r="2.5" fill="${s.cor}"></circle>`).join('')}`;
+    const pts = s.dados.map((v, i) => `${px(i)},${py(v)}`).join(' ');
+    return `<polyline class="crm-chart-line" points="${pts}" style="stroke:${s.cor}"></polyline>`;
   }).join('');
 
-  const grades = [0, 0.25, 0.5, 0.75, 1].map((f) => {
-    const gy = PAD + f * (H - PAD * 2);
-    return `<line class="crm-chart-grid" x1="${PAD}" y1="${gy}" x2="${W - PAD}" y2="${gy}"></line>`;
+  const pontos = series.map((s) => s.dados.map((v, i) =>
+    `<span class="crm-chart-dot" style="left:${pctX(px(i))};top:${pctY(py(v))};background:${s.cor}"></span>`
+  ).join('')).join('');
+
+  const grades = [0, 0.25, 0.5, 0.75].map((f) => {
+    const gy = padT + f * (H - padT - padB);
+    return `<line class="crm-chart-grid" x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}"></line>`;
   }).join('');
+  // Eixo separado da grade: com uma série zerada a linha cai bem em cima dele.
+  const eixo = `<line class="crm-chart-axis" x1="${padL}" y1="${py(0)}" x2="${W - padR}" y2="${py(0)}"></line>`;
+
+  // Os valores do eixo Y moram na calha à esquerda do padL, fora da plotagem.
+  const goteira = `calc(${(100 - padL / W * 100).toFixed(3)}% + 6px)`;
+  const marcasY = [maxY, Math.round(maxY / 2), 0].map((v) =>
+    `<span class="crm-chart-ylab num" style="top:${pctY(py(v))};right:${goteira}">${v}</span>`
+  ).join('');
+
+  const marcasX = labels.map((m, i) =>
+    `<span class="crm-chart-xlab" style="left:${pctX(px(i))}">${formatMonthLabel(m)}</span>`
+  ).join('');
+
+  const zeradas = series.filter((s) => s.dados.every((v) => v === 0)).map((s) => s.nome);
 
   return `
     <div class="flex flex-wrap items-center gap-3 mb-2">
       ${series.map((s) => `<span class="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-neutral-400">
         <span class="w-2.5 h-0.5" style="background:${s.cor}"></span>${escapeHTML(s.nome)}
       </span>`).join('')}
-      <span class="text-[9px] font-bold text-neutral-700 ml-auto num">pico: ${maxY}</span>
     </div>
     <div class="crm-chart">
-      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:160px">
-        ${grades}
-        ${linhas}
-      </svg>
-      <div class="flex justify-between mt-1.5">
-        ${labels.map((m) => `<span class="text-[8px] font-black uppercase tracking-widest text-neutral-700">${formatMonthLabel(m)}</span>`).join('')}
+      <div class="crm-chart-plot">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:clamp(180px,20vw,260px)">
+          ${grades}
+          ${eixo}
+          ${linhas}
+        </svg>
+        ${pontos}
+        ${marcasY}
       </div>
-    </div>`;
+      <div class="crm-chart-xaxis">${marcasX}</div>
+    </div>
+    ${zeradas.length ? `<p class="text-[10px] text-neutral-600 font-medium mt-3">${escapeHTML(zeradas.join(' e '))} sem registro no período.</p>` : ''}`;
 }
 
 // =======================================================================

@@ -1865,8 +1865,20 @@ select.crm360-input { appearance: auto; }
 .crm-subtab:hover { color:#e5e5e5; }
 .crm-subtab.is-active { color:#fb923c; border-bottom-color:#f97316; }
 
-/* Gráfico de linha da evolução mensal (portado do protótipo do Financeiro) */
+/* Gráfico de linha da evolução mensal (portado do protótipo do Financeiro).
+   Marcadores e rótulos são HTML posicionado em %, não elementos do SVG: o
+   preserveAspectRatio="none" estica o desenho na horizontal e deformaria as
+   bolinhas. Em % eles acompanham o resize sem precisar de JS. */
 .crm-chart { position:relative; width:100%; user-select:none; }
 .crm-chart svg { display:block; width:100%; }
-.crm-chart-grid { stroke:#1c1c1c; stroke-width:1; vector-effect:non-scaling-stroke; }
+.crm-chart-grid { stroke:#1f1f1f; stroke-width:1; vector-effect:non-scaling-stroke; }
+.crm-chart-axis { stroke:#2e2e2e; stroke-width:1; vector-effect:non-scaling-stroke; }
 .crm-chart-line { fill:none; stroke-width:2; vector-effect:non-scaling-stroke; }
+.crm-chart-plot { position:relative; }
+.crm-chart-dot { position:absolute; width:7px; height:7px; border-radius:9999px;
+  transform:translate(-50%,-50%); pointer-events:none; }
+.crm-chart-ylab { position:absolute; transform:translateY(-50%); text-align:right;
+  white-space:nowrap; font-size:8px; font-weight:700; color:#404040; pointer-events:none; }
+.crm-chart-xaxis { position:relative; height:12px; margin-top:8px; }
+.crm-chart-xlab { position:absolute; top:0; transform:translateX(-50%); white-space:nowrap;
+  font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:.1em; color:#404040; }
