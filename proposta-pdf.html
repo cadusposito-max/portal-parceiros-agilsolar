@@ -24,7 +24,8 @@
 
 <!-- Supabase SDK + config (reuso da aplicacao principal) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/js/config.js"></script>
+<script src="assets/js/config.js?v=20260714-catalogo"></script>
+<script src="assets/js/geracao-chart.js?v=20260916-pdf"></script>
 <style>
   /* ============================================================
      PROPOSTA ÁGIL SOLAR — VERSÃO PDF (A4 RETRATO)
@@ -454,6 +455,69 @@
     margin-top: 1mm;
   }
 
+  /* ----- Geração mês a mês ----- */
+  .gen-kpis {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4mm;
+    margin-bottom: 4mm;
+  }
+  .gen-kpi {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 3mm 4mm;
+  }
+  .gen-kpi .k {
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .gen-kpi .v {
+    font-size: 15pt;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.1;
+    margin-top: 1mm;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .gen-kpi .v small {
+    font-size: 8.5pt;
+    font-weight: 600;
+    color: var(--muted);
+    margin-left: 1mm;
+    letter-spacing: 0;
+  }
+  .gen-chart {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 3mm 3mm 1mm;
+  }
+  .gen-legend {
+    display: flex;
+    gap: 5mm;
+    font-size: 7.5pt;
+    color: var(--muted);
+    margin: 0 0 1.5mm 2mm;
+  }
+  .gen-legend i {
+    display: inline-block;
+    width: 3mm; height: 3mm;
+    border-radius: 1px;
+    background: var(--orange);
+    margin-right: 1.5mm;
+    vertical-align: -0.4mm;
+  }
+  .gen-legend i.line {
+    height: 0;
+    border-top: 2px dashed var(--ink);
+    background: none;
+    border-radius: 0;
+    vertical-align: 0.6mm;
+  }
+
   .payback-card {
     margin-top: 5mm;
     padding: 6mm;
@@ -497,6 +561,7 @@
     font-size: 24pt;
     font-weight: 900;
     letter-spacing: -0.02em;
+    white-space: nowrap;
     line-height: 1;
     text-align: right;
   }
@@ -869,6 +934,7 @@
     font-size: 12pt;
     font-weight: 700;
     cursor: pointer;
+    white-space: nowrap;
     transition: transform 0.1s ease, background 0.2s ease;
   }
   .pdf-btn svg { width: 16px; height: 16px; }
@@ -892,6 +958,58 @@
   /* Espaco no final pra barra nao cobrir conteudo */
   body { padding-bottom: 90px; }
 
+  /* Celular: as folhas A4 encolhem para caber na tela (--page-zoom vem do JS).
+     Só na tela — impressão e captura do PDF usam o tamanho real. */
+  @media screen {
+    .page { zoom: var(--page-zoom, 1); }
+    body.is-capturing .page { zoom: 1; }
+  }
+  @media (max-width: 480px) {
+    #pdf-action-bar { bottom: 12px; }
+    .pdf-btn { padding: 9px 14px; font-size: 11pt; }
+  }
+  body.is-capturing #pdf-action-bar { display: none; }
+
+  /* Overlay de geração / compartilhamento do PDF */
+  #pdf-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    font-family: 'Inter', sans-serif;
+  }
+  #pdf-overlay.show { display: flex; }
+  #pdf-overlay .box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  }
+  #pdf-overlay .box h2 { font-size: 15pt; font-weight: 800; color: #0f172a; }
+  #pdf-overlay .box p  { font-size: 10.5pt; color: #64748b; margin-top: 6px; line-height: 1.45; }
+  #pdf-overlay .spinner {
+    width: 36px; height: 36px;
+    margin: 0 auto 14px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #f97316;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  #pdf-overlay .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+  #pdf-overlay .pdf-btn { justify-content: center; width: 100%; }
+  #pdf-overlay .pdf-btn-ghost { background: #f1f5f9; color: #0f172a; }
+  #pdf-overlay .pdf-btn-ghost:hover { background: #e2e8f0; }
+  .pdf-btn-wa { background: #16a34a; color: #fff; }
+  .pdf-btn-wa:hover { background: #15803d; }
+
   /* ============================================================
      PRINT
      ============================================================ */
@@ -911,7 +1029,7 @@
       page-break-after: auto;
       break-after: auto;
     }
-    #pdf-action-bar { display: none !important; }
+    #pdf-action-bar, #pdf-overlay { display: none !important; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 
@@ -1005,11 +1123,13 @@
       <span class="k">Cliente</span>
       <span class="v">{{ cliente_nome }}</span>
     </div>
+    {{# cliente_cidade }}
     <div class="sep"></div>
     <div class="item">
       <span class="k">Cidade</span>
       <span class="v">{{ cliente_cidade }}</span>
     </div>
+    {{/ cliente_cidade }}
     <div class="sep"></div>
     <div class="item">
       <span class="k">Validade da proposta</span>
@@ -1029,6 +1149,7 @@
     <div class="body">
       <div class="name">{{ kit_nome }}</div>
 
+      {{# tem_geracao }}
       <div class="kit-stats">
         <div class="stat">
           <div class="ico">
@@ -1055,6 +1176,7 @@
       <div class="kit-ideal">
         Ideal para faturas de luz em torno de <strong>{{ fatura_ideal }}/mês</strong>.
       </div>
+      {{/ tem_geracao }}
 
       <div class="invest-block">
         <div class="label-wrap">
@@ -1087,15 +1209,15 @@
     </div>
     <div class="col right">
       <div>CNPJ {{ empresa_cnpj }}</div>
-      <div class="pagenum">Página 1 de 3</div>
+      <div class="pagenum">Página 1 de 4</div>
     </div>
   </footer>
 </section>
 
 <!-- ============================================================
-     PÁGINA 2 — ECONOMIA + PAGAMENTO
+     PÁGINA 2 — GERAÇÃO + ECONOMIA
      ============================================================ -->
-<section class="page" data-screen-label="02 Economia e Pagamento">
+<section class="page" data-screen-label="02 Geração e Economia">
 
   <header class="doc-header">
     <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
@@ -1105,9 +1227,42 @@
     </div>
   </header>
 
-  <!-- Seção: Economia -->
+  {{# tem_geracao }}
+  <!-- Seção: Geração mês a mês -->
   <div class="section-head">
     <div class="num">01</div>
+    <div class="title-wrap">
+      <div class="eyebrow">Sua geração</div>
+      <h2 class="section">Quanto seu sistema produz, mês a mês</h2>
+    </div>
+  </div>
+
+  <div class="gen-kpis">
+    <div class="gen-kpi">
+      <div class="k">Média mensal</div>
+      <div class="v">{{ geracao_media_fmt }}<small>kWh</small></div>
+    </div>
+    <div class="gen-kpi">
+      <div class="k">Total no ano</div>
+      <div class="v">{{ geracao_total_fmt }}<small>kWh</small></div>
+    </div>
+    <div class="gen-kpi">
+      <div class="k">Pico · {{ geracao_pico_mes }}</div>
+      <div class="v">{{ geracao_pico_fmt }}<small>kWh</small></div>
+    </div>
+  </div>
+
+  <div class="gen-chart">
+    <div class="gen-legend">
+      <span><i></i>Geração estimada (kWh)</span>
+      <span><i class="line"></i>Média anual</span>
+    </div>
+    {{ grafico_geracao_svg }}
+  </div>
+
+  <!-- Seção: Economia -->
+  <div class="section-head mt-8">
+    <div class="num">02</div>
     <div class="title-wrap">
       <div class="eyebrow blue">Sua projeção</div>
       <h2 class="section">Economia real ao longo da vida útil</h2>
@@ -1145,9 +1300,55 @@
     <div class="v">{{ payback }}</div>
   </div>
 
+  <p class="fine-print">
+    * {{ geracao_fonte_texto }} Os valores de economia consideram tarifa média de R$ 0,95/kWh e podem variar
+    conforme distribuidora, consumo real, sombreamento e bandeira tarifária vigente.
+  </p>
+  {{/ tem_geracao }}
+
+  {{^ tem_geracao }}
+  <div class="section-head">
+    <div class="num">01</div>
+    <div class="title-wrap">
+      <div class="eyebrow">Seu projeto</div>
+      <h2 class="section">Proposta de equipamentos</h2>
+    </div>
+  </div>
+  <p class="lead">
+    Esta proposta contempla o fornecimento dos equipamentos descritos na página anterior.
+    Para uma projeção de geração e economia, fale com o seu consultor.
+  </p>
+  {{/ tem_geracao }}
+
+  <footer class="doc-footer">
+    <div class="col">
+      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
+      <div>{{ empresa_endereco }}</div>
+      <div>{{ empresa_site }} · {{ empresa_email }}</div>
+    </div>
+    <div class="col right">
+      <div>CNPJ {{ empresa_cnpj }}</div>
+      <div class="pagenum">Página 2 de 4</div>
+    </div>
+  </footer>
+</section>
+
+<!-- ============================================================
+     PÁGINA 3 — PAGAMENTO + CHAVE NA MÃO
+     ============================================================ -->
+<section class="page" data-screen-label="03 Pagamento e Escopo">
+
+  <header class="doc-header">
+    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
+    <div class="meta">
+      <div class="pid">{{ cliente_primeiro_nome }} · Proposta {{ proposta_id }}</div>
+      <div>{{ proposta_data }}</div>
+    </div>
+  </header>
+
   <!-- Seção: Pagamento -->
-  <div class="section-head mt-10">
-    <div class="num">02</div>
+  <div class="section-head">
+    <div class="num">03</div>
     <div class="title-wrap">
       <div class="eyebrow">Facilidades</div>
       <h2 class="section">Condições de pagamento</h2>
@@ -1202,40 +1403,13 @@
   {{/ proposta_modo_personalizada }}
 
   <p class="fine-print">
-    * Nem todos os cartões de crédito autorizam parcelamentos acima de 12×. Sujeito a análise da operadora.
-    Os valores de economia consideram tarifa média de R$ 0,95/kWh e podem variar conforme distribuidora,
-    consumo real e bandeira tarifária vigente.
+    * Nem todos os cartões de crédito autorizam parcelamentos acima de 12×. Sujeito a análise da operadora
+    e aprovação de crédito junto aos parceiros financeiros.
   </p>
 
-  <footer class="doc-footer">
-    <div class="col">
-      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
-      <div>{{ empresa_endereco }}</div>
-      <div>{{ empresa_site }} · {{ empresa_email }}</div>
-    </div>
-    <div class="col right">
-      <div>CNPJ {{ empresa_cnpj }}</div>
-      <div class="pagenum">Página 2 de 3</div>
-    </div>
-  </footer>
-</section>
-
-<!-- ============================================================
-     PÁGINA 3 — INSTITUCIONAL + CONSULTOR
-     ============================================================ -->
-<section class="page" data-screen-label="03 Institucional e Contato">
-
-  <header class="doc-header">
-    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
-    <div class="meta">
-      <div class="pid">{{ cliente_primeiro_nome }} · Proposta {{ proposta_id }}</div>
-      <div>{{ proposta_data }}</div>
-    </div>
-  </header>
-
   <!-- Chave na mão -->
-  <div class="section-head">
-    <div class="num">03</div>
+  <div class="section-head mt-10">
+    <div class="num">04</div>
     <div class="title-wrap">
       <div class="eyebrow">Projeto chave na mão</div>
       <h2 class="section">O que está incluso no seu sistema</h2>
@@ -1284,14 +1458,14 @@
   <!-- Garantias -->
   <div class="warranty-grid mt-6">
     <div class="warranty">
-      <div class="yrs">25<small>anos</small></div>
+      <div class="yrs">{{ garantia_paineis }}<small>anos</small></div>
       <div class="lbl">
         <strong>Módulos Fotovoltaicos</strong>
-        Garantia de eficiência de geração ao longo de 25 anos de vida útil.
+        Garantia de eficiência de geração ao longo da vida útil dos painéis.
       </div>
     </div>
     <div class="warranty">
-      <div class="yrs">10<small>anos</small></div>
+      <div class="yrs">{{ garantia_inversor }}<small>anos</small></div>
       <div class="lbl">
         <strong>Inversores</strong>
         Garantia real do fabricante contra defeitos de fabricação.
@@ -1299,24 +1473,52 @@
     </div>
   </div>
 
+  <footer class="doc-footer">
+    <div class="col">
+      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
+      <div>{{ empresa_endereco }}</div>
+      <div>{{ empresa_site }} · {{ empresa_email }}</div>
+    </div>
+    <div class="col right">
+      <div>CNPJ {{ empresa_cnpj }}</div>
+      <div class="pagenum">Página 3 de 4</div>
+    </div>
+  </footer>
+</section>
+
+<!-- ============================================================
+     PÁGINA 4 — INSTITUCIONAL + CONSULTOR
+     ============================================================ -->
+<section class="page" data-screen-label="04 Institucional e Contato">
+
+  <header class="doc-header">
+    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
+    <div class="meta">
+      <div class="pid">{{ cliente_primeiro_nome }} · Proposta {{ proposta_id }}</div>
+      <div>{{ proposta_data }}</div>
+    </div>
+  </header>
+
   <!-- Quem somos -->
-  <div class="section-head mt-6">
-    <div class="num">04</div>
+  <div class="section-head">
+    <div class="num">05</div>
     <div class="title-wrap">
       <div class="eyebrow blue">Quem somos</div>
       <h2 class="section">Ágil Solar, transformando o sol em economia</h2>
     </div>
   </div>
 
-  <p style="font-size: 9pt; line-height: 1.5; color: var(--ink-2); max-width: 170mm;">
-    Somos uma empresa especializada em soluções inteligentes em energia. Desde 2020, já
-    atendemos milhares de clientes em todo o Brasil, oferecendo economia, eficiência e segurança
-    por meio de projetos personalizados, tecnologia de ponta e equipe altamente capacitada.
-    Muito além de transformar o sol em energia, nós transformamos vidas — gerando lucros reais
-    para nossos clientes e sustentabilidade para o planeta.
-  </p>
+  <div class="quem-somos" style="margin-top: 0;">
+    <p>
+      Somos uma empresa especializada em soluções inteligentes em energia. Desde 2020, já
+      atendemos milhares de clientes em todo o Brasil, oferecendo economia, eficiência e segurança
+      por meio de projetos personalizados, tecnologia de ponta e equipe altamente capacitada.
+      Muito além de transformar o sol em energia, nós transformamos vidas — gerando lucros reais
+      para nossos clientes e sustentabilidade para o planeta.
+    </p>
+  </div>
 
-  <div class="stats-row mt-5">
+  <div class="stats-row mt-6">
     <div class="stat-mini">
       <div class="ico">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
@@ -1355,8 +1557,17 @@
     </div>
   </div>
 
+  <!-- Próximos passos -->
+  <div class="section-head mt-10">
+    <div class="num">06</div>
+    <div class="title-wrap">
+      <div class="eyebrow">Vamos começar</div>
+      <h2 class="section">Fale com o seu consultor</h2>
+    </div>
+  </div>
+
   <!-- Linha de fechamento: Consultor + Impacto -->
-  <div class="closing-row mt-6">
+  <div class="closing-row">
     <div class="consultor">
       <div class="lbl">Seu consultor</div>
       <div class="top">
@@ -1366,18 +1577,17 @@
           <div class="role">Especialista Ágil Solar</div>
         </div>
       </div>
+      {{# vendedor_telefone }}
       <div class="contacts">
         <div class="row-item">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92V21a1 1 0 0 1-1.1 1A19 19 0 0 1 2 4.1 1 1 0 0 1 3 3h4.09a1 1 0 0 1 1 .75l1 4a1 1 0 0 1-.29 1L7 10.5a16 16 0 0 0 6.5 6.5l1.75-1.75a1 1 0 0 1 1-.29l4 1a1 1 0 0 1 .75 1z"/></svg>
           <span>{{ vendedor_telefone }}</span>
         </div>
-        <div class="row-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
-          <span>{{ vendedor_email }}</span>
-        </div>
       </div>
+      {{/ vendedor_telefone }}
     </div>
 
+    {{# tem_geracao }}
     <div class="impact">
       <div class="lbl">Impacto ambiental</div>
       <div class="tree-row">
@@ -1390,7 +1600,12 @@
       </div>
       <p>Ao gerar sua própria energia limpa, você reduz a emissão de CO₂ e ajuda a preservar o planeta para as próximas gerações.</p>
     </div>
+    {{/ tem_geracao }}
   </div>
+
+  <p class="fine-print mt-6">
+    Proposta válida até {{ proposta_validade }}. Após essa data, confirme valores e condições com o seu consultor.
+  </p>
 
   <footer class="doc-footer">
     <div class="col">
@@ -1400,15 +1615,16 @@
     </div>
     <div class="col right">
       <div>CNPJ {{ empresa_cnpj }}</div>
-      <div class="pagenum">Página 3 de 3</div>
+      <div class="pagenum">Página 4 de 4</div>
     </div>
   </footer>
 </section>
-
 <!-- ============================================================
      RENDERER — Busca proposta no Supabase, calcula derivados e popula
-     os placeholders {{ }} com mini Mustache.
-     Suporta ?id=<uuid>. Sem auto-print: barra inferior tem botao SALVAR PDF.
+     os placeholders com mini Mustache.
+     Suporta ?id=<uuid>. Barra inferior: Voltar | Baixar PDF (| Imprimir no desktop).
+     O PDF é gerado no próprio aparelho (html2canvas + jsPDF), então funciona
+     também no celular e dentro do navegador do WhatsApp, onde print() falha.
      ============================================================ -->
 <script>
 (function () {
@@ -1416,6 +1632,10 @@
 
   var urlParams  = new URLSearchParams(window.location.search);
   var propostaId = urlParams.get('id');
+  var dadosProposta = null;
+
+  // Valores que já são HTML confiável (gerado aqui) — o resto é escapado.
+  var CAMPOS_HTML = { grafico_geracao_svg: true };
 
   function isValidUUID(v) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || '').trim());
@@ -1427,8 +1647,26 @@
   function fmt(n) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
   }
+  function fmtInt(n) {
+    return Math.round(n || 0).toLocaleString('pt-BR');
+  }
   function firstName(s) {
     return String(s || 'Cliente').trim().split(/\s+/)[0] || 'Cliente';
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function fmtTelefone(s) {
+    var d = String(s || '').replace(/\D/g, '');
+    if (d.length > 11 && d.indexOf('55') === 0) d = d.slice(2);
+    if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+    if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return String(s || '');
+  }
+  function slug(s) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '');
   }
 
   if (!propostaId || !isValidUUID(propostaId)) { showError(); return; }
@@ -1439,8 +1677,8 @@
     try {
       var resp = await supabaseClient.rpc('get_public_proposta', { p_id: propostaId }).single();
       if (resp.error || !resp.data) { showError(); return; }
-      var data = montarDados(resp.data);
-      renderizar(data);
+      dadosProposta = montarDados(resp.data);
+      renderizar(dadosProposta);
     } catch (err) {
       console.error('[proposta-pdf]', err);
       showError();
@@ -1457,7 +1695,9 @@
     var potencia   = isCustom ? (p.custom_system_power_kwp || p.kit_power || 0) : (p.kit_power || 0);
     var nomeKit    = p.kit_nome || (isCustom ? 'Proposta Personalizada' : '');
     var brand      = isCustom ? '' : (p.kit_brand || '');
-    var geracao    = Number(p.geracao_estimada || 0) || (potencia * 30 * 4.5); // fallback grosseiro
+    // Mesma regra da proposta web: valor salvo no banco; fallback para propostas antigas.
+    var geracao    = Number(p.geracao_estimada || 0) || (potencia * 5.4 * 30 * 0.76);
+    var temGeracao = geracao > 0;
 
     var faturaIdeal     = geracao * TARIFA_MEDIA;
     var economiaMensal  = faturaIdeal * 0.85;
@@ -1473,6 +1713,13 @@
     if (anosPB > 0 && mesesPB)  payback += ' e ';
     if (mesesPB > 0)            payback += mesesPB + (mesesPB > 1 ? ' meses' : ' mês');
     if (!payback)               payback = 'Menos de 1 mês';
+
+    var mensal  = calcularGeracaoMensal(geracao, p.cidade_hsp_mensal, p.cidade_hsp_anual);
+    var resumo  = resumoGeracaoMensal(mensal.valores);
+    var cidade  = formatarCidadeUF(p.cliente_cidade);
+    var fonteTexto = mensal.fonte === 'cidade'
+      ? 'Geração mensal estimada com a irradiação solar histórica de ' + cidade + ' (NASA POWER) para um sistema de ' + String(potencia).replace('.', ',') + ' kWp.'
+      : 'Geração mensal estimada com variação sazonal típica da região para um sistema de ' + String(potencia).replace('.', ',') + ' kWp.';
 
     var dataCriacao = new Date(p.created_at);
     var validade    = new Date(dataCriacao.getTime() + 72 * 3600 * 1000);
@@ -1496,11 +1743,11 @@
 
       cliente_nome:           p.cliente_nome || '',
       cliente_primeiro_nome:  firstName(p.cliente_nome),
+      cliente_cidade:         cidade,
 
       vendedor_nome:      p.vendedor_nome || 'Consultor Ágil Solar',
       vendedor_inicial:   (p.vendedor_nome || 'C').trim().charAt(0).toUpperCase(),
-      vendedor_telefone:  p.vendedor_telefone || '',
-      vendedor_email:     '', // RPC publica nao retorna por seguranca
+      vendedor_telefone:  fmtTelefone(p.vendedor_telefone),
 
       proposta_modo_kit:           !isCustom,
       proposta_modo_personalizada: isPersonalizada,
@@ -1514,8 +1761,16 @@
       kit_list_price: listPriceStr,
       tem_desconto:   temDesconto,
 
-      geracao_estimada: Math.round(geracao).toString(),
+      tem_geracao:      temGeracao,
+      geracao_estimada: fmtInt(geracao),
       fatura_ideal:     fmt(faturaIdeal),
+
+      geracao_media_fmt:   fmtInt(resumo.media),
+      geracao_total_fmt:   fmtInt(resumo.total),
+      geracao_pico_mes:    resumo.picoMes,
+      geracao_pico_fmt:    fmtInt(resumo.picoValor),
+      geracao_fonte_texto: fonteTexto,
+      grafico_geracao_svg: temGeracao ? renderGeracaoChartSVG(mensal.valores, { tema: 'light' }) : '',
 
       economia_mensal:  fmt(economiaMensal),
       economia_anual:   fmt(economiaAnual),
@@ -1527,11 +1782,16 @@
       custom_payment_note:    p.custom_payment_note    || '',
       custom_commercial_note: p.custom_commercial_note || '',
 
+      garantia_paineis:  String(p.franquia_garantia_paineis_anos  || 25),
+      garantia_inversor: String(p.franquia_garantia_inversor_anos || 10),
+
       // Dados da franquia (vindos do JOIN na RPC)
       empresa_cnpj:     p.franquia_cnpj         || '—',
       empresa_endereco: p.franquia_endereco     || p.franquia_cidade || '—',
       empresa_site:     p.franquia_site         || 'agilsolar.com',
-      empresa_email:    p.franquia_email        || '—'
+      empresa_email:    p.franquia_email        || '—',
+
+      _arquivo: 'Proposta-' + slug(p.numero || 'Agil-Solar') + '-' + slug(firstName(p.cliente_nome)) + '.pdf'
     };
   }
 
@@ -1558,9 +1818,10 @@
       });
     } while (html !== prev);
 
-    // 3) substituicoes simples {{ key }}
+    // 3) substituicoes simples {{ key }} — texto vindo do banco sempre escapado
     html = html.replace(/\{\{\s*([\w_]+)\s*\}\}/g, function (_, k) {
-      return (data[k] !== undefined && data[k] !== null) ? data[k] : '';
+      if (data[k] === undefined || data[k] === null) return '';
+      return CAMPOS_HTML[k] ? data[k] : esc(data[k]);
     });
 
     document.body.innerHTML = html;
@@ -1570,20 +1831,36 @@
     // A barra inferior fixa eh perdida quando innerHTML substitui o body.
     // Re-anexa aqui e religa o handler.
     injetarActionBar();
+    injetarOverlay();
+    ajustarZoom();
+    window.addEventListener('resize', ajustarZoom);
   }
+
+  // ---------- Celular: encolhe as folhas A4 para caber na largura ----------
+  var LARGURA_A4_PX = 210 * 96 / 25.4; // ~794px
+  function ajustarZoom() {
+    var largura = document.documentElement.clientWidth;
+    if (!largura) return; // aba oculta/sem layout: mantém o último valor
+    var z = Math.max(0.3, Math.min(1, (largura - 16) / LARGURA_A4_PX));
+    document.documentElement.style.setProperty('--page-zoom', z.toFixed(4));
+  }
+
+  function isMobile() {
+    return window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 768;
+  }
+
+  var ICON_BACK  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
+  var ICON_DOWN  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
+  var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+  var ICON_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>';
 
   function injetarActionBar() {
     var bar = document.createElement('div');
     bar.id = 'pdf-action-bar';
     bar.innerHTML = ''
-      + '<button id="pdf-back-btn" type="button" class="pdf-btn pdf-btn-ghost">'
-      +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>'
-      +   '<span>Voltar</span>'
-      + '</button>'
-      + '<button id="pdf-save-btn" type="button" class="pdf-btn pdf-btn-primary">'
-      +   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>'
-      +   '<span>Salvar PDF</span>'
-      + '</button>';
+      + '<button id="pdf-back-btn" type="button" class="pdf-btn pdf-btn-ghost">' + ICON_BACK + '<span>Voltar</span></button>'
+      + (isMobile() ? '' : '<button id="pdf-print-btn" type="button" class="pdf-btn pdf-btn-ghost">' + ICON_PRINT + '<span>Imprimir</span></button>')
+      + '<button id="pdf-save-btn" type="button" class="pdf-btn pdf-btn-primary">' + ICON_DOWN + '<span>Baixar PDF</span></button>';
     document.body.appendChild(bar);
 
     document.getElementById('pdf-back-btn').addEventListener('click', function () {
@@ -1591,10 +1868,143 @@
       else window.close();
     });
 
-    document.getElementById('pdf-save-btn').addEventListener('click', async function () {
-      try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
-      window.print();
+    var printBtn = document.getElementById('pdf-print-btn');
+    if (printBtn) {
+      printBtn.addEventListener('click', async function () {
+        try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+        window.print();
+      });
+    }
+
+    document.getElementById('pdf-save-btn').addEventListener('click', gerarPdf);
+  }
+
+  // ---------- Overlay (gerando / pronto / erro) ----------
+  function injetarOverlay() {
+    var ov = document.createElement('div');
+    ov.id = 'pdf-overlay';
+    ov.innerHTML = '<div class="box" id="pdf-overlay-box"></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function (e) { if (e.target === ov) fecharOverlay(); });
+  }
+  function overlay(html) {
+    document.getElementById('pdf-overlay-box').innerHTML = html;
+    document.getElementById('pdf-overlay').classList.add('show');
+  }
+  function fecharOverlay() {
+    document.getElementById('pdf-overlay').classList.remove('show');
+  }
+
+  // ---------- Geração do PDF ----------
+  function carregarScript(src, pronto) {
+    if (pronto()) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error('Falha ao carregar ' + src)); };
+      document.head.appendChild(s);
     });
+  }
+
+  var pdfGerado = null; // { blob, file }
+
+  async function gerarPdf() {
+    if (pdfGerado) { mostrarPronto(); return; }
+    overlay('<div class="spinner"></div><h2>Gerando PDF…</h2><p>Isso leva alguns segundos.</p>');
+
+    try {
+      await Promise.all([
+        carregarScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', function () { return !!window.html2canvas; }),
+        carregarScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', function () { return !!(window.jspdf && window.jspdf.jsPDF); })
+      ]);
+      try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+
+      // Captura no tamanho real (sem o zoom do celular).
+      document.body.classList.add('is-capturing');
+      var pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+      var paginas = document.querySelectorAll('.page');
+      for (var i = 0; i < paginas.length; i++) {
+        var canvas = await window.html2canvas(paginas[i], {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          windowWidth: 1000,
+          logging: false
+        });
+        var img = canvas.toDataURL('image/jpeg', 0.92);
+        if (i > 0) pdf.addPage('a4', 'portrait');
+        // A folha tem min-height 297mm: se crescer, encaixa pela altura.
+        var alturaMm = 210 * canvas.height / canvas.width;
+        if (alturaMm <= 297.5) pdf.addImage(img, 'JPEG', 0, 0, 210, alturaMm);
+        else {
+          var largura = 297 * canvas.width / canvas.height;
+          pdf.addImage(img, 'JPEG', (210 - largura) / 2, 0, largura, 297);
+        }
+      }
+      document.body.classList.remove('is-capturing');
+
+      var blob = pdf.output('blob');
+      var file = null;
+      try { file = new File([blob], dadosProposta._arquivo, { type: 'application/pdf' }); } catch (e) {}
+      pdfGerado = { blob: blob, file: file };
+
+      if (typeof captureEvent === 'function') captureEvent('public_proposal_pdf_generated', {});
+      mostrarPronto();
+    } catch (err) {
+      document.body.classList.remove('is-capturing');
+      console.error('[proposta-pdf] Falha ao gerar PDF', err);
+      overlay('<h2>Não foi possível gerar o PDF</h2>'
+        + '<p>Verifique sua conexão e tente novamente.' + (isMobile() ? '' : ' Você também pode usar o botão Imprimir e escolher "Salvar como PDF".') + '</p>'
+        + '<div class="actions"><button type="button" class="pdf-btn pdf-btn-primary" id="pdf-retry">Tentar de novo</button>'
+        + '<button type="button" class="pdf-btn pdf-btn-ghost" id="pdf-close">Fechar</button></div>');
+      document.getElementById('pdf-retry').onclick = gerarPdf;
+      document.getElementById('pdf-close').onclick = fecharOverlay;
+    }
+  }
+
+  function podeCompartilhar() {
+    return !!(pdfGerado && pdfGerado.file && navigator.canShare && navigator.share
+      && navigator.canShare({ files: [pdfGerado.file] }));
+  }
+
+  // O compartilhamento precisa de um toque "fresco" do usuário (iOS recusa
+  // share() depois de um await longo), por isso ele vem num segundo botão.
+  function mostrarPronto() {
+    var share = podeCompartilhar();
+    overlay('<h2>PDF pronto</h2>'
+      + '<p>' + esc(dadosProposta._arquivo) + '</p>'
+      + '<div class="actions">'
+      + (share ? '<button type="button" class="pdf-btn pdf-btn-wa" id="pdf-share">' + ICON_SHARE + '<span>Compartilhar</span></button>' : '')
+      + '<button type="button" class="pdf-btn ' + (share ? 'pdf-btn-ghost' : 'pdf-btn-primary') + '" id="pdf-download">' + ICON_DOWN + '<span>Salvar no aparelho</span></button>'
+      + '<button type="button" class="pdf-btn pdf-btn-ghost" id="pdf-close">Fechar</button>'
+      + '</div>');
+
+    if (share) {
+      document.getElementById('pdf-share').onclick = async function () {
+        try {
+          await navigator.share({ files: [pdfGerado.file], title: 'Proposta Ágil Solar' });
+        } catch (e) {
+          if (e && e.name !== 'AbortError') baixarPdf();
+        }
+      };
+    }
+    document.getElementById('pdf-download').onclick = baixarPdf;
+    document.getElementById('pdf-close').onclick = fecharOverlay;
+  }
+
+  function baixarPdf() {
+    var url = URL.createObjectURL(pdfGerado.blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = dadosProposta._arquivo;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Navegadores embutidos (WhatsApp/Instagram) ignoram download: abre o PDF.
+    var ua = navigator.userAgent || '';
+    if (/FBAN|FBAV|Instagram|WhatsApp|; wv\)/i.test(ua)) window.open(url, '_blank');
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
 })();
 </script>

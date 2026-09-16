@@ -221,7 +221,7 @@
                     <!-- Financiamento -->
                     <div class="flex items-start gap-3">
                         <i data-lucide="landmark" class="w-5 h-5 text-neutral-400 shrink-0 mt-0.5"></i>
-                        <p class="text-neutral-300 text-sm"><span class="text-white font-bold">Financiamento (Boleto):</span> Consulte opções de financiamento de <span class="text-orange-400 font-bold">100%</span> em até <span class="text-orange-400 font-bold">84 meses</span> com carência de <span class="text-orange-400 font-bold">90 dias</span>.</p>
+                        <p class="text-neutral-300 text-sm"><span class="text-white font-bold">Financiamento (Boleto):</span> Consulte opções de financiamento de <span class="text-orange-400 font-bold">100%</span> em até <span class="text-orange-400 font-bold">84 meses</span> com carência de <span class="text-orange-400 font-bold">120 dias</span>.</p>
                     </div>
 
                     <!-- Condições de pagamento personalizadas (só PERSONALIZADA, preenchido via JS) -->
@@ -239,6 +239,47 @@
             </div>
         </div>
     </div>
+
+    <!-- GERAÇÃO MÊS A MÊS (preenchido via JS; oculto sem dados de geração) -->
+    <div id="generation-section" class="hidden bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-lg">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="bg-yellow-500/20 p-2 rounded-lg"><i data-lucide="chart-column" class="w-6 h-6 text-yellow-400"></i></div>
+            <h3 class="text-xl font-black text-white uppercase tracking-tight">Geração Mês a Mês</h3>
+        </div>
+        <p id="gen-source" class="text-neutral-400 text-sm mb-5"></p>
+
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
+            <div class="bg-black border border-neutral-800 p-3 rounded-xl text-center">
+                <p class="text-[9px] sm:text-[10px] text-neutral-500 font-bold uppercase tracking-widest mb-1">Média/mês</p>
+                <p id="gen-avg" class="text-base sm:text-xl font-black text-white leading-tight">...</p>
+                <p class="text-[10px] text-neutral-500 font-bold">kWh</p>
+            </div>
+            <div class="bg-black border border-neutral-800 p-3 rounded-xl text-center">
+                <p class="text-[9px] sm:text-[10px] text-neutral-500 font-bold uppercase tracking-widest mb-1">Total/ano</p>
+                <p id="gen-total" class="text-base sm:text-xl font-black text-white leading-tight">...</p>
+                <p class="text-[10px] text-neutral-500 font-bold">kWh</p>
+            </div>
+            <div class="bg-black border border-neutral-800 p-3 rounded-xl text-center">
+                <p class="text-[9px] sm:text-[10px] text-neutral-500 font-bold uppercase tracking-widest mb-1">Pico · <span id="gen-peak-month">...</span></p>
+                <p id="gen-peak" class="text-base sm:text-xl font-black text-yellow-400 leading-tight">...</p>
+                <p class="text-[10px] text-neutral-500 font-bold">kWh</p>
+            </div>
+        </div>
+
+        <div class="bg-black border border-neutral-800 rounded-xl p-2 sm:p-3">
+            <div id="gen-chart"></div>
+        </div>
+        <div class="flex items-center gap-4 mt-3 text-[10px] text-neutral-500 font-bold uppercase tracking-widest">
+            <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-orange-500"></span> Geração estimada</span>
+            <span class="flex items-center gap-1.5"><span id="gen-legend-avg" class="inline-block w-4 border-t-2 border-dashed border-yellow-400"></span> Média anual</span>
+        </div>
+    </div>
+
+    <!-- BAIXAR PDF -->
+    <a id="btn-download-pdf" href="#"
+        class="hidden w-full flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-orange-500/60 text-white font-black uppercase tracking-wider text-sm py-4 rounded-2xl transition-all active:scale-[0.98]">
+        <i data-lucide="file-down" class="w-5 h-5 text-orange-500"></i> Baixar proposta em PDF
+    </a>
 
     <!-- 2. PROJEÇÃO DE ECONOMIA FINANCEIRA (ROI) -->
     <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-lg">
@@ -447,7 +488,8 @@
 <script src="assets/js/config.js?v=20260714-catalogo"></script>
 <script src="assets/js/analytics.js?v=20260713-auditoria"></script>
 <script src="assets/js/utils.js?v=20260713-auditoria"></script>
-<script src="assets/js/proposta.js?v=20260713-auditoria"></script>
+<script src="assets/js/geracao-chart.js?v=20260916-pdf"></script>
+<script src="assets/js/proposta.js?v=20260916-pdf"></script>
 <script>
 (function() {
   // Apply proposal-specific theme from sessionStorage, fallback to localStorage
@@ -479,6 +521,7 @@ function togglePropostaTheme() {
   document.documentElement.setAttribute('data-theme', next);
   applyThemeMode();
   _updatePropostaThemeBtn();
+  if (typeof renderGeracaoWeb === 'function') renderGeracaoWeb();
 }
 </script>
 

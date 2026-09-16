@@ -930,6 +930,7 @@ function showProposalSharePanel(propostaId, link) {
           ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${propostaId}')" class="btn btn-success btn-lg btn-block"><i data-lucide="message-circle"></i> Enviar no WhatsApp</a>`
           : '<p class="text-yellow-500/90 text-[10px] font-bold uppercase tracking-widest">Cliente sem WhatsApp cadastrado — envie o link copiado por outro canal.</p>'}
         <button onclick="copiarTextoBlindado('${link}'); marcarPropostaEnviada('${propostaId}'); showToast('LINK COPIADO!')" class="btn btn-secondary btn-block"><i data-lucide="copy"></i> Copiar link de novo</button>
+        <a href="${link.replace('/proposta.html?', '/proposta-pdf.html?')}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block"><i data-lucide="file-down"></i> Baixar PDF</a>
       </div>
     </div>`;
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeProposalSharePanel(); });

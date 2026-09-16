@@ -240,6 +240,22 @@ async function carregarProposta() {
   }
 }
 
+// Valores do gráfico de geração — guardados para redesenhar ao trocar tema/largura.
+let _geracaoMensalValores = null;
+
+function renderGeracaoWeb() {
+  const el = document.getElementById('gen-chart');
+  if (!el || !_geracaoMensalValores) return;
+  const isLight  = document.body.classList.contains('theme-light');
+  const compacto = el.clientWidth > 0 && el.clientWidth < 520;
+  const chave    = (isLight ? 'l' : 'd') + (compacto ? 'c' : 'w');
+  if (el.dataset.render === chave) return;
+  el.dataset.render = chave;
+  el.innerHTML = renderGeracaoChartSVG(_geracaoMensalValores, { tema: isLight ? 'light' : 'dark', compacto });
+  const legenda = document.getElementById('gen-legend-avg');
+  if (legenda) legenda.className = 'inline-block w-4 border-t-2 border-dashed ' + (isLight ? 'border-slate-900' : 'border-yellow-400');
+}
+
 function renderData(data) {
   const formatter    = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
   const TARIFA_MEDIA = 0.95;
@@ -326,6 +342,33 @@ function renderData(data) {
     document.getElementById('eco-payback').innerText  = textoPayback;
   }
 
+  // --- Geração mês a mês (HSP mensal da cidade do cliente; fallback sazonal) ---
+  if (estGeneration > 0 && typeof calcularGeracaoMensal === 'function') {
+    const mensal = calcularGeracaoMensal(estGeneration, data.cidade_hsp_mensal, data.cidade_hsp_anual);
+    const resumo = resumoGeracaoMensal(mensal.valores);
+    const fmtInt = (n) => Math.round(n).toLocaleString('pt-BR');
+    document.getElementById('gen-avg').innerText        = fmtInt(resumo.media);
+    document.getElementById('gen-total').innerText      = fmtInt(resumo.total);
+    document.getElementById('gen-peak').innerText       = fmtInt(resumo.picoValor);
+    document.getElementById('gen-peak-month').innerText = resumo.picoMes.slice(0, 3);
+    document.getElementById('gen-source').innerText = mensal.fonte === 'cidade'
+      ? `Estimativa com a irradiação solar histórica de ${formatarCidadeUF(data.cliente_cidade)} (NASA). No verão o sistema gera mais; no inverno, um pouco menos — a economia se equilibra ao longo do ano.`
+      : 'Estimativa com a variação solar típica da região. No verão o sistema gera mais; no inverno, um pouco menos — a economia se equilibra ao longo do ano.';
+    _geracaoMensalValores = mensal.valores;
+    renderGeracaoWeb();
+    window.addEventListener('resize', renderGeracaoWeb);
+    document.getElementById('generation-section').classList.remove('hidden');
+  }
+
+  const pdfBtn = document.getElementById('btn-download-pdf');
+  if (pdfBtn) {
+    pdfBtn.href = 'proposta-pdf.html?id=' + encodeURIComponent(propostaId);
+    pdfBtn.classList.remove('hidden');
+    pdfBtn.addEventListener('click', () => {
+      if (typeof captureEvent === 'function') captureEvent('public_proposal_pdf_clicked', {});
+    });
+  }
+
   // --- Urgency countdown ---
   if (data.created_at) startCountdown(data.created_at);
 
@@ -386,6 +429,8 @@ function renderData(data) {
 
   document.getElementById('loading').classList.add('hidden');
   document.getElementById('proposal-content').classList.remove('hidden');
+  // Só agora o gráfico tem largura real para escolher a versão compacta.
+  renderGeracaoWeb();
 }
 
 function showError() {
