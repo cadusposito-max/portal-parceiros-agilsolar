@@ -120,8 +120,12 @@ let state = {
   equipamentos: [],         // catálogo completo p/ gestão admin (com preço/custo/inativos)
   pbEquipDraft: {
     descricao:      '',
-    valorEquip:     '',
     potencia:       '',
+    potenciaManual: false,
+    itens:          [],
+    descontoTipo:   'value',
+    descontoValor:  '',
+    frete:          '',
     paymentNote:    '',
     commercialNote: '',
   },

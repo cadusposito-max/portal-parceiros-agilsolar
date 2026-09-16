@@ -767,6 +767,12 @@
     const min = Number(finPrecCfg && finPrecCfg.margem_min) || 15;
     let rows = [];
     try { rows = await finRpc('list_fin_ordens_compra', { p_filter: 'todos' }) || []; } catch (_) {}
+    const setK = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const comMargem = rows.filter(o => o.margem != null);
+    setK('orc-k-abertos', rows.filter(o => o.status === 'orcamento' || o.status === 'aprovar').length);
+    setK('orc-k-valor', brMoney(rows.reduce((a, o) => a + (Number(o.valor_projeto) || 0), 0)));
+    setK('orc-k-margem', comMargem.length ? (comMargem.reduce((a, o) => a + Number(o.margem), 0) / comMargem.length).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '—');
+    setK('orc-k-baixa', comMargem.filter(o => Number(o.margem) < min).length);
     const novo = `<button onclick="finNovaOC()" class="metric-card p-5 border-dashed flex flex-col items-center justify-center gap-2 text-neutral-500 hover:text-white hover:border-[color:var(--fin-border-30)] transition-colors min-h-[160px]"><i data-lucide="plus" class="w-6 h-6"></i><span class="text-[10px] font-black uppercase tracking-widest">Novo orçamento</span></button>`;
     host.innerHTML = novo + rows.map(o=>{
       const mg = o.margem, baixa = (mg!=null && mg<min);
@@ -780,7 +786,7 @@
           <div><div class="text-[9px] font-black uppercase tracking-widest text-neutral-600">Custo kit</div><div class="text-neutral-400 font-black num">${brMoney(o.valor)}</div></div>
         </div>
         <div class="mb-4"><div class="flex justify-between text-[10px] font-bold mb-1.5"><span class="text-neutral-400">Margem</span><span class="${baixa?'text-red-400':'fin-acc'} num">${mg==null?'—':mg+'%'}</span></div>
-          <div class="h-2 bg-neutral-900"><div class="h-full" style="width:${mg==null?0:Math.max(0,Math.min(mg*3.5,100))}%;background:${baixa?'#f87171':'var(--fin)'}"></div></div></div>
+          <div class="h-2 bg-neutral-900"><div class="h-full" style="width:${mg==null?0:Math.max(0,Math.min(mg/Math.max(1,(Number(finPrecCfg&&finPrecCfg.margem_alvo)||22)*2)*100,100))}%;background:${baixa?'#f87171':'var(--fin)'}"></div></div></div>
         ${(o.status==='orcamento'||o.status==='aprovar')?`<button onclick="finOcStatus('${o.id}','aprovado')" class="w-full py-2.5 fin-acc-chip border border-[color:var(--fin-border-30)] text-[10px] font-black uppercase tracking-widest">Aprovar orçamento</button>`:`<div class="text-center text-[9px] font-bold uppercase tracking-widest text-neutral-600">${(ocSt[o.status]||{l:o.status}).l}</div>`}
       </div>`;}).join('');
     finIcons();
@@ -841,6 +847,7 @@
      Os % vêm de fin_config via get_fin_precificacao; cálculo 100% client-side. */
   let finPrecData = null, finPrecCfg = null;
   async function renderPrec() {
+    if (!state.isAdmin) return;
     let d;
     try { d = await finRpc('get_fin_precificacao'); } catch (_) { return; }
     finPrecData = d; finPrecCfg = d;
@@ -890,7 +897,7 @@
     set('prec-a-royalties', '− ' + brMoney(royalties));
     set('prec-r-total', 'Total de custos: ' + brMoney(total));
     set('prec-r-lucro', brMoney(lucro));
-    const min = Number(p.margem_min)||0, baixa = venda>0 && margem < min;
+    const min = p.margem_min != null ? Number(p.margem_min) : 15, baixa = venda>0 && margem < min;
     const mEl = document.getElementById('prec-r-margem');
     if (mEl) { mEl.textContent = 'Margem ' + margem.toFixed(1) + '%' + (baixa?` · abaixo do mín ${min}%`:''); mEl.classList.toggle('text-red-400', baixa); }
     const lEl = document.getElementById('prec-r-lucro'); if (lEl) lEl.classList.toggle('text-red-400', lucro < 0);
@@ -1073,6 +1080,13 @@
     const args = { p_period: finDrePeriod };
     if (finDreProjeto) args.p_projeto_id = finDreProjeto;
     try { finDreBase = await finRpc('get_fin_dre', args); } catch (_) { return; }
+    // Texto de ajuda com os % configurados (antes era fixo 18/10/4,5).
+    const pcts = {};
+    (finDreBase.custos || []).forEach(c => { if (c.pct != null) pcts[c.chave] = c.pct; });
+    const fmtP = v => (Number(v) || 0).toLocaleString('pt-BR') + '%';
+    [['dre-h-imp', 'imposto'], ['dre-h-com', 'comissao'], ['dre-h-roy', 'royalties']].forEach(([id, k]) => {
+      const el = document.getElementById(id); if (el && pcts[k] != null) el.textContent = fmtP(pcts[k]);
+    });
     finDreLoadObras();
     finDreWireControls();
     finDreSyncControls();
@@ -1609,7 +1623,7 @@
   function finReloadOC() { if ((state.finSub && state.finSub.compras) === 'orcamentos') renderOrc(); else renderOC(); }
 
   /* ------------------------------------ CUSTOS · PREVISTO × REALIZADO */
-  const MARGEM_MIN = 15;
+  let MARGEM_MIN = 15; // atualizado com fin_config.margem_min em renderCustos
   // Custos carregados via list_fin_custos e normalizados para o formato dos renderizadores
   // (cats:[{id,c,p,r}], recPrev/recReal = receita do projeto).
   let custosProjetos = [];
@@ -1736,6 +1750,8 @@
     finIcons();
   }
   async function renderCustos() {
+    if (!finPrecCfg) { try { finPrecCfg = await finRpc('get_fin_precificacao'); } catch (_) {} }
+    if (finPrecCfg && finPrecCfg.margem_min != null) MARGEM_MIN = Number(finPrecCfg.margem_min) || 0;
     let raw = [];
     try { raw = await finRpc('list_fin_custos') || []; } catch (_) {}
     // normaliza para o formato dos renderizadores
@@ -2171,10 +2187,10 @@
         <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Orçamentos &amp; margem</h1>
       </div>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div class="metric-card p-4"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Em aberto</div><div class="text-xl font-black text-white mt-2 num">18</div></div>
-        <div class="metric-card p-4"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Valor total</div><div class="text-xl font-black text-white mt-2 num">R$ 1,94 mi</div></div>
-        <div class="metric-card p-4"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Margem média</div><div class="text-xl font-black fin-acc mt-2 num">21,4%</div></div>
-        <div class="metric-card p-4"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Abaixo do mínimo</div><div class="text-xl font-black text-red-400 mt-2 num">3</div></div>
+        <div class="metric-card p-4"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Em aberto</div><div id="orc-k-abertos" class="text-xl font-black text-white mt-2 num">—</div></div>
+        <div class="metric-card p-4"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Valor total</div><div id="orc-k-valor" class="text-xl font-black text-white mt-2 num">—</div></div>
+        <div class="metric-card p-4"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Margem média</div><div id="orc-k-margem" class="text-xl font-black fin-acc mt-2 num">—</div></div>
+        <div class="metric-card p-4"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Abaixo do mínimo</div><div id="orc-k-baixa" class="text-xl font-black text-red-400 mt-2 num">—</div></div>
       </div>
       <div id="orc-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>`;
   }
@@ -2275,7 +2291,7 @@
       </div>
       <div class="metric-card p-4 mb-3 flex items-start gap-3 border-[color:var(--fin-border-30)]">
         <div class="w-9 h-9 grid place-items-center fin-acc-chip shrink-0"><i data-lucide="calculator" class="w-4 h-4"></i></div>
-        <div class="text-[11px] text-neutral-400 font-medium leading-relaxed">DRE <span class="text-white font-bold">por obra/venda</span> (como a planilha do contábil) — escolha a obra acima, ou veja o consolidado. Modelo: imposto <span class="text-white font-bold">18%</span> sobre (venda − kit), comissão <span class="text-white font-bold">10%</span> e royalties + fundo <span class="text-white font-bold">4,5%</span> sobre a venda; custos diretos vêm dos lançamentos. <span class="fin-acc font-bold">Clique em "Simular"</span> para editar qualquer valor direto na cascata (estilo planilha) sem alterar nada de verdade. "Recebido" é o caixa real da obra.</div>
+        <div class="text-[11px] text-neutral-400 font-medium leading-relaxed">DRE <span class="text-white font-bold">por obra/venda</span> (como a planilha do contábil) — escolha a obra acima, ou veja o consolidado. Modelo: imposto <span id="dre-h-imp" class="text-white font-bold">18%</span> sobre (venda − kit), comissão <span id="dre-h-com" class="text-white font-bold">10%</span> e royalties + fundo <span id="dre-h-roy" class="text-white font-bold">4,5%</span> sobre a venda; custos diretos vêm dos lançamentos. <span class="fin-acc font-bold">Clique em "Simular"</span> para editar qualquer valor direto na cascata (estilo planilha) sem alterar nada de verdade. "Recebido" é o caixa real da obra.</div>
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
         <div class="metric-card p-5"><div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Receita bruta</div><div id="dre-k-receita" class="text-2xl font-black text-white mt-2 num">—</div><div id="dre-k-recebido" class="text-[10px] font-bold text-neutral-500 num mt-1">Recebido (caixa) —</div></div>
@@ -2526,7 +2542,13 @@
         </div>
       </div>`;
   }
-  const FIN_CFG_LABELS = { markup_padrao:'Markup padrão (×)', margem_alvo:'Margem-alvo (%)', margem_min:'Margem mínima (%)', comissao_pct:'Comissão padrão (%)', dias_alerta:'Dias p/ alerta' };
+  // Percentuais da precificação (mesmos da planilha): imposto sobre (venda − kit);
+  // comissão, royalties e deduções sobre a venda.
+  const FIN_CFG_LABELS = {
+    imposto_pct:'Imposto (%) · sobre venda − kit', comissao_pct:'Comissão (%) · sobre venda',
+    royalties_pct:'Royalties e fundo (%) · sobre venda', deducoes_pct:'Deduções (%) · sobre venda',
+    margem_alvo:'Margem-alvo (%)', margem_min:'Margem mínima (%)', dias_alerta:'Dias p/ alerta',
+  };
   async function renderFinConfig() {
     const isAdmin = !!state.isAdmin;
     let cfg = {};
@@ -2554,7 +2576,9 @@
   async function finSalvarConfig(chave) {
     const v = parseFloat(document.getElementById('fin-cfg-'+chave).value);
     if (isNaN(v)) { finToast('Valor inválido', 'warn'); return; }
+    if (chave !== 'dias_alerta' && (v < 0 || v > 100)) { finToast('Use um percentual entre 0 e 100', 'warn'); return; }
     try { await finRpc('set_fin_config', { p_chave:chave, p_valor:v }); } catch (_) { return; }
+    finPrecCfg = null; // força Orçamentos/Relatórios/Precificação a relerem os %
     finToast('Configuração salva', 'ok');
   }
   async function finToggleFinEnabled(userId, enable) {
@@ -2576,7 +2600,7 @@
       { id: 'ordemcompra',   label: 'Ordem de Compra', icon: 'shopping-cart',   build: ordemcompraHTML,  after: 'ordemcompra' },
     ]},
     margem: { subs: [
-      { id: 'precificacao',  label: 'Precificação',    icon: 'tags',            build: precificacaoHTML, after: 'precificacao' },
+      { id: 'precificacao',  label: 'Precificação',    icon: 'tags',            build: precificacaoHTML, after: 'precificacao', adminOnly: true },
       { id: 'custos',        label: 'Custos',          icon: 'calculator',      build: custosHTML,       after: 'custos' },
       { id: 'dre',           label: 'DRE',             icon: 'bar-chart-3',     build: dreHTML,          after: 'dre' },
     ]},
@@ -2604,25 +2628,30 @@
     }
     return grp;
   }
+  // Precificação interna é só de admin: some da barra para os demais perfis.
+  function finSubsVisiveis(g) { return g.subs.filter(s => !s.adminOnly || state.isAdmin); }
   function finGroupHTML(groupId) {
     const g = FIN_SUBGROUPS[groupId]; if (!g) return '';
-    const cur = (state.finSub && state.finSub[groupId]) || g.subs[0].id;
+    const subs = finSubsVisiveis(g);
+    const salvo = state.finSub && state.finSub[groupId];
+    const cur = subs.some(s => s.id === salvo) ? salvo : subs[0].id;
     return `
       <div id="${groupId}-subtabs" class="flex gap-5 mb-6 border-b border-neutral-800 overflow-x-auto no-scrollbar">
-        ${g.subs.map(s => `<button class="fin-subtab flex items-center gap-2 pb-2.5 text-[11px] font-black uppercase tracking-widest whitespace-nowrap ${s.id===cur?'is-active':''}" data-sub="${s.id}"><i data-lucide="${s.icon}" class="w-3.5 h-3.5"></i>${s.label}</button>`).join('')}
+        ${subs.map(s => `<button class="fin-subtab flex items-center gap-2 pb-2.5 text-[11px] font-black uppercase tracking-widest whitespace-nowrap ${s.id===cur?'is-active':''}" data-sub="${s.id}"><i data-lucide="${s.icon}" class="w-3.5 h-3.5"></i>${s.label}</button>`).join('')}
       </div>
       <div id="fin-${groupId}-body"></div>`;
   }
   function renderFinSub(groupId, sub) {
     const g = FIN_SUBGROUPS[groupId]; if (!g) return;
     state.finSub = state.finSub || {};
-    sub = sub || state.finSub[groupId] || g.subs[0].id;
-    if (!g.subs.some(s => s.id === sub)) sub = g.subs[0].id;
+    const subs = finSubsVisiveis(g);
+    sub = sub || state.finSub[groupId] || subs[0].id;
+    if (!subs.some(s => s.id === sub)) sub = subs[0].id;
     state.finSub[groupId] = sub;
     const bar = document.getElementById(groupId + '-subtabs');
     if (bar) bar.querySelectorAll('.fin-subtab').forEach(b => b.classList.toggle('is-active', b.dataset.sub === sub));
     const body = document.getElementById('fin-' + groupId + '-body'); if (!body) return;
-    const def = g.subs.find(s => s.id === sub);
+    const def = subs.find(s => s.id === sub);
     body.innerHTML = def.build();
     finAfterRender(def.after);
     finIcons();
