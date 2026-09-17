@@ -520,6 +520,8 @@ function renderCrm360() {
     if (typeof pbEmbedSetup === 'function') pbEmbedSetup(client);
   }
   if (_crm360Tab === 'financiamento' && typeof renderFinanciamento === 'function') renderFinanciamento();
+  // Selo de margem da precificação interna (só admin; preenchido async).
+  if (_crm360Tab === 'propostas' && state.isAdmin && typeof preencherSelosPrecificacao === 'function') preencherSelosPrecificacao();
 
   lucide.createIcons();
 }
@@ -616,9 +618,10 @@ function renderCrm360TabContent(client, propostas, vendas) {
             </div>
             <p class="text-neutral-600 text-[10px] font-mono mt-0.5">${formatDate(p.created_at)} · ${escapeHTML(String(p.kit_power || p.custom_system_power_kwp || '-'))} kWp ${p.geracao_estimada ? `· ~${Math.round(p.geracao_estimada)} kWh/mês` : ''}</p>
           </div>
+          ${state.isAdmin ? `<span data-prec-selo="${p.id}"></span>` : ''}
           <span class="text-green-400 font-black text-sm">${formatCurrency(preco || 0)}</span>
           <div class="flex items-center gap-1.5">
-            ${(state.isAdmin || state.isGestor) ? `<button onclick="openOrcamentoDre('${p.id}')" title="DRE" class="btn btn-secondary btn-icon"><i data-lucide="bar-chart-3"></i></button>` : ''}
+            ${state.isAdmin ? `<button onclick="openOrcamentoDre('${p.id}')" title="Precificação interna (só admin)" class="btn btn-secondary btn-icon"><i data-lucide="calculator"></i></button>` : ''}
             ${waResend ? `<a href="${waResend}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${p.id}')" title="Enviar no WhatsApp do cliente" class="btn btn-primary btn-icon"><i data-lucide="message-circle"></i></a>` : ''}
             <button onclick="copiarLinkExistente('${p.id}', this)" title="Copiar link" class="btn btn-secondary btn-icon"><i data-lucide="copy"></i></button>
             <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Abrir proposta" class="btn btn-secondary btn-icon"><i data-lucide="external-link"></i></a>

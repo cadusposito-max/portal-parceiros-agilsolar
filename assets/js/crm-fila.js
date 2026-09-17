@@ -298,7 +298,7 @@ function filaConcluir(clientId) {
   overlay.id = 'fila-concluir-overlay';
   overlay.className = 'fixed inset-0 z-[96] flex items-center justify-center bg-black/90 backdrop-blur-md p-4';
   overlay.innerHTML = `
-    <div class="bg-neutral-900 border-2 border-green-600/50 w-full max-w-md shadow-[0_0_50px_rgba(34,197,94,0.2)] animate-fade-in-up">
+    <div class="bg-neutral-900 border-2 border-green-600/50 w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar shadow-[0_0_50px_rgba(34,197,94,0.2)] animate-fade-in-up">
       <div class="flex justify-between items-center p-5 border-b border-neutral-800 bg-black/50">
         <div>
           <p class="text-[9px] text-green-500 font-black uppercase tracking-widest">Registrar contato</p>

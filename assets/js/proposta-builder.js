@@ -209,8 +209,12 @@ async function resolveEffectiveSellerForClient(client) {
 function getPBDefaultEquipDraft() {
   return {
     descricao:      '',
-    valorEquip:     '',
     potencia:       '',
+    potenciaManual: false,   // true quando o usuário digitou a potência (não recalcula)
+    itens:          [],      // [{ uid, origem, ref_id, tipo, descricao, qtd, preco, potencia_kwp_un }]
+    descontoTipo:   'value', // 'value' (R$) | 'percent'
+    descontoValor:  '',
+    frete:          '',
     paymentNote:    '',
     commercialNote: ''
   };
@@ -429,28 +433,258 @@ bindPBSearchInputEvent();
 // MODO: PERSONALIZADA (Admin/Gestor only)
 // ==========================================
 
+// Tipos de item (mesmas categorias do cadastro de Equipamentos) + kit pronto.
+const PB_ITEM_TIPOS = [
+  { v: 'kit',       label: 'Kit' },
+  { v: 'modulo',    label: 'Módulo' },
+  { v: 'inversor',  label: 'Inversor' },
+  { v: 'estrutura', label: 'Estrutura' },
+  { v: 'cabo',      label: 'Cabos' },
+  { v: 'servico',   label: 'Serviço' },
+  { v: 'outro',     label: 'Outros' },
+];
+
+const _pbNum = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+const _pbR2  = (v) => Math.round((Number(v) || 0) * 100) / 100;
+let _pbItemSeq = 0;
+const _pbNovoUid = () => 'it' + Date.now().toString(36) + (++_pbItemSeq);
+
+function _pbDraft() {
+  if (!state.pbEquipDraft || !Array.isArray(state.pbEquipDraft.itens)) {
+    state.pbEquipDraft = Object.assign(getPBDefaultEquipDraft(), state.pbEquipDraft || {}, {
+      itens: (state.pbEquipDraft && Array.isArray(state.pbEquipDraft.itens)) ? state.pbEquipDraft.itens : [],
+    });
+  }
+  return state.pbEquipDraft;
+}
+
+// Totais da proposta personalizada. Total = itens − desconto + frete.
+function calcularTotaisPersonalizada(draft) {
+  const itens = (draft.itens || []).filter((i) => _pbNum(i.qtd) > 0);
+  const subtotal = _pbR2(itens.reduce((s, i) => s + _pbNum(i.qtd) * _pbNum(i.preco), 0));
+  const servicos = _pbR2(itens.filter((i) => i.tipo === 'servico').reduce((s, i) => s + _pbNum(i.qtd) * _pbNum(i.preco), 0));
+  const equipamentos = _pbR2(subtotal - servicos);
+  const dv = Math.max(0, _pbNum(draft.descontoValor));
+  const descontoBruto = draft.descontoTipo === 'percent' ? subtotal * Math.min(dv, 100) / 100 : dv;
+  const desconto = _pbR2(Math.min(descontoBruto, subtotal));
+  const frete = _pbR2(Math.max(0, _pbNum(draft.frete)));
+  const total = _pbR2(subtotal - desconto + frete);
+  const potenciaAuto = Math.round(itens.reduce((s, i) => s + _pbNum(i.qtd) * _pbNum(i.potencia_kwp_un), 0) * 1000) / 1000;
+  return { itens, subtotal, servicos, equipamentos, desconto, frete, total, potenciaAuto };
+}
+
+function _pbPotenciaEfetiva(draft, tot) {
+  if (draft.potenciaManual) return _pbNum(draft.potencia);
+  return tot.potenciaAuto;
+}
+
 function syncEquipInputsFromState() {
-  const d = state.pbEquipDraft || {};
+  const d = _pbDraft();
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
   setVal('pb-equip-descricao',       d.descricao      || '');
-  setVal('pb-equip-valor',           d.valorEquip     || '');
   setVal('pb-equip-potencia',        d.potencia       || '');
+  setVal('pb-equip-desconto-tipo',   d.descontoTipo   || 'value');
+  setVal('pb-equip-desconto',        d.descontoValor  || '');
+  setVal('pb-equip-frete',           d.frete          || '');
   setVal('pb-equip-payment-note',    d.paymentNote    || '');
   setVal('pb-equip-commercial-note', d.commercialNote || '');
+  renderPBItens();
   updateEquipamentosPreview();
 }
 
+// ---- Lista de itens ---------------------------------------------------
+function renderPBItens() {
+  const host = document.getElementById('pb-itens-lista');
+  if (!host) return;
+  const d = _pbDraft();
+  if (!d.itens.length) {
+    host.innerHTML = `<div class="border border-dashed border-neutral-800 p-4 text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest">Nenhum item — adicione do catálogo ou manualmente</div>`;
+    return;
+  }
+  const opts = (sel) => PB_ITEM_TIPOS.map((t) => `<option value="${t.v}"${t.v === sel ? ' selected' : ''}>${t.label}</option>`).join('');
+  host.innerHTML = d.itens.map((it) => {
+    const sub = _pbNum(it.qtd) * _pbNum(it.preco);
+    const doCatalogo = it.origem !== 'manual';
+    return `
+      <div class="border border-neutral-800 bg-black p-3" data-pb-item="${escapeHTML(it.uid)}">
+        <div class="flex items-start gap-2">
+          <select data-pb-f="tipo" class="bg-black border border-neutral-700 px-2 py-2 text-white text-[11px] font-bold shrink-0">${opts(it.tipo)}</select>
+          <input type="text" data-pb-f="descricao" value="${escapeHTML(it.descricao || '')}" placeholder="Descrição do item"
+            class="flex-1 min-w-0 bg-black border border-neutral-700 focus:border-orange-500 px-3 py-2 text-white text-xs font-bold">
+          <button type="button" data-pb-acao="remover" title="Remover item" class="w-9 h-9 shrink-0 grid place-items-center text-neutral-500 hover:text-red-400 border border-neutral-800"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        </div>
+        <div class="flex items-center gap-2 mt-2 flex-wrap">
+          ${doCatalogo ? `<span class="text-[9px] px-1.5 py-0.5 font-black uppercase tracking-widest border border-orange-500/30 text-orange-400 bg-orange-500/10">Catálogo</span>` : ''}
+          <label class="text-[10px] text-neutral-500 font-bold uppercase">Qtd</label>
+          <input type="number" data-pb-f="qtd" min="0" step="1" value="${escapeHTML(String(it.qtd ?? ''))}"
+            class="w-20 bg-black border border-neutral-700 focus:border-orange-500 px-2 py-1.5 text-white font-mono font-bold text-sm text-right">
+          <label class="text-[10px] text-neutral-500 font-bold uppercase ml-1">Preço un. R$</label>
+          <input type="number" data-pb-f="preco" min="0" step="0.01" value="${escapeHTML(String(it.preco ?? ''))}"
+            class="w-32 bg-black border border-neutral-700 focus:border-orange-500 px-2 py-1.5 text-white font-mono font-bold text-sm text-right">
+          <span class="ml-auto text-white font-black font-mono text-sm" data-pb-sub>${formatCurrency(sub)}</span>
+        </div>
+      </div>`;
+  }).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+function _pbAtualizarSubtotalLinha(uid) {
+  const d = _pbDraft();
+  const it = d.itens.find((x) => x.uid === uid);
+  const row = document.querySelector(`[data-pb-item="${CSS.escape(uid)}"] [data-pb-sub]`);
+  if (it && row) row.textContent = formatCurrency(_pbNum(it.qtd) * _pbNum(it.preco));
+}
+
+function addPBItem(item) {
+  const d = _pbDraft();
+  d.itens.push(Object.assign({ uid: _pbNovoUid(), origem: 'manual', ref_id: null, tipo: 'outro', descricao: '', qtd: 1, preco: '', potencia_kwp_un: 0 }, item));
+  renderPBItens();
+  updateEquipamentosPreview();
+}
+
+// ---- Catálogo (kits da franquia + equipamentos avulsos) -----------------
+let _pbCatFonte = 'kits';
+let _pbCatEquip = null;      // cache dos componentes ativos (com preço)
+let _pbCatEquipErro = false;
+
+async function _pbCarregarEquipamentos() {
+  if (_pbCatEquip) return _pbCatEquip;
+  const { data, error } = await supabaseClient
+    .from('componentes')
+    .select('id, tipo, nome, marca, unidade, potencia_wp, preco_unitario')
+    .eq('ativo', true)
+    .order('tipo').order('nome');
+  if (error) { _pbCatEquipErro = true; console.error('[proposta-builder] catálogo de equipamentos', error); return []; }
+  _pbCatEquipErro = false;
+  _pbCatEquip = data || [];
+  return _pbCatEquip;
+}
+
+function abrirPBCatalogo() {
+  const box = document.getElementById('pb-catalogo');
+  if (!box) return;
+  box.classList.remove('hidden');
+  renderPBCatalogo();
+  const busca = document.getElementById('pb-catalogo-busca');
+  if (busca) busca.focus();
+}
+
+function fecharPBCatalogo() {
+  const box = document.getElementById('pb-catalogo');
+  if (box) box.classList.add('hidden');
+}
+
+async function renderPBCatalogo() {
+  const lista = document.getElementById('pb-catalogo-lista');
+  if (!lista) return;
+  document.querySelectorAll('[data-pb-cat-fonte]').forEach((b) => {
+    const ativo = b.getAttribute('data-pb-cat-fonte') === _pbCatFonte;
+    b.classList.toggle('bg-orange-500', ativo);
+    b.classList.toggle('text-black', ativo);
+    b.classList.toggle('text-neutral-500', !ativo);
+  });
+  const termo = String((document.getElementById('pb-catalogo-busca') || {}).value || '').trim().toLowerCase();
+  const casa = (txt) => !termo || String(txt || '').toLowerCase().includes(termo);
+
+  let linhas = [];
+  if (_pbCatFonte === 'kits') {
+    linhas = (state.data || [])
+      .filter((k) => k.ativo !== false && casa(`${k.name} ${k.brand} ${k.power}`))
+      .slice(0, 40)
+      .map((k) => ({
+        chave: 'kit:' + k.id,
+        titulo: k.name,
+        sub: `${k.brand || ''} · ${String(k.power || 0).replace('.', ',')} kWp`,
+        preco: _pbNum(k.price),
+      }));
+  } else {
+    lista.innerHTML = `<div class="p-3 text-[10px] text-neutral-500 font-bold uppercase tracking-widest">Carregando…</div>`;
+    const equip = await _pbCarregarEquipamentos();
+    if (_pbCatFonte !== 'equipamentos') return; // trocou de aba enquanto carregava
+    if (_pbCatEquipErro) {
+      lista.innerHTML = `<div class="p-3 text-[11px] text-red-400 font-bold">Não foi possível carregar os equipamentos.</div>`;
+      return;
+    }
+    if (!equip.length) {
+      lista.innerHTML = `<div class="p-3 text-[11px] text-yellow-500 font-bold leading-relaxed">Nenhum equipamento cadastrado ainda. Cadastre em Produtos → Equipamentos (com preço) ou use "Item manual".</div>`;
+      return;
+    }
+    const tipoLabel = (t) => (PB_ITEM_TIPOS.find((x) => x.v === t) || { label: t || 'Outros' }).label;
+    linhas = equip
+      .filter((e) => casa(`${e.nome} ${e.marca} ${e.tipo} ${e.potencia_wp}`))
+      .slice(0, 60)
+      .map((e) => ({
+        chave: 'eq:' + e.id,
+        titulo: e.nome,
+        sub: [tipoLabel(e.tipo), e.marca, e.potencia_wp ? `${e.potencia_wp} Wp` : '', e.unidade ? `/${e.unidade}` : ''].filter(Boolean).join(' · '),
+        preco: _pbNum(e.preco_unitario),
+      }));
+  }
+
+  lista.innerHTML = linhas.length
+    ? linhas.map((l) => `
+        <button type="button" data-pb-cat-add="${escapeHTML(l.chave)}" class="w-full flex items-center gap-3 px-2 py-2.5 text-left hover:bg-neutral-900">
+          <div class="flex-1 min-w-0">
+            <div class="text-white text-xs font-black uppercase truncate">${escapeHTML(l.titulo || '')}</div>
+            <div class="text-neutral-500 text-[10px] font-bold truncate">${escapeHTML(l.sub)}</div>
+          </div>
+          <span class="text-orange-400 font-black font-mono text-xs shrink-0">${l.preco > 0 ? formatCurrency(l.preco) : 'sem preço'}</span>
+          <i data-lucide="plus-circle" class="w-4 h-4 text-orange-500 shrink-0"></i>
+        </button>`).join('')
+    : `<div class="p-3 text-[10px] text-neutral-500 font-bold uppercase tracking-widest">Nada encontrado</div>`;
+  if (window.lucide) lucide.createIcons();
+}
+
+function adicionarDoCatalogo(chave) {
+  const [fonte, id] = String(chave).split(':');
+  if (fonte === 'kit') {
+    const k = (state.data || []).find((x) => String(x.id) === id);
+    if (!k) return;
+    addPBItem({
+      origem: 'kit', ref_id: k.id, tipo: 'kit',
+      descricao: [k.name, k.brand].filter(Boolean).join(' · '),
+      qtd: 1, preco: _pbNum(k.price) || '', potencia_kwp_un: _pbNum(k.power),
+    });
+  } else if (fonte === 'eq') {
+    const e = (_pbCatEquip || []).find((x) => String(x.id) === id);
+    if (!e) return;
+    addPBItem({
+      origem: 'componente', ref_id: e.id, tipo: e.tipo || 'outro',
+      descricao: [e.nome, e.marca].filter(Boolean).join(' · '),
+      qtd: 1, preco: _pbNum(e.preco_unitario) || '',
+      potencia_kwp_un: e.tipo === 'modulo' ? _pbNum(e.potencia_wp) / 1000 : 0,
+    });
+  }
+  showToast('Item adicionado');
+}
+
+// ---- Resumo / validação -------------------------------------------------
 function updateEquipamentosPreview() {
-  const draft    = state.pbEquipDraft || {};
-  const equip    = parseFloat(draft.valorEquip) || 0;
-  const potencia = parseFloat(draft.potencia) || 0;
-  const total    = equip;
+  const draft = _pbDraft();
+  const tot = calcularTotaisPersonalizada(draft);
+
+  // Potência: acompanha os módulos/kits enquanto o usuário não digitar outra.
+  const potInput = document.getElementById('pb-equip-potencia');
+  if (!draft.potenciaManual && potInput && document.activeElement !== potInput) {
+    potInput.value = tot.potenciaAuto > 0 ? String(tot.potenciaAuto) : '';
+    draft.potencia = potInput.value;
+  }
+  const hint = document.getElementById('pb-equip-potencia-hint');
+  if (hint) {
+    hint.textContent = draft.potenciaManual
+      ? (tot.potenciaAuto > 0 ? `Digitada à mão · pelos itens daria ${String(tot.potenciaAuto).replace('.', ',')} kWp (apague o campo para voltar ao automático)` : 'Digitada à mão')
+      : (tot.potenciaAuto > 0 ? 'Calculada pelos módulos/kits da lista' : 'Sem módulos/kits com potência na lista — digite a potência');
+  }
 
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  setTxt('pb-equip-preview-equip', equip > 0 ? formatCurrency(equip) : 'R$ —');
-  setTxt('pb-equip-preview-total', total > 0 ? formatCurrency(total) : 'R$ —');
+  setTxt('pb-equip-preview-qtd', String(tot.itens.length));
+  setTxt('pb-equip-preview-equip', tot.subtotal > 0 ? formatCurrency(tot.subtotal) : 'R$ —');
+  setTxt('pb-equip-preview-desconto', tot.desconto > 0 ? '− ' + formatCurrency(tot.desconto) : 'R$ —');
+  setTxt('pb-equip-preview-frete', tot.frete > 0 ? formatCurrency(tot.frete) : 'R$ —');
+  setTxt('pb-equip-preview-total', tot.total > 0 ? formatCurrency(tot.total) : 'R$ —');
 
-  const canSubmit = total > 0 && potencia > 0;
+  const potencia = _pbPotenciaEfetiva(draft, tot);
+  const canSubmit = tot.total > 0 && potencia > 0 && tot.itens.length > 0;
   const submitBtn = document.getElementById('pb-equip-submit');
   if (submitBtn) {
     submitBtn.disabled = !canSubmit;
@@ -461,29 +695,87 @@ function updateEquipamentosPreview() {
 
 function bindEquipUIEvents() {
   const bindings = [
-    ['pb-equip-descricao',       v => { state.pbEquipDraft.descricao      = v; }],
-    ['pb-equip-valor',           v => { state.pbEquipDraft.valorEquip     = v; updateEquipamentosPreview(); }],
-    ['pb-equip-potencia',        v => { state.pbEquipDraft.potencia       = v; updateEquipamentosPreview(); }],
-    ['pb-equip-payment-note',    v => { state.pbEquipDraft.paymentNote    = v; }],
-    ['pb-equip-commercial-note', v => { state.pbEquipDraft.commercialNote = v; }],
+    ['pb-equip-descricao',       'input',  v => { _pbDraft().descricao = v; }],
+    ['pb-equip-potencia',        'input',  v => { const d = _pbDraft(); d.potencia = v; d.potenciaManual = v !== ''; updateEquipamentosPreview(); }],
+    ['pb-equip-desconto',        'input',  v => { _pbDraft().descontoValor = v; updateEquipamentosPreview(); }],
+    ['pb-equip-desconto-tipo',   'change', v => { _pbDraft().descontoTipo = v === 'percent' ? 'percent' : 'value'; updateEquipamentosPreview(); }],
+    ['pb-equip-frete',           'input',  v => { _pbDraft().frete = v; updateEquipamentosPreview(); }],
+    ['pb-equip-payment-note',    'input',  v => { _pbDraft().paymentNote = v; }],
+    ['pb-equip-commercial-note', 'input',  v => { _pbDraft().commercialNote = v; }],
+    ['pb-catalogo-busca',        'input',  () => renderPBCatalogo()],
   ];
-  bindings.forEach(([id, handler]) => {
+  bindings.forEach(([id, evt, handler]) => {
     const el = document.getElementById(id);
-    if (el && !el.dataset.bound) { el.addEventListener('input', e => handler(e.target.value)); el.dataset.bound = '1'; }
+    if (el && !el.dataset.bound) { el.addEventListener(evt, e => handler(e.target.value)); el.dataset.bound = '1'; }
   });
+
+  const onClick = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.bound) { el.addEventListener('click', fn); el.dataset.bound = '1'; }
+  };
+  onClick('pb-itens-add-manual', () => addPBItem({}));
+  onClick('pb-itens-add-catalogo', abrirPBCatalogo);
+  onClick('pb-catalogo-fechar', fecharPBCatalogo);
+
+  const catBox = document.getElementById('pb-catalogo');
+  if (catBox && !catBox.dataset.bound) {
+    catBox.addEventListener('click', (e) => {
+      const fonte = e.target.closest('[data-pb-cat-fonte]');
+      if (fonte) { _pbCatFonte = fonte.getAttribute('data-pb-cat-fonte'); renderPBCatalogo(); return; }
+      const add = e.target.closest('[data-pb-cat-add]');
+      if (add) adicionarDoCatalogo(add.getAttribute('data-pb-cat-add'));
+    });
+    catBox.dataset.bound = '1';
+  }
+
+  const itensHost = document.getElementById('pb-itens-lista');
+  if (itensHost && !itensHost.dataset.bound) {
+    const editar = (e) => {
+      const campo = e.target.getAttribute('data-pb-f');
+      const row = e.target.closest('[data-pb-item]');
+      if (!campo || !row) return;
+      const uid = row.getAttribute('data-pb-item');
+      const it = _pbDraft().itens.find((x) => x.uid === uid);
+      if (!it) return;
+      it[campo] = e.target.value;
+      if (campo === 'qtd' || campo === 'preco') _pbAtualizarSubtotalLinha(uid);
+      updateEquipamentosPreview();
+    };
+    itensHost.addEventListener('input', editar);
+    itensHost.addEventListener('change', editar);
+    itensHost.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-pb-acao="remover"]');
+      if (!btn) return;
+      const uid = btn.closest('[data-pb-item]').getAttribute('data-pb-item');
+      const d = _pbDraft();
+      d.itens = d.itens.filter((x) => x.uid !== uid);
+      renderPBItens();
+      updateEquipamentosPreview();
+    });
+    itensHost.dataset.bound = '1';
+  }
+
   const form = document.getElementById('pb-equip-form');
   if (form && !form.dataset.bound) { form.addEventListener('submit', handleEquipamentosProposalSubmit); form.dataset.bound = '1'; }
 }
 
 async function handleEquipamentosProposalSubmit(event) {
   event.preventDefault();
-  const draft    = state.pbEquipDraft || {};
-  const equip    = parseFloat(draft.valorEquip) || 0;
-  const potencia = parseFloat(draft.potencia) || 0;
-  const total    = equip;
+  const draft = _pbDraft();
+  const tot = calcularTotaisPersonalizada(draft);
+  const potencia = _pbPotenciaEfetiva(draft, tot);
 
-  if (total <= 0) {
-    showToast('Informe o valor da proposta para gerar a proposta personalizada.');
+  if (!tot.itens.length) {
+    showToast('Adicione pelo menos um item com quantidade.');
+    return;
+  }
+  const semDescricao = tot.itens.find((i) => !String(i.descricao || '').trim());
+  if (semDescricao) {
+    showToast('Todos os itens precisam de descrição.');
+    return;
+  }
+  if (tot.total <= 0) {
+    showToast('O total da proposta precisa ser maior que zero.');
     return;
   }
   if (potencia <= 0) {
@@ -508,11 +800,27 @@ async function handleEquipamentosProposalSubmit(event) {
     lucide.createIcons();
   }
 
+  // Itens gravados na proposta (sem custo: a proposta é visível ao vendedor dono).
+  const itensSalvos = tot.itens.map((i) => ({
+    origem:  i.origem === 'kit' || i.origem === 'componente' ? i.origem : 'manual',
+    ref_id:  i.ref_id || null,
+    tipo:    i.tipo || 'outro',
+    descricao: String(i.descricao || '').trim(),
+    qtd:     _pbNum(i.qtd),
+    preco:   _pbR2(i.preco),
+    subtotal: _pbR2(_pbNum(i.qtd) * _pbNum(i.preco)),
+    potencia_kwp_un: _pbNum(i.potencia_kwp_un),
+  }));
+  const primeiro = (tipo) => itensSalvos.find((i) => i.tipo === tipo && i.origem === 'componente');
+  const modulo = primeiro('modulo');
+  const inversor = primeiro('inversor');
+
   const shouldUsePopup = !isStandaloneDisplayMode();
   const popupRef = shouldUsePopup ? window.open('', '_blank') : null;
   try {
     const seller    = await resolveEffectiveSellerForClient(client);
     const descricao = (draft.descricao || '').trim() || 'Proposta Personalizada';
+    const descontoValor = _pbR2(Math.max(0, _pbNum(draft.descontoValor)));
 
     const { data, error } = await supabaseClient.from('propostas').insert([{
       proposal_mode:           'PERSONALIZADA',
@@ -526,13 +834,26 @@ async function handleEquipamentosProposalSubmit(event) {
       kit_nome:                descricao,
       kit_brand:               '',
       kit_power:               potencia,
-      kit_price:               total,
-      kit_list_price:          total,
+      kit_price:               tot.total,
+      kit_list_price:          tot.total,
       geracao_estimada:        calcularGeracaoEstimada(potencia, undefined, client.hsp),
       custom_system_power_kwp: potencia,
-      custom_equipment_price:  equip,
-      custom_service_price:    null,
-      custom_total_price:      total,
+      custom_equipment_price:  tot.equipamentos,
+      custom_service_price:    tot.servicos,
+      custom_subtotal_price:   tot.subtotal,
+      custom_frete:            tot.frete,
+      custom_price_before_discount: _pbR2(tot.subtotal + tot.frete),
+      custom_discount_type:    descontoValor > 0 ? draft.descontoTipo : null,
+      custom_discount_value:   descontoValor > 0 ? descontoValor : null,
+      custom_total_price:      tot.total,
+      custom_totals:           { subtotal: tot.subtotal, equipamentos: tot.equipamentos, servicos: tot.servicos, desconto: tot.desconto, frete: tot.frete, total: tot.total },
+      custom_config:           { versao: 2, itens: itensSalvos },
+      custom_modulo_id:        modulo ? modulo.ref_id : null,
+      custom_modulo_nome:      modulo ? modulo.descricao : null,
+      custom_modulo_qty:       modulo ? Math.round(modulo.qtd) : null,
+      custom_inversor_id:      inversor ? inversor.ref_id : null,
+      custom_inversor_nome:    inversor ? inversor.descricao : null,
+      custom_inversor_qty:     inversor ? Math.round(inversor.qtd) : null,
       custom_payment_note:     draft.paymentNote    || null,
       custom_commercial_note:  draft.commercialNote || null,
       franquia_id:             state.franquiaId,
@@ -547,7 +868,7 @@ async function handleEquipamentosProposalSubmit(event) {
     if (!client.status || client.status === 'NOVO') await cycleClientStatus(client.id, 'NOVO');
     await fetchPropostas();
     if (typeof captureEvent === 'function') {
-      captureEvent('proposal_created', { source: 'portal', mode: 'personalizada' });
+      captureEvent('proposal_created', { source: 'portal', mode: 'personalizada', itens: itensSalvos.length });
     }
 
     if (submitBtn) {
@@ -557,9 +878,9 @@ async function handleEquipamentosProposalSubmit(event) {
       lucide.createIcons();
       setTimeout(() => {
         submitBtn.innerHTML = originalText;
-        submitBtn.disabled  = false;
         submitBtn.classList.remove('btn-success');
         submitBtn.classList.add('btn-primary');
+        updateEquipamentosPreview();
         lucide.createIcons();
       }, 3000);
     }
