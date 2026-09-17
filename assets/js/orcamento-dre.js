@@ -167,12 +167,12 @@
     return `<div class="relative w-36">
         <span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">R$</span>
         <input type="number" step="0.01" data-orc-cost="${key}" value="${num(value)}"
-          class="w-full pl-7 pr-2 py-1.5 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm">
+          class="w-full pl-7 pr-2 py-1.5 lg:py-1 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm">
       </div>`;
   }
 
   function editRow(label, key, val) {
-    return `<div class="px-5 py-2 flex items-center gap-3">
+    return `<div class="px-5 py-2 lg:py-1.5 flex items-center gap-3">
         <span class="font-bold text-neutral-300 text-sm flex-1">${escapeHTML(label)}</span>
         <span class="text-[12px] font-black text-red-400 w-4 text-center">−</span>
         ${inputMoney(key, val)}
@@ -181,13 +181,13 @@
 
   // Linha de % sugerido, agora EDITÁVEL: input semeado com a sugestão; vazio = automático.
   function pctRow(label, key, val, hint) {
-    return `<div class="px-5 py-2 flex items-center gap-3">
+    return `<div class="px-5 py-2 lg:py-1.5 flex items-center gap-3">
         <span class="font-bold text-neutral-300 text-sm flex-1">${escapeHTML(label)}${hint ? ` <span class="text-[10px] text-neutral-600 font-bold">${hint}</span>` : ''}</span>
         <span class="text-[12px] font-black text-red-400 w-4 text-center">−</span>
         <div class="relative w-36">
           <span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">R$</span>
           <input type="number" step="0.01" data-orc-pct="${key}" value="${num(val)}"
-            class="w-full pl-7 pr-2 py-1.5 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm">
+            class="w-full pl-7 pr-2 py-1.5 lg:py-1 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm">
         </div>
       </div>`;
   }
@@ -226,10 +226,13 @@
 
     const el = document.createElement('div');
     el.id = 'orc-dre-overlay';
-    el.className = 'fixed inset-0 z-[130] flex items-start md:items-center justify-center bg-black/90 backdrop-blur-md p-2 md:p-4 overflow-y-auto';
+    // Celular: coluna única rolando (layout original).
+    // Desktop (lg+): quadro 16:9 sem rolar a página — demonstração à esquerda
+    // (rola por dentro) e resumo/ações fixos à direita.
+    el.className = 'fixed inset-0 z-[130] flex items-start md:items-center justify-center bg-black/90 backdrop-blur-md p-2 md:p-4 lg:p-6 overflow-y-auto lg:overflow-hidden';
     el.innerHTML = `
-      <div class="w-full max-w-3xl bg-[#0a0a0a] border border-neutral-800 shadow-2xl my-4">
-        <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3 z-10">
+      <div class="w-full max-w-3xl bg-[#0a0a0a] border border-neutral-800 shadow-2xl my-4 lg:my-0 lg:max-w-none lg:w-[min(96vw,calc(92vh*16/9))] lg:h-[min(92vh,calc(96vw*9/16))] lg:flex lg:flex-col">
+        <div class="sticky top-0 lg:static bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 lg:py-3 flex items-start justify-between gap-3 z-10 lg:shrink-0">
           <div class="min-w-0">
             <div class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 flex items-center gap-1.5"><i data-lucide="lock" class="w-3 h-3"></i>Precificação interna · só admin</div>
             <h3 class="text-lg font-black text-white mt-1 truncate">${titulo}</h3>
@@ -244,36 +247,17 @@
           <button type="button" data-orc-act="close" class="shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
         </div>
 
-        <div class="p-5 space-y-4">
-          <!-- KPIs -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div class="border border-neutral-800 p-4 bg-neutral-950/40">
-              <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Receita</div>
-              <div id="orc-k-receita" class="text-base font-black text-white mt-1 num">—</div>
-            </div>
-            <div class="border border-neutral-800 p-4 bg-neutral-950/40">
-              <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Total custos</div>
-              <div id="orc-k-custos" class="text-base font-black text-emerald-400 mt-1 num">—</div>
-            </div>
-            <div class="border border-neutral-800 p-4 bg-neutral-950/40">
-              <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Lucro líquido</div>
-              <div id="orc-k-lucro" class="text-base font-black text-white mt-1 num">—</div>
-            </div>
-            <div class="border border-neutral-800 p-4 bg-neutral-950/40">
-              <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Margem</div>
-              <div id="orc-k-margem" class="text-base font-black mt-1 num">—</div>
-            </div>
-          </div>
-
-          <!-- Cascata -->
+        <div class="p-5 flex flex-col gap-4 lg:p-0 lg:gap-0 lg:flex-1 lg:min-h-0 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] lg:grid-rows-[minmax(0,1fr)]">
+          <!-- Cascata (desktop: coluna esquerda com rolagem própria) -->
+          <div class="order-2 lg:order-none lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto custom-scrollbar lg:p-5">
           <div class="border border-neutral-800">
-            <div class="px-5 py-3 border-b border-neutral-800 flex items-center justify-between">
+            <div class="px-5 py-3 lg:py-2.5 border-b border-neutral-800 flex items-center justify-between lg:sticky lg:top-0 lg:bg-[#0a0a0a] lg:z-10">
               <span class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Demonstração do resultado</span>
               <span class="text-[9px] font-bold text-neutral-600 uppercase tracking-widest">valores editáveis</span>
             </div>
             <div class="divide-y divide-neutral-800/70">
               <!-- Receita (editável) -->
-              <div class="px-5 py-2.5 flex items-center gap-3">
+              <div class="px-5 py-2.5 lg:py-1.5 flex items-center gap-3">
                 <span class="font-black text-white text-sm flex-1">Receita bruta (venda)</span>
                 <span class="text-[12px] font-black text-emerald-400 w-4 text-center">+</span>
                 ${inputMoney('__receita__', cur.receita)}
@@ -285,7 +269,7 @@
               ${pctRow('Royalties e fundo', 'royalties', d0.royalties, `· ${cur.pct.royalties}%`)}
 
               <!-- Linhas extras -->
-              <div class="px-5 py-3 bg-neutral-950/40">
+              <div class="px-5 py-3 lg:py-2 bg-neutral-950/40">
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Linhas extras (avulsas)</span>
                   <button type="button" data-orc-act="add-extra" class="text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:text-white inline-flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i>Adicionar linha</button>
@@ -295,35 +279,59 @@
 
               ${pctRow('Deduções', 'deducoes', d0.deducoes, cur.pct.deducoes ? `· ${cur.pct.deducoes}%` : '')}
 
-              <div class="px-5 py-3 flex items-center gap-3 border-t border-neutral-800">
+              <div class="px-5 py-3 lg:py-2 flex items-center gap-3 border-t border-neutral-800">
                 <span class="font-black text-white text-sm flex-1">Total de custos</span>
                 <span id="orc-tot-custos" class="text-emerald-400 font-black num text-sm w-36 text-right pr-1">—</span>
               </div>
-              <div class="px-5 py-3 flex items-center gap-3">
+              <div class="px-5 py-3 lg:py-2 flex items-center gap-3">
                 <span class="font-black text-white text-sm flex-1">Lucro operacional</span>
                 <span id="orc-tot-lucroop" class="text-emerald-400 font-black num text-sm w-36 text-right pr-1">—</span>
               </div>
-              <div class="px-5 py-3 flex items-center gap-3 bg-neutral-950/40">
+              <div class="px-5 py-3 lg:py-2 flex items-center gap-3 bg-neutral-950/40">
                 <span class="font-black text-white text-sm flex-1">Lucro líquido</span>
                 <span id="orc-tot-lucroliq" class="font-black num text-sm w-36 text-right pr-1 text-emerald-400">—</span>
               </div>
             </div>
           </div>
-
-          <!-- Preço para a margem-alvo -->
-          <div class="border border-neutral-800 px-5 py-3 flex flex-wrap items-center gap-3 bg-neutral-950/40">
-            <span class="text-[11px] font-bold text-neutral-400 flex-1 min-w-[180px]">Venda para margem-alvo de <b class="text-white">${num(cur.pct.margem_alvo).toLocaleString('pt-BR')}%</b></span>
-            <span id="orc-venda-alvo" class="font-black num text-sm text-white">—</span>
-            <button type="button" data-orc-act="usar-alvo" class="px-3 py-1.5 bg-neutral-900 border border-neutral-800 hover:border-emerald-500/60 text-emerald-400 text-[10px] font-black uppercase tracking-widest">Usar</button>
           </div>
 
-          <!-- Ações -->
-          <div class="flex flex-wrap items-center gap-2">
-            <button type="button" data-orc-act="save" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Salvar</button>
-            <button type="button" data-orc-act="reset" class="px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-red-500/60 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i>Apagar e recomeçar</button>
-            <button type="button" data-orc-act="close" class="px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest ml-auto">Fechar</button>
+          <!-- Resumo + ações (celular: os filhos entram no fluxo pela ordem; desktop: coluna direita) -->
+          <div class="contents lg:flex lg:flex-col lg:gap-4 lg:col-start-2 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto custom-scrollbar lg:p-5 lg:border-l lg:border-neutral-800 lg:bg-neutral-950/30">
+            <!-- KPIs -->
+            <div class="order-1 lg:order-none grid grid-cols-2 md:grid-cols-4 lg:grid-cols-2 gap-3">
+              <div class="border border-neutral-800 p-4 bg-neutral-950/40">
+                <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Receita</div>
+                <div id="orc-k-receita" class="text-base lg:text-lg font-black text-white mt-1 num">—</div>
+              </div>
+              <div class="border border-neutral-800 p-4 bg-neutral-950/40">
+                <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Total custos</div>
+                <div id="orc-k-custos" class="text-base lg:text-lg font-black text-emerald-400 mt-1 num">—</div>
+              </div>
+              <div class="border border-neutral-800 p-4 bg-neutral-950/40">
+                <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Lucro líquido</div>
+                <div id="orc-k-lucro" class="text-base lg:text-lg font-black text-white mt-1 num">—</div>
+              </div>
+              <div class="border border-neutral-800 p-4 bg-neutral-950/40">
+                <div class="text-[9px] font-black uppercase tracking-widest text-neutral-500">Margem</div>
+                <div id="orc-k-margem" class="text-base lg:text-lg font-black mt-1 num">—</div>
+              </div>
+            </div>
+
+            <!-- Preço para a margem-alvo -->
+            <div class="order-3 lg:order-none border border-neutral-800 px-5 py-3 flex flex-wrap items-center gap-3 bg-neutral-950/40">
+              <span class="text-[11px] font-bold text-neutral-400 flex-1 min-w-[180px]">Venda para margem-alvo de <b class="text-white">${num(cur.pct.margem_alvo).toLocaleString('pt-BR')}%</b></span>
+              <span id="orc-venda-alvo" class="font-black num text-sm text-white">—</span>
+              <button type="button" data-orc-act="usar-alvo" class="px-3 py-1.5 bg-neutral-900 border border-neutral-800 hover:border-emerald-500/60 text-emerald-400 text-[10px] font-black uppercase tracking-widest">Usar</button>
+            </div>
+
+            <!-- Ações -->
+            <div class="order-4 lg:order-none flex flex-wrap lg:flex-col lg:items-stretch items-center gap-2">
+              <button type="button" data-orc-act="save" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Salvar</button>
+              <button type="button" data-orc-act="reset" class="px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-red-500/60 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i>Apagar e recomeçar</button>
+              <button type="button" data-orc-act="close" class="px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest ml-auto lg:ml-0">Fechar</button>
+            </div>
+            <p class="order-5 lg:order-none lg:mt-auto text-[10px] text-neutral-600 font-bold leading-relaxed">Visível somente para administradores. Impostos, comissão, royalties e deduções vêm dos percentuais do Financeiro (Configurações) e podem ser ajustados nesta proposta — apague o valor do campo para voltar ao automático.${cur.pct._fallback ? ' <span class="text-yellow-500">Percentuais do Financeiro indisponíveis agora; usando os padrões 18% / 10% / 4,5%.</span>' : ''}</p>
           </div>
-          <p class="text-[10px] text-neutral-600 font-bold leading-relaxed">Visível somente para administradores. Impostos, comissão, royalties e deduções vêm dos percentuais do Financeiro (Configurações) e podem ser ajustados nesta proposta — apague o valor do campo para voltar ao automático.${cur.pct._fallback ? ' <span class="text-yellow-500">Percentuais do Financeiro indisponíveis agora; usando os padrões 18% / 10% / 4,5%.</span>' : ''}</p>
         </div>
       </div>`;
 
