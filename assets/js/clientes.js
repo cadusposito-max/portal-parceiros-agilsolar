@@ -130,8 +130,9 @@ function getAdminClienteFilterOptions(rows) {
       .map((item) => String(item?.vendedor_email || '').trim().toLowerCase())
       .filter(Boolean)
   )]
-    .sort((a, b) => a.localeCompare(b))
-    .map((email) => ({ email, nome: email.split('@')[0] || email }));
+    // Nome cadastrado no perfil (dashboard.js); fallback para o começo do email.
+    .map((email) => ({ email, nome: typeof dashVendedorNome === 'function' ? dashVendedorNome(email) : (email.split('@')[0] || email) }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
   const meses = [...new Set(
     list
@@ -769,6 +770,29 @@ function renderFunil(container) {
   const filtrosAtivos = funilActiveFilterCount();
   const searchValue = state.isAdmin ? (state.adminClientesFilters?.search || '') : (state.searchTerm || '');
 
+  // Admin: filtro por vendedor visível no próprio funil. Grava no MESMO
+  // adminClientesFilters.vendedor_email da aba Clientes (as duas abas ficam em
+  // sincronia). Opções vêm do escopo atual (franquia selecionada).
+  let vendedorSelectHTML = '';
+  if (state.isAdmin) {
+    const vendSel = String(state.adminClientesFilters?.vendedor_email || 'all');
+    const vendOpts = getAdminClienteFilterOptions(sourceRows).vendedores;
+    const vendFiltrado = vendSel !== 'all';
+    // Filtro salvo de outra franquia: mantém a opção para o select não mostrar
+    // "Todos" enquanto o funil segue filtrado (e vazio).
+    if (vendFiltrado && !vendOpts.some((v) => v.email === vendSel)) {
+      vendOpts.unshift({ email: vendSel, nome: typeof dashVendedorNome === 'function' ? dashVendedorNome(vendSel) : vendSel });
+    }
+    vendedorSelectHTML = `
+        <div class="relative sm:w-60">
+          <i data-lucide="user" class="w-3.5 h-3.5 ${vendFiltrado ? 'text-orange-400' : 'text-neutral-600'} absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          <select onchange="setAdminClientesFilter('vendedor_email', this.value)" aria-label="Filtrar por vendedor" class="w-full bg-black border ${vendFiltrado ? 'border-orange-500/60 text-orange-400' : 'border-neutral-800 text-neutral-300'} pl-9 pr-3 py-2.5 text-[10px] font-black uppercase tracking-widest">
+            <option value="all">Todos os vendedores</option>
+            ${vendOpts.map((v) => `<option value="${escapeHTML(v.email)}" ${vendSel === v.email ? 'selected' : ''}>${escapeHTML(v.nome)}</option>`).join('')}
+          </select>
+        </div>`;
+  }
+
   const html = `
     <section class="relative bg-[#080808] bg-grid overflow-hidden p-6 md:p-8 border border-neutral-800 mb-2">
       <div class="absolute inset-0 pointer-events-none">
@@ -791,6 +815,7 @@ function renderFunil(container) {
           <i data-lucide="search" class="w-3.5 h-3.5 text-neutral-600 absolute left-3 top-1/2 -translate-y-1/2"></i>
           <input type="text" value="${escapeHTML(searchValue)}" oninput="handleFunilSearchInput(this.value)" placeholder="Buscar por nome, telefone ou cidade" class="w-full bg-black border border-neutral-800 text-white pl-9 pr-3 py-2.5 text-[11px] font-bold tracking-wide">
         </div>
+        ${vendedorSelectHTML}
         ${filtrosAtivos > 0 ? `<button onclick="funilLimparFiltros()" class="btn btn-ghost btn-sm shrink-0"><i data-lucide="filter-x"></i>${filtrosAtivos} filtro${filtrosAtivos > 1 ? 's' : ''} da aba Clientes ativo${filtrosAtivos > 1 ? 's' : ''} — limpar</button>` : ''}
       </div>
     </section>
@@ -802,15 +827,14 @@ function renderFunil(container) {
   lucide.createIcons();
 }
 
-// Filtros herdados da aba Clientes que afetam o funil (a busca não conta:
-// ela tem campo visível aqui).
+// Filtros herdados da aba Clientes que afetam o funil (busca e vendedor não
+// contam: os dois têm campo visível aqui).
 function funilActiveFilterCount() {
   if (state.isAdmin) {
     ensureAdminClientesFiltersState();
     const f = state.adminClientesFilters;
     let n = 0;
     if (f.status && f.status !== 'TODOS') n++;
-    if (f.vendedor_email && f.vendedor_email !== 'all') n++;
     if (state.adminViewAll && f.franquia_id && f.franquia_id !== 'all') n++;
     if (f.cidade && f.cidade !== 'all') n++;
     if (f.mes && f.mes !== 'all') n++;
@@ -835,7 +859,13 @@ function handleFunilSearchInput(value) {
 
 function funilLimparFiltros() {
   if (state.isAdmin) {
-    resetAdminClientesFilters();
+    // Limpa só os filtros herdados (ocultos aqui); busca e vendedor ficam,
+    // porque têm campo visível no próprio funil.
+    ensureAdminClientesFiltersState();
+    const { search, vendedor_email } = state.adminClientesFilters;
+    state.adminClientesFilters = { ...getDefaultAdminClientesFilters(), search, vendedor_email };
+    persistAdminPreferences();
+    renderContent();
     return;
   }
   state.clienteFilter = 'TODOS';
