@@ -566,84 +566,112 @@
     text-align: right;
   }
 
-  /* ----- Pagamento ----- */
+  /* ----- Pagamento -----
+     Cartão (laranja, com a tabela 1×–18×) + Financiamento (cabeçalho preto,
+     linha do tempo). Os dois cards esticam para a mesma altura. */
   .pay-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 5mm;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 4mm;
+    align-items: stretch;
   }
   .pay-card {
-    border: 1px solid var(--line);
+    border: 1px solid var(--line-strong);
     border-radius: var(--radius);
-    padding: 6mm;
+    overflow: hidden;
     background: var(--white);
     display: flex;
     flex-direction: column;
-    gap: 3mm;
   }
-  .pay-card .head {
+  .pay-card.cartao { border-color: #fed7aa; }
+  .pay-card .pay-head { padding: 4.5mm 5mm; color: var(--white); }
+  .pay-card.cartao .pay-head { background: var(--orange); }
+  .pay-card.financ .pay-head { background: var(--ink); }
+  .pay-card .pay-lbl {
     display: flex;
     align-items: center;
-    gap: 3mm;
-  }
-  .pay-card .ico {
-    width: 10mm; height: 10mm;
-    border-radius: 8px;
-    background: var(--blue-soft);
-    color: var(--blue);
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-  }
-  .pay-card.orange .ico {
-    background: var(--orange-soft);
-    color: var(--orange);
-  }
-  .pay-card .ico svg { width: 5.5mm; height: 5.5mm; }
-  .pay-card .head .name {
-    font-size: 11pt;
+    gap: 2mm;
+    font-size: 7.5pt;
     font-weight: 700;
-    color: var(--ink);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
   }
-  .pay-card .feature {
-    font-size: 19pt;
-    font-weight: 800;
-    color: var(--ink);
+  .pay-card .pay-lbl svg { width: 4mm; height: 4mm; }
+  .pay-card.cartao .pay-lbl { color: #ffedd5; }
+  .pay-card.financ .pay-lbl { color: #fdba74; }
+  .pay-card .pay-feature {
+    display: flex;
+    align-items: baseline;
+    gap: 2.5mm;
+    margin-top: 2mm;
     line-height: 1;
-    letter-spacing: -0.02em;
-    margin-top: 1mm;
   }
-  .pay-card .feature small {
-    font-size: 10pt;
-    color: var(--muted);
-    font-weight: 600;
-    letter-spacing: 0;
-    margin-left: 2mm;
+  .pay-card .pay-feature .big { font-size: 24pt; font-weight: 900; letter-spacing: -0.03em; }
+  .pay-card .pay-feature .rest { font-size: 13pt; font-weight: 800; }
+  .pay-card .pay-sub { font-size: 8pt; margin-top: 1.5mm; }
+  .pay-card.cartao .pay-sub { color: #ffedd5; }
+  .pay-card.financ .pay-sub { color: #94a3b8; }
+
+  /* Tabela de parcelas: 3 colunas lidas de cima para baixo (1–6, 7–12, 13–18). */
+  .parc-tab {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-template-rows: repeat(6, auto);
+    column-gap: 3mm;
+    padding: 3mm 4mm 3.5mm;
   }
-  .pay-card ul {
-    list-style: none;
-    margin-top: 1mm;
+  .parc-tab div {
+    display: flex;
+    justify-content: space-between;
+    gap: 2mm;
+    font-size: 8.5pt;
+    padding: 1.3mm 1.5mm;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .parc-tab div span { color: var(--muted); }
+  .parc-tab div b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .parc-tab div.hl { background: var(--orange-soft); border-radius: 4px; border-bottom-color: transparent; }
+  .parc-tab div.hl span, .parc-tab div.hl b { color: #c2410c; }
+
+  /* Linha do tempo do financiamento */
+  .financ-body {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2mm;
+    justify-content: space-between;
+    gap: 5mm;
+    padding: 5.5mm 4mm 4mm;
   }
-  .pay-card li {
-    font-size: 9.5pt;
-    color: var(--ink-2);
-    line-height: 1.45;
+  .financ-tl {
     position: relative;
-    padding-left: 7mm;
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+    font-size: 8pt;
+    color: var(--muted);
   }
-  .pay-card li::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 1.2mm;
-    width: 4mm; height: 4mm;
+  .financ-tl .bar { position: absolute; top: 2mm; left: 16%; right: 16%; height: 2px; background: var(--ink); }
+  .financ-tl .st { position: relative; width: 33.33%; }
+  .financ-tl .dot {
+    width: 4.2mm; height: 4.2mm;
     border-radius: 50%;
-    background: var(--green-soft);
-    border: 2px solid var(--green);
+    margin: 0 auto 2mm;
+    border: 2px solid var(--ink);
+    background: var(--white);
   }
+  .financ-tl .st.now .dot { background: var(--orange); border-color: var(--orange); }
+  .financ-tl b { display: block; font-size: 9.5pt; font-weight: 800; color: var(--ink); }
+  .financ-ck {
+    display: flex;
+    align-items: center;
+    gap: 2.5mm;
+    font-size: 9pt;
+    color: var(--ink-2);
+    padding-top: 3.5mm;
+    border-top: 1px solid var(--line);
+  }
+  .financ-ck svg { width: 4.5mm; height: 4.5mm; color: var(--orange); flex-shrink: 0; }
 
   .note-card {
     margin-top: 5mm;
@@ -1337,34 +1365,39 @@
   </div>
 
   <div class="pay-grid">
-    <div class="pay-card">
-      <div class="head">
-        <div class="ico">
+    <div class="pay-card cartao">
+      <div class="pay-head">
+        <div class="pay-lbl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+          Cartão de crédito
         </div>
-        <div class="name">Cartão de crédito</div>
+        <div class="pay-feature"><span class="big">18×</span><span class="rest">de {{ cartao_parcela_18 }}</span></div>
+        <div class="pay-sub">na máquina · principais bandeiras · aprovação na hora</div>
       </div>
-      <div class="feature">Até 18×<small>no cartão</small></div>
-      <ul>
-        <li>Parcelamento direto na máquina, sem burocracia.</li>
-        <li>Aceitamos cartões das principais bandeiras.</li>
-        <li>Aprovação imediata, sistema agendado em sequência.</li>
-      </ul>
+      <div class="parc-tab">{{ cartao_tabela_html }}</div>
     </div>
 
-    <div class="pay-card orange">
-      <div class="head">
-        <div class="ico">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18l-2 13H5L3 7z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg>
+    <div class="pay-card financ">
+      <div class="pay-head">
+        <div class="pay-lbl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
+          Financiamento
         </div>
-        <div class="name">Financiamento (boleto)</div>
+        <div class="pay-feature"><span class="big">100%</span><span class="rest">financiado</span></div>
+        <div class="pay-sub">pelos parceiros financeiros homologados</div>
       </div>
-      <div class="feature">100% financiado</div>
-      <ul>
-        <li>Em até <strong>84 meses</strong> pra pagar.</li>
-        <li>Carência de <strong>120 dias</strong> pra começar a pagar.</li>
-        <li>Análise via parceiros financeiros homologados.</li>
-      </ul>
+      <div class="financ-body">
+        <div class="financ-tl">
+          <div class="bar"></div>
+          <div class="st now"><div class="dot"></div><b>Hoje</b>instalação</div>
+          <div class="st"><div class="dot"></div><b>120 dias</b>1ª parcela</div>
+          <div class="st"><div class="dot"></div><b>84 meses</b>para pagar</div>
+        </div>
+        <div class="financ-ck">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+          Parcela pensada para caber na economia da sua conta de luz.
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1384,7 +1417,7 @@
   {{/ proposta_modo_personalizada }}
 
   <p class="fine-print">
-    * Nem todos os cartões de crédito autorizam parcelamentos acima de 12×. Sujeito a análise da operadora
+    * Valores no cartão já incluem a taxa da operadora. Nem todos os cartões de crédito autorizam parcelamentos acima de 12×. Sujeito a análise da operadora
     e aprovação de crédito junto aos parceiros financeiros.
   </p>
 
@@ -1615,7 +1648,7 @@
   var dadosProposta = null;
 
   // Valores que já são HTML confiável (gerado aqui) — o resto é escapado.
-  var CAMPOS_HTML = { grafico_geracao_svg: true };
+  var CAMPOS_HTML = { grafico_geracao_svg: true, cartao_tabela_html: true };
 
   function isValidUUID(v) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || '').trim());
@@ -1652,6 +1685,23 @@
     var msg = 'Olá, ' + firstName(vendedor || 'Consultor') + '! Vi a proposta'
       + (numero ? ' nº ' + numero : '') + ' da Ágil Solar e quero conversar.';
     return 'https://wa.me/55' + d + '?text=' + encodeURIComponent(msg);
+  }
+  // Parcelas no cartão: MESMAS taxas e fórmula da simulação da proposta web
+  // (assets/js/proposta.js, TAXAS_CARTAO / gerarOpcoesParcelamento). Ao mudar
+  // as taxas lá, mude aqui também. Repasse: total = valor / (1 − taxa%).
+  var TAXAS_CARTAO = {
+    1: 2.99,  2: 4.09,  3: 4.78,  4: 5.47,  5: 6.14,  6: 6.81,
+    7: 7.67,  8: 8.33,  9: 8.98, 10: 9.63, 11: 10.26, 12: 10.90,
+    13: 12.32,14: 12.94,15: 13.56,16: 14.17,17: 14.77, 18: 15.37
+  };
+  function tabelaCartao(valor) {
+    var html = '', parcela18 = '';
+    for (var i = 1; i <= 18; i++) {
+      var parcela = (valor / (1 - (TAXAS_CARTAO[i] || 0) / 100)) / i;
+      if (i === 18) parcela18 = fmt(parcela);
+      html += '<div' + (i % 6 === 0 ? ' class="hl"' : '') + '><span>' + i + '×</span><b>' + fmt(parcela) + '</b></div>';
+    }
+    return { html: html, parcela18: parcela18 };
   }
   function slug(s) {
     return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '');
@@ -1722,6 +1772,8 @@
     // WhatsApp do consultor (QR + áreas clicáveis): só com DDD + número válido.
     var waUrl = whatsappUrl(p.vendedor_telefone, p.vendedor_nome, p.numero);
 
+    var cartao = tabelaCartao(precoFinal);
+
     var precoStr     = fmt(precoFinal);
     var precoNum     = precoStr.replace(/^R\$\s*/, '').trim();
     var listPriceStr = fmt(p.kit_list_price || precoFinal);
@@ -1753,6 +1805,9 @@
       kit_price_num:  precoNum,
       kit_list_price: listPriceStr,
       tem_desconto:   temDesconto,
+
+      cartao_parcela_18:  cartao.parcela18,
+      cartao_tabela_html: cartao.html,
 
       tem_geracao:      temGeracao,
       geracao_estimada: fmtInt(geracao),
