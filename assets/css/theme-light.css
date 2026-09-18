@@ -734,3 +734,25 @@ body.theme-light .crm-chart-axis { stroke: #cbd5e1; }
 /* Primário segue a troca laranja → azul do tema (igual ao botão de login) */
 body.theme-light .btn-primary { background: linear-gradient(135deg, #1d4ed8, #3b82f6); color: #ffffff; }
 body.theme-light .btn-primary:hover { box-shadow: 0 4px 20px rgba(37,99,235,0.28); }
+
+/* Pílula "selecionada" dos filtros (mês que não é o atual, GERAL, ordenação
+   de Clientes, período de Vendas): bg-neutral-700 não era convertido e o
+   text-white virava escuro → texto sumia. Casamos a combinação exata para
+   não pegar os hover:bg-neutral-700 de outros botões. */
+body.theme-light [class*="bg-neutral-700 text-white border-neutral-600"] {
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
+  color: #ffffff !important;
+}
+/* Badge "PROJETO ESPECIAL" dos kits — mesmo problema, texto neutral-300 */
+body.theme-light [class*="bg-neutral-700 text-neutral-300 border-neutral-600"] {
+  background-color: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+/* Complementa a 13b: fundos sólidos que ainda devolviam texto escuro */
+/* (espaço/início antes de bg- evita casar hover:bg-sky-600 sobre bg-neutral-800) */
+body.theme-light [class^="bg-sky-"][class*="text-white"],
+body.theme-light [class*=" bg-sky-"][class*="text-white"] {
+  color: #ffffff !important;
+}
