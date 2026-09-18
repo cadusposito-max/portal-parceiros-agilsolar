@@ -780,129 +780,110 @@
   .warranty .lbl strong { color: var(--ink); font-weight: 700; display: block; font-size: 10.5pt; margin-bottom: 1mm; }
 
   /* ----- Consultor + Impacto ----- */
-  .closing-row {
+  /* ----- Consultor: cartão com QR do WhatsApp -----
+     Duas colunas: dados à esquerda, QR à direita. Sem telefone válido a
+     coluna do QR não é renderizada e o cartão ocupa a largura toda. */
+  .consultor-card {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    gap: 5mm;
-  }
-  .consultor {
-    padding: 5mm 6mm;
-    border: 1.5px solid var(--ink);
+    grid-template-columns: minmax(0, 1fr);
+    border: 1px solid var(--line-strong);
     border-radius: var(--radius);
+    overflow: hidden;
     background: var(--white);
+  }
+  .consultor-card.has-qr { grid-template-columns: minmax(0, 1fr) 46mm; }
+  .consultor-card .cc-info {
+    padding: 6mm 7mm;
     display: flex;
     flex-direction: column;
-    gap: 3mm;
+    justify-content: center;
+    gap: 3.5mm;
   }
-  .consultor .lbl {
+  .consultor-card .lbl {
     font-size: 8pt;
     font-weight: 800;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--orange);
   }
-  .consultor .top {
+  .consultor-card .top {
     display: flex;
     gap: 4mm;
     align-items: center;
   }
-  .consultor .avatar {
-    width: 14mm; height: 14mm;
+  .consultor-card .avatar {
+    width: 13mm; height: 13mm;
     border-radius: 50%;
-    background: var(--blue);
-    color: var(--white);
+    background: var(--orange-soft);
+    border: 1.5px solid #fdba74;
+    color: #c2410c;
     display: grid;
     place-items: center;
-    font-size: 16pt;
+    font-size: 15pt;
     font-weight: 800;
     flex-shrink: 0;
   }
-  .consultor .name {
+  .consultor-card .name {
     font-size: 14pt;
     font-weight: 800;
     color: var(--ink);
     line-height: 1.1;
+    letter-spacing: -0.01em;
   }
-  .consultor .role {
+  .consultor-card .role {
     font-size: 9pt;
     color: var(--muted);
     margin-top: 1mm;
-    letter-spacing: 0.04em;
   }
-  .consultor .contacts {
-    display: flex;
-    flex-direction: column;
-    gap: 2mm;
-    margin-top: 1mm;
+  .consultor-card .cc-fone {
+    display: inline-flex;
+    align-items: center;
+    gap: 2.5mm;
+    font-size: 12pt;
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+    align-self: flex-start;
+  }
+  .consultor-card .cc-fone svg { width: 5mm; height: 5mm; color: var(--green); flex-shrink: 0; }
+  .consultor-card .cc-meta {
+    font-size: 8.5pt;
+    color: var(--muted);
     padding-top: 3mm;
     border-top: 1px solid var(--line);
   }
-  .consultor .contacts .row-item {
-    display: flex;
-    align-items: center;
-    gap: 3mm;
-    font-size: 10pt;
-    color: var(--ink);
-  }
-  .consultor .contacts svg {
-    width: 4.5mm; height: 4.5mm;
-    color: var(--muted);
-    flex-shrink: 0;
-  }
-
-  .impact {
-    padding: 5mm 6mm;
-    background: var(--green-soft);
-    border: 1px solid #bbf7d0;
-    border-radius: var(--radius);
+  .consultor-card .cc-meta strong { color: var(--green); font-weight: 700; }
+  .consultor-card .cc-qr {
+    background: var(--bg-soft);
+    border-left: 1px solid var(--line);
     display: flex;
     flex-direction: column;
-    gap: 3mm;
-  }
-  .impact .lbl {
-    font-size: 8pt;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--green);
-  }
-  .impact .tree-row {
-    display: flex;
     align-items: center;
-    gap: 4mm;
-    margin-top: 1mm;
+    justify-content: center;
+    gap: 3mm;
+    padding: 5mm 4mm;
+    text-decoration: none;
+    text-align: center;
   }
-  .impact .tree-ico {
-    width: 14mm; height: 14mm;
-    background: var(--green);
-    color: var(--white);
-    border-radius: 50%;
+  .consultor-card .qr-box {
+    width: 32mm; height: 32mm;
+    padding: 2mm;
+    background: var(--white);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
     display: grid;
     place-items: center;
-    flex-shrink: 0;
   }
-  .impact .tree-ico svg { width: 8mm; height: 8mm; }
-  .impact .v {
-    font-size: 22pt;
-    font-weight: 900;
-    color: var(--green);
-    line-height: 1;
-    letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
-  }
-  .impact .v small {
+  .consultor-card .qr-box img {
     display: block;
-    font-size: 9pt;
-    font-weight: 700;
-    color: #047857;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-top: 1mm;
+    width: 100%; height: 100%;
+    image-rendering: pixelated;
   }
-  .impact p {
-    font-size: 9pt;
-    color: #166534;
-    line-height: 1.5;
+  .consultor-card .qr-txt {
+    font-size: 8pt;
+    line-height: 1.35;
+    color: var(--ink-2);
+    max-width: 34mm;
   }
 
   /* ============================================================
@@ -1264,7 +1245,7 @@
   <div class="section-head mt-8">
     <div class="num">02</div>
     <div class="title-wrap">
-      <div class="eyebrow blue">Sua projeção</div>
+      <div class="eyebrow">Sua projeção</div>
       <h2 class="section">Economia real ao longo da vida útil</h2>
     </div>
   </div>
@@ -1308,7 +1289,7 @@
 
   {{^ tem_geracao }}
   <div class="section-head">
-    <div class="num">01</div>
+    <div class="num">03</div>
     <div class="title-wrap">
       <div class="eyebrow">Seu projeto</div>
       <h2 class="section">Proposta de equipamentos</h2>
@@ -1348,7 +1329,7 @@
 
   <!-- Seção: Pagamento -->
   <div class="section-head">
-    <div class="num">03</div>
+    <div class="num">04</div>
     <div class="title-wrap">
       <div class="eyebrow">Facilidades</div>
       <h2 class="section">Condições de pagamento</h2>
@@ -1409,7 +1390,7 @@
 
   <!-- Chave na mão -->
   <div class="section-head mt-10">
-    <div class="num">04</div>
+    <div class="num">05</div>
     <div class="title-wrap">
       <div class="eyebrow">Projeto chave na mão</div>
       <h2 class="section">O que está incluso no seu sistema</h2>
@@ -1501,9 +1482,9 @@
 
   <!-- Quem somos -->
   <div class="section-head">
-    <div class="num">05</div>
+    <div class="num">06</div>
     <div class="title-wrap">
-      <div class="eyebrow blue">Quem somos</div>
+      <div class="eyebrow">Quem somos</div>
       <h2 class="section">Ágil Solar, transformando o sol em economia</h2>
     </div>
   </div>
@@ -1559,16 +1540,17 @@
 
   <!-- Próximos passos -->
   <div class="section-head mt-10">
-    <div class="num">06</div>
+    <div class="num">07</div>
     <div class="title-wrap">
       <div class="eyebrow">Vamos começar</div>
       <h2 class="section">Fale com o seu consultor</h2>
     </div>
   </div>
 
-  <!-- Linha de fechamento: Consultor + Impacto -->
-  <div class="closing-row">
-    <div class="consultor">
+  <!-- Consultor + QR do WhatsApp. Os <a data-pdf-link> viram áreas clicáveis
+       no PDF gerado (a imagem do html2canvas não leva links). -->
+  <div class="consultor-card{{# tem_whatsapp }} has-qr{{/ tem_whatsapp }}">
+    <div class="cc-info">
       <div class="lbl">Seu consultor</div>
       <div class="top">
         <div class="avatar">{{ vendedor_inicial }}</div>
@@ -1577,34 +1559,32 @@
           <div class="role">Especialista Ágil Solar</div>
         </div>
       </div>
-      {{# vendedor_telefone }}
-      <div class="contacts">
-        <div class="row-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92V21a1 1 0 0 1-1.1 1A19 19 0 0 1 2 4.1 1 1 0 0 1 3 3h4.09a1 1 0 0 1 1 .75l1 4a1 1 0 0 1-.29 1L7 10.5a16 16 0 0 0 6.5 6.5l1.75-1.75a1 1 0 0 1 1-.29l4 1a1 1 0 0 1 .75 1z"/></svg>
-          <span>{{ vendedor_telefone }}</span>
-        </div>
+      {{# tem_whatsapp }}
+      <a class="cc-fone" href="{{ vendedor_whatsapp_url }}" target="_blank" rel="noopener" data-pdf-link>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+        <span>{{ vendedor_telefone }}</span>
+      </a>
+      {{/ tem_whatsapp }}
+      {{^ tem_whatsapp }}{{# vendedor_telefone }}
+      <div class="cc-fone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92V21a1 1 0 0 1-1.1 1A19 19 0 0 1 2 4.1 1 1 0 0 1 3 3h4.09a1 1 0 0 1 1 .75l1 4a1 1 0 0 1-.29 1L7 10.5a16 16 0 0 0 6.5 6.5l1.75-1.75a1 1 0 0 1 1-.29l4 1a1 1 0 0 1 .75 1z"/></svg>
+        <span>{{ vendedor_telefone }}</span>
       </div>
-      {{/ vendedor_telefone }}
-    </div>
-
-    {{# tem_geracao }}
-    <div class="impact">
-      <div class="lbl">Impacto ambiental</div>
-      <div class="tree-row">
-        <div class="tree-ico">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a6 6 0 0 0-4 10.5A5 5 0 0 0 12 22a5 5 0 0 0 4-9.5A6 6 0 0 0 12 2z"/><path d="M12 22V12"/></svg>
-        </div>
-        <div>
-          <div class="v">+{{ arvores_salvas }}<small>árvores salvas</small></div>
-        </div>
+      {{/ vendedor_telefone }}{{/ tem_whatsapp }}
+      <div class="cc-meta">
+        Proposta válida até {{ proposta_validade }}{{# tem_geracao }} · <strong>+{{ arvores_salvas }} árvores salvas</strong> com energia limpa{{/ tem_geracao }}
       </div>
-      <p>Ao gerar sua própria energia limpa, você reduz a emissão de CO₂ e ajuda a preservar o planeta para as próximas gerações.</p>
     </div>
-    {{/ tem_geracao }}
+    {{# tem_whatsapp }}
+    <a class="cc-qr" href="{{ vendedor_whatsapp_url }}" target="_blank" rel="noopener" data-pdf-link>
+      <div class="qr-box" id="consultor-qr"></div>
+      <div class="qr-txt">Aponte a câmera e fale comigo no WhatsApp</div>
+    </a>
+    {{/ tem_whatsapp }}
   </div>
 
   <p class="fine-print mt-6">
-    Proposta válida até {{ proposta_validade }}. Após essa data, confirme valores e condições com o seu consultor.
+    Após a validade, confirme valores e condições com o seu consultor.
   </p>
 
   <footer class="doc-footer">
@@ -1664,6 +1644,14 @@
     if (d.length === 11) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
     if (d.length === 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
     return String(s || '');
+  }
+  function whatsappUrl(tel, vendedor, numero) {
+    var d = String(tel || '').replace(/\D/g, '');
+    if (d.length > 11 && d.indexOf('55') === 0) d = d.slice(2);
+    if (d.length !== 10 && d.length !== 11) return '';
+    var msg = 'Olá, ' + firstName(vendedor || 'Consultor') + '! Vi a proposta'
+      + (numero ? ' nº ' + numero : '') + ' da Ágil Solar e quero conversar.';
+    return 'https://wa.me/55' + d + '?text=' + encodeURIComponent(msg);
   }
   function slug(s) {
     return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '');
@@ -1731,6 +1719,9 @@
              ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     };
 
+    // WhatsApp do consultor (QR + áreas clicáveis): só com DDD + número válido.
+    var waUrl = whatsappUrl(p.vendedor_telefone, p.vendedor_nome, p.numero);
+
     var precoStr     = fmt(precoFinal);
     var precoNum     = precoStr.replace(/^R\$\s*/, '').trim();
     var listPriceStr = fmt(p.kit_list_price || precoFinal);
@@ -1748,6 +1739,8 @@
       vendedor_nome:      p.vendedor_nome || 'Consultor Ágil Solar',
       vendedor_inicial:   (p.vendedor_nome || 'C').trim().charAt(0).toUpperCase(),
       vendedor_telefone:  fmtTelefone(p.vendedor_telefone),
+      tem_whatsapp:          !!waUrl,
+      vendedor_whatsapp_url: waUrl,
 
       proposta_modo_kit:           !isCustom,
       proposta_modo_personalizada: isPersonalizada,
@@ -1832,8 +1825,48 @@
     // Re-anexa aqui e religa o handler.
     injetarActionBar();
     injetarOverlay();
+    qrPronto = gerarQrWhatsapp(data.vendedor_whatsapp_url);
     ajustarZoom();
     window.addEventListener('resize', ajustarZoom);
+  }
+
+  // ---------- QR do WhatsApp do consultor ----------
+  // Vira <img> data: (o CSP já libera data: em img-src e o html2canvas captura
+  // imagem sem problema). Se a lib não carregar, some a coluna do QR em vez de
+  // ficar um quadrado vazio — o telefone continua no cartão.
+  var qrPronto = Promise.resolve();
+  async function gerarQrWhatsapp(url) {
+    var box = document.getElementById('consultor-qr');
+    if (!url || !box) return;
+    try {
+      await carregarScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js', function () { return typeof window.qrcode === 'function'; });
+      var qr = window.qrcode(0, 'M');
+      qr.addData(url);
+      qr.make();
+      var img = new Image();
+      img.alt = 'QR code para falar com o consultor no WhatsApp';
+      img.src = qr.createDataURL(8, 0);
+      await new Promise(function (ok) { img.onload = ok; img.onerror = ok; });
+      box.appendChild(img);
+    } catch (err) {
+      console.warn('[proposta-pdf] QR indisponível', err);
+      var col = box.closest('.cc-qr');
+      if (col) col.remove();
+      var card = document.querySelector('.consultor-card');
+      if (card) card.classList.remove('has-qr');
+    }
+  }
+
+  // Áreas clicáveis no PDF: a página vira imagem, então cada <a data-pdf-link>
+  // ganha um link do jsPDF na mesma posição (mm = px × mmPorPx da folha).
+  function adicionarLinksPdf(pdf, pagina, mmPorPx, offsetXmm) {
+    var base = pagina.getBoundingClientRect();
+    pagina.querySelectorAll('a[data-pdf-link]').forEach(function (a) {
+      var r = a.getBoundingClientRect();
+      if (!r.width || !r.height || !a.href) return;
+      pdf.link(offsetXmm + (r.left - base.left) * mmPorPx, (r.top - base.top) * mmPorPx,
+        r.width * mmPorPx, r.height * mmPorPx, { url: a.href });
+    });
   }
 
   // ---------- Celular: encolhe as folhas A4 para caber na largura ----------
@@ -1919,6 +1952,7 @@
         carregarScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', function () { return !!(window.jspdf && window.jspdf.jsPDF); })
       ]);
       try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+      await qrPronto;
 
       // Captura no tamanho real (sem o zoom do celular).
       document.body.classList.add('is-capturing');
@@ -1936,10 +1970,14 @@
         if (i > 0) pdf.addPage('a4', 'portrait');
         // A folha tem min-height 297mm: se crescer, encaixa pela altura.
         var alturaMm = 210 * canvas.height / canvas.width;
-        if (alturaMm <= 297.5) pdf.addImage(img, 'JPEG', 0, 0, 210, alturaMm);
-        else {
+        var larguraPx = paginas[i].getBoundingClientRect().width;
+        if (alturaMm <= 297.5) {
+          pdf.addImage(img, 'JPEG', 0, 0, 210, alturaMm);
+          adicionarLinksPdf(pdf, paginas[i], 210 / larguraPx, 0);
+        } else {
           var largura = 297 * canvas.width / canvas.height;
           pdf.addImage(img, 'JPEG', (210 - largura) / 2, 0, largura, 297);
+          adicionarLinksPdf(pdf, paginas[i], largura / larguraPx, (210 - largura) / 2);
         }
       }
       document.body.classList.remove('is-capturing');
