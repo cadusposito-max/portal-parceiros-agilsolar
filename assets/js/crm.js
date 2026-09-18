@@ -624,6 +624,8 @@ function renderCrm360TabContent(client, propostas, vendas) {
             ${state.isAdmin ? `<button onclick="openOrcamentoDre('${p.id}')" title="Precificação interna (só admin)" class="btn btn-secondary btn-icon"><i data-lucide="calculator"></i></button>` : ''}
             ${waResend ? `<a href="${waResend}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${p.id}')" title="Enviar no WhatsApp do cliente" class="btn btn-primary btn-icon"><i data-lucide="message-circle"></i></a>` : ''}
             <button onclick="copiarLinkExistente('${p.id}', this)" title="Copiar link" class="btn btn-secondary btn-icon"><i data-lucide="copy"></i></button>
+            <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
+            <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-icon"><i data-lucide="file-down"></i></a>
             <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Abrir proposta" class="btn btn-secondary btn-icon"><i data-lucide="external-link"></i></a>
           </div>
         </div>`;

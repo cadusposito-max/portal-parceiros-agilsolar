@@ -1182,6 +1182,7 @@ function propostaCardHTML(p) {
         </div>
         <div class="hidden sm:block text-center"><div class="text-white text-sm font-black stat-num">${escapeHTML(String(kwp || '-'))}</div><div class="text-[8px] text-neutral-600 font-bold uppercase tracking-widest">kWp</div></div>
         <div class="text-right"><div class="text-green-400 text-sm font-black stat-num">${formatCurrency(propostaPreco(p))}</div><div class="text-[8px] text-neutral-600 font-bold uppercase tracking-widest">${formatDate(p.created_at)}</div></div>
+        <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-sm btn-icon"><i data-lucide="file-down"></i></a>
         <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><i data-lucide="external-link"></i>Abrir</a>
       </div>`;
 }
