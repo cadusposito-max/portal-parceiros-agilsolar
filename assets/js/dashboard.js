@@ -268,7 +268,7 @@ function renderDashboardAdminSection(metrics) {
 
   return `
     <div class="grid grid-cols-1 ${mostraTopFranquias ? 'xl:grid-cols-3' : 'xl:grid-cols-2'} gap-3 stagger-4">
-      <section class="${mostraTopFranquias ? 'xl:col-span-3' : 'xl:col-span-2'} grid grid-cols-2 lg:grid-cols-5 gap-2 border border-neutral-800/60 p-4" style="background: linear-gradient(135deg, #0d0d0d 0%, #080808 100%);">
+      <section class="${mostraTopFranquias ? 'xl:col-span-3' : 'xl:col-span-2'} grid grid-cols-2 lg:grid-cols-5 gap-2 dash-kpi-strip border border-neutral-800/60 p-4" style="background: linear-gradient(135deg, #0d0d0d 0%, #080808 100%);">
         <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Receita no recorte</p><p class="text-lg font-black text-green-400 tabular-nums">${formatCurrency(metrics.receita)}</p>${kpiSub(metrics.receita, metrics.receitaPrev, 'sem base de comparação')}</article>
         <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Propostas</p><p class="text-lg font-black text-orange-400 tabular-nums">${metrics.propostas}</p>${kpiSub(metrics.propostas, metrics.propostasPrev, 'sem base de comparação')}</article>
         <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Propostas → Vendas</p><p class="text-lg font-black text-purple-400 tabular-nums">${metrics.propostaToVenda === null ? 'n/d' : metrics.propostaToVenda + '%'}</p><p class="text-[9px] text-neutral-600 font-bold">${metrics.vendas} venda${metrics.vendas === 1 ? '' : 's'} / ${metrics.propostas} proposta${metrics.propostas === 1 ? '' : 's'}</p></article>
@@ -276,15 +276,15 @@ function renderDashboardAdminSection(metrics) {
         <article class="border border-neutral-800 p-3"><p class="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Clientes novos</p><p class="text-lg font-black text-white tabular-nums">${metrics.clientes}</p>${kpiSub(metrics.clientes, metrics.clientesPrev, 'sem base de comparação')}</article>
       </section>
 
-      <section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;">
+      <section class="dash-panel border border-neutral-800/60 p-4" style="background:#0b0b0b;">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-[10px] font-black text-white uppercase tracking-widest">Vendedores no recorte</h3>
           <span class="text-[8px] text-neutral-700 font-bold uppercase tracking-widest hidden md:inline">clique para filtrar</span>
         </div>
         <div class="flex flex-col gap-2">${topSellersHTML}</div>
       </section>
-      ${mostraTopFranquias ? `<section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;"><h3 class="text-[10px] font-black text-white uppercase tracking-widest mb-3">Franquias no recorte</h3><div class="flex flex-col gap-2">${topFranchisesHTML}</div></section>` : ''}
-      <section class="border border-neutral-800/60 p-4" style="background:#0b0b0b;">
+      ${mostraTopFranquias ? `<section class="dash-panel border border-neutral-800/60 p-4" style="background:#0b0b0b;"><h3 class="text-[10px] font-black text-white uppercase tracking-widest mb-3">Franquias no recorte</h3><div class="flex flex-col gap-2">${topFranchisesHTML}</div></section>` : ''}
+      <section class="dash-panel border border-neutral-800/60 p-4" style="background:#0b0b0b;">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-[10px] font-black text-white uppercase tracking-widest">Clientes parados</h3>
           <span class="text-[8px] text-neutral-700 font-bold uppercase tracking-widest">${agingScopeLabel}</span>
@@ -377,8 +377,12 @@ function renderDashboard(container) {
   const fPct   = k => Math.round((funil[k] / maxF) * 100);
   const fWidth = k => Math.max(fPct(k), 2); // mínimo visual de 2%
 
-  // Taxa de avanço entre etapas
-  const toNum = (a, b) => funil[a] > 0 ? Math.round((funil[b] / funil[a]) * 100) : 0;
+  // Taxa de avanço entre etapas. O funil é snapshot do status ATUAL, então
+  // quem está em NEGOCIAÇÃO já passou por PROPOSTA: compara quem chegou em
+  // cada etapa (ela + as seguintes), senão dá coisas como 283÷101 = 280%.
+  const _etapasFunil = ['NOVO', 'PROPOSTA ENVIADA', 'EM NEGOCIAÇÃO', 'FECHADO'];
+  const chegou = (k) => _etapasFunil.slice(_etapasFunil.indexOf(k)).reduce((s, e) => s + (funil[e] || 0), 0);
+  const toNum = (a, b) => chegou(a) > 0 ? Math.round((chegou(b) / chegou(a)) * 100) : 0;
   const convProp = toNum('NOVO', 'PROPOSTA ENVIADA');
   const convNeg = toNum('PROPOSTA ENVIADA', 'EM NEGOCIAÇÃO');
   const convFech = toNum('EM NEGOCIAÇÃO', 'FECHADO');
@@ -557,7 +561,7 @@ function renderDashboard(container) {
          BARRA DE FILTROS UNIFICADA
          Todo número abaixo dela obedece: período × franquia × vendedor.
          ════════════════════════════════════════ -->
-    <div class="stagger-2 border border-neutral-800/60 p-3 md:px-4 flex flex-col gap-2.5" style="background: rgba(8,8,8,0.85); border-left: 2px solid #f97316;">
+    <div class="dash-filterbar stagger-2 border border-neutral-800/60 p-3 md:px-4 flex flex-col gap-2.5" style="background: rgba(8,8,8,0.85); border-left: 2px solid #f97316;">
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-[8px] text-neutral-500 font-black uppercase tracking-widest flex items-center gap-1.5 mr-1">
           <i data-lucide="sliders-horizontal" class="w-3 h-3 text-orange-400"></i> Filtros

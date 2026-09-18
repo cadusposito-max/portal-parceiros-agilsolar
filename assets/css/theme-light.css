@@ -102,8 +102,24 @@ body.theme-light header.sticky {
   border-bottom-color: #e2e8f0 !important;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
 }
+/* Blocos do dashboard com fundo escuro inline (style="") — as regras por
+   classe do Tailwind não alcançam, então cada um precisa da sua classe aqui. */
+body.theme-light .dash-filterbar {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  border-left-color: #2563eb !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04) !important;
+}
+body.theme-light .dash-kpi-strip {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.theme-light .dash-kpi-strip > article {
+  background: #ffffff !important;
+}
 body.theme-light .dash-hero,
 body.theme-light .dash-pipeline,
+body.theme-light .dash-panel,
 body.theme-light .dash-comunicados-panel,
 body.theme-light .dash-materials-panel,
 body.theme-light .dash-quick-panel,
@@ -652,3 +668,69 @@ body.theme-light .proposal-inline-cta.is-secondary {
 
 
 
+
+/* ─── 28. VARREDURA 18/09/2026 — o que escapava do modo claro ─── */
+
+/* Tons escuros usados nos módulos (Análise, O&M, Vistoria, Engenharia,
+   Produtos, CRM) que a lista da seção 11 não cobria. */
+body.theme-light [class*="bg-[#070707]"],
+body.theme-light [class*="bg-[#090909]"],
+body.theme-light [class*="bg-[#0b0b0b]"],
+body.theme-light [class*="bg-[#0c0c0c]"],
+body.theme-light [class*="bg-[#0c0c0e]"],
+body.theme-light [class*="bg-[#0d0d0f]"],
+body.theme-light [class*="bg-[#0f0f10]"],
+body.theme-light [class*="bg-[#101012]"] {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+body.theme-light [class*="bg-[#1c1c1f]"] { background-color: #e2e8f0 !important; }
+/* Dia fora do mês no calendário do O&M: um tom abaixo dos dias do mês. */
+body.theme-light [class*="bg-[#070707]"] { background-color: #f1f5f9 !important; }
+
+/* text-neutral-100 não tinha inversão (Vistoria, O&M, Engenharia). */
+body.theme-light [class*="text-neutral-100"] { color: #0f172a !important; }
+
+/* Cards de destaque (om/fin/vis-deep) continuam ESCUROS de propósito, mas as
+   inversões globais (text-white e h1–h4 → escuro) apagavam o texto deles. */
+body.theme-light :is(.om-deep, .fin-deep, .vis-deep) [class*="text-white"],
+body.theme-light :is(.om-deep, .fin-deep, .vis-deep) :is(h1, h2, h3, h4) { color: #ffffff !important; }
+body.theme-light :is(.om-deep, .fin-deep, .vis-deep) [class*="text-neutral-300"] { color: rgba(255,255,255,0.82) !important; }
+body.theme-light :is(.om-deep, .fin-deep, .vis-deep) [class*="text-neutral-400"] { color: rgba(255,255,255,0.68) !important; }
+body.theme-light :is(.om-deep, .fin-deep, .vis-deep) :is([class*="text-neutral-500"], [class*="text-neutral-600"]) { color: rgba(255,255,255,0.55) !important; }
+body.theme-light :is(.om-deep, .fin-deep, .vis-deep) :is([class*="border-neutral-700"], [class*="border-neutral-800"]) { border-color: rgba(255,255,255,0.22) !important; }
+
+/* Botões do design system (main.css) */
+body.theme-light .btn-secondary {
+  background: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+body.theme-light .btn-secondary:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+/* hover era texto branco sobre fundo quase transparente → sumia no claro */
+body.theme-light .btn-ghost { color: #64748b; }
+body.theme-light .btn-ghost:hover { color: #0f172a; background: rgba(15,23,42,0.05); }
+
+/* Aba do cliente (CRM 360°): o [id*="overlay"] da seção 12 a deixava
+   translúcida por cima da página. */
+body.theme-light #crm360-overlay.crm360-aba { background: #f0f4f8 !important; }
+
+/* Funil do Financeiro — esfumado e setas das bordas eram pretos */
+body.theme-light .funil-fade-l { background: linear-gradient(to right, #f0f4f8 0%, rgba(240,244,248,.7) 38%, transparent 100%); }
+body.theme-light .funil-fade-r { background: linear-gradient(to left,  #f0f4f8 0%, rgba(240,244,248,.7) 38%, transparent 100%); }
+body.theme-light .funil-arrow { background: rgba(255,255,255,.95); border-color: #cbd5e1; color: #64748b; }
+
+/* Tooltip do gráfico da Análise */
+body.theme-light .crm-chart-tip { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 8px 24px rgba(15,23,42,.12); }
+body.theme-light .crm-chart-tip-row { color: #334155; }
+body.theme-light .crm-chart-tip-val { color: #0f172a; }
+body.theme-light .crm-chart-guide { background: #cbd5e1; }
+body.theme-light .crm-chart-grid { stroke: #e2e8f0; }
+body.theme-light .crm-chart-axis { stroke: #cbd5e1; }
+/* Primário segue a troca laranja → azul do tema (igual ao botão de login) */
+body.theme-light .btn-primary { background: linear-gradient(135deg, #1d4ed8, #3b82f6); color: #ffffff; }
+body.theme-light .btn-primary:hover { box-shadow: 0 4px 20px rgba(37,99,235,0.28); }

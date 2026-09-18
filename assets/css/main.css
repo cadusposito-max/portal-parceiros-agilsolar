@@ -1488,7 +1488,8 @@ html[data-theme="light"] {
   --fin-deep-border:rgba(13,148,136,0.5);
 }
 html[data-theme="light"] {
-  --fin:#0d9488; --fin-soft:#0f766e; --fin-strong:#115e59; --fin-on:#0f766e;
+  --fin:#0d9488; --fin-soft:#0f766e; --fin-strong:#115e59;
+  --fin-on:#99f6e4; /* só usado nos cards .fin-deep, que seguem escuros no claro */
   --fin-deep-grad: linear-gradient(135deg,#0d3b34 0%,#0f4d44 52%,#0a2f29 100%);
   --fin-deep-border:rgba(13,148,136,0.45);
 }
@@ -1591,7 +1592,8 @@ html[data-theme="light"] {
   --vis-deep-border:rgba(220,38,38,0.5);
 }
 html[data-theme="light"] {
-  --vis:#dc2626; --vis-soft:#b91c1c; --vis-strong:#991b1b; --vis-on:#b91c1c;
+  --vis:#dc2626; --vis-soft:#b91c1c; --vis-strong:#991b1b;
+  --vis-on:#fecaca; /* só usado nos cards .vis-deep, que seguem escuros no claro */
   --vis-deep-grad: linear-gradient(135deg,#3b0d0d 0%,#4d0f0f 52%,#2f0a0a 100%);
   --vis-deep-border:rgba(220,38,38,0.45);
 }
