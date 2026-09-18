@@ -103,7 +103,7 @@
   </script>
 
   <link rel="stylesheet" href="assets/css/main.css?v=20260918-varredura-light">
-  <link rel="stylesheet" href="assets/css/theme-light.css?v=20260918-pilulas-light" id="theme-light-css" disabled>
+  <link rel="stylesheet" href="assets/css/theme-light.css?v=20260918-login-light" id="theme-light-css" disabled>
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
@@ -144,6 +144,18 @@
             data-expired-callback="onTurnstileExpiry"
             data-error-callback="onTurnstileError"
             data-theme="dark"></div>
+          <script>
+            // O Turnstile lê data-theme ao renderizar (script async no <head>), antes
+            // do applyThemeMode do DOMContentLoaded — então resolve o tema aqui mesmo,
+            // com a mesma regra de utils.js (preferência salva, senão a do sistema).
+            (function () {
+              try {
+                var p = localStorage.getItem('themePreference');
+                var light = p === 'light' || (p !== 'dark' && window.matchMedia('(prefers-color-scheme: light)').matches);
+                if (light) document.querySelector('#login-form .cf-turnstile').setAttribute('data-theme', 'light');
+              } catch (_) {}
+            })();
+          </script>
         </div>
 
         <p id="login-error" class="hidden text-red-500 text-xs font-bold text-center bg-red-500/10 p-2 border border-red-500/20"></p>
