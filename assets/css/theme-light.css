@@ -761,3 +761,20 @@ body.theme-light [class*=" bg-sky-"][class*="text-white"] {
 body.theme-light #login-screen [class*="shadow-[0_0_50px"] {
   box-shadow: 0 12px 40px rgba(15,23,42,0.10) !important;
 }
+
+/* Navegação dos ambientes: o item ativo tinha texto PRETO fixo (pensado para o
+   laranja/teal do escuro). No claro o degradê vira azul/teal escuro → branco. */
+body.theme-light .om-nav-grad,
+body.theme-light .fin-nav-grad,
+body.theme-light .om-acc-solid,
+body.theme-light .fin-acc-solid,
+body.theme-light .group:hover .om-acc-chip-h,
+body.theme-light :is(.om-env, #om-modal-root) .text-blue-950 {
+  color: #ffffff !important;
+}
+/* Engenharia (degradê sky→indigo inline com text-black) — mesmo caso */
+body.theme-light [class*="from-sky-"][class*="text-black"] {
+  color: #ffffff !important;
+}
+body.theme-light .fin-env .fin-tab.is-active,
+body.theme-light .fat-pbtn.is-active { color: #ffffff !important; }
