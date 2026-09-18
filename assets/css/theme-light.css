@@ -778,3 +778,53 @@ body.theme-light [class*="from-sky-"][class*="text-black"] {
 }
 body.theme-light .fin-env .fin-tab.is-active,
 body.theme-light .fat-pbtn.is-active { color: #ffffff !important; }
+
+/* Cabeçalhos do O&M (omHeroBanner / omPageHeader): fundo em DEGRADÊ
+   from-neutral-900 → to-[#0d0d0d]; as regras de bg sólido não o pegavam. */
+body.theme-light [class*="from-neutral-900"][class*="bg-gradient-"] {
+  background-image: linear-gradient(to bottom, #ffffff, #f8fafc) !important;
+  background-color: #ffffff !important;
+}
+
+/* Textos PASTEL (-200/-300, e -400 em amarelo/âmbar) foram pensados para fundo
+   escuro; no claro somem (ex.: etiqueta MANUAL amarela). Escurece a família.
+   Só casa a classe base (início ou após espaço) — hover:text-* fica de fora,
+   senão o hover viraria a cor permanente. */
+body.theme-light [class^="text-yellow-2"],
+body.theme-light [class*=" text-yellow-2"],
+body.theme-light [class^="text-yellow-3"],
+body.theme-light [class*=" text-yellow-3"],
+body.theme-light [class^="text-yellow-4"],
+body.theme-light [class*=" text-yellow-4"] { color: #a16207 !important; }
+body.theme-light [class^="text-amber-2"],
+body.theme-light [class*=" text-amber-2"],
+body.theme-light [class^="text-amber-3"],
+body.theme-light [class*=" text-amber-3"],
+body.theme-light [class^="text-amber-4"],
+body.theme-light [class*=" text-amber-4"] { color: #b45309 !important; }
+body.theme-light [class^="text-green-2"],
+body.theme-light [class*=" text-green-2"],
+body.theme-light [class^="text-green-3"],
+body.theme-light [class*=" text-green-3"] { color: #15803d !important; }
+body.theme-light [class^="text-emerald-2"],
+body.theme-light [class*=" text-emerald-2"],
+body.theme-light [class^="text-emerald-3"],
+body.theme-light [class*=" text-emerald-3"] { color: #047857 !important; }
+body.theme-light [class^="text-red-2"],
+body.theme-light [class*=" text-red-2"],
+body.theme-light [class^="text-red-3"],
+body.theme-light [class*=" text-red-3"] { color: #b91c1c !important; }
+body.theme-light [class^="text-blue-2"],
+body.theme-light [class*=" text-blue-2"],
+body.theme-light [class^="text-blue-3"],
+body.theme-light [class*=" text-blue-3"] { color: #1d4ed8 !important; }
+body.theme-light [class^="text-sky-3"],
+body.theme-light [class*=" text-sky-3"] { color: #0369a1 !important; }
+body.theme-light [class^="text-cyan-2"],
+body.theme-light [class*=" text-cyan-2"],
+body.theme-light [class^="text-cyan-3"],
+body.theme-light [class*=" text-cyan-3"] { color: #0e7490 !important; }
+body.theme-light [class^="text-teal-2"],
+body.theme-light [class*=" text-teal-2"] { color: #0f766e !important; }
+/* ...exceto onde o fundo segue escuro de propósito */
+body.theme-light :is(.om-deep, .fin-deep, .vis-deep) :is([class*=" text-"][class*="-200"], [class*=" text-"][class*="-300"], [class^="text-"][class*="-200"], [class^="text-"][class*="-300"]) { color: rgba(255,255,255,0.85) !important; }
