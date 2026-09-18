@@ -235,6 +235,24 @@ function _analiseGraficoLinhas(labels, series) {
     `<span class="crm-chart-xlab" style="left:${pctX(px(i))}">${formatMonthLabel(m)}</span>`
   ).join('');
 
+  // Tooltip por mês: uma faixa vertical invisível por coluna, com :hover /
+  // :focus-within no CSS — sem JS e sem listeners para limpar a cada render.
+  // Na metade direita o balão abre para a esquerda, para não sair do painel.
+  const largColuna = stepX > 0 ? stepX : W - padL - padR;
+  const colunas = labels.map((m, i) => `
+    <span class="crm-chart-hit${i >= labels.length / 2 ? ' is-right' : ''}" tabindex="0"
+      style="left:${pctX(px(i))};width:${pctX(largColuna)}">
+      <span class="crm-chart-guide"></span>
+      <span class="crm-chart-tip">
+        <span class="crm-chart-tip-title">${formatMonthLabel(m)}</span>
+        ${series.map((s) => `<span class="crm-chart-tip-row">
+          <span class="crm-chart-tip-dot" style="background:${s.cor}"></span>
+          <span class="crm-chart-tip-name">${escapeHTML(s.nome)}</span>
+          <span class="crm-chart-tip-val num">${s.dados[i]}</span>
+        </span>`).join('')}
+      </span>
+    </span>`).join('');
+
   const zeradas = series.filter((s) => s.dados.every((v) => v === 0)).map((s) => s.nome);
 
   return `
@@ -252,6 +270,7 @@ function _analiseGraficoLinhas(labels, series) {
         </svg>
         ${pontos}
         ${marcasY}
+        ${colunas}
       </div>
       <div class="crm-chart-xaxis">${marcasX}</div>
     </div>

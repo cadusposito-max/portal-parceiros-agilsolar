@@ -1882,3 +1882,18 @@ select.crm360-input { appearance: auto; }
 .crm-chart-xaxis { position:relative; height:12px; margin-top:8px; }
 .crm-chart-xlab { position:absolute; top:0; transform:translateX(-50%); white-space:nowrap;
   font-size:8px; font-weight:900; text-transform:uppercase; letter-spacing:.1em; color:#404040; }
+/* Tooltip por mês: faixa invisível centrada no ponto; hover/foco mostra a guia
+   vertical e o balão com os valores de todas as séries daquele mês. */
+.crm-chart-hit { position:absolute; top:0; bottom:0; transform:translateX(-50%); z-index:1; outline:none; cursor:default; }
+.crm-chart-guide { position:absolute; left:50%; top:0; bottom:0; width:1px; background:#3a3a3a; opacity:0; pointer-events:none; }
+.crm-chart-tip { position:absolute; top:8px; left:calc(50% + 10px); z-index:2; display:flex; flex-direction:column; gap:4px;
+  min-width:130px; padding:8px 10px; background:#111; border:1px solid #2a2a2a; box-shadow:0 8px 24px rgba(0,0,0,.5);
+  opacity:0; visibility:hidden; transition:opacity .12s; pointer-events:none; }
+.crm-chart-hit.is-right .crm-chart-tip { left:auto; right:calc(50% + 10px); }
+.crm-chart-hit:hover .crm-chart-guide, .crm-chart-hit:focus-within .crm-chart-guide { opacity:1; }
+.crm-chart-hit:hover .crm-chart-tip, .crm-chart-hit:focus-within .crm-chart-tip { opacity:1; visibility:visible; }
+.crm-chart-tip-title { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.1em; color:#737373; margin-bottom:2px; }
+.crm-chart-tip-row { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:700; color:#d4d4d4; }
+.crm-chart-tip-dot { width:6px; height:6px; border-radius:9999px; flex-shrink:0; }
+.crm-chart-tip-name { flex:1; }
+.crm-chart-tip-val { color:#fff; font-weight:900; }
