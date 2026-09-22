@@ -510,6 +510,7 @@
     margin-right: 1.5mm;
     vertical-align: -0.4mm;
   }
+  .gen-legend i.soft { background: #fdba74; } /* barraBaixa do tema light (geracao-chart.js) */
   .gen-legend i.line {
     height: 0;
     border-top: 2px dashed var(--ink);
@@ -1267,6 +1268,7 @@
   <div class="gen-chart">
     <div class="gen-legend">
       <span><i></i>Geração estimada (kWh)</span>
+      <span><i class="soft"></i>Meses de menor irradiação</span>
       <span><i class="line"></i>Média anual</span>
     </div>
     {{ grafico_geracao_svg }}
@@ -1320,7 +1322,7 @@
 
   {{^ tem_geracao }}
   <div class="section-head">
-    <div class="num">03</div>
+    <div class="num">01</div>
     <div class="title-wrap">
       <div class="eyebrow">Seu projeto</div>
       <h2 class="section">Proposta de equipamentos</h2>
@@ -1360,7 +1362,7 @@
 
   <!-- Seção: Pagamento -->
   <div class="section-head">
-    <div class="num">04</div>
+    <div class="num">{{ sec_pagamento }}</div>
     <div class="title-wrap">
       <div class="eyebrow">Facilidades</div>
       <h2 class="section">Condições de pagamento</h2>
@@ -1426,7 +1428,7 @@
 
   <!-- Chave na mão -->
   <div class="section-head mt-10">
-    <div class="num">05</div>
+    <div class="num">{{ sec_escopo }}</div>
     <div class="title-wrap">
       <div class="eyebrow">Projeto chave na mão</div>
       <h2 class="section">O que está incluso no seu sistema</h2>
@@ -1518,7 +1520,7 @@
 
   <!-- Quem somos -->
   <div class="section-head">
-    <div class="num">06</div>
+    <div class="num">{{ sec_sobre }}</div>
     <div class="title-wrap">
       <div class="eyebrow">Quem somos</div>
       <h2 class="section">Ágil Solar, transformando o sol em economia</h2>
@@ -1576,7 +1578,7 @@
 
   <!-- Próximos passos -->
   <div class="section-head mt-10">
-    <div class="num">07</div>
+    <div class="num">{{ sec_contato }}</div>
     <div class="title-wrap">
       <div class="eyebrow">Vamos começar</div>
       <h2 class="section">Fale com o seu consultor</h2>
@@ -1741,7 +1743,8 @@
     var temGeracao = geracao > 0;
 
     var faturaIdeal     = geracao * TARIFA_MEDIA;
-    var economiaMensal  = faturaIdeal * 0.85;
+    // Arredonda a mensal em centavos antes de multiplicar: assim anual = 12 × mensal exibida.
+    var economiaMensal  = Math.round(faturaIdeal * 0.85 * 100) / 100;
     var economiaAnual   = economiaMensal * 12;
     var economia25Anos  = economiaAnual * 25;
     var arvores         = Math.round(potencia * 3);
@@ -1838,7 +1841,13 @@
 
       // Dados da franquia (vindos do JOIN na RPC)
       empresa_cnpj:     p.franquia_cnpj         || '—',
-      empresa_endereco: p.franquia_endereco     || p.franquia_cidade || '—',
+      empresa_endereco: String(p.franquia_endereco || p.franquia_cidade || '—').replace(/\s+([,.;])/g, '$1').replace(/\s{2,}/g, ' ').trim(),
+
+      // Seções numeradas em sequência: sem geração, a página 2 tem uma seção só (01).
+      sec_pagamento: temGeracao ? '03' : '02',
+      sec_escopo:    temGeracao ? '04' : '03',
+      sec_sobre:     temGeracao ? '05' : '04',
+      sec_contato:   temGeracao ? '06' : '05',
       empresa_site:     p.franquia_site         || 'agilsolar.com',
       empresa_email:    p.franquia_email        || '—',
 

@@ -43,7 +43,8 @@ function calcularGeracaoMensal(geracaoMedia, hspMensal, hspAnual) {
 }
 
 function resumoGeracaoMensal(valores) {
-  const total = valores.reduce((a, b) => a + b, 0);
+  // Soma dos valores arredondados: o total bate com os rótulos das barras.
+  const total = valores.reduce((a, b) => a + Math.round(b), 0);
   let pico = 0;
   valores.forEach((v, i) => { if (v > valores[pico]) pico = i; });
   return {

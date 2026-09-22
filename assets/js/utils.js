@@ -236,6 +236,42 @@ function debounce(fn, wait = 180) {
   };
 }
 
+// Várias telas redesenham o container inteiro (innerHTML) a cada busca, o que
+// destrói o <input> em uso: o foco sumia após a pausa do debounce e só dava
+// para digitar uma palavra por vez. Guarda o campo focado antes do redesenho
+// e devolve foco, texto e cursor ao campo equivalente recriado.
+function captureTextInputFocus() {
+  const el = document.activeElement;
+  if (!el || !el.isConnected) return () => {};
+  const isText = el.tagName === 'TEXTAREA'
+    || (el.tagName === 'INPUT' && /^(text|search|email|tel|url|)$/i.test(el.type || ''));
+  if (!isText) return () => {};
+
+  const id = el.id;
+  const oninput = el.getAttribute('oninput');
+  const placeholder = el.getAttribute('placeholder');
+  if (!id && !oninput && !placeholder) return () => {};
+
+  const value = el.value;
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+
+  return () => {
+    if (el.isConnected && document.activeElement === el) return;
+    let target = id ? document.getElementById(id) : null;
+    if (!target) {
+      target = Array.from(document.querySelectorAll('input, textarea')).find((c) =>
+        (oninput ? c.getAttribute('oninput') === oninput : true)
+        && (placeholder ? c.getAttribute('placeholder') === placeholder : true)
+      ) || null;
+    }
+    if (!target) return;
+    if (target.value !== value) target.value = value;
+    target.focus({ preventScroll: true });
+    try { target.setSelectionRange(start, end); } catch (_) {}
+  };
+}
+
 // --- Toast com fila (evita sobreposição) ---
 let _toastQueue   = [];
 let _toastShowing = false;

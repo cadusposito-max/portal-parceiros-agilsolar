@@ -5,3 +5,9 @@ claude-design/uploads/*
 Thumbs.db
 .DS_Store
 node_modules/
+
+# Config local do Claude Code (preview, permissões)
+.claude/
+
+# Prévia estática de relatório usada em desenvolvimento
+_preview-relatorio.html

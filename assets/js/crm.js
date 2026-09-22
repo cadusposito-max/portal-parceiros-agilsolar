@@ -304,6 +304,10 @@ function _crm360OnKeydown(event) {
     if (typeof closeFechaVenda === 'function') closeFechaVenda();
     return;
   }
+  if (document.getElementById('doc-overlay')) {
+    if (typeof fecharDocumentosVenda === 'function') fecharDocumentosVenda();
+    return;
+  }
   if (document.getElementById('pb-share-overlay')) {
     if (typeof closeProposalSharePanel === 'function') closeProposalSharePanel();
     return;
@@ -474,6 +478,7 @@ function renderCrm360() {
               ${crm360Field('Endereço', `<input id="crm360-endereco" value="${escapeHTML(client.endereco || '')}" class="crm360-input">`, 'sm:col-span-2')}
               ${crm360Field('Número', `<input id="crm360-numero" value="${escapeHTML(client.numero || '')}" class="crm360-input">`)}
               ${crm360Field('Bairro', `<input id="crm360-bairro" value="${escapeHTML(client.bairro || '')}" class="crm360-input">`)}
+              ${crm360CamposDocumentosHTML(client)}
               ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="2" class="crm360-input">${escapeHTML(client.observacoes || '')}</textarea>`, 'sm:col-span-2')}
             </div>
 
@@ -524,6 +529,23 @@ function renderCrm360() {
   if (_crm360Tab === 'propostas' && state.isAdmin && typeof preencherSelosPrecificacao === 'function') preencherSelosPrecificacao();
 
   lucide.createIcons();
+}
+
+// Dados pessoais usados no contrato/procuração — só aparecem para a Matriz.
+function _crm360DocsAtivo() {
+  return typeof canGerarDocumentos === 'function' && canGerarDocumentos();
+}
+
+function crm360CamposDocumentosHTML(client) {
+  if (!_crm360DocsAtivo()) return '';
+  const opt = (valor, lista) => lista.map(([v, l]) => `<option value="${v}" ${String(valor || '') === v ? 'selected' : ''}>${l}</option>`).join('');
+  return `
+    ${crm360Field('Complemento', `<input id="crm360-complemento" value="${escapeHTML(client.complemento || '')}" class="crm360-input">`)}
+    ${crm360Field('RG', `<input id="crm360-rg" value="${escapeHTML(client.rg || '')}" class="crm360-input font-mono">`)}
+    ${crm360Field('Órgão emissor', `<input id="crm360-rg-orgao" value="${escapeHTML(client.rg_orgao || '')}" placeholder="SP/SSP" class="crm360-input uppercase">`)}
+    ${crm360Field('Gênero', `<select id="crm360-genero" class="crm360-input">${opt(client.genero, [['', '—'], ['M', 'Masculino'], ['F', 'Feminino']])}</select>`)}
+    ${crm360Field('Estado civil', `<select id="crm360-estado-civil" class="crm360-input">${opt(client.estado_civil, [['', '—'], ['solteiro', 'Solteiro(a)'], ['casado', 'Casado(a)'], ['divorciado', 'Divorciado(a)'], ['separado', 'Separado(a) judicialmente'], ['viuvo', 'Viúvo(a)'], ['uniao_estavel', 'União estável']])}</select>`)}
+    ${crm360Field('Nacionalidade', `<input id="crm360-nacionalidade" value="${escapeHTML(client.nacionalidade || '')}" placeholder="BRASILEIRO(A)" class="crm360-input uppercase">`)}`;
 }
 
 function crm360Field(label, inputHTML, extraCls = '') {
@@ -641,6 +663,9 @@ function renderCrm360TabContent(client, propostas, vendas) {
           <p class="text-neutral-600 text-[10px] font-mono mt-0.5">${formatDate(v.created_at)} · ${escapeHTML(String(v.kit_power || '-'))} kWp</p>
         </div>
         <span class="text-green-400 font-black text-sm">${formatCurrency(v.kit_price || 0)}</span>
+        ${typeof canGerarDocumentos === 'function' && canGerarDocumentos()
+          ? `<button onclick="abrirDocumentosVenda('${v.id}')" title="Gerar contrato e procuração" class="btn btn-secondary btn-sm"><i data-lucide="file-signature"></i> Documentos</button>`
+          : ''}
       </div>`).join('')}</div>`;
   }
 
@@ -792,6 +817,17 @@ async function crmSaveClient360() {
     proxima_acao_em: proximaEm,
     proxima_acao_nota: proximaNota,
   };
+  if (document.getElementById('crm360-rg')) {
+    const v = (id) => document.getElementById(id).value.trim() || null;
+    Object.assign(payload, {
+      complemento: v('crm360-complemento'),
+      rg: v('crm360-rg'),
+      rg_orgao: v('crm360-rg-orgao')?.toUpperCase() || null,
+      genero: v('crm360-genero'),
+      estado_civil: v('crm360-estado-civil'),
+      nacionalidade: v('crm360-nacionalidade')?.toUpperCase() || null,
+    });
+  }
 
   if (!payload.nome) { showToast('Nome é obrigatório.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }
   if (digitsOnly(payload.telefone).length < 10) { showToast('Telefone com DDD é obrigatório.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }

@@ -275,7 +275,8 @@ function renderData(data) {
     : calcularGeracaoEstimada(displayPower);
 
   const valorFaturaIdeal = estGeneration * TARIFA_MEDIA;
-  const economiaMensal   = valorFaturaIdeal * 0.85;
+  // Arredonda em centavos: anual = 12 × mensal exibida (igual ao proposta-pdf.html).
+  const economiaMensal   = Math.round(valorFaturaIdeal * 0.85 * 100) / 100;
   const economiaAnual    = economiaMensal * 12;
   const economia25Anos   = economiaAnual * 25;
   const arvoresPlantadas = Math.round(displayPower * 3);

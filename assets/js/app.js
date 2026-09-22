@@ -1017,14 +1017,16 @@ function syncSearchToolbarForActiveTab() {
   const searchInput = document.getElementById('search-input');
   if (!searchInput) return;
 
-  if (state.activeTab === 'clientes' && state.isAdmin) {
-    searchInput.value = String(state.adminClientesFilters?.search || '');
-    searchInput.placeholder = 'BUSCAR CLIENTE, CIDADE, TELEFONE OU VENDEDOR...';
-    return;
-  }
+  const isAdminClientes = state.activeTab === 'clientes' && state.isAdmin;
+  searchInput.placeholder = isAdminClientes
+    ? 'BUSCAR CLIENTE, CIDADE, TELEFONE OU VENDEDOR...'
+    : 'BUSCAR CLIENTE...';
 
-  searchInput.value = String(state.searchTerm || '');
-  searchInput.placeholder = 'BUSCAR CLIENTE...';
+  // Não sobrescreve o texto enquanto a pessoa está digitando no campo.
+  if (document.activeElement === searchInput) return;
+  searchInput.value = isAdminClientes
+    ? String(state.adminClientesFilters?.search || '')
+    : String(state.searchTerm || '');
 }
 
 // =======================================================================
@@ -1079,6 +1081,40 @@ const _propostasSearchDebounced = debounce((value) => {
 
 function handlePropostasSearchInput(value) {
   _propostasSearchDebounced(value);
+}
+
+// Filtros da aba Propostas. Vendedor e mês mudam também os números do topo
+// (ver os resultados de um vendedor/mês); status e busca só filtram a lista —
+// senão "Vistas"/"Aceitas" zerariam ao filtrar por outro status.
+function setPropostasFiltro(chave, valor) {
+  const v = String(valor || 'all');
+  if (chave === 'vendedor') state.propostasVendedor = v.toLowerCase();
+  else if (chave === 'mes') state.propostasMes = v;
+  else if (chave === 'status') state.propostasStatus = v.toUpperCase();
+  else return;
+  resetPropostasRenderLimit();
+  renderContent();
+}
+
+function limparPropostasFiltros() {
+  state.propostasVendedor = 'all';
+  state.propostasMes = 'all';
+  state.propostasStatus = 'ALL';
+  state.propostasSearch = '';
+  resetPropostasRenderLimit();
+  renderContent();
+}
+
+function propostasFiltroSelectHTML(chave, valorAtual, opcoes, rotuloTodos, icone) {
+  const ativo = valorAtual !== 'all' && valorAtual !== 'ALL';
+  return `
+    <div class="relative">
+      <i data-lucide="${icone}" class="w-3.5 h-3.5 ${ativo ? 'text-orange-400' : 'text-neutral-600'} absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+      <select onchange="setPropostasFiltro('${chave}', this.value)" aria-label="${escapeHTML(rotuloTodos)}" class="bg-black border ${ativo ? 'border-orange-500/60 text-orange-400' : 'border-neutral-800 text-neutral-300'} pl-9 pr-3 py-2.5 text-[10px] font-black uppercase tracking-widest">
+        <option value="${chave === 'status' ? 'ALL' : 'all'}">${escapeHTML(rotuloTodos)}</option>
+        ${opcoes.map((o) => `<option value="${escapeHTML(o.v)}" ${o.v === valorAtual ? 'selected' : ''}>${escapeHTML(o.l)}</option>`).join('')}
+      </select>
+    </div>`;
 }
 
 // "Nova Proposta" abre este seletor em vez de largar o usuário na aba
@@ -1154,12 +1190,22 @@ function renderNovaPropostaPickerList(term) {
 // append nunca trabalhar sobre um array congelado (proposta salva no meio).
 function getPropostasFiltradas() {
   // Mesmo escopo de permissão que o Dashboard usa para propostas.
-  const rows = getDashboardScopedRows(state.propostas || []);
+  const escopo = getDashboardScopedRows(state.propostas || []);
+  const vendedor = canUseDashVendedorFilter() ? String(state.propostasVendedor || 'all') : 'all';
+  const mes = String(state.propostasMes || 'all');
+  const status = String(state.propostasStatus || 'ALL');
+
+  // rows = base dos números do topo (escopo + vendedor + mês)
+  const rows = escopo.filter((p) =>
+    (vendedor === 'all' || String(p.vendedor_email || '').trim().toLowerCase() === vendedor)
+    && (mes === 'all' || toMonthKey(p.created_at) === mes));
+
   const term = String(state.propostasSearch || '').trim().toLowerCase();
-  const filtered = term
-    ? rows.filter((p) => `${p.cliente_nome || ''} ${p.kit_nome || ''}`.toLowerCase().includes(term))
-    : rows;
-  return { rows, filtered, term };
+  const filtered = rows.filter((p) =>
+    (status === 'ALL' || propostaStatus(p) === status)
+    && (!term || `${p.cliente_nome || ''} ${p.kit_nome || ''}`.toLowerCase().includes(term)));
+
+  return { escopo, rows, filtered, term, vendedor, mes, status };
 }
 
 function propostaCardHTML(p) {
@@ -1250,7 +1296,21 @@ function renderPropostasList(container) {
   const emptyState = document.getElementById('empty-state');
   if (emptyState) emptyState.classList.add('hidden');
 
-  const { rows, filtered, term } = getPropostasFiltradas();
+  const { escopo, rows, filtered, term, vendedor, mes, status } = getPropostasFiltradas();
+
+  // Opções dos filtros saem do escopo inteiro (não do recorte), para dar para
+  // trocar de vendedor/mês sem voltar antes para "todos".
+  const vendOpts = canUseDashVendedorFilter()
+    ? getDashboardVendedorOptions([escopo])
+        .map((email) => ({ v: email, l: dashVendedorNome(email) }))
+        .sort((a, b) => a.l.localeCompare(b.l, 'pt-BR'))
+    : [];
+  if (vendedor !== 'all' && !vendOpts.some((o) => o.v === vendedor)) vendOpts.unshift({ v: vendedor, l: dashVendedorNome(vendedor) });
+  const mesOpts = [...new Set(escopo.map((p) => toMonthKey(p.created_at)).filter(Boolean))]
+    .sort().reverse()
+    .map((m) => ({ v: m, l: formatMonthLabel(m) }));
+  const statusOpts = Object.keys(PROPOSTA_STATUS_STYLE).map((s) => ({ v: s, l: s }));
+  const filtrosAtivos = [vendedor !== 'all', mes !== 'all', status !== 'ALL', Boolean(term)].filter(Boolean).length;
 
   // Resumo agregado (sobre o escopo completo, não afetado pela busca).
   const now = new Date();
@@ -1307,7 +1367,13 @@ function renderPropostasList(container) {
         <i data-lucide="search" class="w-3.5 h-3.5 text-neutral-600"></i>
         <input type="text" value="${escapeHTML(state.propostasSearch || '')}" oninput="handlePropostasSearchInput(this.value)" placeholder="Buscar por cliente ou kit..." class="bg-transparent text-xs text-white py-2.5 outline-none flex-1 placeholder:text-neutral-600">
       </div>
-      <span class="text-[9px] font-black uppercase tracking-widest text-neutral-600">${noMes} no mês</span>
+      ${vendOpts.length ? propostasFiltroSelectHTML('vendedor', vendedor, vendOpts, 'Todos os vendedores', 'user') : ''}
+      ${propostasFiltroSelectHTML('mes', mes, mesOpts, 'Todos os meses', 'calendar')}
+      ${propostasFiltroSelectHTML('status', status, statusOpts, 'Todos os status', 'list-filter')}
+      ${filtrosAtivos
+        ? `<button onclick="limparPropostasFiltros()" class="btn btn-ghost btn-sm"><i data-lucide="filter-x"></i>Limpar</button>
+           <span class="text-[9px] font-black uppercase tracking-widest text-neutral-600">${filtered.length} de ${escopo.length}</span>`
+        : `<span class="text-[9px] font-black uppercase tracking-widest text-neutral-600">${noMes} no mês</span>`}
     </section>
   `;
 
@@ -1315,7 +1381,7 @@ function renderPropostasList(container) {
     html += `
       <div class="py-16 text-center text-neutral-600 font-bold uppercase tracking-widest text-xs border border-dashed border-neutral-800/60 bg-neutral-950/40">
         <i data-lucide="file-clock" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
-        ${term ? 'Nenhuma proposta para esta busca' : 'Nenhuma proposta gerada ainda'}
+        ${filtrosAtivos ? 'Nenhuma proposta com esses filtros' : 'Nenhuma proposta gerada ainda'}
       </div>`;
     container.innerHTML = html;
     lucide.createIcons();
@@ -1335,6 +1401,12 @@ function renderPropostasList(container) {
 }
 
 function renderContent() {
+  const restoreFocus = captureTextInputFocus();
+  _renderContentImpl();
+  restoreFocus();
+}
+
+function _renderContentImpl() {
   const container       = document.getElementById('main-container');
   const toggleContainer = document.getElementById('view-toggle-container');
   const adminBar        = document.getElementById('admin-bar');

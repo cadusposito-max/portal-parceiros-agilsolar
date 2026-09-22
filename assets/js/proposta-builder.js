@@ -1411,7 +1411,7 @@ async function confirmarFechaVenda() {
   try {
     const seller = await resolveEffectiveSellerForClient(client);
 
-    const { error: insertError } = await supabaseClient.from('vendas').insert([{
+    const { data: novaVenda, error: insertError } = await supabaseClient.from('vendas').insert([{
       vendedor_email:    seller.vendedor_email,
       vendedor_nome:     seller.vendedor_nome,
       cliente_id:        client.id,
@@ -1423,7 +1423,7 @@ async function confirmarFechaVenda() {
       kit_price:         Number(kit.preco) || 0,
       proposta_id:       kit.proposta_id || null,
       franquia_id:       state.franquiaId
-    }]);
+    }]).select('id');
 
     if (insertError) {
       // Erro mais legível para tabela não existente
@@ -1474,6 +1474,12 @@ async function confirmarFechaVenda() {
     // Ficha aberta por baixo? Reflete FECHADO + contador de vendas na hora.
     const fichaAberta = document.getElementById('crm360-overlay')?.classList.contains('is-open');
     if (fichaAberta && typeof renderCrm360 === 'function') renderCrm360();
+
+    // Matriz: oferece gerar contrato/procuração na sequência
+    const novaVendaId = novaVenda && novaVenda[0] && novaVenda[0].id;
+    if (novaVendaId && typeof canGerarDocumentos === 'function' && canGerarDocumentos()) {
+      setTimeout(() => showConfirmModal('Venda registrada! Gerar contrato e procuração agora?', () => abrirDocumentosVenda(novaVendaId), 'GERAR AGORA', false), 900);
+    }
 
   } catch (err) {
     console.error('[confirmarFechaVenda]', err);

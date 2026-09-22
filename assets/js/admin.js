@@ -707,10 +707,20 @@ async function fetchAdminUsuarios() {
   return data || [];
 }
 
+// Lista carregada por último: a busca filtra em memória em vez de ir ao
+// Supabase (e mostrar o "Carregando...") a cada tecla.
+let _adminUsuariosCache = null;
+
+const _adminUsuariosSearchDebounced = debounce(() => {
+  const c = document.getElementById('admin-section-content');
+  if (!c) return;
+  const restoreFocus = captureTextInputFocus();
+  renderAdminUsuarios(c, { useCache: true }).then(restoreFocus);
+}, 180);
+
 function setAdminUsuariosSearch(value) {
   state.adminUsersSearch = value || '';
-  const c = document.getElementById('admin-section-content');
-  if (c) renderAdminUsuarios(c);
+  _adminUsuariosSearchDebounced();
 }
 
 function setAdminUsuariosFilter(type, value) {
@@ -718,26 +728,31 @@ function setAdminUsuariosFilter(type, value) {
   if (type === 'role') state.adminUsersRole = value || 'all';
   if (type === 'franquia') state.adminUsersFranquia = value || 'all';
   const c = document.getElementById('admin-section-content');
-  if (c) renderAdminUsuarios(c);
+  if (c) renderAdminUsuarios(c, { useCache: true });
 }
 
-async function renderAdminUsuarios(container) {
+async function renderAdminUsuarios(container, { useCache = false } = {}) {
   if (!_requireAdmin({ silent: true })) {
     container.innerHTML = `<div class="border border-red-600/40 bg-red-950/20 p-4 text-red-300 text-sm font-bold">Acesso restrito ao administrador.</div>`;
     return;
   }
 
-  container.innerHTML = `<div class="flex items-center justify-center py-12 text-neutral-600">
-    <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
-  </div>`;
-  lucide.createIcons();
-
   let items = [];
-  try {
-    items = await fetchAdminUsuarios();
-  } catch (error) {
-    container.innerHTML = `<p class="text-red-500 text-sm font-bold p-4 border border-red-800 bg-red-900/10">Erro ao carregar: ${escapeHTML(error.message || 'Falha ao carregar usuarios')}</p>`;
-    return;
+  if (useCache && Array.isArray(_adminUsuariosCache)) {
+    items = _adminUsuariosCache;
+  } else {
+    container.innerHTML = `<div class="flex items-center justify-center py-12 text-neutral-600">
+      <i data-lucide="loader-2" class="w-6 h-6 animate-spin mr-2"></i><span class="font-bold uppercase text-[10px] tracking-widest">Carregando...</span>
+    </div>`;
+    lucide.createIcons();
+
+    try {
+      items = await fetchAdminUsuarios();
+      _adminUsuariosCache = items;
+    } catch (error) {
+      container.innerHTML = `<p class="text-red-500 text-sm font-bold p-4 border border-red-800 bg-red-900/10">Erro ao carregar: ${escapeHTML(error.message || 'Falha ao carregar usuarios')}</p>`;
+      return;
+    }
   }
 
   if (typeof state.adminUsersSearch !== 'string') state.adminUsersSearch = '';
@@ -1508,7 +1523,9 @@ function setAdminComunicadosSearch(value) {
 
   state.adminComunicadosSearch = String(value || '');
   const container = document.getElementById('admin-section-content');
-  if (container) renderAdminComunicados(container, { skipRefresh: true });
+  if (!container) return;
+  const restoreFocus = captureTextInputFocus();
+  Promise.resolve(renderAdminComunicados(container, { skipRefresh: true })).then(restoreFocus);
 }
 
 function setAdminComunicadosStatus(value) {
