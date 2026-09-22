@@ -102,27 +102,54 @@
     }
   </script>
 
-  <link rel="stylesheet" href="assets/css/main.css?v=20260918-varredura-light">
-  <link rel="stylesheet" href="assets/css/theme-light.css?v=20260918-pastel-light" id="theme-light-css" disabled>
+  <link rel="stylesheet" href="assets/css/main.css?v=20260922-login-desktop3">
+  <link rel="stylesheet" href="assets/css/theme-light.css?v=20260922-login-desktop2" id="theme-light-css" disabled>
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body class="selection:bg-orange-500 selection:text-white overflow-x-hidden">
 
 <!-- TELA DE LOGIN -->
-<div id="login-screen" class="fixed inset-0 z-[200] bg-[#050505] flex flex-col items-center justify-center overflow-hidden transition-opacity duration-500">
-  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-black to-black animate-pulse"></div>
+<div id="login-screen" class="fixed inset-0 z-[200] bg-[#050505] flex flex-col items-center justify-center lg:flex-row lg:items-stretch lg:justify-start overflow-hidden transition-opacity duration-500">
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-black to-black animate-pulse lg:hidden"></div>
 
-  <div class="relative z-10 w-full max-w-md px-6">
-    <div class="relative mb-10 flex justify-center group">
+  <!-- Desktop (lg+): painel da marca à esquerda. No celular some e fica só o card. -->
+  <aside class="login-brand hidden lg:flex relative z-10 w-[56%] shrink-0 flex-col justify-between p-14 overflow-hidden border-r border-neutral-900">
+    <div class="login-brand-glow absolute inset-0"></div>
+    <div class="login-brand-placas absolute left-0 right-0 -bottom-10 h-[55%]"></div>
+
+    <img src="assets/img/logo.png" alt="Ágil Solar" class="relative w-56 h-auto object-contain">
+
+    <div class="relative max-w-lg">
+      <p class="text-orange-500 text-[11px] font-black uppercase tracking-[0.35em] mb-4">Portal Parceiros</p>
+      <h1 class="text-5xl xl:text-6xl font-black text-white uppercase tracking-tighter leading-[1.05]">
+        Sua operação solar,<br>
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 pr-1">do lead ao contrato.</span>
+      </h1>
+      <div class="mt-10 grid grid-cols-3 gap-4 text-[11px]">
+        <div class="border-l-2 border-orange-500 pl-3"><p class="text-white font-black uppercase tracking-wider">Propostas</p><p class="text-neutral-500 mt-1">em minutos, com link e PDF</p></div>
+        <div class="border-l-2 border-orange-500/60 pl-3"><p class="text-white font-black uppercase tracking-wider">CRM e funil</p><p class="text-neutral-500 mt-1">cada cliente com histórico</p></div>
+        <div class="border-l-2 border-orange-500/30 pl-3"><p class="text-white font-black uppercase tracking-wider">Contratos</p><p class="text-neutral-500 mt-1">gerados automaticamente</p></div>
+      </div>
+    </div>
+
+    <p class="relative text-neutral-600 text-[10px] font-bold uppercase tracking-widest">Ágil Solar · Energia fotovoltaica</p>
+  </aside>
+
+  <div class="login-lado-form relative z-10 w-full max-w-md px-6 lg:max-w-none lg:flex-1 lg:flex lg:flex-col lg:items-center lg:justify-center lg:px-14 lg:bg-[#0a0a0a]">
+    <div class="relative mb-10 flex justify-center group lg:hidden">
       <div class="absolute inset-0 bg-orange-600 blur-[80px] opacity-20 animate-pulse"></div>
       <img src="assets/img/logo.png" alt="Ágil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png" onerror="this.src='https://placehold.co/300x100?text=Agil+Solar'" class="relative w-64 md:w-72 h-auto object-contain animate-pulse-slow">
     </div>
 
-    <div class="bg-neutral-900/80 backdrop-blur-md border border-neutral-800 p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-      <div class="mb-8 text-center">
+    <div class="login-card bg-neutral-900/80 backdrop-blur-md border border-neutral-800 p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] lg:w-full lg:max-w-sm lg:bg-transparent lg:backdrop-blur-none lg:border-0 lg:p-0 lg:shadow-none">
+      <div class="mb-8 text-center lg:hidden">
         <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter uppercase mb-1 pb-1 pr-1 inline-block">Portal Parceiros</h2>
         <p class="text-neutral-500 text-[10px] font-black uppercase tracking-[0.2em]">Insira as suas credenciais</p>
+      </div>
+      <div class="login-titulo-desktop hidden lg:block mb-8">
+        <h2 class="text-3xl font-black text-white uppercase tracking-tighter">Entrar</h2>
+        <p class="text-neutral-500 text-sm mt-1">Acesse com o e-mail cadastrado pela sua franquia.</p>
       </div>
 
       <form id="login-form" class="space-y-5">

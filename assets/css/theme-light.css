@@ -828,3 +828,14 @@ body.theme-light [class^="text-teal-2"],
 body.theme-light [class*=" text-teal-2"] { color: #0f766e !important; }
 /* ...exceto onde o fundo segue escuro de propósito */
 body.theme-light :is(.om-deep, .fin-deep, .vis-deep) :is([class*=" text-"][class*="-200"], [class*=" text-"][class*="-300"], [class^="text-"][class*="-200"], [class^="text-"][class*="-300"]) { color: rgba(255,255,255,0.85) !important; }
+
+/* Login desktop: painel da marca continua escuro (azul-marinho) no tema claro,
+   com textos brancos — as regras globais de text-white/bg não valem aqui. */
+body.theme-light #login-screen .login-brand { background: #0f172a !important; border-color: #1e293b !important; }
+body.theme-light #login-screen .login-brand [class*="text-white"] { color: #ffffff !important; }
+body.theme-light #login-screen .login-brand-glow { background: radial-gradient(ellipse at 20% 110%, rgba(37, 99, 235, 0.35), transparent 60%); }
+body.theme-light #login-screen .login-brand-placas { --login-placa: rgba(96, 165, 250, 0.28); }
+body.theme-light #login-screen .login-lado-form { background: transparent !important; }
+@media (min-width: 1024px) {
+  body.theme-light #login-screen .login-card { background: transparent !important; box-shadow: none !important; border: 0 !important; backdrop-filter: none !important; }
+}

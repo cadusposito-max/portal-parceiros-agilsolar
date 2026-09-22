@@ -1899,3 +1899,31 @@ select.crm360-input { appearance: auto; }
 .crm-chart-tip-dot { width:6px; height:6px; border-radius:9999px; flex-shrink:0; }
 .crm-chart-tip-name { flex:1; }
 .crm-chart-tip-val { color:#fff; font-weight:900; }
+
+/* ─── LOGIN (desktop): painel da marca ───────────────────────────────
+   Placas em perspectiva que somem sozinhas para cima (mask-image) — sem
+   camada de degradê por cima, que criava uma "emenda" reta no brilho. */
+.login-brand { background: #050505; }
+.login-brand-glow {
+  background: radial-gradient(ellipse at 20% 110%, rgba(234, 88, 12, 0.28), transparent 60%);
+}
+.login-brand-placas {
+  --login-placa: rgba(249, 115, 22, 0.22);
+  background-image:
+    linear-gradient(var(--login-placa) 1px, transparent 1px),
+    linear-gradient(90deg, var(--login-placa) 1px, transparent 1px);
+  background-size: 64px 40px;
+  transform: perspective(700px) rotateX(58deg);
+  transform-origin: bottom;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 30%, transparent 100%);
+          mask-image: linear-gradient(to top, #000 0%, #000 30%, transparent 100%);
+  animation: login-placas-brilho 6s ease-in-out infinite;
+}
+@keyframes login-placas-brilho { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.9; } }
+@media (prefers-reduced-motion: reduce) { .login-brand-placas { animation: none; opacity: 0.7; } }
+/* Na etapa do código 2FA o título "Entrar" sai — a etapa tem título próprio */
+#login-screen .login-card:has(#mfa-step:not(.hidden)) .login-titulo-desktop { display: none; }
+/* Telas baixas (notebook): o formulário rola em vez de ser cortado no topo */
+@media (min-width: 1024px) {
+  #login-screen .login-lado-form { overflow-y: auto; justify-content: safe center; padding-top: 40px; padding-bottom: 40px; }
+}
