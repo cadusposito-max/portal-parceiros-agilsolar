@@ -1002,6 +1002,31 @@ async function _docSalvar() {
   return true;
 }
 
+// Registra o documento gerado na timeline do cliente (crm_atividades, tipo 'documento')
+async function _docRegistrarNaTimeline(tipo, modelo, dados) {
+  const client = (state.clientes || []).find((x) => x.id === _docCtx?.clientId);
+  if (!client) return;
+  const pj = modelo.endsWith('_pj') ? 'PJ' : 'PF';
+  let descricao;
+  if (tipo === 'contrato') {
+    const condicao = (DOC_CONDICOES.find(([v]) => v === dados.condicao) || [])[1] || 'Personalizada';
+    descricao = `Contrato ${pj} gerado · ${condicao} · ${docFormatBRL(dados.financeiro?.valor_total)} · ${docFormatKwp(dados.sistema?.potencia_kwp)} kWp`;
+  } else {
+    descricao = `Procuração ${pj} gerada · UC ${dados.instalacao?.numero_instalacao || '-'} · ${String(dados.instalacao?.concessionaria || DOC_DEFAULTS.concessionaria).toUpperCase()}`;
+  }
+  const { error } = await supabaseClient.from('crm_atividades').insert([{
+    cliente_id: client.id,
+    franquia_id: client.franquia_id || state.franquiaId,
+    autor_email: state.currentUser?.email || 'sistema',
+    tipo: 'documento',
+    descricao,
+    meta: { modelo, condicao: dados.condicao || null, valor_total: dados.financeiro?.valor_total || null, origem: dados.origem || null },
+  }]);
+  if (error) { console.warn('[documentos] Falha ao registrar na timeline.', error); return; }
+  // Ficha aberta por baixo? Atualiza a timeline na hora.
+  if (typeof crmFetchAtividades === 'function' && _crm360ClientIdAtual() === client.id) crmFetchAtividades(client.id);
+}
+
 // tipo = 'contrato' | 'procuracao' → modelo PF ou PJ conforme o formulário
 async function _docGerar(tipo) {
   if (!_docCtx) return;
@@ -1020,6 +1045,7 @@ async function _docGerar(tipo) {
     const blob = await gerarDocumento(modelo, dados);
     baixarDocumento(blob, nomeArquivoDocumento(modelo, dados));
     const salvo = await _docSalvar();
+    await _docRegistrarNaTimeline(tipo, modelo, dados);
     const nome = tipo === 'contrato' ? 'CONTRATO GERADO' : 'PROCURAÇÃO GERADA';
     showToast(salvo ? nome + '!' : nome + ', mas os dados não foram salvos.');
   } catch (err) {

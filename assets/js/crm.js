@@ -19,6 +19,10 @@ const CRM_ATIVIDADE_META = {
   venda:        { icon: 'trophy',         label: 'Venda',         color: 'text-green-400' },
   proxima_acao: { icon: 'alarm-clock',    label: 'Próxima ação',  color: 'text-yellow-300' },
   merge:        { icon: 'merge',          label: 'Mesclagem',     color: 'text-purple-400' },
+  documento:    { icon: 'file-signature', label: 'Documento',     color: 'text-orange-300' },
+  cadastro:     { icon: 'user-pen',       label: 'Cadastro',      color: 'text-neutral-400' },
+  proposta_enviada: { icon: 'send',       label: 'Proposta enviada', color: 'text-yellow-400' },
+  proposta_vista:   { icon: 'eye',        label: 'Proposta vista',   color: 'text-green-400' },
 };
 
 // Agregados calculados a cada render da lista (propostas/vendas por cliente)
@@ -701,7 +705,13 @@ function renderCrm360TabContent(client, propostas, vendas) {
   // TIMELINE (padrão): atividades + propostas + vendas mescladas
   const eventos = [];
   _crm360Atividades.forEach((a) => eventos.push({ tipo: a.tipo, data: a.created_at, autor: a.autor_email, descricao: a.descricao, meta: a.meta }));
-  propostas.forEach((p) => eventos.push({ tipo: 'proposta', data: p.created_at, autor: p.vendedor_email, descricao: `Proposta gerada: ${p.kit_nome || 'personalizada'}` }));
+  propostas.forEach((p) => {
+    const kit = p.kit_nome || 'personalizada';
+    eventos.push({ tipo: 'proposta', data: p.created_at, autor: p.vendedor_email, descricao: `Proposta gerada: ${kit}` });
+    if (p.enviada_em) eventos.push({ tipo: 'proposta_enviada', data: p.enviada_em, autor: p.vendedor_email, descricao: `Proposta enviada ao cliente: ${kit}` });
+    // vista_em = primeira abertura do link pelo cliente
+    if (p.vista_em) eventos.push({ tipo: 'proposta_vista', data: p.vista_em, descricao: `Cliente abriu a proposta: ${kit}${Number(p.vista_count) > 1 ? ` (${p.vista_count} visualizações)` : ''}` });
+  });
   vendas.forEach((v) => eventos.push({ tipo: 'venda', data: v.created_at, autor: v.vendedor_email, descricao: `Venda fechada: ${v.kit_nome || ''} (${formatCurrency(v.kit_price || 0)})` }));
   eventos.sort((a, b) => new Date(b.data) - new Date(a.data));
 
@@ -788,6 +798,23 @@ async function crmSubmitAtividade() {
   if (state.crmLastAtividade) state.crmLastAtividade[client.id] = { last_at: new Date().toISOString(), last_tipo: _crm360ComposerTipo };
 }
 
+// Campos do cadastro que entram no registro da timeline (rótulo legível)
+const CRM_CAMPOS_CADASTRO = {
+  nome: 'nome', telefone: 'telefone', email: 'e-mail', cidade: 'cidade', documento: 'CPF/CNPJ',
+  cep: 'CEP', endereco: 'endereço', numero: 'número', complemento: 'complemento', bairro: 'bairro',
+  origem: 'origem', observacoes: 'observações', rg: 'RG', rg_orgao: 'órgão emissor', genero: 'gênero',
+  estado_civil: 'estado civil', nacionalidade: 'nacionalidade', profissao: 'profissão',
+};
+
+function crmCamposAlterados(antes, depois) {
+  // origem vazia é salva como CLIENT_ORIGEM_VAZIA — não conta como alteração
+  const vazia = typeof CLIENT_ORIGEM_VAZIA !== 'undefined' ? CLIENT_ORIGEM_VAZIA : null;
+  const norm = (v) => { const s = String(v ?? '').trim(); return s === vazia ? '' : s; };
+  return Object.keys(CRM_CAMPOS_CADASTRO)
+    .filter((k) => k in depois && norm(antes[k]) !== norm(depois[k]))
+    .map((k) => CRM_CAMPOS_CADASTRO[k]);
+}
+
 async function crmSaveClient360() {
   const client = _crm360Client();
   if (!client) return;
@@ -848,6 +875,8 @@ async function crmSaveClient360() {
     payload.cidade = cidadeTexto.toUpperCase();
   }
 
+  const camposAlterados = crmCamposAlterados(client, payload);
+
   const { error } = await supabaseClient.from('clientes').update(payload).eq('id', client.id);
   if (error) {
     console.error('[crm] Falha ao salvar cliente.', error);
@@ -857,6 +886,18 @@ async function crmSaveClient360() {
   }
 
   Object.assign(client, payload);
+
+  // Edição do cadastro vira atividade na timeline (quais campos mudaram)
+  if (camposAlterados.length) {
+    supabaseClient.from('crm_atividades').insert([{
+      cliente_id: client.id,
+      franquia_id: client.franquia_id,
+      autor_email: state.currentUser?.email || 'sistema',
+      tipo: 'cadastro',
+      descricao: `Cadastro atualizado: ${camposAlterados.join(', ')}`,
+      meta: { campos: camposAlterados },
+    }]).then(() => crmFetchAtividades(client.id));
+  }
 
   // Cidade nova → re-resolve HSP async
   if (cidadeMudou && typeof enrichClienteHsp === 'function') {
