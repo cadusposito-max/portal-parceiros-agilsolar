@@ -455,6 +455,7 @@ function renderCrm360() {
             ${waLink ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm"><i data-lucide="message-circle"></i> WhatsApp</a>` : ''}
             ${telDigits ? `<a href="tel:+55${telDigits}" class="btn btn-secondary btn-sm"><i data-lucide="phone"></i> Ligar</a>` : ''}
             ${podeProposta ? `<button onclick="crmSet360Tab('nova')" class="btn btn-secondary btn-sm"><i data-lucide="file-plus-2"></i> Proposta</button>` : ''}
+            ${_crm360DocsAtivo() ? `<button onclick="abrirDocumentosCliente('${client.id}')" title="Gerar contrato e procuração" class="btn btn-secondary btn-sm"><i data-lucide="file-signature"></i> Documentos</button>` : ''}
             <button onclick="openFechaVenda('${client.id}')" class="btn btn-success btn-sm"><i data-lucide="trophy"></i> Venda</button>
           </div>
         </div>
@@ -646,6 +647,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
             ${state.isAdmin ? `<button onclick="openOrcamentoDre('${p.id}')" title="Precificação interna (só admin)" class="btn btn-secondary btn-icon"><i data-lucide="calculator"></i></button>` : ''}
             ${waResend ? `<a href="${waResend}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${p.id}')" title="Enviar no WhatsApp do cliente" class="btn btn-primary btn-icon"><i data-lucide="message-circle"></i></a>` : ''}
             <button onclick="copiarLinkExistente('${p.id}', this)" title="Copiar link" class="btn btn-secondary btn-icon"><i data-lucide="copy"></i></button>
+            ${_crm360DocsAtivo() ? `<button onclick="abrirDocumentosCliente('${client.id}', 'proposta:${p.id}')" title="Contrato e procuração com base nesta proposta" class="btn btn-secondary btn-icon"><i data-lucide="file-signature"></i></button>` : ''}
             <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
             <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-icon"><i data-lucide="file-down"></i></a>
             <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Abrir proposta" class="btn btn-secondary btn-icon"><i data-lucide="external-link"></i></a>

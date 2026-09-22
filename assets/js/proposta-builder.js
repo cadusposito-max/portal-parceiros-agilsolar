@@ -1475,9 +1475,10 @@ async function confirmarFechaVenda() {
     const fichaAberta = document.getElementById('crm360-overlay')?.classList.contains('is-open');
     if (fichaAberta && typeof renderCrm360 === 'function') renderCrm360();
 
-    // Matriz: oferece gerar contrato/procuração na sequência
+    // Matriz: oferece gerar contrato/procuração na sequência — só se ainda não
+    // foram feitos antes da venda (o comum é fazer antes, pela ficha do cliente)
     const novaVendaId = novaVenda && novaVenda[0] && novaVenda[0].id;
-    if (novaVendaId && typeof canGerarDocumentos === 'function' && canGerarDocumentos()) {
+    if (novaVendaId && !client.documentos_dados && typeof canGerarDocumentos === 'function' && canGerarDocumentos()) {
       setTimeout(() => showConfirmModal('Venda registrada! Gerar contrato e procuração agora?', () => abrirDocumentosVenda(novaVendaId), 'GERAR AGORA', false), 900);
     }
 

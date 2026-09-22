@@ -373,9 +373,51 @@ function _docItensIniciais(venda, proposta) {
   return docItensDoKit(venda?.kit_nome || proposta?.kit_nome);
 }
 
+// Propostas e vendas do cliente (mesma regra da ficha: cliente_id ou telefone),
+// mais recentes primeiro. Cada uma pode servir de base para kit e valores.
+function docFontesDoCliente(client) {
+  const tel = _docDigits(client?.telefone);
+  const doCliente = (row) => (row.cliente_id ? row.cliente_id === client.id : (tel && _docDigits(row.cliente_telefone) === tel));
+  const recente = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
+  const data = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '');
+  const valor = (n) => (Number(n) ? ' · ' + docFormatBRL(n) : '');
+  const vendas = (state.vendas || []).filter(doCliente).sort(recente).map((v) => ({
+    id: 'venda:' + v.id,
+    label: `Venda ${data(v.created_at)} · ${v.kit_nome || 'kit'}${valor(v.kit_price)}`,
+    venda: v,
+    proposta: v.proposta_id ? (state.propostas || []).find((p) => p.id === v.proposta_id) : null,
+  }));
+  const propostas = (state.propostas || []).filter(doCliente).sort(recente).map((p) => ({
+    id: 'proposta:' + p.id,
+    label: `Proposta ${data(p.created_at)} · ${p.kit_nome || 'personalizada'}${valor(p.custom_total_price || p.kit_price)}`,
+    venda: null,
+    proposta: p,
+  }));
+  return [...vendas, ...propostas];
+}
+
+// Kit, potência e valores a partir de uma fonte (venda/proposta) — ou vazio (manual)
+function _docSistemaFinanceiro(fonte) {
+  const v = fonte?.venda, p = fonte?.proposta;
+  const total = Number(v?.kit_price || p?.custom_total_price || p?.kit_price || 0);
+  return {
+    sistema: {
+      potencia_kwp: Number(v?.kit_power || p?.custom_system_power_kwp || p?.kit_power || 0),
+      itens: fonte ? _docItensIniciais(v, p) : [],
+    },
+    financeiro: {
+      valor_total: total,
+      valor_eletricista: 0,
+      pagamentos: total ? [{ tipo: 'entrada', valor: total }] : [],
+    },
+  };
+}
+
 // Monta o objeto `dados` (formato de montarDadosDocumento) a partir do que já existe.
-function docDadosIniciais(client, venda, proposta) {
-  const salvo = venda?.contrato_dados || {};
+// `salvo` = rascunho anterior (clientes.documentos_dados); kit/valores salvos só
+// valem se a base escolhida for a mesma do rascunho.
+function docDadosIniciais(client, fonte) {
+  const salvo = client?.documentos_dados || {};
   const [cidade, ufCidade] = String(client?.cidade || '').split('/');
   const semVazios = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== undefined && v !== ''));
 
@@ -406,35 +448,46 @@ function docDadosIniciais(client, venda, proposta) {
   if (!cliente.endereco.uf) cliente.endereco.uf = (client?.uf || ufCidade || '').trim();
   if (!cliente.rg_orgao) cliente.rg_orgao = 'SP/SSP';
 
-  const total = Number(venda?.kit_price || proposta?.custom_total_price || proposta?.kit_price || 0);
+  const origem = fonte ? fonte.id : 'manual';
+  const base = (salvo.origem === origem && salvo.sistema) ? { sistema: salvo.sistema, financeiro: salvo.financeiro } : _docSistemaFinanceiro(fonte);
   return {
+    origem,
     cliente,
     instalacao: { concessionaria: DOC_DEFAULTS.concessionaria, mesmo_endereco: true, ...(salvo.instalacao || {}) },
-    sistema: {
-      potencia_kwp: Number(venda?.kit_power || proposta?.custom_system_power_kwp || proposta?.kit_power || 0),
-      itens: _docItensIniciais(venda, proposta),
-      ...(salvo.sistema || {}),
-    },
-    financeiro: {
-      valor_total: total,
-      valor_eletricista: 0,
-      pagamentos: [{ tipo: 'entrada', valor: total }],
-      ...(salvo.financeiro || {}),
-    },
+    sistema: base.sistema,
+    financeiro: base.financeiro,
     prazo_entrega_dias: salvo.prazo_entrega_dias || DOC_DEFAULTS.prazo_entrega_dias,
     data: salvo.data || new Date().toISOString().slice(0, 10),
   };
 }
 
-let _docCtx = null; // { vendaId, clientId, dados, config }
+let _docCtx = null; // { clientId, fontes, dados, config }
 
-async function abrirDocumentosVenda(vendaId) {
-  if (!canGerarDocumentos()) { showToast('Recurso disponível só para a Ágil Solar Matriz.'); return; }
+// Atalho da aba VENDAS: abre o formulário já baseado nessa venda
+function abrirDocumentosVenda(vendaId) {
   const venda = (state.vendas || []).find((v) => v.id === vendaId);
   if (!venda) { showToast('Venda não encontrada.'); return; }
-  const client = (state.clientes || []).find((c) => c.id === venda.cliente_id);
+  const client = (state.clientes || []).find((c) => c.id === venda.cliente_id)
+    || (state.clientes || []).find((c) => c.id === _crm360ClientIdAtual());
   if (!client) { showToast('Cliente da venda não encontrado.'); return; }
-  const proposta = venda.proposta_id ? (state.propostas || []).find((p) => p.id === venda.proposta_id) : null;
+  return abrirDocumentosCliente(client.id, 'venda:' + vendaId);
+}
+
+function _crm360ClientIdAtual() {
+  return typeof _crm360ClientId !== 'undefined' ? _crm360ClientId : null;
+}
+
+// Abre o formulário a partir do cliente — não precisa de venda.
+// `origem` = 'venda:<id>' | 'proposta:<id>' | 'manual' | undefined (escolhe sozinho)
+async function abrirDocumentosCliente(clientId, origem) {
+  if (!canGerarDocumentos()) { showToast('Recurso disponível só para a Ágil Solar Matriz.'); return; }
+  const client = (state.clientes || []).find((c) => c.id === clientId);
+  if (!client) { showToast('Cliente não encontrado.'); return; }
+
+  const fontes = docFontesDoCliente(client);
+  const salvoOrigem = client.documentos_dados?.origem;
+  const escolhida = origem || (fontes.some((f) => f.id === salvoOrigem) || salvoOrigem === 'manual' ? salvoOrigem : fontes[0]?.id);
+  const fonte = fontes.find((f) => f.id === escolhida) || null;
 
   let config;
   try {
@@ -445,7 +498,7 @@ async function abrirDocumentosVenda(vendaId) {
     return;
   }
 
-  _docCtx = { vendaId, clientId: client.id, dados: docDadosIniciais(client, venda, proposta), config };
+  _docCtx = { clientId: client.id, fontes, dados: docDadosIniciais(client, fonte), config };
 
   document.getElementById('doc-overlay')?.remove();
   const overlay = document.createElement('div');
@@ -526,6 +579,11 @@ function _docRender() {
       </div>
 
       <div id="doc-corpo" class="p-5 space-y-6 overflow-y-auto flex-1 min-h-0">
+        ${_docCampo('Kit e valores com base em', `<select id="doc-origem" onchange="_docTrocarOrigem(this.value)" class="${_docInp}">
+          ${_docCtx.fontes.map((f) => `<option value="${f.id}" ${d.origem === f.id ? 'selected' : ''}>${escapeHTML(f.label)}</option>`).join('')}
+          <option value="manual" ${d.origem === 'manual' ? 'selected' : ''}>Preencher manualmente</option>
+        </select>`)}
+
         ${_docSecao('user', 'Cliente', `
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             ${_docCampo('Nome completo', _docText('doc-nome', c.nome, 'uppercase'), 'col-span-2 md:col-span-4')}
@@ -669,6 +727,14 @@ function _docLer() {
   d.data = val('doc-data') || new Date().toISOString().slice(0, 10);
 }
 
+// Troca a base: mantém cliente/instalação/prazo, refaz kit e valores
+function _docTrocarOrigem(origem) {
+  _docLer();
+  const fonte = _docCtx.fontes.find((f) => f.id === origem) || null;
+  Object.assign(_docCtx.dados, { origem: fonte ? fonte.id : 'manual' }, _docSistemaFinanceiro(fonte));
+  _docRender();
+}
+
 function _docAdicionar(lista) {
   _docLer();
   const d = _docCtx.dados;
@@ -716,7 +782,7 @@ const DOC_ROTULOS = {
   contratada_nome: 'dados da empresa (documentos_config)', procurador_nome: 'dados do procurador (documentos_config)',
 };
 
-// Salva dados pessoais em `clientes` e o formulário em `vendas.contrato_dados`
+// Salva dados pessoais em `clientes` e o formulário em `clientes.documentos_dados`
 async function _docSalvar() {
   const d = _docCtx.dados;
   const c = d.cliente, e = c.endereco || {};
@@ -732,19 +798,15 @@ async function _docSalvar() {
     complemento: e.complemento || null,
     bairro: e.bairro || null,
     cep: e.cep || null,
+    documentos_dados: JSON.parse(JSON.stringify(d)),
   };
-  const [rc, rv] = await Promise.all([
-    supabaseClient.from('clientes').update(clientePayload).eq('id', _docCtx.clientId),
-    supabaseClient.from('vendas').update({ contrato_dados: d }).eq('id', _docCtx.vendaId),
-  ]);
-  if (rc.error || rv.error) {
-    console.warn('[documentos] Falha ao salvar dados do contrato.', rc.error || rv.error);
+  const { error } = await supabaseClient.from('clientes').update(clientePayload).eq('id', _docCtx.clientId);
+  if (error) {
+    console.warn('[documentos] Falha ao salvar dados do contrato.', error);
     return false;
   }
   const client = (state.clientes || []).find((x) => x.id === _docCtx.clientId);
   if (client) Object.assign(client, clientePayload);
-  const venda = (state.vendas || []).find((x) => x.id === _docCtx.vendaId);
-  if (venda) venda.contrato_dados = JSON.parse(JSON.stringify(d));
   return true;
 }
 
