@@ -322,11 +322,15 @@ async function docCarregarConfig() {
 }
 
 // ==========================================
-// UI — modal "Documentos" da venda (CRM 360 → VENDAS). Só Ágil Solar Matriz.
+// UI — modal "Documentos" (ficha do cliente). Só admin/gestor da Ágil Solar Matriz.
 // ==========================================
 
+// A mesma regra vale no banco: a RLS de documentos_config só libera admin/gestor
+// da própria franquia, então vendedor não gera nem contornando a tela.
 function canGerarDocumentos() {
-  return typeof FRANQUIA_MATRIZ_ID !== 'undefined' && state.franquiaId === FRANQUIA_MATRIZ_ID;
+  return typeof FRANQUIA_MATRIZ_ID !== 'undefined'
+    && state.franquiaId === FRANQUIA_MATRIZ_ID
+    && Boolean(state.isAdmin || state.isGestor);
 }
 
 // "55.000,00" | "55000" | "55000.5" → número
@@ -480,7 +484,7 @@ function _crm360ClientIdAtual() {
 // Abre o formulário a partir do cliente — não precisa de venda.
 // `origem` = 'venda:<id>' | 'proposta:<id>' | 'manual' | undefined (escolhe sozinho)
 async function abrirDocumentosCliente(clientId, origem) {
-  if (!canGerarDocumentos()) { showToast('Recurso disponível só para a Ágil Solar Matriz.'); return; }
+  if (!canGerarDocumentos()) { showToast('Contrato e procuração: disponível só para gestor/admin da Matriz.'); return; }
   const client = (state.clientes || []).find((c) => c.id === clientId);
   if (!client) { showToast('Cliente não encontrado.'); return; }
 
