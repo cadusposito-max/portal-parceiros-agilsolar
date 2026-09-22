@@ -1008,7 +1008,7 @@ function omOpenCreateClient(opts = {}) {
         </div>
         ${omField('Endereço', `<input name="endereco" class="${OM_INPUT_CLS}" placeholder="Rua, número, bairro" />`)}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          ${omField('CPF / CNPJ', `<input name="documento" class="${OM_INPUT_CLS}" placeholder="Opcional" />`)}
+          ${omField('CPF / CNPJ', `<input name="documento" class="${OM_INPUT_CLS}" placeholder="Opcional" inputmode="numeric" maxlength="18" oninput="aplicarMascaraInput(this, mascaraDocumento)" />`)}
           ${omField('Origem', `<select name="origem" class="${OM_INPUT_CLS}">
             <option value="manual">Manual</option>
             <option value="indicacao">Indicação</option>

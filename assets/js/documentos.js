@@ -331,6 +331,11 @@ function validarDadosDocumento(modelo, dados = {}) {
   const digitos = _docDigits(dados.cliente?.cpf).length;
   if (flat.cliente_documento && modelo.endsWith('_pf') && digitos !== 11) faltando.push('CPF válido (11 dígitos)');
   if (flat.cliente_documento && modelo.endsWith('_pj') && digitos !== 14) faltando.push('CNPJ válido (14 dígitos)');
+  // dígitos verificadores (documentoValido vem do utils.js)
+  if (typeof documentoValido === 'function') {
+    if (digitos && [11, 14].includes(digitos) && !documentoValido(dados.cliente?.cpf)) faltando.push(modelo.endsWith('_pj') ? 'CNPJ correto (dígitos não conferem)' : 'CPF correto (dígitos não conferem)');
+    if (modelo.endsWith('_pj') && _docDigits(dados.cliente?.representante?.cpf) && !documentoValido(dados.cliente.representante.cpf)) faltando.push('CPF do responsável correto (dígitos não conferem)');
+  }
   if (modelo.startsWith('contrato')) {
     if (!flat.itens.length) faltando.push('itens');
     const pags = (dados.financeiro?.pagamentos || []).filter((p) => Number(p?.valor) || p?.texto);
@@ -782,6 +787,12 @@ function _docRender() {
 
   _docCtx.animado = true;
   document.getElementById('doc-corpo').scrollTop = scrollAnterior;
+  if (typeof ligarMascara === 'function') {
+    ligarMascara(document.getElementById('doc-cpf'), pj ? 'cnpj' : 'cpf');
+    ligarMascara(document.getElementById('doc-rep-cpf'), 'cpf');
+    ligarMascara(document.getElementById('doc-end-cep'), 'cep');
+    ligarMascara(document.getElementById('doc-inst-cep'), 'cep');
+  }
   _docAtualizarSoma();
   lucide.createIcons();
 }

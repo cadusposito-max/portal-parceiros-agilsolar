@@ -475,7 +475,7 @@ function renderCrm360() {
               ${crm360Field('Telefone', `<input id="crm360-telefone" value="${escapeHTML(client.telefone || '')}" class="crm360-input font-mono">`)}
               ${crm360Field('E-mail', `<input id="crm360-email" type="email" value="${escapeHTML(client.email || '')}" class="crm360-input">`)}
               ${crm360Field('Cidade/UF', `<div class="relative"><input id="crm360-cidade" value="${escapeHTML(client.cidade || '')}" class="crm360-input uppercase" autocomplete="off"></div>`)}
-              ${crm360Field('CPF/CNPJ', `<input id="crm360-documento" value="${escapeHTML(client.documento || '')}" class="crm360-input">`)}
+              ${crm360Field('CPF/CNPJ', `<input id="crm360-documento" value="${escapeHTML(client.documento || '')}" class="crm360-input font-mono">`)}
               ${crm360Field('CEP', `<input id="crm360-cep" value="${escapeHTML(client.cep || '')}" class="crm360-input font-mono">`)}
               ${crm360Field('Origem', `<select id="crm360-origem" class="crm360-input uppercase">
                 ${clientOrigemOptionsHTML(client.origem)}
@@ -520,6 +520,8 @@ function renderCrm360() {
   }
   const telInput = document.getElementById('crm360-telefone');
   if (telInput) telInput.addEventListener('input', formatarTelefone);
+  ligarMascara(document.getElementById('crm360-documento'), 'auto');
+  ligarMascara(document.getElementById('crm360-cep'), 'cep');
 
   // Aba NOVA PROPOSTA: move o painel do construtor para o slot (appendChild
   // preserva listeners) e prepara o estado para o cliente atual.
@@ -862,6 +864,7 @@ async function crmSaveClient360() {
 
   if (!payload.nome) { showToast('Nome é obrigatório.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }
   if (digitsOnly(payload.telefone).length < 10) { showToast('Telefone com DDD é obrigatório.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }
+  if (!documentoValido(payload.documento)) { showToast('CPF/CNPJ inválido — confira os números.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }
   if (!cidadeTexto) { showToast('Cidade é obrigatória.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }
 
   if (mun) {

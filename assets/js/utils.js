@@ -715,3 +715,79 @@ if (document.readyState === 'loading') {
   initPublishedVersionWatcher();
 }
 
+
+// ==========================================
+// MÁSCARAS DE CAMPO (CPF / CNPJ / CEP)
+// ==========================================
+// modo: 'cpf' | 'cnpj' | 'auto' (até 11 dígitos = CPF, depois vira CNPJ)
+function mascaraDocumento(valor, modo = 'auto') {
+  const max = modo === 'cpf' ? 11 : 14;
+  const d = String(valor ?? '').replace(/\D/g, '').slice(0, max);
+  if (modo === 'cnpj' || (modo === 'auto' && d.length > 11)) {
+    return d
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return d
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1-$2');
+}
+
+function mascaraCEP(valor) {
+  return String(valor ?? '').replace(/\D/g, '').slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
+}
+
+// Aplica a máscara mantendo o cursor no mesmo dígito (dá para editar no meio)
+function aplicarMascaraInput(el, formatar) {
+  if (!el) return;
+  const pos = el.selectionStart ?? el.value.length;
+  const digitosAntes = el.value.slice(0, pos).replace(/\D/g, '').length;
+  el.value = formatar(el.value);
+  if (document.activeElement !== el) return;
+  let novo = 0, vistos = 0;
+  while (novo < el.value.length && vistos < digitosAntes) {
+    if (/\d/.test(el.value[novo])) vistos++;
+    novo++;
+  }
+  el.setSelectionRange(novo, novo);
+}
+
+// Liga a máscara num input (formata o valor atual e o que for digitado/colado)
+function ligarMascara(el, tipo) {
+  if (!el || el.dataset.mascara) return;
+  const formatar = tipo === 'cep' ? mascaraCEP : (v) => mascaraDocumento(v, tipo);
+  el.dataset.mascara = tipo;
+  el.setAttribute('inputmode', 'numeric');
+  el.setAttribute('maxlength', tipo === 'cep' ? '9' : tipo === 'cpf' ? '14' : '18');
+  el.value = formatar(el.value);
+  el.addEventListener('input', () => aplicarMascaraInput(el, formatar));
+}
+
+// Dígitos verificadores. Vazio conta como válido (campo opcional).
+function documentoValido(valor) {
+  const d = String(valor ?? '').replace(/\D/g, '');
+  if (!d) return true;
+  if (/^(\d)\1+$/.test(d)) return false;
+  if (d.length === 11) {
+    const dv = (n) => {
+      let soma = 0;
+      for (let i = 0; i < n; i++) soma += Number(d[i]) * (n + 1 - i);
+      const r = (soma * 10) % 11;
+      return r === 10 ? 0 : r;
+    };
+    return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
+  }
+  if (d.length === 14) {
+    const dv = (n) => {
+      const pesos = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+      const soma = pesos.reduce((s, p, i) => s + Number(d[i]) * p, 0);
+      const r = soma % 11;
+      return r < 2 ? 0 : 11 - r;
+    };
+    return dv(12) === Number(d[12]) && dv(13) === Number(d[13]);
+  }
+  return false;
+}
