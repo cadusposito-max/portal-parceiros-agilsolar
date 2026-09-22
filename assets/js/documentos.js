@@ -1,41 +1,48 @@
 // ==========================================
-// GERAÇÃO DE DOCUMENTOS (.docx) — Procuração e Contrato
+// GERAÇÃO DE DOCUMENTOS (.docx) — Contrato e Procuração, PF e PJ
 // ==========================================
 // Modelos em assets/templates/documentos/*.docx com tags {campo} (docxtemplater).
 // Uso:
-//   const blob = await gerarDocumento('contrato', dados);
-//   baixarDocumento(blob, 'CONTRATO - FULANO.docx');
+//   const blob = await gerarDocumento('contrato_pf', dados);
+//   baixarDocumento(blob, nomeArquivoDocumento('contrato_pf', dados));
 // `dados` segue o formato de montarDadosDocumento() abaixo.
 //
 // Dados da empresa (contratada) e do procurador NÃO ficam aqui — o repositório
-// é público. Vêm da tabela `documentos_config` (RLS: só a própria franquia).
+// é público. Vêm da tabela `documentos_config` (RLS: admin/gestor da própria franquia).
 
 const DOC_LIBS = {
   pizzip: 'https://cdn.jsdelivr.net/npm/pizzip@3.3.0/dist/pizzip.min.js',
   docxtemplater: 'https://cdn.jsdelivr.net/npm/docxtemplater@3.71.0/build/docxtemplater.min.js',
 };
 
+const DOC_PASTA = 'assets/templates/documentos/';
 const DOC_MODELOS = {
-  procuracao: {
-    nome: 'Procuração (concessionária)',
-    arquivo: 'assets/templates/documentos/procuracao.docx',
-    prefixo: 'PROCURAÇÃO',
-  },
-  contrato: {
-    nome: 'Contrato de compra, venda e instalação',
-    arquivo: 'assets/templates/documentos/contrato-venda-instalacao.docx',
-    prefixo: 'CONTRATO',
-  },
+  contrato_pf:   { nome: 'Contrato (pessoa física)',   arquivo: DOC_PASTA + 'contrato-pf.docx',   prefixo: 'CONTRATO' },
+  contrato_pj:   { nome: 'Contrato (pessoa jurídica)', arquivo: DOC_PASTA + 'contrato-pj.docx',   prefixo: 'CONTRATO' },
+  procuracao_pf: { nome: 'Procuração (pessoa física)',   arquivo: DOC_PASTA + 'procuracao-pf.docx', prefixo: 'PROCURAÇÃO' },
+  procuracao_pj: { nome: 'Procuração (pessoa jurídica)', arquivo: DOC_PASTA + 'procuracao-pj.docx', prefixo: 'PROCURAÇÃO' },
 };
 
 // Versão dos modelos .docx (troque ao editar um modelo, para furar o cache)
-const DOC_MODELOS_VERSAO = '20260922';
+const DOC_MODELOS_VERSAO = '20260922-pfpj';
 
 const DOC_DEFAULTS = {
   concessionaria: 'CPFL PAULISTA',
   prazo_entrega_dias: 90,
   nacionalidade: 'BRASILEIRO',
+  forma_pagamento: 'PIX',
 };
+
+// Condições de pagamento prontas (preenchem as alíneas da Cláusula Segunda)
+const DOC_CONDICOES = [
+  ['avista', 'À vista'],
+  ['70_30', '70% entrada + 30% na entrega do material'],
+  ['financiamento', 'Financiamento (valor total)'],
+  ['entrada_financiamento', 'Entrada + financiamento'],
+  ['personalizada', 'Personalizada'],
+];
+
+const DOC_TELHADOS = ['Telha Colonial', 'Telha Cerâmica', 'Telha de Fibrocimento', 'Telha Metálica', 'Laje', 'Solo'];
 
 // Estado civil salvo como chave neutra; o texto sai concordando com o gênero
 const DOC_ESTADO_CIVIL = {
@@ -53,6 +60,13 @@ const _docDigits = (v) => String(v ?? '').replace(/\D/g, '');
 function docFormatCPF(v) {
   const d = _docDigits(v);
   return d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : String(v ?? '').trim();
+}
+
+// CPF (11 dígitos) ou CNPJ (14 dígitos)
+function docFormatDocumento(v) {
+  const d = _docDigits(v);
+  if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return docFormatCPF(v);
 }
 
 function docFormatCEP(v) {
@@ -137,28 +151,52 @@ function docDataExtenso(d) {
 }
 
 // ---------- condições de pagamento (alíneas da Cláusula Segunda) ----------
+const _docArred = (n) => Math.round(Number(n || 0) * 100) / 100;
+
+// Linhas de pagamento de uma condição pronta
+function docPagamentosDaCondicao(condicao, total) {
+  const t = _docArred(total);
+  switch (condicao) {
+    case 'avista': return [{ tipo: 'entrada', valor: t }];
+    case '70_30': {
+      const entrada = _docArred(t * 0.7);
+      return [{ tipo: 'entrada', valor: entrada }, { tipo: 'chegada_material', valor: _docArred(t - entrada) }];
+    }
+    case 'financiamento': return [{ tipo: 'financiamento', valor: t }];
+    case 'entrada_financiamento': return [{ tipo: 'entrada', valor: 0 }, { tipo: 'financiamento', valor: t }];
+    default: return null; // personalizada: mantém o que está
+  }
+}
+
+// Textos dos modelos oficiais (à vista / 70-30 / financiamento)
 // tipos: 'entrada' | 'chegada_material' | 'financiamento' | 'livre'
-function docDescricaoPagamento(p) {
+function docDescricaoPagamento(p, unico) {
   const valor = `${docFormatBRL(p.valor)} (${docValorPorExtenso(p.valor)})`;
-  const forma = p.forma || 'depósito/transferência bancária';
+  const forma = `depósito/ transferência/ ${p.forma || DOC_DEFAULTS.forma_pagamento}`;
   switch (p.tipo) {
     case 'entrada':
-      return `Pagamento no valor de ${valor}, a título de entrada, cujo vencimento se dará na assinatura do presente instrumento, devendo o pagamento ser realizado através de ${forma}`;
+      return `Pagamento no valor certo e ajustado de ${valor}${unico ? '' : ', como entrada'}, cujo vencimento se dará na assinatura da presente minuta, devendo o pagamento em questão ser realizado através de ${forma}.`;
     case 'chegada_material':
-      return `Pagamento do valor de ${valor}, a ser realizado pelo CONTRATANTE assim que ocorrer a chegada do material necessário para a execução do projeto, através de ${forma}`;
+      return `Pagamento no valor certo e ajustado de ${valor}, cujo vencimento se dará após a entrega do material, devendo o pagamento em questão ser realizado através de ${forma}.`;
     case 'financiamento':
-      return `O saldo remanescente, no valor de ${valor}, será pago por intermédio de financiamento bancário junto à ${p.financeira || 'instituição financeira'}, em parcela única, mediante o crédito do respectivo valor na conta de titularidade da CONTRATADA, conforme os prazos e condições estabelecidos entre o CONTRATANTE e a respectiva instituição financeira`;
-    default:
-      return String(p.texto || '').replace(/\{valor\}/g, valor).replace(/[.;]\s*$/, '');
+      return `O saldo remanescente, no valor de ${valor}, será pago por intermédio de financiamento bancário junto à ${p.financeira || 'instituição financeira'}, em parcela única, mediante o crédito do respectivo valor na conta de titularidade da CONTRATADA, conforme os prazos e condições estabelecidos entre o CONTRATANTE e a respectiva instituição financeira.`;
+    default: {
+      const t = String(p.texto || '').replace(/\{valor\}/g, valor).trim();
+      return t && !/[.;]$/.test(t) ? t + '.' : t;
+    }
   }
 }
 
 // ---------- montagem dos dados ----------
 /*
   dados = {
-    cliente: { nome, cpf, rg, rg_orgao, nacionalidade?, estado_civil, genero: 'M'|'F',
-               endereco: { logradouro, numero, complemento?, bairro, cidade, uf, cep } | 'texto pronto' },
-    instalacao: { endereco?  (padrão = endereço do cliente), numero_instalacao, concessionaria? },
+    tipo_pessoa: 'PF' | 'PJ', condicao,
+    cliente: { nome (PJ: razão social), cpf (PF: CPF / PJ: CNPJ), rg, rg_orgao, nacionalidade?, estado_civil,
+               profissao, genero: 'M'|'F',
+               endereco: { logradouro, numero, complemento?, bairro, cidade, uf, cep } | 'texto pronto',
+               representante?: { nome, cpf, rg, rg_orgao, genero, estado_civil, nacionalidade, profissao,
+                                 mesmo_endereco, endereco } },          ← só PJ
+    instalacao: { endereco?  (padrão = endereço do cliente), numero_instalacao, concessionaria?, telhado? },
     sistema: { potencia_kwp, itens: [{ quantidade, descricao }] },
     financeiro: { valor_total, valor_eletricista?, pagamentos: [{ tipo, valor, forma?, financeira?, texto? }] },
     prazo_entrega_dias?, data?,
@@ -167,35 +205,68 @@ function docDescricaoPagamento(p) {
   }
 */
 function montarDadosDocumento(dados = {}) {
+  const pj = dados.tipo_pessoa === 'PJ';
   const cli = dados.cliente || {};
+  const rep = cli.representante || {};
   const inst = dados.instalacao || {};
   const sis = dados.sistema || {};
   const fin = dados.financeiro || {};
   const contratada = dados.contratada || {};
   const procurador = dados.procurador || {};
-  const fem = String(cli.genero || '').toUpperCase().startsWith('F');
   const up = (s) => String(s ?? '').trim().toUpperCase();
+
+  // Quem é qualificado no texto (PF: o cliente; PJ: o representante legal)
+  const pessoa = pj ? rep : cli;
+  const fem = String(pessoa.genero || '').toUpperCase().startsWith('F');
+  const estadoCivil = (p, f) => (DOC_ESTADO_CIVIL[p.estado_civil] || [])[f ? 1 : 0] || up(p.estado_civil);
+  const nacionalidade = (p, f) => {
+    const n = up(p.nacionalidade || DOC_DEFAULTS.nacionalidade);
+    return f && n === 'BRASILEIRO' ? 'BRASILEIRA' : n;
+  };
+  const qualificacao = (p, f) => [nacionalidade(p, f), estadoCivil(p, f), up(p.profissao)].filter(Boolean).join(', ');
+  const repFem = String(rep.genero || '').toUpperCase().startsWith('F');
+  const cliFem = String(cli.genero || '').toUpperCase().startsWith('F');
 
   const valorTotal = Number(fin.valor_total || 0);
   const valorEletricista = Number(fin.valor_eletricista || 0);
-  const pagamentos = (fin.pagamentos || []).filter((p) => p && (p.valor || p.texto));
+  const pagamentos = (fin.pagamentos || []).filter((p) => p && (Number(p.valor) || p.texto));
   const temFinanciamento = pagamentos.some((p) => p.tipo === 'financiamento');
+  const soFinanciamento = pagamentos.length === 1 && pagamentos[0].tipo === 'financiamento';
   const ord = DOC_ORDINAIS.slice(temFinanciamento ? 1 : 0);
 
+  // Financiamento do valor total: texto corrido do modelo, sem alíneas
+  const clausula2Forma = soFinanciamento
+    ? `por intermédio de financiamento bancário junto a ${pagamentos[0].financeira || 'instituição financeira'}, em parcela única a ser creditada na conta de titularidade da CONTRATADA, conforme prazo negociado diretamente entre o CONTRATANTE e a respectiva instituição financeira.`
+    : 'da seguinte forma:';
+  const alineas = soFinanciamento ? [] : pagamentos.map((p, i) => ({
+    letra: String.fromCharCode(97 + i),
+    descricao: docDescricaoPagamento(p, pagamentos.length === 1),
+  }));
+
   const clienteEndereco = docFormatEndereco(cli.endereco);
+  const telhado = String(inst.telhado || '').trim();
 
   return {
-    // cliente
+    // cliente (PF: pessoa / PJ: empresa)
     cliente_nome: up(cli.nome),
-    cliente_cpf: docFormatCPF(cli.cpf),
+    cliente_documento: docFormatDocumento(cli.cpf),
+    cliente_cpf: docFormatDocumento(cli.cpf),
     cliente_rg: String(cli.rg ?? '').trim(),
     cliente_rg_orgao: up(cli.rg_orgao),
-    cliente_nacionalidade: (() => {
-      const n = up(cli.nacionalidade || DOC_DEFAULTS.nacionalidade);
-      return fem && n === 'BRASILEIRO' ? 'BRASILEIRA' : n;
-    })(),
-    cliente_estado_civil: (DOC_ESTADO_CIVIL[cli.estado_civil] || [])[fem ? 1 : 0] || up(cli.estado_civil),
+    cliente_nacionalidade: nacionalidade(cli, cliFem),
+    cliente_estado_civil: estadoCivil(cli, cliFem),
+    cliente_profissao: up(cli.profissao),
+    cliente_qualificacao: qualificacao(cli, cliFem),
     cliente_endereco: clienteEndereco,
+    // representante legal (PJ)
+    representante_nome: up(rep.nome),
+    representante_cpf: docFormatCPF(rep.cpf),
+    representante_rg: String(rep.rg ?? '').trim(),
+    representante_rg_orgao: up(rep.rg_orgao),
+    representante_profissao: up(rep.profissao),
+    representante_qualificacao: qualificacao(rep, repFem),
+    representante_endereco: rep.mesmo_endereco === false ? docFormatEndereco(rep.endereco) : clienteEndereco,
+    // concordância de quem é qualificado
     portador: fem ? 'portadora' : 'portador',
     inscrito: fem ? 'inscrita' : 'inscrito',
     domiciliado: fem ? 'domiciliada' : 'domiciliado',
@@ -219,9 +290,13 @@ function montarDadosDocumento(dados = {}) {
     procurador_crea: procurador.crea || '',
     procurador_endereco: procurador.endereco || '',
     procurador_telefone: procurador.telefone || '',
-    // sistema
+    // sistema (a estrutura ganha o tipo de telhado)
     potencia_kwp: docFormatKwp(sis.potencia_kwp),
-    itens: (sis.itens || []).map((i) => ({ quantidade: String(i.quantidade ?? ''), descricao: String(i.descricao ?? '') })),
+    itens: (sis.itens || []).map((i) => {
+      let descricao = String(i.descricao ?? '');
+      if (telhado && /^Conj\. de Estr/i.test(descricao) && !descricao.includes('(')) descricao += ` (${telhado})`;
+      return { quantidade: String(i.quantidade ?? ''), descricao };
+    }),
     // valores
     valor_total: docFormatBRL(valorTotal),
     valor_total_extenso: docValorPorExtenso(valorTotal),
@@ -230,10 +305,9 @@ function montarDadosDocumento(dados = {}) {
     valor_projeto_extenso: docValorPorExtenso(valorTotal - valorEletricista),
     valor_eletricista: docFormatBRL(valorEletricista),
     valor_eletricista_extenso: docValorPorExtenso(valorEletricista),
-    pagamentos: pagamentos.map((p, i) => ({
-      letra: String.fromCharCode(97 + i),
-      descricao: docDescricaoPagamento(p) + (i === pagamentos.length - 1 ? '.' : ';'),
-    })),
+    clausula2_forma: clausula2Forma,
+    pagamentos: alineas,
+    tem_alineas: alineas.length > 0,
     tem_financiamento: temFinanciamento,
     // "Parágrafo primeiro" (financiamento) só existe com financiamento; os demais são renumerados
     paragrafo_custos: ord[0],
@@ -245,19 +319,26 @@ function montarDadosDocumento(dados = {}) {
 
 // Campos obrigatórios por modelo — retorna lista do que falta (vazio = ok)
 const DOC_OBRIGATORIOS = {
-  procuracao: ['cliente_nome', 'cliente_cpf', 'cliente_rg', 'cliente_endereco', 'numero_instalacao', 'procurador_nome'],
-  contrato: ['cliente_nome', 'cliente_cpf', 'cliente_rg', 'cliente_estado_civil', 'cliente_endereco', 'potencia_kwp', 'valor_total', 'contratada_nome'],
+  contrato_pf: ['cliente_nome', 'cliente_documento', 'cliente_rg', 'cliente_estado_civil', 'cliente_endereco', 'potencia_kwp', 'valor_total', 'contratada_nome'],
+  contrato_pj: ['cliente_nome', 'cliente_documento', 'cliente_endereco', 'representante_nome', 'representante_cpf', 'representante_rg', 'potencia_kwp', 'valor_total', 'contratada_nome'],
+  procuracao_pf: ['cliente_nome', 'cliente_documento', 'cliente_rg', 'cliente_endereco', 'numero_instalacao', 'procurador_nome'],
+  procuracao_pj: ['cliente_nome', 'cliente_documento', 'cliente_endereco', 'representante_nome', 'representante_cpf', 'numero_instalacao', 'procurador_nome'],
 };
 
 function validarDadosDocumento(modelo, dados = {}) {
   const flat = montarDadosDocumento(dados);
   const faltando = (DOC_OBRIGATORIOS[modelo] || []).filter((k) => !flat[k] || flat[k] === '0,00' || flat[k] === 'R$ 0,00');
-  if (modelo === 'contrato') {
+  const digitos = _docDigits(dados.cliente?.cpf).length;
+  if (flat.cliente_documento && modelo.endsWith('_pf') && digitos !== 11) faltando.push('CPF válido (11 dígitos)');
+  if (flat.cliente_documento && modelo.endsWith('_pj') && digitos !== 14) faltando.push('CNPJ válido (14 dígitos)');
+  if (modelo.startsWith('contrato')) {
     if (!flat.itens.length) faltando.push('itens');
-    if (!flat.pagamentos.length) faltando.push('pagamentos');
-    const soma = (dados.financeiro?.pagamentos || []).reduce((s, p) => s + Number(p?.valor || 0), 0);
+    const pags = (dados.financeiro?.pagamentos || []).filter((p) => Number(p?.valor) || p?.texto);
+    if (!pags.length) faltando.push('pagamentos');
+    if (pags.some((p) => p.tipo === 'financiamento' && !String(p.financeira || '').trim())) faltando.push('banco do financiamento');
+    const soma = pags.reduce((s, p) => s + Number(p?.valor || 0), 0);
     const total = Number(dados.financeiro?.valor_total || 0);
-    if (flat.pagamentos.length && Math.abs(soma - total) > 0.009) faltando.push(`pagamentos (soma ${docFormatBRL(soma)} ≠ total ${docFormatBRL(total)})`);
+    if (pags.length && Math.abs(soma - total) > 0.009) faltando.push(`pagamentos (soma ${docFormatBRL(soma)} ≠ total ${docFormatBRL(total)})`);
   }
   return faltando;
 }
@@ -401,7 +482,7 @@ function docFontesDoCliente(client) {
 }
 
 // Kit, potência e valores a partir de uma fonte (venda/proposta) — ou vazio (manual)
-function _docSistemaFinanceiro(fonte) {
+function _docSistemaFinanceiro(fonte, condicao) {
   const v = fonte?.venda, p = fonte?.proposta;
   const total = Number(v?.kit_price || p?.custom_total_price || p?.kit_price || 0);
   return {
@@ -412,7 +493,7 @@ function _docSistemaFinanceiro(fonte) {
     financeiro: {
       valor_total: total,
       valor_eletricista: 0,
-      pagamentos: total ? [{ tipo: 'entrada', valor: total }] : [],
+      pagamentos: docPagamentosDaCondicao(condicao, total) || docPagamentosDaCondicao('avista', total),
     },
   };
 }
@@ -424,19 +505,21 @@ function docDadosIniciais(client, fonte) {
   const salvo = client?.documentos_dados || {};
   const [cidade, ufCidade] = String(client?.cidade || '').split('/');
   const semVazios = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== undefined && v !== ''));
+  const tipoPessoa = salvo.tipo_pessoa || (_docDigits(client?.documento).length === 14 ? 'PJ' : 'PF');
 
   const endSalvo = (salvo.cliente && typeof salvo.cliente.endereco === 'object') ? salvo.cliente.endereco : {};
   const cliente = {
     ...(salvo.cliente || {}),
-    ...semVazios({
-      nome: client?.nome,
-      cpf: client?.documento,
+    ...semVazios({ nome: client?.nome, cpf: client?.documento }),
+    // dados pessoais da ficha só valem para PF (na PJ ficam no representante)
+    ...(tipoPessoa === 'PF' ? semVazios({
       rg: client?.rg,
       rg_orgao: client?.rg_orgao,
       estado_civil: client?.estado_civil,
       nacionalidade: client?.nacionalidade,
       genero: client?.genero,
-    }),
+      profissao: client?.profissao,
+    }) : {}),
   };
   cliente.endereco = {
     ...endSalvo,
@@ -451,11 +534,16 @@ function docDadosIniciais(client, fonte) {
   if (!cliente.endereco.cidade) cliente.endereco.cidade = (cidade || '').trim();
   if (!cliente.endereco.uf) cliente.endereco.uf = (client?.uf || ufCidade || '').trim();
   if (!cliente.rg_orgao) cliente.rg_orgao = 'SP/SSP';
+  cliente.representante = { rg_orgao: 'SP/SSP', mesmo_endereco: true, ...(cliente.representante || {}) };
 
   const origem = fonte ? fonte.id : 'manual';
-  const base = (salvo.origem === origem && salvo.sistema) ? { sistema: salvo.sistema, financeiro: salvo.financeiro } : _docSistemaFinanceiro(fonte);
+  const mesmaBase = salvo.origem === origem && salvo.sistema;
+  const condicao = (mesmaBase && salvo.condicao) || 'avista';
+  const base = mesmaBase ? { sistema: salvo.sistema, financeiro: salvo.financeiro } : _docSistemaFinanceiro(fonte, condicao);
   return {
     origem,
+    tipo_pessoa: tipoPessoa,
+    condicao,
     cliente,
     instalacao: { concessionaria: DOC_DEFAULTS.concessionaria, mesmo_endereco: true, ...(salvo.instalacao || {}) },
     sistema: base.sistema,
@@ -525,8 +613,8 @@ function _docCampo(label, html, cls = '') {
 function _docText(id, valor, extra = '') {
   return `<input id="${id}" value="${escapeHTML(String(valor ?? ''))}" class="${_docInp} ${extra}">`;
 }
-function _docSelect(id, valor, opcoes) {
-  return `<select id="${id}" class="${_docInp}">${opcoes.map(([v, l]) => `<option value="${v}" ${String(valor ?? '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+function _docSelect(id, valor, opcoes, onchange = '') {
+  return `<select id="${id}" ${onchange ? `onchange="${onchange}"` : ''} class="${_docInp}">${opcoes.map(([v, l]) => `<option value="${v}" ${String(valor ?? '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
 }
 function _docSecao(icone, titulo, corpo) {
   return `<section class="space-y-3">
@@ -536,17 +624,33 @@ function _docSecao(icone, titulo, corpo) {
 }
 
 const DOC_TIPOS_PAGAMENTO = [
-  ['entrada', 'Entrada (na assinatura)'],
-  ['chegada_material', 'Na chegada do material'],
+  ['entrada', 'Na assinatura (entrada / à vista)'],
+  ['chegada_material', 'Após a entrega do material'],
   ['financiamento', 'Financiamento'],
   ['livre', 'Texto livre'],
 ];
+const DOC_OPCOES_GENERO = [['', '—'], ['M', 'Masculino'], ['F', 'Feminino']];
+const DOC_OPCOES_ESTADO_CIVIL = [['', '—'], ['solteiro', 'Solteiro(a)'], ['casado', 'Casado(a)'], ['divorciado', 'Divorciado(a)'], ['separado', 'Separado(a) judicialmente'], ['viuvo', 'Viúvo(a)'], ['uniao_estavel', 'União estável']];
+
+// Campos de endereço (cliente / empresa / usina)
+function _docEnderecoHTML(prefixo, e) {
+  return `
+    ${_docCampo('Rua / Av.', _docText(`${prefixo}-logradouro`, e.logradouro), 'col-span-2')}
+    ${_docCampo('Número', _docText(`${prefixo}-numero`, e.numero))}
+    ${_docCampo('Complemento', _docText(`${prefixo}-complemento`, e.complemento))}
+    ${_docCampo('Bairro', _docText(`${prefixo}-bairro`, e.bairro), 'col-span-2')}
+    ${_docCampo('Cidade', _docText(`${prefixo}-cidade`, e.cidade))}
+    ${_docCampo('UF', _docText(`${prefixo}-uf`, e.uf, 'uppercase'))}
+    ${_docCampo('CEP', _docText(`${prefixo}-cep`, e.cep, 'font-mono'))}`;
+}
 
 function _docRender() {
   const overlay = document.getElementById('doc-overlay');
   if (!overlay || !_docCtx) return;
   const d = _docCtx.dados;
-  const c = d.cliente, e = c.endereco || {}, inst = d.instalacao, sis = d.sistema, fin = d.financeiro;
+  const pj = d.tipo_pessoa === 'PJ';
+  const c = d.cliente, e = c.endereco || {}, rep = c.representante || {};
+  const inst = d.instalacao, sis = d.sistema, fin = d.financeiro;
   const ie = (inst.endereco && typeof inst.endereco === 'object') ? inst.endereco : {};
   const scrollAnterior = document.getElementById('doc-corpo')?.scrollTop || 0;
 
@@ -561,16 +665,49 @@ function _docRender() {
     <div class="border border-neutral-800 p-3 space-y-2">
       <div class="flex gap-2 items-center">
         <span class="text-orange-500 font-black text-xs w-5">${String.fromCharCode(97 + i)})</span>
-        ${_docSelect(`doc-pag-tipo-${i}`, p.tipo, DOC_TIPOS_PAGAMENTO).replace('class="', 'onchange="_docLer(); _docRender()" class="flex-1 ')}
-        <input id="doc-pag-valor-${i}" value="${_docNumInput(p.valor)}" oninput="_docAtualizarSoma()" placeholder="Valor" class="${_docInp} w-32 font-mono text-right">
+        ${_docSelect(`doc-pag-tipo-${i}`, p.tipo, DOC_TIPOS_PAGAMENTO, "_docLer(); _docCtx.dados.condicao = 'personalizada'; _docRender()").replace(`class="${_docInp}"`, `class="${_docInp} flex-1"`)}
+        <input id="doc-pag-valor-${i}" value="${_docNumInput(p.valor)}" oninput="_docOnValor(${i})" placeholder="Valor" class="${_docInp} w-32 font-mono text-right">
         <button type="button" onclick="_docRemover('pagamentos', ${i})" title="Remover" class="btn btn-secondary btn-icon"><i data-lucide="trash-2"></i></button>
       </div>
       ${p.tipo === 'financiamento'
-        ? _docText(`doc-pag-fin-${i}`, p.financeira, '" placeholder="Financeira (ex.: SOLAGORA)')
+        ? _docText(`doc-pag-fin-${i}`, p.financeira, 'uppercase" placeholder="Banco / financeira (ex.: SOLAGORA)')
         : p.tipo === 'livre'
           ? `<textarea id="doc-pag-texto-${i}" rows="2" placeholder="Use {valor} onde entra o valor por extenso" class="${_docInp}">${escapeHTML(p.texto || '')}</textarea>`
-          : _docText(`doc-pag-forma-${i}`, p.forma, '" placeholder="Forma (padrão: depósito/transferência bancária)')}
+          : _docText(`doc-pag-forma-${i}`, p.forma, `" placeholder="Forma: depósito/ transferência/ ${DOC_DEFAULTS.forma_pagamento}`)}
     </div>`).join('');
+
+  const clienteHTML = pj ? `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      ${_docCampo('Razão social', _docText('doc-nome', c.nome, 'uppercase'), 'col-span-2 md:col-span-3')}
+      ${_docCampo('CNPJ', _docText('doc-cpf', c.cpf, 'font-mono'))}
+      ${_docEnderecoHTML('doc-end', e)}
+    </div>
+    <p class="text-neutral-400 text-[10px] font-black uppercase tracking-widest pt-2">Responsável legal (assina pela empresa)</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      ${_docCampo('Nome completo', _docText('doc-rep-nome', rep.nome, 'uppercase'), 'col-span-2 md:col-span-4')}
+      ${_docCampo('CPF', _docText('doc-rep-cpf', rep.cpf, 'font-mono'))}
+      ${_docCampo('RG', _docText('doc-rep-rg', rep.rg, 'font-mono'))}
+      ${_docCampo('Órgão emissor', _docText('doc-rep-rg-orgao', rep.rg_orgao, 'uppercase'))}
+      ${_docCampo('Gênero', _docSelect('doc-rep-genero', rep.genero, DOC_OPCOES_GENERO))}
+      ${_docCampo('Estado civil', _docSelect('doc-rep-estado-civil', rep.estado_civil, DOC_OPCOES_ESTADO_CIVIL))}
+      ${_docCampo('Nacionalidade', _docText('doc-rep-nacionalidade', rep.nacionalidade, 'uppercase" placeholder="BRASILEIRO(A)'))}
+      ${_docCampo('Profissão / cargo', _docText('doc-rep-profissao', rep.profissao, 'uppercase" placeholder="EMPRESÁRIO(A)'), 'col-span-2')}
+    </div>
+    <label class="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer">
+      <input id="doc-rep-mesmo-endereco" type="checkbox" ${rep.mesmo_endereco !== false ? 'checked' : ''} onchange="_docLer(); _docRender()"> Responsável mora no endereço da empresa
+    </label>
+    ${rep.mesmo_endereco === false ? _docCampo('Endereço do responsável', _docText('doc-rep-endereco', typeof rep.endereco === 'string' ? rep.endereco : docFormatEndereco(rep.endereco), '" placeholder="Rua, nº, bairro, cidade/UF - CEP')) : ''}` : `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      ${_docCampo('Nome completo', _docText('doc-nome', c.nome, 'uppercase'), 'col-span-2 md:col-span-4')}
+      ${_docCampo('CPF', _docText('doc-cpf', c.cpf, 'font-mono'))}
+      ${_docCampo('RG', _docText('doc-rg', c.rg, 'font-mono'))}
+      ${_docCampo('Órgão emissor', _docText('doc-rg-orgao', c.rg_orgao, 'uppercase'))}
+      ${_docCampo('Gênero', _docSelect('doc-genero', c.genero, DOC_OPCOES_GENERO))}
+      ${_docCampo('Estado civil', _docSelect('doc-estado-civil', c.estado_civil, DOC_OPCOES_ESTADO_CIVIL))}
+      ${_docCampo('Nacionalidade', _docText('doc-nacionalidade', c.nacionalidade, 'uppercase" placeholder="BRASILEIRO(A)'))}
+      ${_docCampo('Profissão', _docText('doc-profissao', c.profissao, 'uppercase'), 'col-span-2')}
+      ${_docEnderecoHTML('doc-end', e)}
+    </div>`;
 
   overlay.innerHTML = `
     <div class="bg-neutral-900 border-2 border-orange-600/40 w-full max-w-3xl max-h-full flex flex-col ${_docCtx.animado ? '' : 'animate-fade-in-up'}">
@@ -583,28 +720,17 @@ function _docRender() {
       </div>
 
       <div id="doc-corpo" class="p-5 space-y-6 overflow-y-auto flex-1 min-h-0">
-        ${_docCampo('Kit e valores com base em', `<select id="doc-origem" onchange="_docTrocarOrigem(this.value)" class="${_docInp}">
-          ${_docCtx.fontes.map((f) => `<option value="${f.id}" ${d.origem === f.id ? 'selected' : ''}>${escapeHTML(f.label)}</option>`).join('')}
-          <option value="manual" ${d.origem === 'manual' ? 'selected' : ''}>Preencher manualmente</option>
-        </select>`)}
-
-        ${_docSecao('user', 'Cliente', `
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            ${_docCampo('Nome completo', _docText('doc-nome', c.nome, 'uppercase'), 'col-span-2 md:col-span-4')}
-            ${_docCampo('CPF', _docText('doc-cpf', c.cpf, 'font-mono'))}
-            ${_docCampo('RG', _docText('doc-rg', c.rg, 'font-mono'))}
-            ${_docCampo('Órgão emissor', _docText('doc-rg-orgao', c.rg_orgao, 'uppercase'))}
-            ${_docCampo('Gênero', _docSelect('doc-genero', c.genero, [['', '—'], ['M', 'Masculino'], ['F', 'Feminino']]))}
-            ${_docCampo('Estado civil', _docSelect('doc-estado-civil', c.estado_civil, [['', '—'], ['solteiro', 'Solteiro(a)'], ['casado', 'Casado(a)'], ['divorciado', 'Divorciado(a)'], ['separado', 'Separado(a) judicialmente'], ['viuvo', 'Viúvo(a)'], ['uniao_estavel', 'União estável']]))}
-            ${_docCampo('Nacionalidade', _docText('doc-nacionalidade', c.nacionalidade, 'uppercase" placeholder="BRASILEIRO(A)'))}
-            ${_docCampo('Rua / Av.', _docText('doc-end-logradouro', e.logradouro), 'col-span-2')}
-            ${_docCampo('Número', _docText('doc-end-numero', e.numero))}
-            ${_docCampo('Complemento', _docText('doc-end-complemento', e.complemento))}
-            ${_docCampo('Bairro', _docText('doc-end-bairro', e.bairro), 'col-span-2')}
-            ${_docCampo('Cidade', _docText('doc-end-cidade', e.cidade))}
-            ${_docCampo('UF', _docText('doc-end-uf', e.uf, 'uppercase'))}
-            ${_docCampo('CEP', _docText('doc-end-cep', e.cep, 'font-mono'))}
+        ${_docSecao('layout-template', 'Modelo', `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            ${_docCampo('Tipo de cliente', _docSelect('doc-tipo-pessoa', d.tipo_pessoa, [['PF', 'Pessoa física (CPF)'], ['PJ', 'Pessoa jurídica (CNPJ)']], '_docLer(); _docCtx.dados.tipo_pessoa = this.value; _docRender()'))}
+            ${_docCampo('Condição de pagamento', _docSelect('doc-condicao', d.condicao, DOC_CONDICOES, '_docTrocarCondicao(this.value)'))}
+            ${_docCampo('Kit e valores com base em', `<select id="doc-origem" onchange="_docTrocarOrigem(this.value)" class="${_docInp}">
+              ${_docCtx.fontes.map((f) => `<option value="${f.id}" ${d.origem === f.id ? 'selected' : ''}>${escapeHTML(f.label)}</option>`).join('')}
+              <option value="manual" ${d.origem === 'manual' ? 'selected' : ''}>Preencher manualmente</option>
+            </select>`, 'md:col-span-2')}
           </div>`)}
+
+        ${_docSecao(pj ? 'building-2' : 'user', pj ? 'Empresa contratante' : 'Cliente', clienteHTML)}
 
         ${_docSecao('plug-zap', 'Instalação', `
           <div class="grid grid-cols-2 gap-3">
@@ -612,21 +738,15 @@ function _docRender() {
             ${_docCampo('Concessionária', _docText('doc-concessionaria', inst.concessionaria, 'uppercase'))}
           </div>
           <label class="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer">
-            <input id="doc-mesmo-endereco" type="checkbox" ${inst.mesmo_endereco !== false ? 'checked' : ''} onchange="_docLer(); _docRender()"> Usina no mesmo endereço do cliente
+            <input id="doc-mesmo-endereco" type="checkbox" ${inst.mesmo_endereco !== false ? 'checked' : ''} onchange="_docLer(); _docRender()"> Usina no mesmo endereço ${pj ? 'da empresa' : 'do cliente'}
           </label>
-          ${inst.mesmo_endereco === false ? `
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            ${_docCampo('Rua / Av.', _docText('doc-inst-logradouro', ie.logradouro), 'col-span-2')}
-            ${_docCampo('Número', _docText('doc-inst-numero', ie.numero))}
-            ${_docCampo('Bairro', _docText('doc-inst-bairro', ie.bairro))}
-            ${_docCampo('Cidade', _docText('doc-inst-cidade', ie.cidade), 'col-span-2')}
-            ${_docCampo('UF', _docText('doc-inst-uf', ie.uf, 'uppercase'))}
-            ${_docCampo('CEP', _docText('doc-inst-cep', ie.cep, 'font-mono'))}
-          </div>` : ''}`)}
+          ${inst.mesmo_endereco === false ? `<div class="grid grid-cols-2 md:grid-cols-4 gap-3">${_docEnderecoHTML('doc-inst', ie)}</div>` : ''}`)}
 
         ${_docSecao('sun', 'Sistema', `
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             ${_docCampo('Potência (kWp)', _docText('doc-kwp', sis.potencia_kwp ? String(sis.potencia_kwp).replace('.', ',') : '', 'font-mono'))}
+            ${_docCampo('Tipo de telhado', `<input id="doc-telhado" list="doc-telhados" value="${escapeHTML(inst.telhado || '')}" placeholder="Ex.: Telha Colonial" class="${_docInp}">
+              <datalist id="doc-telhados">${DOC_TELHADOS.map((t) => `<option value="${t}">`).join('')}</datalist>`, 'md:col-span-2')}
           </div>
           <div class="space-y-2">
             <div class="flex gap-2 text-[9px] text-neutral-500 font-black uppercase tracking-widest"><span class="w-16 text-center">Qtd.</span><span>Descrição (anexo I)</span></div>
@@ -636,7 +756,7 @@ function _docRender() {
 
         ${_docSecao('wallet', 'Valores e pagamento', `
           <div class="grid grid-cols-2 gap-3">
-            ${_docCampo('Valor total (R$)', `<input id="doc-total" value="${_docNumInput(fin.valor_total)}" oninput="_docAtualizarSoma()" class="${_docInp} font-mono text-right">`)}
+            ${_docCampo('Valor total (R$)', `<input id="doc-total" value="${_docNumInput(fin.valor_total)}" oninput="_docOnValor('total')" class="${_docInp} font-mono text-right">`)}
             ${_docCampo('Eletricista (R$, opcional)', `<input id="doc-eletricista" value="${_docNumInput(fin.valor_eletricista)}" class="${_docInp} font-mono text-right">`)}
           </div>
           <div class="space-y-2">
@@ -655,8 +775,8 @@ function _docRender() {
       </div>
 
       <div class="p-5 border-t border-neutral-800 bg-neutral-950 flex flex-col sm:flex-row gap-2 shrink-0">
-        <button id="doc-btn-contrato" onclick="_docGerar('contrato')" class="btn btn-primary flex-1"><i data-lucide="file-text"></i> Gerar contrato</button>
-        <button id="doc-btn-procuracao" onclick="_docGerar('procuracao')" class="btn btn-secondary flex-1"><i data-lucide="file-pen"></i> Gerar procuração</button>
+        <button id="doc-btn-contrato" onclick="_docGerar('contrato')" class="btn btn-primary flex-1"><i data-lucide="file-text"></i> Gerar contrato ${pj ? 'PJ' : 'PF'}</button>
+        <button id="doc-btn-procuracao" onclick="_docGerar('procuracao')" class="btn btn-secondary flex-1"><i data-lucide="file-pen"></i> Gerar procuração ${pj ? 'PJ' : 'PF'}</button>
       </div>
     </div>`;
 
@@ -666,42 +786,62 @@ function _docRender() {
   lucide.createIcons();
 }
 
-// Lê o formulário de volta para _docCtx.dados
+// Lê o formulário de volta para _docCtx.dados. Campo que não está na tela
+// (ex.: dados de PF enquanto o modo é PJ) mantém o valor anterior.
 function _docLer() {
   if (!_docCtx) return;
   const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : undefined; };
+  const upv = (id) => { const v = val(id); return v === undefined ? undefined : v.toUpperCase(); };
+  const manter = (novo, antigo) => (novo === undefined ? antigo : novo);
   const d = _docCtx.dados;
+  const c0 = d.cliente || {}, e0 = c0.endereco || {}, r0 = c0.representante || {};
+
+  d.tipo_pessoa = manter(val('doc-tipo-pessoa'), d.tipo_pessoa);
   d.cliente = {
-    nome: (val('doc-nome') || '').toUpperCase(),
-    cpf: val('doc-cpf'),
-    rg: val('doc-rg'),
-    rg_orgao: (val('doc-rg-orgao') || '').toUpperCase(),
-    genero: val('doc-genero'),
-    estado_civil: val('doc-estado-civil'),
-    nacionalidade: (val('doc-nacionalidade') || '').toUpperCase(),
+    nome: manter(upv('doc-nome'), c0.nome),
+    cpf: manter(val('doc-cpf'), c0.cpf),
+    rg: manter(val('doc-rg'), c0.rg),
+    rg_orgao: manter(upv('doc-rg-orgao'), c0.rg_orgao),
+    genero: manter(val('doc-genero'), c0.genero),
+    estado_civil: manter(val('doc-estado-civil'), c0.estado_civil),
+    nacionalidade: manter(upv('doc-nacionalidade'), c0.nacionalidade),
+    profissao: manter(upv('doc-profissao'), c0.profissao),
     endereco: {
-      logradouro: val('doc-end-logradouro'),
-      numero: val('doc-end-numero'),
-      complemento: val('doc-end-complemento'),
-      bairro: val('doc-end-bairro'),
-      cidade: val('doc-end-cidade'),
-      uf: (val('doc-end-uf') || '').toUpperCase(),
-      cep: val('doc-end-cep'),
+      logradouro: manter(val('doc-end-logradouro'), e0.logradouro),
+      numero: manter(val('doc-end-numero'), e0.numero),
+      complemento: manter(val('doc-end-complemento'), e0.complemento),
+      bairro: manter(val('doc-end-bairro'), e0.bairro),
+      cidade: manter(val('doc-end-cidade'), e0.cidade),
+      uf: manter(upv('doc-end-uf'), e0.uf),
+      cep: manter(val('doc-end-cep'), e0.cep),
+    },
+    representante: {
+      nome: manter(upv('doc-rep-nome'), r0.nome),
+      cpf: manter(val('doc-rep-cpf'), r0.cpf),
+      rg: manter(val('doc-rep-rg'), r0.rg),
+      rg_orgao: manter(upv('doc-rep-rg-orgao'), r0.rg_orgao),
+      genero: manter(val('doc-rep-genero'), r0.genero),
+      estado_civil: manter(val('doc-rep-estado-civil'), r0.estado_civil),
+      nacionalidade: manter(upv('doc-rep-nacionalidade'), r0.nacionalidade),
+      profissao: manter(upv('doc-rep-profissao'), r0.profissao),
+      mesmo_endereco: document.getElementById('doc-rep-mesmo-endereco') ? document.getElementById('doc-rep-mesmo-endereco').checked : r0.mesmo_endereco,
+      endereco: manter(val('doc-rep-endereco'), r0.endereco),
     },
   };
-  const mesmo = document.getElementById('doc-mesmo-endereco')?.checked !== false;
   const instAnterior = d.instalacao || {};
   d.instalacao = {
-    numero_instalacao: val('doc-uc'),
-    concessionaria: (val('doc-concessionaria') || '').toUpperCase(),
-    mesmo_endereco: mesmo,
+    numero_instalacao: manter(val('doc-uc'), instAnterior.numero_instalacao),
+    concessionaria: manter(upv('doc-concessionaria'), instAnterior.concessionaria),
+    telhado: manter(val('doc-telhado'), instAnterior.telhado),
+    mesmo_endereco: document.getElementById('doc-mesmo-endereco')?.checked !== false,
     endereco: document.getElementById('doc-inst-logradouro')
       ? {
           logradouro: val('doc-inst-logradouro'),
           numero: val('doc-inst-numero'),
+          complemento: val('doc-inst-complemento'),
           bairro: val('doc-inst-bairro'),
           cidade: val('doc-inst-cidade'),
-          uf: (val('doc-inst-uf') || '').toUpperCase(),
+          uf: upv('doc-inst-uf'),
           cep: val('doc-inst-cep'),
         }
       : instAnterior.endereco,
@@ -717,9 +857,9 @@ function _docLer() {
     pagamentos.push({
       tipo: val(`doc-pag-tipo-${i}`),
       valor: docParseNum(val(`doc-pag-valor-${i}`)),
-      forma: val(`doc-pag-forma-${i}`) ?? anterior.forma,
-      financeira: (val(`doc-pag-fin-${i}`) ?? anterior.financeira ?? '').toUpperCase(),
-      texto: val(`doc-pag-texto-${i}`) ?? anterior.texto,
+      forma: manter(val(`doc-pag-forma-${i}`), anterior.forma),
+      financeira: manter(upv(`doc-pag-fin-${i}`), anterior.financeira),
+      texto: manter(val(`doc-pag-texto-${i}`), anterior.texto),
     });
   }
   d.financeiro = {
@@ -735,8 +875,47 @@ function _docLer() {
 function _docTrocarOrigem(origem) {
   _docLer();
   const fonte = _docCtx.fontes.find((f) => f.id === origem) || null;
-  Object.assign(_docCtx.dados, { origem: fonte ? fonte.id : 'manual' }, _docSistemaFinanceiro(fonte));
+  Object.assign(_docCtx.dados, { origem: fonte ? fonte.id : 'manual' }, _docSistemaFinanceiro(fonte, _docCtx.dados.condicao));
   _docRender();
+}
+
+// Condição pronta → refaz as linhas de pagamento (mantém banco/forma já digitados)
+function _docTrocarCondicao(condicao) {
+  _docLer();
+  const d = _docCtx.dados;
+  d.condicao = condicao;
+  const novas = docPagamentosDaCondicao(condicao, d.financeiro.valor_total);
+  if (novas) {
+    const anteriores = d.financeiro.pagamentos || [];
+    d.financeiro.pagamentos = novas.map((p) => {
+      const mesmoTipo = anteriores.find((a) => a.tipo === p.tipo) || {};
+      return { ...p, forma: mesmoTipo.forma, financeira: mesmoTipo.financeira };
+    });
+  }
+  _docRender();
+}
+
+// Ao digitar valores: 70/30 recalcula pelo total; nas demais condições prontas,
+// a última linha absorve o saldo (ex.: entrada digitada → financiamento ajusta).
+function _docOnValor(origem) {
+  const d = _docCtx?.dados;
+  if (!d) return;
+  const inputs = [];
+  for (let i = 0; document.getElementById(`doc-pag-valor-${i}`); i++) inputs.push(document.getElementById(`doc-pag-valor-${i}`));
+  const total = docParseNum(document.getElementById('doc-total')?.value);
+  if (d.condicao !== 'personalizada' && inputs.length) {
+    if (d.condicao === '70_30' && origem === 'total') {
+      const [a, b] = docPagamentosDaCondicao('70_30', total);
+      if (inputs[0]) inputs[0].value = _docNumInput(a.valor);
+      if (inputs[1]) inputs[1].value = _docNumInput(b.valor);
+    } else if (inputs.length === 1 && origem === 'total') {
+      inputs[0].value = _docNumInput(total);
+    } else if (inputs.length > 1 && origem !== inputs.length - 1) {
+      const outros = inputs.slice(0, -1).reduce((s, el) => s + docParseNum(el.value), 0);
+      inputs[inputs.length - 1].value = _docNumInput(Math.max(0, _docArred(total - outros)));
+    }
+  }
+  _docAtualizarSoma();
 }
 
 function _docAdicionar(lista) {
@@ -745,7 +924,8 @@ function _docAdicionar(lista) {
   if (lista === 'itens') d.sistema.itens.push({ quantidade: 1, descricao: '' });
   else {
     const soma = d.financeiro.pagamentos.reduce((s, p) => s + Number(p.valor || 0), 0);
-    d.financeiro.pagamentos.push({ tipo: 'financiamento', valor: Math.max(0, d.financeiro.valor_total - soma) });
+    d.financeiro.pagamentos.push({ tipo: 'financiamento', valor: Math.max(0, _docArred(d.financeiro.valor_total - soma)) });
+    d.condicao = 'personalizada';
   }
   _docRender();
 }
@@ -754,6 +934,7 @@ function _docRemover(lista, i) {
   _docLer();
   const d = _docCtx.dados;
   (lista === 'itens' ? d.sistema.itens : d.financeiro.pagamentos).splice(i, 1);
+  if (lista !== 'itens') d.condicao = 'personalizada';
   _docRender();
 }
 
@@ -780,23 +961,20 @@ function _docDadosParaGerar() {
 }
 
 const DOC_ROTULOS = {
-  cliente_nome: 'nome', cliente_cpf: 'CPF', cliente_rg: 'RG', cliente_estado_civil: 'estado civil',
+  cliente_nome: 'nome / razão social', cliente_documento: 'CPF / CNPJ', cliente_rg: 'RG', cliente_estado_civil: 'estado civil',
   cliente_endereco: 'endereço', numero_instalacao: 'nº da instalação', potencia_kwp: 'potência',
+  representante_nome: 'nome do responsável legal', representante_cpf: 'CPF do responsável legal', representante_rg: 'RG do responsável legal',
   valor_total: 'valor total', itens: 'itens', pagamentos: 'condições de pagamento',
   contratada_nome: 'dados da empresa (documentos_config)', procurador_nome: 'dados do procurador (documentos_config)',
 };
 
-// Salva dados pessoais em `clientes` e o formulário em `clientes.documentos_dados`
+// Salva na ficha (clientes) e guarda o formulário em clientes.documentos_dados.
+// Na PJ os dados pessoais são do representante — ficam só no rascunho.
 async function _docSalvar() {
   const d = _docCtx.dados;
   const c = d.cliente, e = c.endereco || {};
   const clientePayload = {
     documento: c.cpf || null,
-    rg: c.rg || null,
-    rg_orgao: c.rg_orgao || null,
-    genero: c.genero || null,
-    estado_civil: c.estado_civil || null,
-    nacionalidade: c.nacionalidade || null,
     endereco: e.logradouro || null,
     numero: e.numero || null,
     complemento: e.complemento || null,
@@ -804,6 +982,16 @@ async function _docSalvar() {
     cep: e.cep || null,
     documentos_dados: JSON.parse(JSON.stringify(d)),
   };
+  if (d.tipo_pessoa !== 'PJ') {
+    Object.assign(clientePayload, {
+      rg: c.rg || null,
+      rg_orgao: c.rg_orgao || null,
+      genero: c.genero || null,
+      estado_civil: c.estado_civil || null,
+      nacionalidade: c.nacionalidade || null,
+      profissao: c.profissao || null,
+    });
+  }
   const { error } = await supabaseClient.from('clientes').update(clientePayload).eq('id', _docCtx.clientId);
   if (error) {
     console.warn('[documentos] Falha ao salvar dados do contrato.', error);
@@ -814,23 +1002,25 @@ async function _docSalvar() {
   return true;
 }
 
-async function _docGerar(modelo) {
+// tipo = 'contrato' | 'procuracao' → modelo PF ou PJ conforme o formulário
+async function _docGerar(tipo) {
   if (!_docCtx) return;
   _docLer();
   const dados = _docDadosParaGerar();
+  const modelo = `${tipo}_${dados.tipo_pessoa === 'PJ' ? 'pj' : 'pf'}`;
   const faltando = validarDadosDocumento(modelo, dados);
   if (faltando.length) {
     showToast('Falta preencher: ' + faltando.map((k) => DOC_ROTULOS[k] || k).join(', '));
     return;
   }
-  const btn = document.getElementById(modelo === 'contrato' ? 'doc-btn-contrato' : 'doc-btn-procuracao');
+  const btn = document.getElementById(tipo === 'contrato' ? 'doc-btn-contrato' : 'doc-btn-procuracao');
   const html = btn?.innerHTML;
   if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Gerando...'; lucide.createIcons(); }
   try {
     const blob = await gerarDocumento(modelo, dados);
     baixarDocumento(blob, nomeArquivoDocumento(modelo, dados));
     const salvo = await _docSalvar();
-    const nome = modelo === 'contrato' ? 'CONTRATO GERADO' : 'PROCURAÇÃO GERADA';
+    const nome = tipo === 'contrato' ? 'CONTRATO GERADO' : 'PROCURAÇÃO GERADA';
     showToast(salvo ? nome + '!' : nome + ', mas os dados não foram salvos.');
   } catch (err) {
     console.error('[documentos] Falha ao gerar.', err);
@@ -841,5 +1031,5 @@ async function _docGerar(modelo) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { DOC_MODELOS, DOC_DEFAULTS, montarDadosDocumento, validarDadosDocumento, docValorPorExtenso, docFormatEndereco };
+  module.exports = { DOC_MODELOS, DOC_DEFAULTS, montarDadosDocumento, validarDadosDocumento, docValorPorExtenso, docFormatEndereco, docPagamentosDaCondicao };
 }

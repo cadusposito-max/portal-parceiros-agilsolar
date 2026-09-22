@@ -546,7 +546,8 @@ function crm360CamposDocumentosHTML(client) {
     ${crm360Field('Órgão emissor', `<input id="crm360-rg-orgao" value="${escapeHTML(client.rg_orgao || '')}" placeholder="SP/SSP" class="crm360-input uppercase">`)}
     ${crm360Field('Gênero', `<select id="crm360-genero" class="crm360-input">${opt(client.genero, [['', '—'], ['M', 'Masculino'], ['F', 'Feminino']])}</select>`)}
     ${crm360Field('Estado civil', `<select id="crm360-estado-civil" class="crm360-input">${opt(client.estado_civil, [['', '—'], ['solteiro', 'Solteiro(a)'], ['casado', 'Casado(a)'], ['divorciado', 'Divorciado(a)'], ['separado', 'Separado(a) judicialmente'], ['viuvo', 'Viúvo(a)'], ['uniao_estavel', 'União estável']])}</select>`)}
-    ${crm360Field('Nacionalidade', `<input id="crm360-nacionalidade" value="${escapeHTML(client.nacionalidade || '')}" placeholder="BRASILEIRO(A)" class="crm360-input uppercase">`)}`;
+    ${crm360Field('Nacionalidade', `<input id="crm360-nacionalidade" value="${escapeHTML(client.nacionalidade || '')}" placeholder="BRASILEIRO(A)" class="crm360-input uppercase">`)}
+    ${crm360Field('Profissão', `<input id="crm360-profissao" value="${escapeHTML(client.profissao || '')}" class="crm360-input uppercase">`)}`;
 }
 
 function crm360Field(label, inputHTML, extraCls = '') {
@@ -828,6 +829,7 @@ async function crmSaveClient360() {
       genero: v('crm360-genero'),
       estado_civil: v('crm360-estado-civil'),
       nacionalidade: v('crm360-nacionalidade')?.toUpperCase() || null,
+      profissao: v('crm360-profissao')?.toUpperCase() || null,
     });
   }
 
