@@ -922,7 +922,10 @@ function mapImportedRowsToProducts(rows) {
       return;
     }
 
+    // "De" menor que o preço vira o próprio preço; a conferência avisa quando isso acontece.
+    let listPriceAjustadoDe = null;
     if (!Number.isFinite(listPrice) || listPrice <= 0 || listPrice < price) {
+      if (Number.isFinite(listPrice) && listPrice > 0) listPriceAjustadoDe = listPrice;
       listPrice = price;
     }
 
@@ -947,6 +950,7 @@ function mapImportedRowsToProducts(rows) {
       _rowNum: rowNum,
       _explicitId: explicitId,
       _hasLookupKey: hasLookupKey,
+      _listPriceAjustadoDe: listPriceAjustadoDe,
       categoria,
       name: name || null,
       brand: brand || null,
@@ -979,21 +983,53 @@ function mapImportedRowsToProducts(rows) {
   };
 }
 
-async function importMappedKits(mappedRows) {
+const KIT_IMPORT_CATALOG_FIELDS = [
+  ['categoria', 'categoria'],
+  ['name', 'nome'],
+  ['brand', 'marca'],
+  ['power', 'potência'],
+  ['type', 'tipo'],
+  ['tag', 'tag'],
+  ['description', 'descrição'],
+];
+
+function _sameImportMoney(a, b) {
+  const na = Number(a);
+  const nb = Number(b);
+  if (!Number.isFinite(na) || !Number.isFinite(nb)) return false;
+  return Math.round(na * 100) === Math.round(nb * 100);
+}
+
+function _sameImportValue(a, b) {
+  if (typeof a === 'number' || typeof b === 'number') return Number(a) === Number(b);
+  return String(a ?? '').trim() === String(b ?? '').trim();
+}
+
+// Monta o plano da importacao SEM gravar nada: casa cada linha com o kit existente
+// e levanta o preco atual (da unidade selecionada ou do produto padrao) para a
+// conferencia mostrar o antes/depois de cada kit.
+async function planKitsImport(mappedRows) {
   const franquiaId = state.adminKitsFranquia || null;
 
   const { data: existing = [], error: existingErr } = await supabaseClient
     .from('produtos')
-    .select('id, categoria, name, brand, power, type, tag, description, franquia_id');
+    .select('id, categoria, name, brand, power, price, list_price, type, tag, description, ativo, franquia_id');
   if (existingErr) throw existingErr;
+
+  let precosUnidade = new Map();
+  if (franquiaId) {
+    const { data: precos = [], error: precosErr } = await supabaseClient
+      .from('precos_franquia')
+      .select('produto_id, price, list_price')
+      .eq('franquia_id', franquiaId);
+    if (precosErr) throw precosErr;
+    precosUnidade = new Map(precos.map(p => [String(p.produto_id), p]));
+  }
 
   const byId = new Map(existing.map(item => [String(item.id), item]));
   const byKey = new Map(existing.map(item => [buildKitMatchKey(item.name, item.brand, item.power), item]));
 
-  const toInsert = [];
-  const toUpdate = [];
-  let skippedNoData = 0;
-
+  const items = [];
   for (const row of mappedRows) {
     let target = null;
     if (row._explicitId) {
@@ -1019,32 +1055,70 @@ async function importMappedKits(mappedRows) {
       };
       const exclusivaDestaUnidade = Boolean(franquiaId)
         && String(target.franquia_id || '') === String(franquiaId);
-      toUpdate.push({ id: target.id, payload, exclusivaDestaUnidade });
+
+      // Com unidade selecionada o preco vem de precos_franquia (pode nao existir ainda).
+      const precoAtual = franquiaId ? (precosUnidade.get(String(target.id)) || null) : target;
+      const mexeCatalogo = !franquiaId || exclusivaDestaUnidade;
+      const camposAlterados = mexeCatalogo
+        ? KIT_IMPORT_CATALOG_FIELDS.filter(([f]) => !_sameImportValue(target[f], payload[f])).map(([, label]) => label)
+        : [];
+      // "ativo" so e gravado no modo padrao (sem unidade selecionada).
+      if (!franquiaId && payload.ativo !== undefined && payload.ativo !== (target.ativo !== false)) {
+        camposAlterados.push(payload.ativo ? 'reativa' : 'desativa');
+      }
+      const precoMudou = !precoAtual
+        || !_sameImportMoney(precoAtual.price, payload.price)
+        || !_sameImportMoney(precoAtual.list_price, payload.list_price);
+
+      items.push({
+        kind: 'update',
+        row,
+        id: target.id,
+        payload,
+        exclusivaDestaUnidade,
+        precoAtual,
+        camposAlterados,
+        changed: precoMudou || camposAlterados.length > 0,
+      });
     } else {
       // Sem correspondencia (id novo OU sem id): cria kit quando ha dados essenciais.
       if (!row.name || !row.brand || !Number.isFinite(row.power) || row.power <= 0) {
-        skippedNoData++;
+        items.push({ kind: 'skip', row, motivo: 'Kit não encontrado e sem nome, marca ou potência para cadastrar' });
         continue;
       }
 
-      toInsert.push({
-        // Preserva o id da planilha quando informado (round-trip do export).
-        ...(row._explicitId ? { id: row._explicitId } : {}),
-        categoria: row.categoria || getImportDefaultCategory(),
-        name: row.name,
-        brand: row.brand,
-        power: row.power,
-        price: row.price,
-        list_price: row.list_price,
-        type: row.type || 'Bifásico',
-        tag: row.tag || 'MAIS VENDIDO',
-        description: row.description || `${row.power}kWp - ${row.brand}`,
-        ativo: row.ativo === false ? false : true,
-        // Com franquia selecionada, kit exclusivo dela; sem franquia (admin global), kit padrao.
-        ...(franquiaId ? { franquia_id: franquiaId } : {}),
+      items.push({
+        kind: 'insert',
+        row,
+        changed: true,
+        payload: {
+          // Preserva o id da planilha quando informado (round-trip do export).
+          ...(row._explicitId ? { id: row._explicitId } : {}),
+          categoria: row.categoria || getImportDefaultCategory(),
+          name: row.name,
+          brand: row.brand,
+          power: row.power,
+          price: row.price,
+          list_price: row.list_price,
+          type: row.type || 'Bifásico',
+          tag: row.tag || 'MAIS VENDIDO',
+          description: row.description || `${row.power}kWp - ${row.brand}`,
+          ativo: row.ativo === false ? false : true,
+          // Com franquia selecionada, kit exclusivo dela; sem franquia (admin global), kit padrao.
+          ...(franquiaId ? { franquia_id: franquiaId } : {}),
+        },
       });
     }
   }
+
+  return { franquiaId, items };
+}
+
+// Grava apenas os itens do plano que o admin deixou marcados na conferencia.
+async function applyKitsImportPlan(plan, selectedItems) {
+  const { franquiaId } = plan;
+  const toInsert = selectedItems.filter(i => i.kind === 'insert').map(i => i.payload);
+  const toUpdate = selectedItems.filter(i => i.kind === 'update');
 
   // 1) INSERT dos novos produtos
   let insertedRows = [];
@@ -1100,7 +1174,7 @@ async function importMappedKits(mappedRows) {
         list_price: Number(item.payload.list_price) || 0,
       });
       // Campos de catalogo so mudam se o kit for exclusivo desta unidade (nao mexe no padrao global).
-      if (item.exclusivaDestaUnidade) {
+      if (item.exclusivaDestaUnidade && item.camposAlterados.length > 0) {
         const { error } = await supabaseClient.from('produtos').update({
           categoria: item.payload.categoria,
           name: item.payload.name,
@@ -1130,8 +1204,240 @@ async function importMappedKits(mappedRows) {
   return {
     insertedCount: insertedRows.length,
     updatedCount: toUpdate.length,
-    skippedNoDataCount: skippedNoData,
   };
+}
+
+// --- Conferencia da importacao (tabela antes de gravar) ---
+let _kitsImportPreview = null;
+
+function _kitsImportOverlay() {
+  let overlay = document.getElementById('kits-import-preview-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'kits-import-preview-overlay';
+    overlay.className = 'fixed inset-0 z-[120] flex items-center justify-center bg-black/90 backdrop-blur-md p-2 sm:p-4 hidden';
+    document.body.appendChild(overlay);
+  }
+  return overlay;
+}
+
+function _kitsImportDelta(atual, novo) {
+  const a = Number(atual);
+  const n = Number(novo);
+  if (!Number.isFinite(a) || a <= 0 || !Number.isFinite(n) || _sameImportMoney(a, n)) return '';
+  const pct = ((n - a) / a) * 100;
+  const sinal = pct > 0 ? '+' : '';
+  const cor = pct > 0 ? 'text-yellow-400' : 'text-sky-400';
+  return `<span class="${cor} text-[10px] font-black ml-1">${sinal}${pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>`;
+}
+
+function _kitsImportPriceCell(item, field) {
+  const novo = item.payload?.[field];
+  if (item.kind === 'insert') {
+    return `<span class="text-white font-black">${formatCurrency(novo)}</span>`;
+  }
+  const atual = item.precoAtual ? item.precoAtual[field] : null;
+  if (atual === null || atual === undefined) {
+    return `<div class="text-[10px] text-neutral-600 font-bold">sem preço na unidade</div><span class="text-white font-black">${formatCurrency(novo)}</span>`;
+  }
+  if (_sameImportMoney(atual, novo)) {
+    return `<span class="text-neutral-500 font-bold">${formatCurrency(novo)}</span>`;
+  }
+  return `
+    <div class="text-[10px] text-neutral-600 font-bold line-through">${formatCurrency(atual)}</div>
+    <span class="text-white font-black">${formatCurrency(novo)}</span>${_kitsImportDelta(atual, novo)}`;
+}
+
+function _kitsImportStatusBadge(item) {
+  const base = 'text-[8px] px-1.5 py-0.5 font-black uppercase tracking-widest border whitespace-nowrap';
+  if (item.kind === 'skip') return `<span class="${base} border-red-500/40 bg-red-500/10 text-red-400">Ignorada</span>`;
+  if (item.kind === 'insert') return `<span class="${base} border-emerald-500/40 bg-emerald-500/10 text-emerald-400">Novo</span>`;
+  if (item.changed) return `<span class="${base} border-orange-500/40 bg-orange-500/10 text-orange-400">Atualiza</span>`;
+  return `<span class="${base} border-neutral-700 text-neutral-500">Sem mudança</span>`;
+}
+
+function _kitsImportNotes(item, franquiaId) {
+  const notes = [];
+  if (item.kind === 'skip') notes.push(`<span class="text-red-400">${escapeHTML(item.motivo)}</span>`);
+  if (item.row._listPriceAjustadoDe !== null && item.row._listPriceAjustadoDe !== undefined) {
+    notes.push(`<span class="text-yellow-400">"De" da planilha (${formatCurrency(item.row._listPriceAjustadoDe)}) é menor que o preço, vai ficar igual ao preço</span>`);
+  }
+  if (item.kind === 'insert') {
+    notes.push(franquiaId ? 'Kit exclusivo desta unidade' : 'Entra em todas as unidades ativas');
+  }
+  if (item.kind === 'update' && item.camposAlterados.length > 0) {
+    notes.push(`Também muda: ${escapeHTML(item.camposAlterados.join(', '))}`);
+  }
+  return notes.map(n => `<div>${n}</div>`).join('');
+}
+
+function renderKitsImportPreview() {
+  const p = _kitsImportPreview;
+  if (!p) return;
+  const overlay = _kitsImportOverlay();
+  const { items, franquiaId } = p.plan;
+
+  const nNovos = items.filter(i => i.kind === 'insert').length;
+  const nAtualiza = items.filter(i => i.kind === 'update' && i.changed).length;
+  const nIguais = items.filter(i => i.kind === 'update' && !i.changed).length;
+  const nIgnoradas = items.filter(i => i.kind === 'skip').length + p.errors.length;
+
+  const franquiaNome = franquiaId
+    ? ((state.franquiasCatalog || []).find(f => String(f.id) === String(franquiaId))?.nome || 'unidade selecionada')
+    : null;
+  const escopo = franquiaId
+    ? `Preços da unidade <b class="text-purple-400">${escapeHTML(franquiaNome)}</b>`
+    : 'Produto padrão (todas as unidades)';
+
+  const selecionaveis = items.filter(i => i.kind !== 'skip');
+  const todosMarcados = selecionaveis.length > 0 && selecionaveis.every(i => p.selected.has(i));
+
+  const chip = (label, n, cls) => `<span class="text-[9px] px-2 py-1 font-black uppercase tracking-widest border ${cls}">${n} ${label}</span>`;
+
+  const linhas = items.map((item, idx) => {
+    const marcado = p.selected.has(item);
+    const apagado = item.kind === 'skip' || (item.kind === 'update' && !item.changed);
+    const row = item.row;
+    const nome = item.payload?.name || row.name || '(sem nome)';
+    const marca = item.payload?.brand || row.brand || '';
+    const potencia = item.payload?.power ?? row.power;
+    const categoria = (item.payload?.categoria || row.categoria) === 'kitsMicro' ? 'MICRO' : 'INVERSOR';
+    return `
+      <tr class="border-b border-neutral-800/70 ${marcado ? 'bg-orange-500/[0.04]' : ''} ${apagado && !marcado ? 'opacity-50' : ''}">
+        <td class="px-3 py-2.5 align-top">
+          ${item.kind === 'skip' ? '' : `<input type="checkbox" ${marcado ? 'checked' : ''} ${p.busy ? 'disabled' : ''} onchange="toggleKitsImportRow(${idx}, this.checked)" class="w-4 h-4 accent-orange-500 cursor-pointer">`}
+        </td>
+        <td class="px-2 py-2.5 align-top text-neutral-600 font-bold text-[10px]">${row._rowNum}</td>
+        <td class="px-2 py-2.5 align-top min-w-[220px]">
+          <div class="text-white font-black text-[11px] uppercase leading-tight">${escapeHTML(nome)}</div>
+          <div class="text-[10px] text-neutral-500 font-bold mt-0.5">${escapeHTML(marca)}${potencia ? ` · ${escapeHTML(String(potencia))} kWp` : ''} · ${categoria}</div>
+        </td>
+        <td class="px-2 py-2.5 align-top">${_kitsImportStatusBadge(item)}</td>
+        <td class="px-2 py-2.5 align-top text-right whitespace-nowrap text-[12px]">${item.kind === 'skip' ? '' : _kitsImportPriceCell(item, 'price')}</td>
+        <td class="px-2 py-2.5 align-top text-right whitespace-nowrap text-[12px]">${item.kind === 'skip' ? '' : _kitsImportPriceCell(item, 'list_price')}</td>
+        <td class="px-3 py-2.5 align-top text-[10px] text-neutral-400 font-bold leading-snug min-w-[180px]">${_kitsImportNotes(item, franquiaId)}</td>
+      </tr>`;
+  }).join('');
+
+  const errosHtml = p.errors.length > 0 ? `
+    <div class="border border-red-500/30 bg-red-500/5 p-3 mt-3">
+      <p class="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1.5">Linhas com dados inválidos (não serão importadas)</p>
+      ${p.errors.map(e => `<div class="text-[11px] text-neutral-400 font-bold">${escapeHTML(e)}</div>`).join('')}
+    </div>` : '';
+
+  const nSel = p.selected.size;
+  // Anima so na abertura; os re-renders (checkbox, gravando...) nao piscam.
+  const animar = overlay.classList.contains('hidden');
+
+  overlay.innerHTML = `
+    <div class="bg-neutral-900 border-2 border-orange-600/50 w-full max-w-6xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col shadow-[0_0_50px_rgba(234,88,12,0.2)] ${animar ? 'animate-fade-in-up' : ''}">
+      <div class="flex justify-between items-start gap-4 p-4 sm:p-5 border-b border-neutral-800 bg-black/50">
+        <div class="min-w-0">
+          <h2 class="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 flex items-center gap-2 italic tracking-tighter uppercase pb-1 pr-1">
+            <i data-lucide="list-checks" class="w-6 h-6 text-orange-500"></i> Conferir importação
+          </h2>
+          <p class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mt-1 truncate">${escapeHTML(p.fileName)} · ${escopo}</p>
+          <div class="flex flex-wrap gap-1.5 mt-3">
+            ${chip('com alteração', nAtualiza, 'border-orange-500/40 text-orange-400')}
+            ${chip('novo(s)', nNovos, 'border-emerald-500/40 text-emerald-400')}
+            ${chip('sem mudança', nIguais, 'border-neutral-700 text-neutral-500')}
+            ${nIgnoradas > 0 ? chip('ignorada(s)', nIgnoradas, 'border-red-500/40 text-red-400') : ''}
+            ${p.duplicateRows > 0 ? chip('duplicada(s) no arquivo, mantida a última', p.duplicateRows, 'border-yellow-500/40 text-yellow-400') : ''}
+          </div>
+        </div>
+        <button onclick="closeKitsImportPreview()" ${p.busy ? 'disabled' : ''} class="text-neutral-500 hover:text-red-500 transition-colors shrink-0"><i data-lucide="x" class="w-7 h-7"></i></button>
+      </div>
+
+      <div class="flex-1 overflow-auto custom-scrollbar px-3 pb-3 sm:px-4 sm:pb-4">
+        <table class="w-full min-w-[820px] text-left border-collapse">
+          <thead class="sticky top-0 bg-neutral-900 z-10">
+            <tr class="border-b border-neutral-700 text-[9px] font-black uppercase tracking-widest text-neutral-500">
+              <th class="px-3 py-2 w-8">
+                <input type="checkbox" ${todosMarcados ? 'checked' : ''} ${p.busy ? 'disabled' : ''} onchange="toggleKitsImportAll(this.checked)" title="Marcar/desmarcar todos" class="w-4 h-4 accent-orange-500 cursor-pointer">
+              </th>
+              <th class="px-2 py-2 w-10">Linha</th>
+              <th class="px-2 py-2">Kit</th>
+              <th class="px-2 py-2">Ação</th>
+              <th class="px-2 py-2 text-right">Preço</th>
+              <th class="px-2 py-2 text-right">"De" (riscado)</th>
+              <th class="px-3 py-2">Observações</th>
+            </tr>
+          </thead>
+          <tbody>${linhas}</tbody>
+        </table>
+        ${errosHtml}
+      </div>
+
+      <div class="border-t border-neutral-800 bg-black/50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div class="flex-1 min-w-0">
+          <p class="text-[11px] font-black uppercase tracking-widest text-neutral-300">${nSel} kit(s) marcado(s) para gravar</p>
+          ${p.erro ? `<p class="text-[11px] font-bold text-red-400 mt-1">Erro ao gravar: ${escapeHTML(p.erro)}</p>` : ''}
+        </div>
+        <div class="flex gap-2">
+          <button onclick="closeKitsImportPreview()" ${p.busy ? 'disabled' : ''} class="btn btn-secondary">Cancelar</button>
+          <button onclick="confirmKitsImportPreview()" ${p.busy || nSel === 0 ? 'disabled' : ''} class="btn btn-primary">
+            <i data-lucide="${p.busy ? 'loader-2' : 'check'}" class="${p.busy ? 'animate-spin' : ''}"></i>${p.busy ? 'Gravando...' : `Importar ${nSel} kit(s)`}
+          </button>
+        </div>
+      </div>
+    </div>`;
+
+  overlay.classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function _rerenderKitsImportPreviewKeepScroll() {
+  const scroller = document.querySelector('#kits-import-preview-overlay .overflow-auto');
+  const top = scroller ? scroller.scrollTop : 0;
+  renderKitsImportPreview();
+  const novo = document.querySelector('#kits-import-preview-overlay .overflow-auto');
+  if (novo) novo.scrollTop = top;
+}
+
+function toggleKitsImportRow(idx, checked) {
+  const p = _kitsImportPreview;
+  const item = p?.plan.items[idx];
+  if (!item || item.kind === 'skip' || p.busy) return;
+  if (checked) p.selected.add(item); else p.selected.delete(item);
+  _rerenderKitsImportPreviewKeepScroll();
+}
+
+function toggleKitsImportAll(checked) {
+  const p = _kitsImportPreview;
+  if (!p || p.busy) return;
+  p.selected = checked ? new Set(p.plan.items.filter(i => i.kind !== 'skip')) : new Set();
+  _rerenderKitsImportPreviewKeepScroll();
+}
+
+function closeKitsImportPreview() {
+  if (_kitsImportPreview?.busy) return;
+  _kitsImportPreview = null;
+  document.getElementById('kits-import-preview-overlay')?.classList.add('hidden');
+}
+
+async function confirmKitsImportPreview() {
+  const p = _kitsImportPreview;
+  if (!p || p.busy || p.selected.size === 0) return;
+
+  // Mantem a ordem da planilha na gravacao.
+  const selecionados = p.plan.items.filter(i => p.selected.has(i));
+  p.busy = true;
+  p.erro = null;
+  _rerenderKitsImportPreviewKeepScroll();
+
+  try {
+    const result = await applyKitsImportPlan(p.plan, selecionados);
+    p.busy = false;
+    closeKitsImportPreview();
+
+    await fetchProducts();
+    renderContent();
+    showToast(`IMPORTACAO CONCLUIDA: ${result.insertedCount} novo(s) | ${result.updatedCount} atualizado(s)`);
+  } catch (err) {
+    p.busy = false;
+    p.erro = err?.message || 'Erro inesperado';
+    _rerenderKitsImportPreviewKeepScroll();
+  }
 }
 
 async function handleKitsSpreadsheetSelection(event) {
@@ -1157,41 +1463,23 @@ async function handleKitsSpreadsheetSelection(event) {
       return;
     }
 
-    const summaryLines = [
-      `Arquivo: ${file.name}`,
-      `Linhas lidas: ${rows.length}`,
-      `Linhas validas: ${mapped.validRows.length}`,
-      `Linhas ignoradas: ${mapped.errors.length}`,
-    ];
-    if (mapped.duplicateRows > 0) {
-      summaryLines.push(`Duplicadas no arquivo: ${mapped.duplicateRows} (mantida a ultima).`);
-    }
-    summaryLines.push('', 'Deseja importar agora?');
+    const plan = await planKitsImport(mapped.validRows);
+    plan.items.sort((a, b) => a.row._rowNum - b.row._rowNum);
 
-    if (!confirm(summaryLines.join('\n'))) return;
-
-    showToast('IMPORTANDO KITS...');
-    const result = await importMappedKits(mapped.validRows);
-
-    await fetchProducts();
-    renderContent();
-
-    const resultParts = [
-      `${result.insertedCount} novo(s)`,
-      `${result.updatedCount} atualizado(s)`,
-    ];
-    if (result.skippedNoDataCount > 0) {
-      resultParts.push(`${result.skippedNoDataCount} ignorado(s) por falta de dados`);
-    }
-    if (mapped.errors.length > 0) {
-      resultParts.push(`${mapped.errors.length} ignorado(s)`);
-      console.warn('Importacao de kits - linhas ignoradas:', mapped.errors);
-    }
-
-    showToast(`IMPORTACAO CONCLUIDA: ${resultParts.join(' | ')}`);
+    _kitsImportPreview = {
+      fileName: file.name,
+      plan,
+      errors: mapped.errors,
+      duplicateRows: mapped.duplicateRows,
+      // Ja vem marcado so o que muda algo; "sem mudanca" fica desmarcado.
+      selected: new Set(plan.items.filter(i => i.kind !== 'skip' && i.changed)),
+      busy: false,
+      erro: null,
+    };
+    renderKitsImportPreview();
   } catch (err) {
     const msg = err?.message || 'Erro inesperado';
-    showToast(`ERRO AO IMPORTAR: ${msg}`);
+    showToast(`ERRO AO LER PLANILHA: ${msg}`);
   } finally {
     if (fileInput) fileInput.value = '';
   }
