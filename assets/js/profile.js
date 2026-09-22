@@ -352,27 +352,27 @@ async function _load2FAStatus() {
   if (totpFactor) {
     area.innerHTML = `
       <div class="flex flex-col gap-4">
-        <div class="flex items-center gap-3 bg-green-600 border border-green-500 p-4">
-          <i data-lucide="shield-check" class="w-5 h-5 text-white shrink-0"></i>
+        <div class="flex items-center gap-3 bg-green-950/10 border border-green-900/40 p-4 text-left">
+          <i data-lucide="shield-check" class="w-5 h-5 text-green-400 shrink-0"></i>
           <div class="flex-1">
-            <p class="text-white font-black text-sm uppercase">2FA ATIVO</p>
-            <p class="text-green-100 text-[10px]">Seu login está protegido com autenticação em dois fatores.</p>
+            <p class="text-green-400 font-black text-sm uppercase">2FA ativo</p>
+            <p class="text-neutral-500 text-[10px] normal-case tracking-normal font-normal mt-0.5">Seu login está protegido com autenticação em dois fatores.</p>
           </div>
         </div>
         <button onclick="_disable2FA('${totpFactor.id}')"
-          class="flex items-center justify-center gap-2 w-full bg-red-600 border border-red-500 hover:bg-red-700 hover:border-red-400 text-white py-3 font-black uppercase tracking-widest text-sm transition-all">
-          <i data-lucide="shield-off" class="w-4 h-4"></i> DESATIVAR 2FA
+          class="flex items-center justify-center gap-2 w-full bg-transparent border border-neutral-800 text-neutral-500 hover:text-red-400 hover:border-red-500/50 py-3 font-black uppercase tracking-widest text-[11px] transition-all">
+          <i data-lucide="shield-off" class="w-4 h-4"></i> Desativar 2FA
         </button>
       </div>
     `;
   } else {
     area.innerHTML = `
       <div class="flex flex-col gap-4">
-        <div class="flex items-center gap-3 bg-neutral-900/60 border border-neutral-800 p-4">
+        <div class="flex items-center gap-3 bg-neutral-900/60 border border-neutral-800 p-4 text-left">
           <i data-lucide="shield-off" class="w-5 h-5 text-neutral-500 shrink-0"></i>
           <div class="flex-1">
             <p class="text-neutral-400 font-black text-sm uppercase">2FA INATIVO</p>
-            <p class="text-neutral-600 text-[10px]">Ative para adicionar uma camada extra de segurança.</p>
+            <p class="text-neutral-600 text-[10px] normal-case tracking-normal font-normal mt-0.5">Ative para adicionar uma camada extra de segurança.</p>
           </div>
         </div>
         <button onclick="_enroll2FA()"
