@@ -876,77 +876,80 @@ async function readImportedKitRows(file) {
   return rows.map((row, idx) => ({ ...row, __rowNum: idx + 2 }));
 }
 
-function mapImportedRowsToProducts(rows) {
-  const fallbackCategory = getImportDefaultCategory();
-  const mappedRows = [];
-  const errors = [];
+// Converte uma linha crua da planilha no formato do produto. As correcoes feitas
+// na conferencia ficam em row.__edits e vencem o valor original da planilha.
+// Retorna null para linha vazia; { issues } quando falta dado obrigatorio.
+function mapKitImportRow(row, fallbackCategory) {
+  const rowNum = Number(row.__rowNum) || 0;
+  const rowMap = {};
 
-  rows.forEach((row, index) => {
-    const rowNum = Number(row.__rowNum) || index + 2;
-    const rowMap = {};
+  Object.entries(row).forEach(([header, value]) => {
+    if (header.startsWith('__')) return;
+    const normalizedHeader = normalizeImportHeader(header);
+    if (!normalizedHeader) return;
+    rowMap[normalizedHeader] = value;
+  });
 
-    Object.entries(row).forEach(([header, value]) => {
-      if (header === '__rowNum') return;
-      const normalizedHeader = normalizeImportHeader(header);
-      if (!normalizedHeader) return;
-      rowMap[normalizedHeader] = value;
-    });
+  if (Object.keys(rowMap).length === 0) return null;
 
-    if (Object.keys(rowMap).length === 0) return;
+  Object.entries(row.__edits || {}).forEach(([field, value]) => {
+    const aliases = KIT_IMPORT_HEADER_ALIASES[field] || [field];
+    aliases.forEach(alias => { delete rowMap[alias]; });
+    rowMap[aliases[0]] = value;
+  });
 
-    const explicitId = String(getMappedImportValue(rowMap, 'id')).trim() || null;
-    const rawName = String(getMappedImportValue(rowMap, 'name')).trim();
-    const rawBrand = String(getMappedImportValue(rowMap, 'brand')).trim();
-    const rawCategory = String(getMappedImportValue(rowMap, 'categoria')).trim();
-    const rawType = String(getMappedImportValue(rowMap, 'type')).trim();
-    const rawTag = String(getMappedImportValue(rowMap, 'tag')).trim();
-    const rawDescription = String(getMappedImportValue(rowMap, 'description')).trim();
+  const explicitId = String(getMappedImportValue(rowMap, 'id')).trim() || null;
+  const rawName = String(getMappedImportValue(rowMap, 'name')).trim();
+  const rawBrand = String(getMappedImportValue(rowMap, 'brand')).trim();
+  const rawCategory = String(getMappedImportValue(rowMap, 'categoria')).trim();
+  const rawType = String(getMappedImportValue(rowMap, 'type')).trim();
+  const rawTag = String(getMappedImportValue(rowMap, 'tag')).trim();
+  const rawDescription = String(getMappedImportValue(rowMap, 'description')).trim();
 
-    const name  = rawName.toUpperCase();
-    const brand = rawBrand.toUpperCase();
-    const power = parseSpreadsheetNumber(getMappedImportValue(rowMap, 'power'));
-    const price = parseSpreadsheetNumber(getMappedImportValue(rowMap, 'price'));
-    let listPrice = parseSpreadsheetNumber(getMappedImportValue(rowMap, 'list_price'));
-    const hasLookupKey = Boolean(name) && Boolean(brand) && Number.isFinite(power) && power > 0;
+  const name  = rawName.toUpperCase();
+  const brand = rawBrand.toUpperCase();
+  const power = parseSpreadsheetNumber(getMappedImportValue(rowMap, 'power'));
+  const price = parseSpreadsheetNumber(getMappedImportValue(rowMap, 'price'));
+  let listPrice = parseSpreadsheetNumber(getMappedImportValue(rowMap, 'list_price'));
+  const hasLookupKey = Boolean(name) && Boolean(brand) && Number.isFinite(power) && power > 0;
 
-    const rowIssues = [];
-    if (!Number.isFinite(price) || price <= 0) rowIssues.push('preco');
-    if (!explicitId) {
-      if (!name) rowIssues.push('nome');
-      if (!brand) rowIssues.push('marca');
-      if (!Number.isFinite(power) || power <= 0) rowIssues.push('potencia');
-    }
+  const rowIssues = [];
+  if (!Number.isFinite(price) || price <= 0) rowIssues.push('preco');
+  if (!explicitId) {
+    if (!name) rowIssues.push('nome');
+    if (!brand) rowIssues.push('marca');
+    if (!Number.isFinite(power) || power <= 0) rowIssues.push('potencia');
+  }
 
-    if (rowIssues.length > 0) {
-      errors.push(`Linha ${rowNum}: campos invalidos (${rowIssues.join(', ')}).`);
-      return;
-    }
+  if (rowIssues.length > 0) return { rowNum, issues: rowIssues };
 
-    // "De" menor que o preço vira o próprio preço; a conferência avisa quando isso acontece.
-    let listPriceAjustadoDe = null;
-    if (!Number.isFinite(listPrice) || listPrice <= 0 || listPrice < price) {
-      if (Number.isFinite(listPrice) && listPrice > 0) listPriceAjustadoDe = listPrice;
-      listPrice = price;
-    }
+  // "De" menor que o preço vira o próprio preço; a conferência avisa quando isso acontece.
+  let listPriceAjustadoDe = null;
+  if (!Number.isFinite(listPrice) || listPrice <= 0 || listPrice < price) {
+    if (Number.isFinite(listPrice) && listPrice > 0) listPriceAjustadoDe = listPrice;
+    listPrice = price;
+  }
 
-    const categoria = rawCategory
-      ? normalizeImportedCategory(rawCategory, fallbackCategory)
-      : null;
-    const type = rawType ? normalizeImportedType(rawType) : null;
-    const tag = rawTag ? normalizeImportedTag(rawTag) : null;
+  const categoria = rawCategory
+    ? normalizeImportedCategory(rawCategory, fallbackCategory)
+    : null;
+  const type = rawType ? normalizeImportedType(rawType) : null;
+  const tag = rawTag ? normalizeImportedTag(rawTag) : null;
 
-    // Coluna opcional "ativo": SIM/NÃO, true/false, 1/0 (ausente = não mexe).
-    const rawAtivo = String(getMappedImportValue(rowMap, 'ativo')).trim().toLowerCase();
-    const ativo = !rawAtivo
-      ? null
-      : !['nao', 'não', 'no', 'false', '0', 'inativo'].includes(rawAtivo);
+  // Coluna opcional "ativo": SIM/NÃO, true/false, 1/0 (ausente = não mexe).
+  const rawAtivo = String(getMappedImportValue(rowMap, 'ativo')).trim().toLowerCase();
+  const ativo = !rawAtivo
+    ? null
+    : !['nao', 'não', 'no', 'false', '0', 'inativo'].includes(rawAtivo);
 
-    let description = rawDescription || null;
-    if (!description && !explicitId && Number.isFinite(power) && brand) {
-      description = `${power}kWp - ${brand}`;
-    }
+  let description = rawDescription || null;
+  if (!description && !explicitId && Number.isFinite(power) && brand) {
+    description = `${power}kWp - ${brand}`;
+  }
 
-    mappedRows.push({
+  return {
+    rowNum,
+    mapped: {
       _rowNum: rowNum,
       _explicitId: explicitId,
       _hasLookupKey: hasLookupKey,
@@ -961,25 +964,7 @@ function mapImportedRowsToProducts(rows) {
       tag,
       description,
       ativo,
-    });
-  });
-
-  const dedupMap = new Map();
-  let duplicateRows = 0;
-  for (const row of mappedRows) {
-    const key = row._explicitId
-      ? `id:${row._explicitId}`
-      : row._hasLookupKey
-        ? `key:${buildKitMatchKey(row.name, row.brand, row.power)}`
-        : `row:${row._rowNum}`;
-    if (dedupMap.has(key)) duplicateRows++;
-    dedupMap.set(key, row);
-  }
-
-  return {
-    validRows: [...dedupMap.values()],
-    errors,
-    duplicateRows,
+    },
   };
 }
 
@@ -1005,10 +990,9 @@ function _sameImportValue(a, b) {
   return String(a ?? '').trim() === String(b ?? '').trim();
 }
 
-// Monta o plano da importacao SEM gravar nada: casa cada linha com o kit existente
-// e levanta o preco atual (da unidade selecionada ou do produto padrao) para a
-// conferencia mostrar o antes/depois de cada kit.
-async function planKitsImport(mappedRows) {
+// Busca UMA vez o que a conferencia precisa do banco (kits existentes e, com unidade
+// selecionada, os precos dela). Depois disso as correcoes na tabela recalculam local.
+async function loadKitsImportContext() {
   const franquiaId = state.adminKitsFranquia || null;
 
   const { data: existing = [], error: existingErr } = await supabaseClient
@@ -1026,92 +1010,130 @@ async function planKitsImport(mappedRows) {
     precosUnidade = new Map(precos.map(p => [String(p.produto_id), p]));
   }
 
-  const byId = new Map(existing.map(item => [String(item.id), item]));
-  const byKey = new Map(existing.map(item => [buildKitMatchKey(item.name, item.brand, item.power), item]));
+  return {
+    franquiaId,
+    precosUnidade,
+    byId: new Map(existing.map(item => [String(item.id), item])),
+    byKey: new Map(existing.map(item => [buildKitMatchKey(item.name, item.brand, item.power), item])),
+  };
+}
 
-  const items = [];
-  for (const row of mappedRows) {
-    let target = null;
-    if (row._explicitId) {
-      target = byId.get(String(row._explicitId)) || null;
-    }
-    // Id inexistente NAO e mais descartado: cai para casamento por nome/potencia ou criacao.
-    if (!target && row._hasLookupKey) {
-      target = byKey.get(buildKitMatchKey(row.name, row.brand, row.power)) || null;
-    }
-
-    if (target) {
-      const payload = {
-        categoria: row.categoria || target.categoria,
-        name: row.name || target.name,
-        brand: row.brand || target.brand,
-        power: row.power ?? target.power,
-        price: row.price,
-        list_price: row.list_price,
-        type: row.type || target.type,
-        tag: row.tag || target.tag,
-        description: row.description || target.description,
-        ...(row.ativo === null || row.ativo === undefined ? {} : { ativo: row.ativo }),
-      };
-      const exclusivaDestaUnidade = Boolean(franquiaId)
-        && String(target.franquia_id || '') === String(franquiaId);
-
-      // Com unidade selecionada o preco vem de precos_franquia (pode nao existir ainda).
-      const precoAtual = franquiaId ? (precosUnidade.get(String(target.id)) || null) : target;
-      const mexeCatalogo = !franquiaId || exclusivaDestaUnidade;
-      const camposAlterados = mexeCatalogo
-        ? KIT_IMPORT_CATALOG_FIELDS.filter(([f]) => !_sameImportValue(target[f], payload[f])).map(([, label]) => label)
-        : [];
-      // "ativo" so e gravado no modo padrao (sem unidade selecionada).
-      if (!franquiaId && payload.ativo !== undefined && payload.ativo !== (target.ativo !== false)) {
-        camposAlterados.push(payload.ativo ? 'reativa' : 'desativa');
-      }
-      const precoMudou = !precoAtual
-        || !_sameImportMoney(precoAtual.price, payload.price)
-        || !_sameImportMoney(precoAtual.list_price, payload.list_price);
-
-      items.push({
-        kind: 'update',
-        row,
-        id: target.id,
-        payload,
-        exclusivaDestaUnidade,
-        precoAtual,
-        camposAlterados,
-        changed: precoMudou || camposAlterados.length > 0,
-      });
-    } else {
-      // Sem correspondencia (id novo OU sem id): cria kit quando ha dados essenciais.
-      if (!row.name || !row.brand || !Number.isFinite(row.power) || row.power <= 0) {
-        items.push({ kind: 'skip', row, motivo: 'Kit não encontrado e sem nome, marca ou potência para cadastrar' });
-        continue;
-      }
-
-      items.push({
-        kind: 'insert',
-        row,
-        changed: true,
-        payload: {
-          // Preserva o id da planilha quando informado (round-trip do export).
-          ...(row._explicitId ? { id: row._explicitId } : {}),
-          categoria: row.categoria || getImportDefaultCategory(),
-          name: row.name,
-          brand: row.brand,
-          power: row.power,
-          price: row.price,
-          list_price: row.list_price,
-          type: row.type || 'Bifásico',
-          tag: row.tag || 'MAIS VENDIDO',
-          description: row.description || `${row.power}kWp - ${row.brand}`,
-          ativo: row.ativo === false ? false : true,
-          // Com franquia selecionada, kit exclusivo dela; sem franquia (admin global), kit padrao.
-          ...(franquiaId ? { franquia_id: franquiaId } : {}),
-        },
-      });
-    }
+// Casa uma linha com o kit existente e diz o que a importacao faria com ela (sem gravar).
+function planKitRow(ctx, row) {
+  const { franquiaId } = ctx;
+  let target = null;
+  if (row._explicitId) {
+    target = ctx.byId.get(String(row._explicitId)) || null;
+  }
+  // Id inexistente NAO e mais descartado: cai para casamento por nome/potencia ou criacao.
+  if (!target && row._hasLookupKey) {
+    target = ctx.byKey.get(buildKitMatchKey(row.name, row.brand, row.power)) || null;
   }
 
-  return { franquiaId, items };
+  if (target) {
+    const payload = {
+      categoria: row.categoria || target.categoria,
+      name: row.name || target.name,
+      brand: row.brand || target.brand,
+      power: row.power ?? target.power,
+      price: row.price,
+      list_price: row.list_price,
+      type: row.type || target.type,
+      tag: row.tag || target.tag,
+      description: row.description || target.description,
+      ...(row.ativo === null || row.ativo === undefined ? {} : { ativo: row.ativo }),
+    };
+    const exclusivaDestaUnidade = Boolean(franquiaId)
+      && String(target.franquia_id || '') === String(franquiaId);
+
+    // Com unidade selecionada o preco vem de precos_franquia (pode nao existir ainda).
+    const precoAtual = franquiaId ? (ctx.precosUnidade.get(String(target.id)) || null) : target;
+    const mexeCatalogo = !franquiaId || exclusivaDestaUnidade;
+    const camposAlterados = mexeCatalogo
+      ? KIT_IMPORT_CATALOG_FIELDS.filter(([f]) => !_sameImportValue(target[f], payload[f])).map(([, label]) => label)
+      : [];
+    // "ativo" so e gravado no modo padrao (sem unidade selecionada).
+    if (!franquiaId && payload.ativo !== undefined && payload.ativo !== (target.ativo !== false)) {
+      camposAlterados.push(payload.ativo ? 'reativa' : 'desativa');
+    }
+    const precoMudou = !precoAtual
+      || !_sameImportMoney(precoAtual.price, payload.price)
+      || !_sameImportMoney(precoAtual.list_price, payload.list_price);
+
+    return {
+      kind: 'update',
+      row,
+      id: target.id,
+      payload,
+      exclusivaDestaUnidade,
+      precoAtual,
+      camposAlterados,
+      changed: precoMudou || camposAlterados.length > 0,
+    };
+  }
+
+  // Sem correspondencia (id novo OU sem id): cria kit quando ha dados essenciais.
+  if (!row.name || !row.brand || !Number.isFinite(row.power) || row.power <= 0) {
+    return { kind: 'skip', row, motivo: 'Kit não encontrado e sem nome, marca ou potência para cadastrar' };
+  }
+
+  return {
+    kind: 'insert',
+    row,
+    changed: true,
+    payload: {
+      // Preserva o id da planilha quando informado (round-trip do export).
+      ...(row._explicitId ? { id: row._explicitId } : {}),
+      categoria: row.categoria || getImportDefaultCategory(),
+      name: row.name,
+      brand: row.brand,
+      power: row.power,
+      price: row.price,
+      list_price: row.list_price,
+      type: row.type || 'Bifásico',
+      tag: row.tag || 'MAIS VENDIDO',
+      description: row.description || `${row.power}kWp - ${row.brand}`,
+      ativo: row.ativo === false ? false : true,
+      // Com franquia selecionada, kit exclusivo dela; sem franquia (admin global), kit padrao.
+      ...(franquiaId ? { franquia_id: franquiaId } : {}),
+    },
+  };
+}
+
+// Uma entrada por linha da planilha: valida (com item do plano), invalida (com os
+// campos a corrigir) ou repetida (outra linha igual mais abaixo e a que vale).
+function buildKitsImportEntries(ctx, rawRows) {
+  const fallbackCategory = getImportDefaultCategory();
+  const entries = [];
+  const lastByKey = new Map();
+
+  for (const raw of rawRows) {
+    const res = mapKitImportRow(raw, fallbackCategory);
+    if (!res) continue;
+    const entry = { rowNum: res.rowNum, raw, issues: res.issues || [], row: res.mapped || null, item: null, dupOf: null, key: null };
+    if (entry.row) {
+      const r = entry.row;
+      entry.key = r._explicitId
+        ? `id:${r._explicitId}`
+        : r._hasLookupKey
+          ? `key:${buildKitMatchKey(r.name, r.brand, r.power)}`
+          : `row:${r._rowNum}`;
+      lastByKey.set(entry.key, entry);
+      entry.item = planKitRow(ctx, r);
+    }
+    entries.push(entry);
+  }
+
+  // Duplicadas: mantem a ultima (mesma regra de antes), as outras apontam para ela.
+  for (const entry of entries) {
+    if (!entry.key) continue;
+    const vencedora = lastByKey.get(entry.key);
+    if (vencedora !== entry) {
+      entry.dupOf = vencedora.rowNum;
+      entry.item = null;
+    }
+  }
+  return entries;
 }
 
 // Grava apenas os itens do plano que o admin deixou marcados na conferencia.
@@ -1207,8 +1229,15 @@ async function applyKitsImportPlan(plan, selectedItems) {
   };
 }
 
-// --- Conferencia da importacao (tabela antes de gravar) ---
+// --- Conferencia da importacao: tabela editavel antes de gravar ---
+// Edicoes recalculam a linha na hora e so atualizam as partes nao editaveis da
+// tabela (status, antes/depois, observacoes), sem recriar os inputs — assim o
+// foco e o Enter-desce-linha funcionam como numa planilha.
 let _kitsImportPreview = null;
+
+const KIP_NUM_FIELDS = new Set(['power', 'price', 'list_price']);
+const KIP_ISSUE_FIELD = { preco: 'price', nome: 'name', marca: 'brand', potencia: 'power' };
+const KIP_ISSUE_LABEL = { preco: 'preço', nome: 'nome', marca: 'marca', potencia: 'kWp' };
 
 function _kitsImportOverlay() {
   let overlay = document.getElementById('kits-import-preview-overlay');
@@ -1221,6 +1250,40 @@ function _kitsImportOverlay() {
   return overlay;
 }
 
+function _kipKind(e) {
+  if (e.issues.length > 0) return 'invalid';
+  if (e.dupOf) return 'dup';
+  return e.item.kind;
+}
+
+function _kipSelectable(e) {
+  const k = _kipKind(e);
+  return k === 'update' || k === 'insert';
+}
+
+// Valor do campo na linha: a correcao feita na tabela ou, sem ela, o da planilha.
+function _kipFieldRaw(raw, field, { comEdicao = true } = {}) {
+  if (comEdicao && raw.__edits && Object.prototype.hasOwnProperty.call(raw.__edits, field)) {
+    return raw.__edits[field];
+  }
+  const rowMap = {};
+  Object.entries(raw).forEach(([h, v]) => {
+    if (h.startsWith('__')) return;
+    const n = normalizeImportHeader(h);
+    if (n) rowMap[n] = v;
+  });
+  return getMappedImportValue(rowMap, field);
+}
+
+function _kipFormat(field, value) {
+  if (!KIP_NUM_FIELDS.has(field)) return String(value ?? '').trim().toUpperCase();
+  const n = parseSpreadsheetNumber(value);
+  if (!Number.isFinite(n)) return String(value ?? '').trim();
+  return field === 'power'
+    ? n.toLocaleString('pt-BR', { maximumFractionDigits: 4 })
+    : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function _kitsImportDelta(atual, novo) {
   const a = Number(atual);
   const n = Number(novo);
@@ -1228,59 +1291,178 @@ function _kitsImportDelta(atual, novo) {
   const pct = ((n - a) / a) * 100;
   const sinal = pct > 0 ? '+' : '';
   const cor = pct > 0 ? 'text-yellow-400' : 'text-sky-400';
-  return `<span class="${cor} text-[10px] font-black ml-1">${sinal}${pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>`;
+  return `<span class="${cor} font-black ml-1 no-underline">${sinal}${pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>`;
 }
 
-function _kitsImportPriceCell(item, field) {
-  const novo = item.payload?.[field];
-  if (item.kind === 'insert') {
-    return `<span class="text-white font-black">${formatCurrency(novo)}</span>`;
-  }
-  const atual = item.precoAtual ? item.precoAtual[field] : null;
-  if (atual === null || atual === undefined) {
-    return `<div class="text-[10px] text-neutral-600 font-bold">sem preço na unidade</div><span class="text-white font-black">${formatCurrency(novo)}</span>`;
-  }
-  if (_sameImportMoney(atual, novo)) {
-    return `<span class="text-neutral-500 font-bold">${formatCurrency(novo)}</span>`;
-  }
-  return `
-    <div class="text-[10px] text-neutral-600 font-bold line-through">${formatCurrency(atual)}</div>
-    <span class="text-white font-black">${formatCurrency(novo)}</span>${_kitsImportDelta(atual, novo)}`;
+// Linha "antes" em cima do input de preco: valor atual riscado + variacao.
+function _kipAtualHtml(e, field) {
+  const k = _kipKind(e);
+  if (k === 'insert') return '<span class="text-emerald-500/80">kit novo</span>';
+  if (k !== 'update') return '';
+  const atual = e.item.precoAtual ? e.item.precoAtual[field] : null;
+  if (atual === null || atual === undefined) return 'sem preço na unidade';
+  const novo = e.item.payload[field];
+  if (_sameImportMoney(atual, novo)) return '';
+  return `<span class="line-through">${formatCurrency(atual)}</span>${_kitsImportDelta(atual, novo)}`;
 }
 
-function _kitsImportStatusBadge(item) {
+function _kipStatusHtml(e) {
   const base = 'text-[8px] px-1.5 py-0.5 font-black uppercase tracking-widest border whitespace-nowrap';
-  if (item.kind === 'skip') return `<span class="${base} border-red-500/40 bg-red-500/10 text-red-400">Ignorada</span>`;
-  if (item.kind === 'insert') return `<span class="${base} border-emerald-500/40 bg-emerald-500/10 text-emerald-400">Novo</span>`;
-  if (item.changed) return `<span class="${base} border-orange-500/40 bg-orange-500/10 text-orange-400">Atualiza</span>`;
+  const k = _kipKind(e);
+  if (k === 'invalid') return `<span class="${base} border-red-500/40 bg-red-500/10 text-red-400">Corrigir</span>`;
+  if (k === 'dup') return `<span class="${base} border-neutral-700 text-neutral-500">Repetida</span>`;
+  if (k === 'skip') return `<span class="${base} border-red-500/40 bg-red-500/10 text-red-400">Ignorada</span>`;
+  if (k === 'insert') return `<span class="${base} border-emerald-500/40 bg-emerald-500/10 text-emerald-400">Novo</span>`;
+  if (e.item.changed) return `<span class="${base} border-orange-500/40 bg-orange-500/10 text-orange-400">Atualiza</span>`;
   return `<span class="${base} border-neutral-700 text-neutral-500">Sem mudança</span>`;
 }
 
-function _kitsImportNotes(item, franquiaId) {
+function _kipNotesHtml(e, franquiaId) {
   const notes = [];
-  if (item.kind === 'skip') notes.push(`<span class="text-red-400">${escapeHTML(item.motivo)}</span>`);
-  if (item.row._listPriceAjustadoDe !== null && item.row._listPriceAjustadoDe !== undefined) {
-    notes.push(`<span class="text-yellow-400">"De" da planilha (${formatCurrency(item.row._listPriceAjustadoDe)}) é menor que o preço, vai ficar igual ao preço</span>`);
-  }
-  if (item.kind === 'insert') {
-    notes.push(franquiaId ? 'Kit exclusivo desta unidade' : 'Entra em todas as unidades ativas');
-  }
-  if (item.kind === 'update' && item.camposAlterados.length > 0) {
-    notes.push(`Também muda: ${escapeHTML(item.camposAlterados.join(', '))}`);
+  const k = _kipKind(e);
+  if (k === 'invalid') {
+    notes.push(`<span class="text-red-400">Preencha: ${e.issues.map(i => KIP_ISSUE_LABEL[i] || i).join(', ')}</span>`);
+  } else if (k === 'dup') {
+    notes.push(`Repetida na planilha, vale a linha ${e.dupOf}`);
+  } else {
+    const item = e.item;
+    if (k === 'skip') notes.push(`<span class="text-red-400">${escapeHTML(item.motivo)}</span>`);
+    if (item.row._listPriceAjustadoDe !== null && item.row._listPriceAjustadoDe !== undefined) {
+      notes.push(`<span class="text-yellow-400">"De" menor que o preço, vai gravar ${formatCurrency(item.row.list_price)} (igual ao preço)</span>`);
+    }
+    if (k === 'insert') notes.push(franquiaId ? 'Kit exclusivo desta unidade' : 'Entra em todas as unidades ativas');
+    if (k === 'update' && item.camposAlterados.length > 0) {
+      notes.push(`Também muda: ${escapeHTML(item.camposAlterados.join(', '))}`);
+    }
   }
   return notes.map(n => `<div>${n}</div>`).join('');
+}
+
+function _kipMetaHtml(e) {
+  const cat = e.item?.payload?.categoria
+    || normalizeImportedCategory(_kipFieldRaw(e.raw, 'categoria'), getImportDefaultCategory());
+  return cat === 'kitsMicro' ? 'MICRO' : 'INVERSOR';
+}
+
+function _kipCheckHtml(e) {
+  const p = _kitsImportPreview;
+  if (!_kipSelectable(e)) return '';
+  return `<input type="checkbox" ${p.selected.has(e.rowNum) ? 'checked' : ''} ${p.busy ? 'disabled' : ''} onchange="toggleKitsImportRow(${e.rowNum}, this.checked)" class="w-4 h-4 accent-orange-500 cursor-pointer">`;
+}
+
+function _kipRowClass(e) {
+  const p = _kitsImportPreview;
+  const k = _kipKind(e);
+  const marcado = _kipSelectable(e) && p.selected.has(e.rowNum);
+  let cls = 'border-b border-neutral-800/70';
+  if (k === 'invalid') cls += ' bg-red-500/[0.04]';
+  else if (marcado) cls += ' bg-orange-500/[0.04]';
+  if (k === 'dup' || k === 'skip' || (k === 'update' && !e.item.changed && !marcado)) cls += ' opacity-60';
+  return cls;
+}
+
+function _kipInputClass(e, field) {
+  const invalido = e.issues.some(i => KIP_ISSUE_FIELD[i] === field);
+  const editado = Boolean(e.raw.__edits && Object.prototype.hasOwnProperty.call(e.raw.__edits, field));
+  const estado = invalido
+    ? 'border-red-500/70 bg-red-500/10'
+    : editado
+      ? 'border-orange-500/50 bg-orange-500/10'
+      : 'border-transparent bg-transparent hover:border-neutral-700';
+  const tipo = {
+    name: 'text-[11px] font-black uppercase text-white',
+    brand: 'text-[10px] font-bold uppercase text-neutral-400',
+    power: 'text-right text-[11px] font-bold text-white',
+  }[field] || 'text-right text-[12px] font-black text-white';
+  return `w-full min-w-0 px-1.5 py-1 border ${estado} ${tipo} focus:border-orange-500 focus:bg-black focus:outline-none transition-colors disabled:opacity-60`;
+}
+
+function _kipInputHtml(e, field, placeholder) {
+  const p = _kitsImportPreview;
+  const valor = _kipFormat(field, _kipFieldRaw(e.raw, field));
+  return `<input type="text" ${KIP_NUM_FIELDS.has(field) ? 'inputmode="decimal"' : ''} data-row="${e.rowNum}" data-field="${field}" value="${escapeHTML(valor)}" placeholder="${placeholder}" ${p.busy ? 'disabled' : ''} onchange="editKitsImportCell(this)" onkeydown="kitsImportCellKey(event, this)" onfocus="this.select()" class="${_kipInputClass(e, field)}">`;
+}
+
+function _kipRowHtml(e) {
+  const fid = _kitsImportPreview.ctx.franquiaId;
+  return `
+    <tr data-row="${e.rowNum}" class="${_kipRowClass(e)}">
+      <td data-role="check" class="px-3 py-2 align-top">${_kipCheckHtml(e)}</td>
+      <td class="px-2 py-2 align-top text-neutral-600 font-bold text-[10px] pt-3">${e.rowNum}</td>
+      <td class="px-2 py-2 align-top min-w-[260px]">
+        ${_kipInputHtml(e, 'name', 'NOME DO KIT')}
+        <div class="flex items-center gap-2 mt-0.5">
+          <div class="w-44">${_kipInputHtml(e, 'brand', 'MARCA')}</div>
+          <span data-role="meta" class="text-[9px] text-neutral-600 font-black tracking-widest">${_kipMetaHtml(e)}</span>
+        </div>
+      </td>
+      <td class="px-2 py-2 align-top w-20">${_kipInputHtml(e, 'power', '0')}</td>
+      <td data-role="status" class="px-2 py-2 align-top pt-3">${_kipStatusHtml(e)}</td>
+      <td class="px-2 py-2 align-top w-36">
+        <div data-role="atual-price" class="text-[10px] text-neutral-600 font-bold text-right min-h-[14px] whitespace-nowrap">${_kipAtualHtml(e, 'price')}</div>
+        ${_kipInputHtml(e, 'price', '0,00')}
+      </td>
+      <td class="px-2 py-2 align-top w-36">
+        <div data-role="atual-list_price" class="text-[10px] text-neutral-600 font-bold text-right min-h-[14px] whitespace-nowrap">${_kipAtualHtml(e, 'list_price')}</div>
+        ${_kipInputHtml(e, 'list_price', '0,00')}
+      </td>
+      <td data-role="notes" class="px-3 py-2 align-top text-[10px] text-neutral-400 font-bold leading-snug min-w-[180px] pt-3">${_kipNotesHtml(e, fid)}</td>
+    </tr>`;
+}
+
+function _kipCounts() {
+  const p = _kitsImportPreview;
+  const c = { atualiza: 0, novos: 0, iguais: 0, corrigir: 0, repetidas: 0, ignoradas: 0, selecionados: 0, selecionaveis: 0 };
+  for (const e of p.entries) {
+    const k = _kipKind(e);
+    if (k === 'invalid') c.corrigir++;
+    else if (k === 'dup') c.repetidas++;
+    else if (k === 'skip') c.ignoradas++;
+    else if (k === 'insert') c.novos++;
+    else if (e.item.changed) c.atualiza++;
+    else c.iguais++;
+    if (_kipSelectable(e)) {
+      c.selecionaveis++;
+      if (p.selected.has(e.rowNum)) c.selecionados++;
+    }
+  }
+  return c;
+}
+
+function _kipChipsHtml(c) {
+  const chip = (label, n, cls) => `<span class="text-[9px] px-2 py-1 font-black uppercase tracking-widest border ${cls}">${n} ${label}</span>`;
+  return [
+    chip('com alteração', c.atualiza, 'border-orange-500/40 text-orange-400'),
+    chip('novo(s)', c.novos, 'border-emerald-500/40 text-emerald-400'),
+    chip('sem mudança', c.iguais, 'border-neutral-700 text-neutral-500'),
+    c.corrigir > 0 ? chip('para corrigir', c.corrigir, 'border-red-500/40 text-red-400') : '',
+    c.ignoradas > 0 ? chip('ignorada(s)', c.ignoradas, 'border-red-500/40 text-red-400') : '',
+    c.repetidas > 0 ? chip('repetida(s)', c.repetidas, 'border-yellow-500/40 text-yellow-400') : '',
+  ].join('');
+}
+
+function _kipFooterInfoHtml(c) {
+  const p = _kitsImportPreview;
+  return `
+    <p class="text-[11px] font-black uppercase tracking-widest text-neutral-300">${c.selecionados} kit(s) marcado(s) para gravar</p>
+    ${c.corrigir > 0 ? `<p class="text-[10px] font-bold text-red-400 mt-1">${c.corrigir} linha(s) em vermelho só entram depois de corrigidas.</p>` : ''}
+    ${p.erro ? `<p class="text-[11px] font-bold text-red-400 mt-1">Erro ao gravar: ${escapeHTML(p.erro)}</p>` : ''}`;
+}
+
+function _kipImportButtonHtml(c) {
+  const p = _kitsImportPreview;
+  return `
+    <button onclick="confirmKitsImportPreview()" ${p.busy || c.selecionados === 0 ? 'disabled' : ''} class="btn btn-primary">
+      <i data-lucide="${p.busy ? 'loader-2' : 'check'}" class="${p.busy ? 'animate-spin' : ''}"></i>${p.busy ? 'Gravando...' : `Importar ${c.selecionados} kit(s)`}
+    </button>`;
 }
 
 function renderKitsImportPreview() {
   const p = _kitsImportPreview;
   if (!p) return;
   const overlay = _kitsImportOverlay();
-  const { items, franquiaId } = p.plan;
-
-  const nNovos = items.filter(i => i.kind === 'insert').length;
-  const nAtualiza = items.filter(i => i.kind === 'update' && i.changed).length;
-  const nIguais = items.filter(i => i.kind === 'update' && !i.changed).length;
-  const nIgnoradas = items.filter(i => i.kind === 'skip').length + p.errors.length;
+  const { franquiaId } = p.ctx;
+  const c = _kipCounts();
 
   const franquiaNome = franquiaId
     ? ((state.franquiasCatalog || []).find(f => String(f.id) === String(franquiaId))?.nome || 'unidade selecionada')
@@ -1289,95 +1471,48 @@ function renderKitsImportPreview() {
     ? `Preços da unidade <b class="text-purple-400">${escapeHTML(franquiaNome)}</b>`
     : 'Produto padrão (todas as unidades)';
 
-  const selecionaveis = items.filter(i => i.kind !== 'skip');
-  const todosMarcados = selecionaveis.length > 0 && selecionaveis.every(i => p.selected.has(i));
-
-  const chip = (label, n, cls) => `<span class="text-[9px] px-2 py-1 font-black uppercase tracking-widest border ${cls}">${n} ${label}</span>`;
-
-  const linhas = items.map((item, idx) => {
-    const marcado = p.selected.has(item);
-    const apagado = item.kind === 'skip' || (item.kind === 'update' && !item.changed);
-    const row = item.row;
-    const nome = item.payload?.name || row.name || '(sem nome)';
-    const marca = item.payload?.brand || row.brand || '';
-    const potencia = item.payload?.power ?? row.power;
-    const categoria = (item.payload?.categoria || row.categoria) === 'kitsMicro' ? 'MICRO' : 'INVERSOR';
-    return `
-      <tr class="border-b border-neutral-800/70 ${marcado ? 'bg-orange-500/[0.04]' : ''} ${apagado && !marcado ? 'opacity-50' : ''}">
-        <td class="px-3 py-2.5 align-top">
-          ${item.kind === 'skip' ? '' : `<input type="checkbox" ${marcado ? 'checked' : ''} ${p.busy ? 'disabled' : ''} onchange="toggleKitsImportRow(${idx}, this.checked)" class="w-4 h-4 accent-orange-500 cursor-pointer">`}
-        </td>
-        <td class="px-2 py-2.5 align-top text-neutral-600 font-bold text-[10px]">${row._rowNum}</td>
-        <td class="px-2 py-2.5 align-top min-w-[220px]">
-          <div class="text-white font-black text-[11px] uppercase leading-tight">${escapeHTML(nome)}</div>
-          <div class="text-[10px] text-neutral-500 font-bold mt-0.5">${escapeHTML(marca)}${potencia ? ` · ${escapeHTML(String(potencia))} kWp` : ''} · ${categoria}</div>
-        </td>
-        <td class="px-2 py-2.5 align-top">${_kitsImportStatusBadge(item)}</td>
-        <td class="px-2 py-2.5 align-top text-right whitespace-nowrap text-[12px]">${item.kind === 'skip' ? '' : _kitsImportPriceCell(item, 'price')}</td>
-        <td class="px-2 py-2.5 align-top text-right whitespace-nowrap text-[12px]">${item.kind === 'skip' ? '' : _kitsImportPriceCell(item, 'list_price')}</td>
-        <td class="px-3 py-2.5 align-top text-[10px] text-neutral-400 font-bold leading-snug min-w-[180px]">${_kitsImportNotes(item, franquiaId)}</td>
-      </tr>`;
-  }).join('');
-
-  const errosHtml = p.errors.length > 0 ? `
-    <div class="border border-red-500/30 bg-red-500/5 p-3 mt-3">
-      <p class="text-[10px] font-black uppercase tracking-widest text-red-400 mb-1.5">Linhas com dados inválidos (não serão importadas)</p>
-      ${p.errors.map(e => `<div class="text-[11px] text-neutral-400 font-bold">${escapeHTML(e)}</div>`).join('')}
-    </div>` : '';
-
-  const nSel = p.selected.size;
-  // Anima so na abertura; os re-renders (checkbox, gravando...) nao piscam.
+  // Anima so na abertura; os re-renders (gravando...) nao piscam.
   const animar = overlay.classList.contains('hidden');
 
   overlay.innerHTML = `
-    <div class="bg-neutral-900 border-2 border-orange-600/50 w-full max-w-6xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col shadow-[0_0_50px_rgba(234,88,12,0.2)] ${animar ? 'animate-fade-in-up' : ''}">
+    <div class="bg-neutral-900 border-2 border-orange-600/50 w-full max-w-7xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col shadow-[0_0_50px_rgba(234,88,12,0.2)] ${animar ? 'animate-fade-in-up' : ''}">
       <div class="flex justify-between items-start gap-4 p-4 sm:p-5 border-b border-neutral-800 bg-black/50">
         <div class="min-w-0">
           <h2 class="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 flex items-center gap-2 italic tracking-tighter uppercase pb-1 pr-1">
             <i data-lucide="list-checks" class="w-6 h-6 text-orange-500"></i> Conferir importação
           </h2>
           <p class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mt-1 truncate">${escapeHTML(p.fileName)} · ${escopo}</p>
-          <div class="flex flex-wrap gap-1.5 mt-3">
-            ${chip('com alteração', nAtualiza, 'border-orange-500/40 text-orange-400')}
-            ${chip('novo(s)', nNovos, 'border-emerald-500/40 text-emerald-400')}
-            ${chip('sem mudança', nIguais, 'border-neutral-700 text-neutral-500')}
-            ${nIgnoradas > 0 ? chip('ignorada(s)', nIgnoradas, 'border-red-500/40 text-red-400') : ''}
-            ${p.duplicateRows > 0 ? chip('duplicada(s) no arquivo, mantida a última', p.duplicateRows, 'border-yellow-500/40 text-yellow-400') : ''}
-          </div>
+          <div data-role="chips" class="flex flex-wrap gap-1.5 mt-3">${_kipChipsHtml(c)}</div>
+          <p class="text-[10px] text-neutral-500 font-bold mt-2.5 flex items-center gap-1.5"><i data-lucide="pencil" class="w-3 h-3 text-orange-500"></i>Clique em nome, marca, kWp ou preço para corrigir. Enter desce para a linha de baixo. A planilha original não é alterada.</p>
         </div>
         <button onclick="closeKitsImportPreview()" ${p.busy ? 'disabled' : ''} class="text-neutral-500 hover:text-red-500 transition-colors shrink-0"><i data-lucide="x" class="w-7 h-7"></i></button>
       </div>
 
-      <div class="flex-1 overflow-auto custom-scrollbar px-3 pb-3 sm:px-4 sm:pb-4">
-        <table class="w-full min-w-[820px] text-left border-collapse">
+      <div data-role="scroller" class="flex-1 overflow-auto custom-scrollbar px-3 pb-3 sm:px-4 sm:pb-4">
+        <table class="w-full min-w-[1000px] text-left border-collapse">
           <thead class="sticky top-0 bg-neutral-900 z-10">
             <tr class="border-b border-neutral-700 text-[9px] font-black uppercase tracking-widest text-neutral-500">
               <th class="px-3 py-2 w-8">
-                <input type="checkbox" ${todosMarcados ? 'checked' : ''} ${p.busy ? 'disabled' : ''} onchange="toggleKitsImportAll(this.checked)" title="Marcar/desmarcar todos" class="w-4 h-4 accent-orange-500 cursor-pointer">
+                <input type="checkbox" data-role="check-all" ${c.selecionaveis > 0 && c.selecionados === c.selecionaveis ? 'checked' : ''} ${p.busy ? 'disabled' : ''} onchange="toggleKitsImportAll(this.checked)" title="Marcar/desmarcar todos" class="w-4 h-4 accent-orange-500 cursor-pointer">
               </th>
               <th class="px-2 py-2 w-10">Linha</th>
-              <th class="px-2 py-2">Kit</th>
+              <th class="px-2 py-2">Kit / marca</th>
+              <th class="px-2 py-2 text-right">kWp</th>
               <th class="px-2 py-2">Ação</th>
               <th class="px-2 py-2 text-right">Preço</th>
               <th class="px-2 py-2 text-right">"De" (riscado)</th>
               <th class="px-3 py-2">Observações</th>
             </tr>
           </thead>
-          <tbody>${linhas}</tbody>
+          <tbody>${p.entries.map(_kipRowHtml).join('')}</tbody>
         </table>
-        ${errosHtml}
       </div>
 
       <div class="border-t border-neutral-800 bg-black/50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-        <div class="flex-1 min-w-0">
-          <p class="text-[11px] font-black uppercase tracking-widest text-neutral-300">${nSel} kit(s) marcado(s) para gravar</p>
-          ${p.erro ? `<p class="text-[11px] font-bold text-red-400 mt-1">Erro ao gravar: ${escapeHTML(p.erro)}</p>` : ''}
-        </div>
+        <div data-role="footer-info" class="flex-1 min-w-0">${_kipFooterInfoHtml(c)}</div>
         <div class="flex gap-2">
           <button onclick="closeKitsImportPreview()" ${p.busy ? 'disabled' : ''} class="btn btn-secondary">Cancelar</button>
-          <button onclick="confirmKitsImportPreview()" ${p.busy || nSel === 0 ? 'disabled' : ''} class="btn btn-primary">
-            <i data-lucide="${p.busy ? 'loader-2' : 'check'}" class="${p.busy ? 'animate-spin' : ''}"></i>${p.busy ? 'Gravando...' : `Importar ${nSel} kit(s)`}
-          </button>
+          <span data-role="import-btn">${_kipImportButtonHtml(c)}</span>
         </div>
       </div>
     </div>`;
@@ -1386,27 +1521,103 @@ function renderKitsImportPreview() {
   lucide.createIcons();
 }
 
+// Atualiza so o que e calculado (status, antes/depois, observacoes, contadores),
+// preservando os inputs — e o foco de quem esta digitando.
+function refreshKitsImportView() {
+  const p = _kitsImportPreview;
+  const overlay = document.getElementById('kits-import-preview-overlay');
+  if (!p || !overlay) return;
+  const fid = p.ctx.franquiaId;
+  const c = _kipCounts();
+
+  for (const e of p.entries) {
+    const tr = overlay.querySelector(`tr[data-row="${e.rowNum}"]`);
+    if (!tr) continue;
+    tr.className = _kipRowClass(e);
+    tr.querySelector('[data-role="check"]').innerHTML = _kipCheckHtml(e);
+    tr.querySelector('[data-role="status"]').innerHTML = _kipStatusHtml(e);
+    tr.querySelector('[data-role="meta"]').innerHTML = _kipMetaHtml(e);
+    tr.querySelector('[data-role="atual-price"]').innerHTML = _kipAtualHtml(e, 'price');
+    tr.querySelector('[data-role="atual-list_price"]').innerHTML = _kipAtualHtml(e, 'list_price');
+    tr.querySelector('[data-role="notes"]').innerHTML = _kipNotesHtml(e, fid);
+    tr.querySelectorAll('input[data-field]').forEach(inp => {
+      inp.className = _kipInputClass(e, inp.dataset.field);
+    });
+  }
+
+  overlay.querySelector('[data-role="chips"]').innerHTML = _kipChipsHtml(c);
+  overlay.querySelector('[data-role="footer-info"]').innerHTML = _kipFooterInfoHtml(c);
+  overlay.querySelector('[data-role="import-btn"]').innerHTML = _kipImportButtonHtml(c);
+  const all = overlay.querySelector('[data-role="check-all"]');
+  if (all) all.checked = c.selecionaveis > 0 && c.selecionados === c.selecionaveis;
+  lucide.createIcons();
+}
+
 function _rerenderKitsImportPreviewKeepScroll() {
-  const scroller = document.querySelector('#kits-import-preview-overlay .overflow-auto');
+  const scroller = document.querySelector('#kits-import-preview-overlay [data-role="scroller"]');
   const top = scroller ? scroller.scrollTop : 0;
   renderKitsImportPreview();
-  const novo = document.querySelector('#kits-import-preview-overlay .overflow-auto');
+  const novo = document.querySelector('#kits-import-preview-overlay [data-role="scroller"]');
   if (novo) novo.scrollTop = top;
 }
 
-function toggleKitsImportRow(idx, checked) {
+function editKitsImportCell(input) {
   const p = _kitsImportPreview;
-  const item = p?.plan.items[idx];
-  if (!item || item.kind === 'skip' || p.busy) return;
-  if (checked) p.selected.add(item); else p.selected.delete(item);
-  _rerenderKitsImportPreviewKeepScroll();
+  if (!p || p.busy) return;
+  const rowNum = Number(input.dataset.row);
+  const field = input.dataset.field;
+  const entry = p.entries.find(e => e.rowNum === rowNum);
+  if (!entry) return;
+
+  const raw = entry.raw;
+  const original = _kipFormat(field, _kipFieldRaw(raw, field, { comEdicao: false }));
+  raw.__edits = raw.__edits || {};
+  // Voltou ao valor da planilha: deixa de contar como correcao.
+  if (_kipFormat(field, input.value) === original) delete raw.__edits[field];
+  else raw.__edits[field] = input.value.trim();
+
+  p.entries = buildKitsImportEntries(p.ctx, p.rawRows);
+
+  // Linha mexida e que agora pode ser importada ja entra marcada.
+  const nova = p.entries.find(e => e.rowNum === rowNum);
+  if (nova && _kipSelectable(nova) && nova.item.changed) p.selected.add(rowNum);
+
+  input.value = _kipFormat(field, _kipFieldRaw(raw, field));
+  refreshKitsImportView();
+}
+
+function kitsImportCellKey(event, input) {
+  if (event.key === 'Escape') {
+    // Descarta o que foi digitado e volta ao ultimo valor aceito.
+    event.preventDefault();
+    const entry = _kitsImportPreview?.entries.find(e => e.rowNum === Number(input.dataset.row));
+    if (entry) input.value = _kipFormat(input.dataset.field, _kipFieldRaw(entry.raw, input.dataset.field));
+    input.blur();
+    return;
+  }
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  const rows = [...document.querySelectorAll('#kits-import-preview-overlay tr[data-row]')];
+  const idx = rows.indexOf(input.closest('tr'));
+  const next = rows[idx + (event.shiftKey ? -1 : 1)]?.querySelector(`input[data-field="${input.dataset.field}"]`);
+  input.blur();
+  if (next) next.focus();
+}
+
+function toggleKitsImportRow(rowNum, checked) {
+  const p = _kitsImportPreview;
+  if (!p || p.busy) return;
+  if (checked) p.selected.add(rowNum); else p.selected.delete(rowNum);
+  refreshKitsImportView();
 }
 
 function toggleKitsImportAll(checked) {
   const p = _kitsImportPreview;
   if (!p || p.busy) return;
-  p.selected = checked ? new Set(p.plan.items.filter(i => i.kind !== 'skip')) : new Set();
-  _rerenderKitsImportPreviewKeepScroll();
+  p.selected = checked
+    ? new Set(p.entries.filter(_kipSelectable).map(e => e.rowNum))
+    : new Set();
+  refreshKitsImportView();
 }
 
 function closeKitsImportPreview() {
@@ -1417,16 +1628,20 @@ function closeKitsImportPreview() {
 
 async function confirmKitsImportPreview() {
   const p = _kitsImportPreview;
-  if (!p || p.busy || p.selected.size === 0) return;
+  if (!p || p.busy) return;
 
   // Mantem a ordem da planilha na gravacao.
-  const selecionados = p.plan.items.filter(i => p.selected.has(i));
+  const selecionados = p.entries
+    .filter(e => _kipSelectable(e) && p.selected.has(e.rowNum))
+    .map(e => e.item);
+  if (selecionados.length === 0) return;
+
   p.busy = true;
   p.erro = null;
   _rerenderKitsImportPreviewKeepScroll();
 
   try {
-    const result = await applyKitsImportPlan(p.plan, selecionados);
+    const result = await applyKitsImportPlan({ franquiaId: p.ctx.franquiaId }, selecionados);
     p.busy = false;
     closeKitsImportPreview();
 
@@ -1447,32 +1662,27 @@ async function handleKitsSpreadsheetSelection(event) {
 
   try {
     showToast('LENDO PLANILHA...');
-    const rows = await readImportedKitRows(file);
+    const rawRows = await readImportedKitRows(file);
 
-    if (rows.length === 0) {
+    if (rawRows.length === 0) {
       showToast('PLANILHA VAZIA OU SEM DADOS.');
       return;
     }
 
-    const mapped = mapImportedRowsToProducts(rows);
-    if (mapped.validRows.length === 0) {
-      showToast('NENHUMA LINHA VALIDA ENCONTRADA.');
-      if (mapped.errors.length > 0) {
-        console.warn('Importacao de kits - erros de validacao:', mapped.errors);
-      }
+    const ctx = await loadKitsImportContext();
+    const entries = buildKitsImportEntries(ctx, rawRows);
+    if (entries.length === 0) {
+      showToast('NENHUMA LINHA COM DADOS ENCONTRADA.');
       return;
     }
 
-    const plan = await planKitsImport(mapped.validRows);
-    plan.items.sort((a, b) => a.row._rowNum - b.row._rowNum);
-
     _kitsImportPreview = {
       fileName: file.name,
-      plan,
-      errors: mapped.errors,
-      duplicateRows: mapped.duplicateRows,
+      ctx,
+      rawRows,
+      entries,
       // Ja vem marcado so o que muda algo; "sem mudanca" fica desmarcado.
-      selected: new Set(plan.items.filter(i => i.kind !== 'skip' && i.changed)),
+      selected: new Set(entries.filter(e => _kipSelectable(e) && e.item.changed).map(e => e.rowNum)),
       busy: false,
       erro: null,
     };
