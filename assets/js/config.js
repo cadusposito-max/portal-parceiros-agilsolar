@@ -210,6 +210,11 @@ let state = {
 // (ex.: geração de contrato/procuração em documentos.js).
 const FRANQUIA_MATRIZ_ID = 'af146be2-1489-4ad0-82f8-802b9dec5b6b';
 
+// Groner CRM — botão "GRONER →" nas vendas (vendas.js). Usa o webhook público
+// POST /api/Lead/FluentForm/{origemId}, que cria Contato + Negócio sem token.
+const GRONER_TENANT = 'franquiasagilsolar'; // subdomínio da conta: https://{tenant}.api.groner.app
+const GRONER_ORIGEM_ID = 39; // "Portal Parceiros" — ID da origem (Groner → Configurações → Origens)
+
 const TABS = [
   { id: 'dashboard', label: 'VISÃO GERAL', icon: 'layout-dashboard' },
   { id: 'funil',     label: 'FUNIL',       icon: 'git-merge' },

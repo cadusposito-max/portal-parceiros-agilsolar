@@ -335,6 +335,7 @@ function renderVendaCard(sale, index, options = {}) {
             ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm"><i data-lucide="message-circle"></i> WhatsApp</a>`
             : ''}
           ${state.isAdmin ? `<button onclick="deleteVenda('${sale.id}')" class="btn btn-danger btn-sm"><i data-lucide="trash-2"></i> Excluir</button>` : ''}
+          ${(state.isAdmin || state.isGestor) ? `<button onclick="enviarVendaGroner('${sale.id}', this)" class="btn btn-secondary btn-sm">GRONER <i data-lucide="arrow-right"></i></button>` : ''}
           <p class="text-neutral-700 text-[9px] font-mono uppercase">${escapeHTML(sale?.kit_brand || '')}</p>
         </div>
       </div>
@@ -620,6 +621,115 @@ function setVendasPeriod(period) {
 
   state.vendasPeriod = period;
   renderContent();
+}
+
+// ── Groner CRM ──────────────────────────────────────────────────────────────
+// Botão "GRONER →" (admin e gestor): manda cliente + venda para a Groner pelo webhook público
+// FluentForm (cria Contato + Negócio). O envio fica registrado na timeline do
+// cliente (crm_atividades, tipo 'venda', meta.groner_venda_id) para avisar
+// antes de mandar a mesma venda duas vezes.
+function montarPayloadGroner(sale) {
+  const cliente = (state.clientes || []).find((c) => c.id === sale.cliente_id) || {};
+  const proposta = (state.propostas || []).find((p) => p.id === sale.proposta_id) || null;
+
+  const doc = digitsOnly(cliente.documento);
+  let telefone = digitsOnly(cliente.telefone || sale.cliente_telefone);
+  if (telefone.length >= 12 && telefone.startsWith('55')) telefone = telefone.slice(2);
+
+  const itens = Array.isArray(proposta?.custom_config?.itens) ? proposta.custom_config.itens : [];
+  const itensTxt = itens
+    .map((i) => `- ${i?.qtd ?? ''} ${i?.descricao ?? ''}`.trim())
+    .filter((s) => s.length > 2)
+    .join('\n');
+
+  const nota = [
+    'Venda fechada no Portal de Parceiros AgilSolar.',
+    `Kit: ${sale.kit_nome || '-'}${sale.kit_brand ? ` (${sale.kit_brand})` : ''}`,
+    `Potência: ${sale.kit_power ? `${sale.kit_power} kWp` : '-'}`,
+    `Valor: ${formatCurrency(getSaleValue(sale))}`,
+    `Vendedor: ${sale.vendedor_nome || sale.vendedor_email || '-'}`,
+    cliente.endereco ? `Endereço: ${[cliente.endereco, cliente.numero, cliente.complemento, cliente.bairro].filter(Boolean).join(', ')}` : '',
+    itensTxt ? `Itens:\n${itensTxt}` : '',
+  ].filter(Boolean).join('\n');
+
+  const campos = {
+    nome: cliente.nome || sale.cliente_nome || '',
+    email: cliente.email || '',
+    telefone,
+    documento: doc,
+    tipoPessoa: doc.length === 14 ? 'pj' : 'pf',
+    cep: digitsOnly(cliente.cep),
+    cidade: cliente.cidade || '',
+    uf: cliente.uf || '',
+    // Se o email existir na Groner, vira o responsável; se não, ela ignora e segue.
+    emailResponsavel: sale.vendedor_email || state.currentUser?.email || '',
+    codigoLeadTracking: `portal-venda-${sale.id}`,
+    nota,
+  };
+
+  const form = new URLSearchParams();
+  Object.entries(campos).forEach(([k, v]) => { if (v) form.append(k, v); });
+  return form;
+}
+
+async function enviarVendaGroner(vendaId, btn) {
+  if (!(state.isAdmin || state.isGestor)) return;
+  if (!GRONER_TENANT || !GRONER_ORIGEM_ID) {
+    showToast('GRONER NÃO CONFIGURADA (GRONER_TENANT / GRONER_ORIGEM_ID em config.js).');
+    return;
+  }
+  const sale = (state.vendas || []).find((v) => v.id === vendaId);
+  if (!sale) return;
+
+  const { data: jaEnviada } = await supabaseClient
+    .from('crm_atividades')
+    .select('created_at')
+    .eq('tipo', 'venda')
+    .eq('meta->>groner_venda_id', vendaId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const aviso = jaEnviada && jaEnviada.length
+    ? `Esta venda JÁ FOI ENVIADA para a Groner em ${formatDate(jaEnviada[0].created_at)}. Enviar de novo vai criar outro negócio lá. Continuar?`
+    : `Enviar ${sale.cliente_nome || 'esta venda'} para a Groner?`;
+
+  showConfirmModal(aviso, async () => {
+    if (btn) btn.disabled = true;
+    try {
+      const resp = await fetch(`https://${GRONER_TENANT}.api.groner.app/api/Lead/FluentForm/${GRONER_ORIGEM_ID}`, {
+        method: 'POST',
+        body: montarPayloadGroner(sale),
+      });
+      let body = null;
+      try { body = await resp.json(); } catch (_) { /* resposta sem JSON */ }
+      if (!resp.ok) {
+        const msg = body?.ResponseException?.ExceptionMessage || body?.Message || body?.title || `HTTP ${resp.status}`;
+        throw new Error(msg);
+      }
+
+      // Resposta real: { StatusCode, Message, Content: { leadId, negocioId } }
+      const result = body?.Content || body?.content || {};
+      const leadId = result.leadId || null;
+      const projetoId = result.negocioId || null;
+
+      if (sale.cliente_id) {
+        const { error } = await supabaseClient.from('crm_atividades').insert([{
+          cliente_id: sale.cliente_id,
+          franquia_id: sale.franquia_id || state.franquiaId,
+          autor_email: state.currentUser?.email || 'sistema',
+          tipo: 'venda',
+          descricao: `Enviado para a Groner${projetoId ? ` (negócio #${projetoId})` : ''}`,
+          meta: { groner_venda_id: sale.id, groner_lead_id: leadId, groner_projeto_id: projetoId },
+        }]);
+        if (error) console.warn('[enviarVendaGroner] Enviado, mas falhou ao registrar na timeline.', error);
+      }
+
+      showToast(`ENVIADO PARA A GRONER${projetoId ? ` · NEGÓCIO #${projetoId}` : ''}.`);
+    } catch (err) {
+      showToast('ERRO AO ENVIAR PARA A GRONER: ' + err.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }, 'ENVIAR', false);
 }
 
 function deleteVenda(id) {

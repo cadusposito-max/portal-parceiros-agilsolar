@@ -10,7 +10,7 @@
     style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src    'self' https://fonts.gstatic.com;
     img-src     'self' data: blob: https://placehold.co https://tzwjxgprhorqrmpqudgg.supabase.co https:;
-    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com https://*.i.posthog.com https://power.larc.nasa.gov;
+    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com https://*.i.posthog.com https://power.larc.nasa.gov https://*.api.groner.app;
     frame-src   https://challenges.cloudflare.com;
     object-src  'none';
     base-uri    'self';
@@ -1255,7 +1255,7 @@
   function w(src)            { document.write('<script src="' + src + '"><\/script>'); }
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
 
-  local('config.js',           '20260922-documentos');
+  local('config.js',           '20260923-groner');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20260922-mascara-doc');
   local('api.js',              '20260723-nome-vendedor');
@@ -1272,7 +1272,7 @@
   local('produtos.js',         '20260922-conferir-editavel');
   local('proposta-builder.js', '20260922-documentos');
   local('orcamento-dre.js',    '20260917-dre-desktop');
-  local('vendas.js',           '20260713-auditoria');
+  local('vendas.js',           '20260923-groner');
   local('admin.js',            '20260922-busca-foco');
   local('profile.js',          '20260922-2fa-sobrio');
   local('chat.js',             '20260615-om-central-propostas');
