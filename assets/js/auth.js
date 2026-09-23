@@ -165,8 +165,16 @@ function _getInactiveSessionMessage(reason) {
   return 'Usuario desativado. Contate o administrador.';
 }
 
+// O <head> do index.html já pinta o "carregando" quando há sessão salva (classe
+// boot-resume no <html>). Toda saída do boot tira a classe para as telas voltarem
+// a obedecer só às classes hidden de sempre.
+function endBootResume() {
+  document.documentElement.classList.remove('boot-resume');
+}
+
 async function blockInactiveSession(reason = _activeCheckFailureReason || 'inactive') {
   _sessionLossHandled = true; // suprime listener (fluxo dedicado de conta inativa)
+  endBootResume();
   await supabaseClient.auth.signOut();
   if (typeof resetUser === 'function') resetUser();
   state.currentUser = null;
@@ -194,6 +202,7 @@ function startInactivityWatcher() {
 }
 
 async function checkAuth() {
+  let splashRapido = null;
   try {
     // Detecta link de recuperação de senha (fluxo implícito via hash da URL)
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -236,10 +245,13 @@ async function checkAuth() {
       }
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('splash-screen').classList.remove('hidden');
+      endBootResume();
 
       startInactivityWatcher();
+      // Sessão já existia (F5/reabrir): "carregando" curto, que só dura o tempo
+      // dos dados. A animação completa (initSplash) fica para o login.
+      splashRapido = startSplashRapido();
       await Promise.all([
-        initSplash(),
         fetchFranquia(),
         fetchFranquiasCatalog(),
         fetchProfile(),
@@ -268,6 +280,9 @@ async function checkAuth() {
       } else {
         renderContent();            // caminho atual: 1 ambiente / técnico
       }
+      // Só revela depois de a aba certa estar renderizada (não pisca a aba padrão).
+      splashRapido.concluir();
+      if (savedRoute && typeof appRestoreScroll === 'function') appRestoreScroll();
       if (typeof chatBoot === 'function') await chatBoot();
       if (typeof identifyUser === 'function') identifyUser(session.user);
       if (typeof filaAvisoPosLogin === 'function') filaAvisoPosLogin();
@@ -275,11 +290,16 @@ async function checkAuth() {
       document.getElementById('login-screen').classList.remove('hidden');
       document.getElementById('splash-screen').classList.add('hidden');
       document.getElementById('app-content').classList.add('hidden');
+      endBootResume();
       if (typeof chatTeardown === 'function') chatTeardown(true);
       if (typeof resetUser === 'function') resetUser();
     }
   } catch (error) {
     console.error('Erro auth:', error);
+    endBootResume();
+    // Falhou no meio do carregamento com sessão: não deixa o "carregando" preso
+    // (mesmo comportamento de antes, quando a animação revelava o app de qualquer jeito).
+    if (splashRapido) splashRapido.concluir();
     const errorEl = document.getElementById('login-error');
     errorEl.innerText = 'Não foi possível conectar ao servidor. Tente novamente.';
     errorEl.classList.remove('hidden');
@@ -649,6 +669,7 @@ async function _finishLogin(user, email) {
 
 // --- Exibir tela de reset de senha ---
 function showPasswordResetForm() {
+  endBootResume();
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('splash-screen').classList.add('hidden');
   document.getElementById('app-content').classList.add('hidden');

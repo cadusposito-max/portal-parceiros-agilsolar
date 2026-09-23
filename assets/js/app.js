@@ -277,6 +277,82 @@ function initSplash() {
   });
 }
 
+// F5 com sessão já salva: sem a animação longa do login. A barra só anda
+// enquanto os dados carregam de verdade e a plataforma aparece (já na aba
+// restaurada) assim que concluir() é chamado — com fade curto.
+function startSplashRapido() {
+  const percentageEl = document.getElementById('loading-percentage');
+  const barEl        = document.getElementById('loading-bar');
+  const setProgress = (p) => {
+    if (percentageEl) percentageEl.innerText = `${p}%`;
+    if (barEl) barEl.style.width = `${p}%`;
+  };
+  let progress = 0;
+  setProgress(0);
+  const interval = setInterval(() => {
+    // Aproxima de 90% cada vez mais devagar; os 100% ficam para quando terminar.
+    progress = Math.min(90, progress + Math.max(1, Math.round((90 - progress) / 6)));
+    setProgress(progress);
+  }, 80);
+
+  let concluido = false;
+  return {
+    concluir() {
+      if (concluido) return;
+      concluido = true;
+      clearInterval(interval);
+      setProgress(100);
+      const splash = document.getElementById('splash-screen');
+      const app    = document.getElementById('app-content');
+      splash.style.transitionDuration = '200ms';
+      app.style.transitionDuration    = '200ms';
+      splash.classList.add('opacity-0', 'pointer-events-none');
+      app.classList.remove('opacity-0', 'scale-95', 'hidden');
+      app.classList.add('opacity-100', 'scale-100');
+      setTimeout(() => {
+        splash.classList.add('hidden');
+        // Devolve as transições originais para o próximo login/logout.
+        splash.style.transitionDuration = '';
+        app.style.transitionDuration    = '';
+      }, 250);
+    },
+  };
+}
+
+// F5 volta na mesma altura da página. Guarda a rolagem por rota ao sair e, no
+// boot, espera o conteúdo crescer o bastante antes de rolar (abas que carregam
+// dados depois do render). O navegador não tenta restaurar sozinho — ele rolaria
+// antes do conteúdo existir e pararia no topo.
+const APP_SCROLL_KEY = 'app_scroll_v1';
+try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (_) {}
+
+window.addEventListener('pagehide', () => {
+  if (!state.currentUser) return;
+  try {
+    sessionStorage.setItem(APP_SCROLL_KEY, JSON.stringify({ hash: window.location.hash, y: Math.round(window.scrollY) }));
+  } catch (_) { /* sem storage: só não restaura a rolagem */ }
+});
+
+function appRestoreScroll() {
+  let saved = null;
+  try {
+    saved = JSON.parse(sessionStorage.getItem(APP_SCROLL_KEY) || 'null');
+    sessionStorage.removeItem(APP_SCROLL_KEY);
+  } catch (_) { return; }
+  if (!saved || saved.hash !== window.location.hash || !(saved.y > 0)) return;
+
+  const inicio = Date.now();
+  const tentar = () => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    if (max >= saved.y || Date.now() - inicio > 2500) {
+      window.scrollTo(0, Math.min(saved.y, Math.max(0, max)));
+      return;
+    }
+    setTimeout(tentar, 100);
+  };
+  tentar();
+}
+
 async function refreshData() {
   const icon = document.getElementById('refresh-data-icon');
   if (icon) icon.classList.add('animate-spin');
