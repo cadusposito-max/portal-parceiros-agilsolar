@@ -1758,6 +1758,9 @@ select.crm360-input { appearance: auto; }
 }
 .btn:active { transform: translateY(1px); }
 .btn i { width: 14px; height: 14px; }
+/* O lucide troca o <i> por <svg>, então a regra acima não pega o ícone.
+   Card de venda: ícones e botões compactos, mesma largura na coluna. */
+.venda-metric-card .btn svg { width: 12px; height: 12px; flex-shrink: 0; }
 
 /* Tamanhos */
 .btn-sm { padding: 0.45rem 0.7rem; font-size: 9px; }

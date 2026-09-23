@@ -330,7 +330,7 @@ function renderVendaCard(sale, index, options = {}) {
           <p class="text-green-400 font-black text-lg leading-none">${formatCurrency(getSaleValue(sale))}</p>
         </div>
 
-        <div class="shrink-0 flex flex-col items-end gap-1">
+        <div class="shrink-0 flex flex-col items-stretch gap-1">
           ${waLink
             ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm"><i data-lucide="message-circle"></i> WhatsApp</a>`
             : ''}
