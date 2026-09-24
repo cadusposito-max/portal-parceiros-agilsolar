@@ -484,75 +484,285 @@ function exportToXLSX(rows, columns, filename) {
 }
 
 // ==========================================
-// CELEBRAÇÃO DE VENDA (confetti + som)
+// CELEBRAÇÃO DE VENDA (card + confete + raios + som)
+// Visual em main.css (.sale-cel). Dark = laranja/amarelo; light = azul,
+// seguindo a troca de acento do theme-light.css.
 // ==========================================
 let _salesCelebrationAudioWarned = false;
+let _saleCelTimers = [];
+let _saleConfetti = { parts: [], raf: 0, last: 0, w: 0, h: 0, ctx: null, canvas: null };
 
-function showSalesCelebration() {
-  // — Som: sino de notificação elegante —
+const SALE_CONFETTI_COLORS = {
+  dark:  ['#f97316', '#fb923c', '#ea580c', '#facc15', '#fbbf24', '#ffffff', '#22c55e'],
+  light: ['#2563eb', '#3b82f6', '#60a5fa', '#1d4ed8', '#facc15', '#eab308', '#22c55e'],
+};
+const SALE_CONFETTI_SHAPES = ['rect', 'rect', 'rect', 'circle', 'sun', 'bolt', 'panel'];
+
+function _playSaleSound() {
+  // Arpejo subindo (dó-mi-sol-dó) fechando num acorde — sintetizado, sem arquivo.
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const actx = new AudioCtx();
-    [[1046.5, 0, 0.22], [2093, 0, 0.07], [1568, 0.18, 0.12]].forEach(([freq, delay, vol]) => {
+    const tone = (freq, delay, vol, dur, type) => {
       const osc  = actx.createOscillator();
       const gain = actx.createGain();
-      osc.connect(gain); gain.connect(actx.destination);
+      osc.type = type;
       osc.frequency.value = freq;
-      osc.type = 'sine';
+      osc.connect(gain); gain.connect(actx.destination);
       const t = actx.currentTime + delay;
       gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(vol, t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
-      osc.start(t); osc.stop(t + 1.45);
+      gain.gain.linearRampToValueAtTime(vol, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.start(t); osc.stop(t + dur + 0.05);
+    };
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+      tone(f, i * 0.09, 0.15, 0.45, 'triangle');
+      tone(f * 2, i * 0.09, 0.035, 0.3, 'sine');
     });
+    [1046.5, 1318.5, 1568, 2093].forEach((f) => tone(f, 0.38, 0.08, 1.7, 'triangle'));
+    tone(523.25, 0.38, 0.12, 1.3, 'sine');
+    setTimeout(() => { actx.close().catch(() => {}); }, 2500);
   } catch (error) {
     if (!_salesCelebrationAudioWarned) {
       console.warn('[showSalesCelebration] Nao foi possivel tocar audio de celebracao.', error);
       _salesCelebrationAudioWarned = true;
     }
   }
+}
 
-  // — Confetti canvas —
+function _saleConfettiSetup() {
   const canvas = document.getElementById('confetti-canvas');
-  if (!canvas) return;
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
+  if (!canvas) return false;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const c = _saleConfetti;
+  c.canvas = canvas;
+  c.w = window.innerWidth;
+  c.h = window.innerHeight;
+  canvas.width  = c.w * dpr;
+  canvas.height = c.h * dpr;
+  c.ctx = canvas.getContext('2d');
+  c.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   canvas.classList.remove('hidden');
-  const cx = canvas.getContext('2d');
-  const COLORS = ['#f97316','#facc15','#22c55e','#3b82f6','#ec4899','#a855f7','#ef4444','#fbbf24'];
-  const pieces = Array.from({ length: 200 }, () => ({
-    x:  Math.random() * canvas.width,
-    y:  -20 - Math.random() * 150,
-    w:  Math.random() * 12 + 5,
-    h:  Math.random() * 7  + 3,
-    color: COLORS[Math.floor(Math.random() * COLORS.length)],
-    vx: (Math.random() - 0.5) * 6,
-    vy: Math.random() * 3.5 + 1.5,
-    rot:  Math.random() * 360,
-    rotV: (Math.random() - 0.5) * 10,
-    op: 1,
-  }));
-  let frame = 0;
-  function draw() {
-    cx.clearRect(0, 0, canvas.width, canvas.height);
-    pieces.forEach(p => {
-      cx.save();
-      cx.globalAlpha = Math.max(0, p.op);
-      cx.translate(p.x, p.y);
-      cx.rotate(p.rot * Math.PI / 180);
-      cx.fillStyle = p.color;
-      cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      cx.restore();
-      p.x  += p.vx;
-      p.y  += p.vy * (1 + frame * 0.004);
-      p.rot += p.rotV;
-      if (frame > 80) p.op -= 0.01;
+  return true;
+}
+
+function _saleConfettiBurst(x, y, count, angle, spread, minSpeed, maxSpeed, colors) {
+  const scale = Math.max(0.85, Math.min(1.35, _saleConfetti.h / 700));
+  for (let i = 0; i < count; i++) {
+    const a = angle + (Math.random() - 0.5) * spread;
+    const speed = (minSpeed + Math.random() * (maxSpeed - minSpeed)) * scale;
+    const shape = SALE_CONFETTI_SHAPES[Math.floor(Math.random() * SALE_CONFETTI_SHAPES.length)];
+    const size = shape === 'rect' ? 8 + Math.random() * 7
+      : shape === 'circle' ? 3 + Math.random() * 3
+      : 13 + Math.random() * 7;
+    _saleConfetti.parts.push({
+      x, y, shape, size,
+      vx: Math.cos(a) * speed,
+      vy: Math.sin(a) * speed,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * Math.PI * 2,
+      rotV: (Math.random() - 0.5) * 0.3,
+      tilt: Math.random() * Math.PI * 2,
+      tiltV: 0.08 + Math.random() * 0.12,
+      life: 220 + Math.random() * 90,
     });
-    frame++;
-    if (frame < 220) requestAnimationFrame(draw);
-    else { cx.clearRect(0, 0, canvas.width, canvas.height); canvas.classList.add('hidden'); }
   }
-  draw();
+  if (!_saleConfetti.raf) {
+    _saleConfetti.last = performance.now();
+    _saleConfetti.raf = requestAnimationFrame(_saleConfettiLoop);
+  }
+}
+
+function _saleConfettiDraw(ctx, p) {
+  const s = p.size;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rot);
+  ctx.scale(1, Math.cos(p.tilt)); // "vira" no ar, efeito de papel
+  ctx.globalAlpha = Math.min(1, p.life / 40);
+  ctx.fillStyle = p.color;
+  switch (p.shape) {
+    case 'rect':
+      ctx.fillRect(-s / 2, -s / 4, s, s / 2);
+      break;
+    case 'circle':
+      ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI * 2); ctx.fill();
+      break;
+    case 'sun':
+      ctx.fillStyle = ctx.strokeStyle = '#facc15';
+      ctx.beginPath(); ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const a = k * Math.PI / 4;
+        ctx.moveTo(Math.cos(a) * s * 0.45, Math.sin(a) * s * 0.45);
+        ctx.lineTo(Math.cos(a) * s * 0.72, Math.sin(a) * s * 0.72);
+      }
+      ctx.stroke();
+      break;
+    case 'bolt':
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.moveTo(s * 0.15, -s * 0.6); ctx.lineTo(-s * 0.35, s * 0.08); ctx.lineTo(-s * 0.02, s * 0.08);
+      ctx.lineTo(-s * 0.15, s * 0.6); ctx.lineTo(s * 0.35, -s * 0.08); ctx.lineTo(s * 0.02, -s * 0.08);
+      ctx.closePath(); ctx.fill();
+      break;
+    case 'panel':
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(-s * 0.5, -s * 0.35, s, s * 0.7);
+      ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.17, -s * 0.35); ctx.lineTo(-s * 0.17, s * 0.35);
+      ctx.moveTo(s * 0.17, -s * 0.35);  ctx.lineTo(s * 0.17, s * 0.35);
+      ctx.moveTo(-s * 0.5, 0);          ctx.lineTo(s * 0.5, 0);
+      ctx.stroke();
+      ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+      ctx.strokeRect(-s * 0.5, -s * 0.35, s, s * 0.7);
+      break;
+  }
+  ctx.restore();
+}
+
+function _saleConfettiLoop(now) {
+  const c = _saleConfetti;
+  // Física por tempo (não por frame): mesma velocidade em telas de 60 e 120 Hz.
+  const k = Math.min(3, (now - c.last) / 16.667);
+  c.last = now;
+  const drag = Math.pow(0.96, k);
+  c.ctx.clearRect(0, 0, c.w, c.h);
+  for (const p of c.parts) {
+    p.vx *= drag;
+    p.vy = p.vy * drag + 0.12 * k;
+    p.x += (p.vx + Math.sin(p.tilt) * 0.6) * k;
+    p.y += p.vy * k;
+    p.rot += p.rotV * k;
+    p.tilt += p.tiltV * k;
+    p.life -= k;
+    _saleConfettiDraw(c.ctx, p);
+  }
+  c.parts = c.parts.filter((p) => p.life > 0 && p.y < c.h + 40);
+  if (c.parts.length) {
+    c.raf = requestAnimationFrame(_saleConfettiLoop);
+  } else {
+    c.raf = 0;
+    c.ctx.clearRect(0, 0, c.w, c.h);
+    c.canvas.classList.add('hidden');
+  }
+}
+
+// "Sua 3ª venda em setembro · R$ 96 mil no mês", calculado de state.vendas
+// (já recarregado com a venda nova). Vazio se não der pra calcular.
+function _saleCelebrationStat(info) {
+  const email = String(info.vendedorEmail || '').toLowerCase();
+  if (!email || typeof state === 'undefined' || !Array.isArray(state.vendas)) return '';
+  const now = new Date();
+  const doMes = state.vendas.filter((v) => {
+    if (String(v.vendedor_email || '').toLowerCase() !== email) return false;
+    const d = new Date(v.created_at);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+  const n = doMes.length;
+  if (!n) return '';
+  const mes = now.toLocaleDateString('pt-BR', { month: 'long' });
+  const total = doMes.reduce((sum, v) => sum + (Number(v.kit_price) || 0), 0);
+  const isOwn = !!state.currentUser && email === String(state.currentUser.email || '').toLowerCase();
+  const nome = escapeHTML(String(info.vendedorNome || '').split(' ')[0]);
+
+  if (n === 1) {
+    return isOwn || !nome
+      ? `<strong>1ª venda de ${mes}!</strong> Começou o mês com o pé direito`
+      : `<strong>1ª venda de ${nome}</strong> em ${mes}!`;
+  }
+  const quem = isOwn || !nome ? `Sua <strong>${n}ª venda</strong>` : `<strong>${n}ª venda</strong> de ${nome}`;
+  return `${quem} em ${mes} · <strong>${formatCurrencyCompact(total)}</strong> no mês`;
+}
+
+function closeSalesCelebration(immediate = false) {
+  _saleCelTimers.forEach(clearTimeout);
+  _saleCelTimers = [];
+  document.removeEventListener('keydown', _saleCelOnKey);
+  const el = document.getElementById('sale-celebration');
+  if (!el) return;
+  if (immediate) { el.remove(); return; }
+  el.classList.remove('is-open');
+  el.classList.add('is-closing');
+  setTimeout(() => el.remove(), 350);
+}
+
+function _saleCelOnKey(e) {
+  if (e.key === 'Escape') closeSalesCelebration();
+}
+
+function showSalesCelebration(info = {}) {
+  _playSaleSound();
+  closeSalesCelebration(true);
+
+  const isLight = document.body.classList.contains('theme-light');
+  const reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const valor = Number(info.valor) || 0;
+  const potencia = Number(info.potencia) || 0;
+  const kitLine = [
+    potencia ? `${potencia.toLocaleString('pt-BR')} kWp` : '',
+    String(info.kitNome || ''),
+  ].filter(Boolean).map(escapeHTML).join(' · ');
+  const stat = _saleCelebrationStat(info);
+
+  const el = document.createElement('div');
+  el.id = 'sale-celebration';
+  el.className = 'sale-cel';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.innerHTML = `
+    <div class="sale-cel__rays" aria-hidden="true"><div class="sale-cel__rays-spin"></div></div>
+    <div class="sale-cel__card">
+      <div class="sale-cel__inner">
+        <div class="animated-stripe sale-cel__stripe"></div>
+        <div class="sale-cel__stamp" aria-hidden="true">FECHADO</div>
+        <div class="sale-cel__icon"><i data-lucide="trophy"></i></div>
+        <p class="sale-cel__label">Venda fechada!</p>
+        ${valor ? `<p class="sale-cel__value">${formatCurrency(reduce ? valor : 0)}</p>` : ''}
+        ${info.cliente ? `<p class="sale-cel__client">${escapeHTML(info.cliente)}</p>` : ''}
+        ${kitLine ? `<p class="sale-cel__kit"><i data-lucide="zap"></i><span>${kitLine}</span></p>` : ''}
+        ${stat ? `<p class="sale-cel__stat">${stat}</p>` : ''}
+        <p class="sale-cel__hint">Toque para fechar</p>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  if (window.lucide) lucide.createIcons();
+
+  void el.offsetWidth; // garante que as animações de entrada rodem
+  el.classList.add('is-open');
+  el.addEventListener('click', () => closeSalesCelebration());
+  document.addEventListener('keydown', _saleCelOnKey);
+
+  // Valor subindo de R$ 0 até o total (ease-out)
+  const valueEl = el.querySelector('.sale-cel__value');
+  if (valueEl && !reduce) {
+    _saleCelTimers.push(setTimeout(() => {
+      const t0 = performance.now();
+      const step = (t) => {
+        if (!valueEl.isConnected) return;
+        const p = Math.min(1, (t - t0) / 1400);
+        const eased = 1 - Math.pow(1 - p, 3);
+        valueEl.textContent = formatCurrency(p < 1 ? Math.round(valor * eased) : valor);
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }, 250));
+  }
+
+  // Confete: estouro do centro + um menor quando o carimbo bate
+  if (!reduce && _saleConfettiSetup()) {
+    const colors = SALE_CONFETTI_COLORS[isLight ? 'light' : 'dark'];
+    const { w, h } = _saleConfetti;
+    const count = w < 640 ? 100 : 160;
+    _saleConfettiBurst(w / 2, h / 2, count, -Math.PI / 2, Math.PI * 1.4, 6, 15, colors);
+    _saleCelTimers.push(setTimeout(() => {
+      _saleConfettiBurst(w / 2, h / 2 - 60, Math.round(count / 3.5), -Math.PI / 2, Math.PI * 2, 3, 8, colors);
+    }, 830));
+  }
+
+  _saleCelTimers.push(setTimeout(() => closeSalesCelebration(), 6000));
 }
 
 // ==========================================

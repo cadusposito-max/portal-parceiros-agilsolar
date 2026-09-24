@@ -1930,3 +1930,110 @@ select.crm360-input { appearance: auto; }
 @media (min-width: 1024px) {
   #login-screen .login-lado-form { overflow-y: auto; justify-content: safe center; padding-top: 40px; padding-bottom: 40px; }
 }
+
+/* ─── CELEBRAÇÃO DE VENDA FECHADA ────────────────────────────────────
+   Montado por showSalesCelebration() (utils.js). Fica abaixo do canvas de
+   confete (z 200). Dark: laranja/amarelo; light: azul (mesma troca de
+   acento do theme-light.css). */
+.sale-cel {
+  position: fixed; inset: 0; z-index: 199;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; overflow: hidden; cursor: pointer;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  opacity: 0; transition: opacity .35s ease;
+}
+.sale-cel.is-open { opacity: 1; }
+
+.sale-cel__rays {
+  position: absolute; left: 50%; top: 50%;
+  width: 1400px; height: 1400px; margin: -700px 0 0 -700px;
+  opacity: 0; transform: scale(.3); pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle, #000 0, transparent 50%);
+          mask-image: radial-gradient(circle, #000 0, transparent 50%);
+}
+.sale-cel.is-open .sale-cel__rays { animation: sale-rays-in 1s cubic-bezier(.2,.9,.3,1.2) forwards; }
+.sale-cel__rays-spin {
+  width: 100%; height: 100%;
+  background: repeating-conic-gradient(rgba(251, 191, 36, 0.26) 0 6deg, transparent 6deg 15deg);
+  animation: sale-rays-spin 26s linear infinite;
+}
+
+.sale-cel__card { position: relative; width: 100%; max-width: 360px; opacity: 0; transform: scale(.5); }
+.sale-cel.is-open .sale-cel__card { animation: sale-card-in .6s cubic-bezier(.18,1.45,.4,1) forwards; }
+.sale-cel.is-closing .sale-cel__card { animation: sale-card-out .3s ease forwards; }
+
+.sale-cel__inner {
+  position: relative; text-align: center;
+  padding: 28px 24px 16px;
+  background: #080808;
+  border: 2px solid rgba(249, 115, 22, 0.45);
+  box-shadow: 0 0 60px rgba(249, 115, 22, 0.28);
+}
+.sale-cel.is-open .sale-cel__inner { animation: sale-shake .3s .83s; }
+.sale-cel__stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+
+.sale-cel__stamp {
+  position: absolute; top: 24px; right: 12px;
+  padding: 2px 8px; border: 3px solid #22c55e; color: #22c55e;
+  font-size: 13px; font-weight: 900; letter-spacing: .2em;
+  opacity: 0; transform: rotate(-14deg) scale(3);
+}
+.sale-cel.is-open .sale-cel__stamp { animation: sale-stamp .28s cubic-bezier(.5,0,.8,.4) .55s forwards; }
+
+.sale-cel__icon {
+  width: 56px; height: 56px; margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.35); color: #f97316;
+}
+.sale-cel__icon svg { width: 28px; height: 28px; }
+.sale-cel__label { font-size: 11px; font-weight: 900; letter-spacing: .25em; text-transform: uppercase; color: #f97316; }
+.sale-cel__value {
+  margin: 6px 0 4px; line-height: 1.1; overflow-wrap: anywhere;
+  font-size: clamp(28px, 9vw, 40px); font-weight: 900; color: #4ade80;
+  font-variant-numeric: tabular-nums;
+}
+.sale-cel__client { font-size: 14px; font-weight: 900; text-transform: uppercase; color: #fff; overflow-wrap: anywhere; }
+.sale-cel__kit { margin-top: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #a3a3a3; }
+.sale-cel__kit svg { display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px; color: #facc15; }
+.sale-cel__stat {
+  margin-top: 16px; padding: 10px 12px;
+  font-size: 12px; font-weight: 700; color: #fdba74;
+  background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3);
+}
+.sale-cel__stat strong { font-weight: 900; color: #fff; }
+.sale-cel__hint { margin-top: 12px; font-size: 10px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: #525252; }
+
+body.theme-light .sale-cel { background: rgba(240, 244, 248, 0.82); }
+body.theme-light .sale-cel__rays-spin { background: repeating-conic-gradient(rgba(37, 99, 235, 0.13) 0 6deg, transparent 6deg 15deg); }
+body.theme-light .sale-cel__inner { background: #fff; border-color: rgba(37, 99, 235, 0.35); box-shadow: 0 20px 60px rgba(37, 99, 235, 0.18); }
+body.theme-light .sale-cel__stamp { border-color: #16a34a; color: #16a34a; }
+body.theme-light .sale-cel__icon { background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.25); color: #2563eb; }
+body.theme-light .sale-cel__label { color: #2563eb; }
+body.theme-light .sale-cel__value { color: #16a34a; }
+body.theme-light .sale-cel__client { color: #0f172a; }
+body.theme-light .sale-cel__kit { color: #64748b; }
+body.theme-light .sale-cel__kit svg { color: #eab308; }
+body.theme-light .sale-cel__stat { color: #1e3a8a; background: rgba(37, 99, 235, 0.06); border-color: rgba(37, 99, 235, 0.2); }
+body.theme-light .sale-cel__stat strong { color: #1d4ed8; }
+body.theme-light .sale-cel__hint { color: #94a3b8; }
+
+@keyframes sale-rays-in   { to { opacity: 1; transform: scale(1); } }
+@keyframes sale-rays-spin { to { transform: rotate(360deg); } }
+@keyframes sale-card-in   { to { opacity: 1; transform: scale(1); } }
+@keyframes sale-card-out  { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.9); } }
+@keyframes sale-stamp     { to { opacity: 1; transform: rotate(-14deg) scale(1); } }
+@keyframes sale-shake {
+  25% { transform: translate(-5px, 2px); }
+  50% { transform: translate(4px, -2px); }
+  75% { transform: translate(-2px, 1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sale-cel__rays { display: none; }
+  .sale-cel.is-open .sale-cel__card  { animation: none; opacity: 1; transform: none; }
+  .sale-cel.is-open .sale-cel__stamp { animation: none; opacity: 1; transform: rotate(-14deg); }
+  .sale-cel.is-open .sale-cel__inner { animation: none; }
+}
+/* Ao fechar, raios e carimbo ficam parados enquanto o overlay some */
+.sale-cel.is-closing .sale-cel__rays  { opacity: 1; transform: scale(1); }
+.sale-cel.is-closing .sale-cel__stamp { opacity: 1; transform: rotate(-14deg); }

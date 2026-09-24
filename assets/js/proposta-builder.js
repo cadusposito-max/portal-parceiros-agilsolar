@@ -1468,8 +1468,14 @@ async function confirmarFechaVenda() {
     }
 
     closeFechaVenda();
-    showSalesCelebration();
-        showToast(`\u{1F389} VENDA FECHADA! ${kit.nome}`);
+    showSalesCelebration({
+      valor:         kit.preco,
+      potencia:      kit.power,
+      kitNome:       kit.nome,
+      cliente:       client.nome,
+      vendedorEmail: seller.vendedor_email,
+      vendedorNome:  seller.vendedor_nome,
+    });
     renderContent();
     // Ficha aberta por baixo? Reflete FECHADO + contador de vendas na hora.
     const fichaAberta = document.getElementById('crm360-overlay')?.classList.contains('is-open');
