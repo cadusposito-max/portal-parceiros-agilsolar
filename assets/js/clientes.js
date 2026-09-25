@@ -285,24 +285,24 @@ function renderClientMetaChips(client, options = {}) {
   const showFranquia = Boolean(options.showFranquia);
 
   const chips = [
-    `<span class="flex items-center gap-1"><i data-lucide="phone" class="w-2.5 h-2.5"></i>${escapeHTML(client?.telefone || '-')}</span>`,
+    `<span class="flex items-center gap-1"><i data-lucide="phone" class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5"></i>${escapeHTML(client?.telefone || '-')}</span>`,
   ];
 
   if (client?.cidade) {
     const hspBadge = Number(client?.hsp) > 0
       ? ` <span class="text-yellow-500/90">· ☀ ${client.hsp} HSP</span>`
       : '';
-    chips.push(`<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-2.5 h-2.5"></i>${escapeHTML(client.cidade)}${hspBadge}</span>`);
+    chips.push(`<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5"></i>${escapeHTML(client.cidade)}${hspBadge}</span>`);
   }
 
-  chips.push(`<span class="flex items-center gap-1"><i data-lucide="calendar" class="w-2.5 h-2.5"></i>${formatDate(client?.created_at)}</span>`);
+  chips.push(`<span class="flex items-center gap-1"><i data-lucide="calendar" class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5"></i>${formatDate(client?.created_at)}</span>`);
 
   if (showSeller && client?.vendedor_email) {
-    chips.push(`<span class="flex items-center gap-1 text-purple-400 font-bold"><i data-lucide="user" class="w-2.5 h-2.5"></i>${escapeHTML(String(client.vendedor_email).split('@')[0])}</span>`);
+    chips.push(`<span class="flex items-center gap-1 text-purple-400 font-bold"><i data-lucide="user" class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5"></i>${escapeHTML(String(client.vendedor_email).split('@')[0])}</span>`);
   }
 
   if (showFranquia && client?.franquia_id) {
-    chips.push(`<span class="flex items-center gap-1 text-cyan-300 font-bold"><i data-lucide="building-2" class="w-2.5 h-2.5"></i>${escapeHTML(getFranquiaNameById(client.franquia_id))}</span>`);
+    chips.push(`<span class="flex items-center gap-1 text-cyan-300 font-bold"><i data-lucide="building-2" class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5"></i>${escapeHTML(getFranquiaNameById(client.franquia_id))}</span>`);
   }
 
   return chips.join('');
@@ -458,10 +458,10 @@ function renderClienteCard(client, index, options = {}) {
   const lastAt = (state.crmLastAtividade || {})[client?.id];
 
   const crmChips = [];
-  crmChips.push(`<span class="flex items-center gap-1 ${nPropostas > 0 ? 'text-yellow-500/80' : 'text-neutral-700'}"><i data-lucide="file-text" class="w-2.5 h-2.5"></i>${nPropostas} proposta${nPropostas === 1 ? '' : 's'}</span>`);
-  crmChips.push(`<span class="flex items-center gap-1 ${nVendas > 0 ? 'text-green-500/90' : 'text-neutral-700'}"><i data-lucide="trophy" class="w-2.5 h-2.5"></i>${nVendas} venda${nVendas === 1 ? '' : 's'}</span>`);
+  crmChips.push(`<span class="flex items-center gap-1 ${nPropostas > 0 ? 'text-yellow-500/80' : 'text-neutral-700'}"><i data-lucide="file-text" class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5"></i>${nPropostas} proposta${nPropostas === 1 ? '' : 's'}</span>`);
+  crmChips.push(`<span class="flex items-center gap-1 ${nVendas > 0 ? 'text-green-500/90' : 'text-neutral-700'}"><i data-lucide="trophy" class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5"></i>${nVendas} venda${nVendas === 1 ? '' : 's'}</span>`);
   if (lastAt && lastAt.last_at && typeof crmTimeAgo === 'function') {
-    crmChips.push(`<span class="flex items-center gap-1 text-neutral-500"><i data-lucide="history" class="w-2.5 h-2.5"></i>atividade ${crmTimeAgo(lastAt.last_at)}</span>`);
+    crmChips.push(`<span class="flex items-center gap-1 text-neutral-500"><i data-lucide="history" class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5"></i>atividade ${crmTimeAgo(lastAt.last_at)}</span>`);
   }
 
   const badges = [];
@@ -503,8 +503,8 @@ function renderClienteCard(client, index, options = {}) {
             ${badges.join('')}
           </div>
 
-          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-neutral-600 font-mono mt-1">${meta}</div>
-          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-mono mb-3 mt-0.5">${crmChips.join('')}</div>
+          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-neutral-600 font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 lg:gap-x-4 mt-1">${meta}</div>
+          <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-mono lg:font-sans lg:font-semibold lg:gap-x-4 mb-3 mt-0.5">${crmChips.join('')}</div>
 
           <div class="mb-0">
             <div class="flex gap-0.5 mb-1">${pipelineBar}</div>

@@ -455,7 +455,7 @@ function renderCrm360() {
                 title="Alterar status">${escapeHTML(status)} ▾</button>
               ${omFlag ? '<span class="text-[8px] px-2 py-0.5 uppercase font-black tracking-widest border bg-blue-500/10 text-blue-400 border-blue-500/30">O&M</span>' : ''}
             </div>
-            <p class="text-neutral-500 text-[10px] font-mono mt-1">
+            <p class="text-neutral-500 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-1">
               ${escapeHTML(client.telefone || '-')} · ${escapeHTML(client.cidade || 'sem cidade')}
               ${Number(client.hsp) > 0 ? ` · ☀ ${client.hsp} HSP` : ''}
               · cadastrado ${formatDate(client.created_at)}

@@ -2043,3 +2043,26 @@ body.theme-light .sale-cel__hint { color: #94a3b8; }
 @media (min-width: 1536px) {
   body:has(#dash-rail-chat:not(.hidden)) #chat-fab-container { display: none; }
 }
+
+/* ==========================================
+   LEGIBILIDADE — fontes +2px no desktop (≥1024px)
+   O portal usa text-[8px]…text-[11px] em ~1.400 lugares. Em vez de mexer em
+   cada um, sobe um degrau aqui. `:root` ganha do CSS que o Tailwind CDN injeta
+   (mesma classe, especificidade maior). Mobile fica como está; pra incluir o
+   celular, é só tirar o @media. Pra desfazer, apagar este bloco.
+   ========================================== */
+@media (min-width: 1024px) {
+  :root .text-\[7px\]    { font-size: 9px; }
+  :root .text-\[8px\]    { font-size: 10px; }
+  :root .text-\[9px\]    { font-size: 11px; }
+  :root .text-\[10px\]   { font-size: 12px; }
+  :root .text-\[10\.5px\] { font-size: 12.5px; }
+  :root .text-\[11px\]   { font-size: 13px; }
+  :root .text-\[11\.5px\] { font-size: 13px; }
+  /* depois das bases: "text-[8px] md:text-[9px]" tem que cair no md */
+  :root .md\:text-\[9px\] { font-size: 11px; }
+
+  :root .btn    { font-size: 12px; }
+  :root .btn-sm { font-size: 11px; }
+  :root .btn-lg { font-size: 13px; }
+}
