@@ -517,14 +517,16 @@ function renderCrm360() {
           </div>
 
           <!-- COLUNA DIREITA: TIMELINE / ABAS -->
-          <div class="${_crm360AbaLarga() ? 'lg:col-span-5' : 'lg:col-span-3'} p-5 md:p-6">
+          <div class="${_crm360AbaLarga() ? 'lg:col-span-5' : 'lg:col-span-3'} p-5 md:p-6 lg:flex lg:flex-col">
             <div class="flex gap-1 mb-4 flex-wrap">
               ${tabs.map((tab) => `
                 <button onclick="crmSet360Tab('${tab.id}')" class="px-3 py-2 text-[9px] font-black uppercase tracking-widest border transition-all flex items-center gap-1.5 ${_crm360Tab === tab.id ? 'bg-orange-600 text-black border-orange-500' : (tab.accent ? 'bg-black text-orange-400 border-orange-500/40 hover:brightness-125' : 'bg-black text-neutral-500 border-neutral-800 hover:text-white')}">
                   <i data-lucide="${tab.icon}" class="w-3 h-3"></i> ${tab.label}
                 </button>`).join('')}
             </div>
-            <div id="crm360-tab-content">${renderCrm360TabContent(client, propostas, vendas)}</div>
+            <!-- Timeline no desktop: ocupa a coluna até o fim da caixa (altura dada
+                 pela coluna de dados ao lado) e só rola por dentro a partir daí. -->
+            <div id="crm360-tab-content" class="${_crm360Tab === 'timeline' ? 'lg:flex-1 lg:flex lg:flex-col lg:min-h-0' : ''}">${renderCrm360TabContent(client, propostas, vendas)}</div>
           </div>
         </div>
       </div>
@@ -757,8 +759,11 @@ function renderCrm360TabContent(client, propostas, vendas) {
 
   if (eventos.length === 0) return composer + crm360Empty('history', 'Sem atividades ainda — registre a primeira acima');
 
+  // Celular: lista com altura fixa (420px). Desktop: a lista preenche o espaço
+  // que sobra na coluna (absolute dentro do flex-1, pra não esticar a caixa).
   return composer + `
-    <div class="space-y-0 max-h-[420px] overflow-y-auto pr-1">
+    <div class="relative lg:flex-1 lg:min-h-[420px]">
+    <div class="space-y-0 max-h-[420px] overflow-y-auto pr-1 lg:max-h-none lg:absolute lg:inset-0 custom-scrollbar">
       ${eventos.map((ev) => {
         const meta = CRM_ATIVIDADE_META[ev.tipo] || CRM_ATIVIDADE_META.nota;
         let texto = ev.descricao || '';
@@ -777,6 +782,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
             </div>
           </div>`;
       }).join('')}
+    </div>
     </div>`;
 }
 
