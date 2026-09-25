@@ -342,6 +342,9 @@ async function openCrm360(clientId, initialTab) {
   ensureCrm360Container().classList.add('is-open');
   document.body.style.overflow = 'hidden';
   document.addEventListener('keydown', _crm360OnKeydown);
+  // Arquivos: sempre recarrega ao abrir (URLs assinadas valem 1 h). Marca
+  // "carregando" de forma síncrona, antes do primeiro render.
+  if (typeof crmArquivosCarregar === 'function') crmArquivosCarregar(clientId);
   renderCrm360();
 
   // Carregamentos async (timeline + O&M) — re-renderizam ao chegar
@@ -420,6 +423,10 @@ function renderCrm360() {
   if (podeProposta) tabs.push({ id: 'nova', label: 'NOVA PROPOSTA', icon: 'file-plus-2', accent: true });
   tabs.push({ id: 'vendas', label: `VENDAS (${vendas.length})`, icon: 'trophy' });
   tabs.push({ id: 'financiamento', label: 'FINANC.', icon: 'landmark' });
+  // Documentos para a engenharia (crm-arquivos.js). Contador atualizado em crmArqRender.
+  if (typeof renderCrmArquivosTab === 'function') {
+    tabs.push({ id: 'arquivos', label: `ARQUIVOS <span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`, icon: 'paperclip' });
+  }
   if (omFlag) tabs.push({ id: 'om', label: 'O&M', icon: 'wrench' });
 
   overlay.innerHTML = `
@@ -676,6 +683,10 @@ function renderCrm360TabContent(client, propostas, vendas) {
           ? `<button onclick="abrirDocumentosVenda('${v.id}')" title="Gerar contrato e procuração" class="btn btn-secondary btn-sm"><i data-lucide="file-signature"></i> Documentos</button>`
           : ''}
       </div>`).join('')}</div>`;
+  }
+
+  if (_crm360Tab === 'arquivos' && typeof renderCrmArquivosTab === 'function') {
+    return renderCrmArquivosTab(client);
   }
 
   if (_crm360Tab === 'om') {

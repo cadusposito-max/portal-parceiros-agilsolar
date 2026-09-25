@@ -293,6 +293,24 @@ function buildFranquiaRanking(rows) {
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 }
+// Clique no card de venda abre a mesma ficha (CRM 360) da aba Clientes.
+// Venda antiga sem cliente_id cai no casamento por telefone.
+function openVendaClienteFicha(saleId) {
+  const sale = (state.vendas || []).find((v) => v.id === saleId);
+  if (!sale) return;
+  const clientes = state.clientes || [];
+  let client = sale.cliente_id ? clientes.find((c) => c.id === sale.cliente_id) : null;
+  if (!client) {
+    const phone = digitsOnly(sale.cliente_telefone);
+    if (phone) client = clientes.find((c) => digitsOnly(c.telefone) === phone);
+  }
+  if (!client) {
+    showToast('Cliente não encontrado na carteira (pode ter sido arquivado ou mesclado).');
+    return;
+  }
+  openCrm360(client.id);
+}
+
 function renderVendaCard(sale, index, options = {}) {
   const showSeller = Boolean(options.showSeller);
   const showFranquia = Boolean(options.showFranquia);
@@ -305,7 +323,8 @@ function renderVendaCard(sale, index, options = {}) {
     : '';
 
   return `
-    <article class="metric-card venda-metric-card ${stagger} relative border border-neutral-800 hover:border-green-500/25 p-5 group transition-all duration-300 bg-[#080808]">
+    <article onclick="openVendaClienteFicha('${sale.id}')" title="Abrir ficha do cliente"
+      class="metric-card venda-metric-card ${stagger} relative border border-neutral-800 hover:border-green-500/25 p-5 group transition-all duration-300 bg-[#080808] cursor-pointer">
       <div class="absolute top-0 right-0 w-24 h-24 bg-green-500/4 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
 
       <div class="relative z-10 flex items-start gap-4">
@@ -332,10 +351,10 @@ function renderVendaCard(sale, index, options = {}) {
 
         <div class="shrink-0 flex flex-col items-stretch gap-1">
           ${waLink
-            ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm"><i data-lucide="message-circle"></i> WhatsApp</a>`
+            ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="btn btn-primary btn-sm"><i data-lucide="message-circle"></i> WhatsApp</a>`
             : ''}
-          ${state.isAdmin ? `<button onclick="deleteVenda('${sale.id}')" class="btn btn-danger btn-sm"><i data-lucide="trash-2"></i> Excluir</button>` : ''}
-          ${(state.isAdmin || state.isGestor) ? `<button onclick="enviarVendaGroner('${sale.id}', this)" class="btn btn-secondary btn-sm">GRONER <i data-lucide="arrow-right"></i></button>` : ''}
+          ${state.isAdmin ? `<button onclick="event.stopPropagation(); deleteVenda('${sale.id}')" class="btn btn-danger btn-sm"><i data-lucide="trash-2"></i> Excluir</button>` : ''}
+          ${(state.isAdmin || state.isGestor) ? `<button onclick="event.stopPropagation(); enviarVendaGroner('${sale.id}', this)" class="btn btn-secondary btn-sm">GRONER <i data-lucide="arrow-right"></i></button>` : ''}
           <p class="text-neutral-700 text-[9px] font-mono uppercase">${escapeHTML(sale?.kit_brand || '')}</p>
         </div>
       </div>

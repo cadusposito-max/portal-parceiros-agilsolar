@@ -61,17 +61,89 @@ function getDashboardVendedorSelectorHTML(options) {
   `;
 }
 
-function toPrevMonthKey(monthKey) {
-  const [y, m] = String(monthKey || '').split('-').map(Number);
-  if (!y || !m) return '';
-  const d = new Date(y, m - 2, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const DASH_MONTH_KEY_RE = /^\d{4}-\d{2}$/;
+const DASH_CUSTOM_RE = /^custom:(\d{4}-\d{2}-\d{2}):(\d{4}-\d{2}-\d{2})$/;
+
+function parseDashISODate(iso) {
+  const [y, m, d] = String(iso || '').split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
-// Chip "+X% vs mês ant.". Sem base de comparação (mês anterior zerado) ou em
+function toDashISODate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatDashShortDate(date) {
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getFullYear()).slice(2)}`;
+}
+
+// Traduz state.dashPeriod num intervalo [start, end] + o intervalo anterior de
+// mesmo tamanho (base dos deltas). Valores aceitos:
+//   'all' · 'YYYY-MM' · 'last3' · 'custom:YYYY-MM-DD:YYYY-MM-DD'
+function resolveDashPeriod(period) {
+  const p = String(period || '');
+  if (p === 'all') return { geral: true, kind: 'all', label: 'GERAL (toda a base)', deltaLabel: '' };
+
+  if (p === 'last3') {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    return {
+      geral: false,
+      kind: 'last3',
+      start: new Date(y, m - 2, 1),
+      end: new Date(y, m + 1, 0, 23, 59, 59, 999),
+      prevStart: new Date(y, m - 5, 1),
+      prevEnd: new Date(y, m - 2, 0, 23, 59, 59, 999),
+      label: 'Últimos 3 meses',
+      deltaLabel: 'vs 3 meses ant.',
+    };
+  }
+
+  const custom = p.match(DASH_CUSTOM_RE);
+  if (custom) {
+    let from = parseDashISODate(custom[1]);
+    let to = parseDashISODate(custom[2]);
+    if (from && to) {
+      if (from > to) [from, to] = [to, from];
+      const dias = Math.round((to - from) / 86400000) + 1;
+      return {
+        geral: false,
+        kind: 'custom',
+        from: toDashISODate(from),
+        to: toDashISODate(to),
+        start: from,
+        end: new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999),
+        prevStart: new Date(from.getFullYear(), from.getMonth(), from.getDate() - dias),
+        prevEnd: new Date(from.getFullYear(), from.getMonth(), from.getDate() - 1, 23, 59, 59, 999),
+        label: `${formatDashShortDate(from)} – ${formatDashShortDate(to)}`,
+        deltaLabel: 'vs período ant.',
+      };
+    }
+  }
+
+  // Mês (default: mês corrente)
+  const now = new Date();
+  const monthKey = DASH_MONTH_KEY_RE.test(p)
+    ? p
+    : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return {
+    geral: false,
+    kind: 'month',
+    monthKey,
+    ...getDashboardMonthRange(monthKey),
+    label: formatMonthLabel(monthKey),
+    deltaLabel: 'vs mês ant.',
+  };
+}
+
+// Chip "+X% vs mês ant.". Sem base de comparação (período anterior zerado) ou em
 // GERAL não mostra nada — delta enganoso é pior que delta ausente.
 function dashDeltaChip(current, previous) {
-  if (state.dashPeriod === 'all' || !previous) return '';
+  const periodo = resolveDashPeriod(state.dashPeriod);
+  if (periodo.geral || !previous) return '';
   const delta = ((current - previous) / previous) * 100;
   const up = delta >= 0.5;
   const down = delta <= -0.5;
@@ -81,7 +153,7 @@ function dashDeltaChip(current, previous) {
       ? 'text-red-400 bg-red-500/10 border-red-500/25'
       : 'text-neutral-500 bg-neutral-500/10 border-neutral-600/25';
   const icon = up ? 'trending-up' : down ? 'trending-down' : 'minus';
-  return `<span class="inline-flex items-center gap-1 text-[8px] font-black tracking-wider px-1.5 py-0.5 border ${cls}"><i data-lucide="${icon}" class="w-2.5 h-2.5 shrink-0"></i>${delta >= 0 ? '+' : ''}${delta.toFixed(0)}% vs mês ant.</span>`;
+  return `<span class="inline-flex items-center gap-1 text-[8px] font-black tracking-wider px-1.5 py-0.5 border ${cls}"><i data-lucide="${icon}" class="w-2.5 h-2.5 shrink-0"></i>${delta >= 0 ? '+' : ''}${delta.toFixed(0)}% ${periodo.deltaLabel}</span>`;
 }
 
 function getDashboardMonthRange(monthKey) {
@@ -125,13 +197,12 @@ function getDashboardScopeSelectorHTML(baseRows) {
 }
 
 // Métricas da faixa de análise (admin sempre; gestor com "minha unidade").
-// periodKey aceita 'all' (GERAL = toda a base, sem deltas) — antes caía
-// silenciosamente no mês corrente e descasava dos cards de cima.
+// periodKey segue resolveDashPeriod ('all' = toda a base, sem deltas).
 // clientesRows/propostasRows/vendasRows JÁ vêm com o filtro de vendedor;
 // vendasEscopoRows vem SEM ele (ranking de vendedores com 1 nome é inútil).
 function buildDashboardAdminMetrics(periodKey, clientesRows, propostasRows, vendasRows, vendasEscopoRows) {
-  const geral = periodKey === 'all';
-  const range = geral ? null : getDashboardMonthRange(periodKey);
+  const range = resolveDashPeriod(periodKey);
+  const geral = range.geral;
   const noPeriodo = (rows) => geral
     ? rows
     : rows.filter((item) => isDateWithinDashboardRange(item?.created_at, range.start, range.end));
@@ -316,14 +387,6 @@ function renderDashboard(container) {
 
   const totalClientes = clientesDash.length;
 
-  // Funil = snapshot da carteira inteira do recorte (imune ao período)
-  const funil = { 'NOVO': 0, 'PROPOSTA ENVIADA': 0, 'EM NEGOCIAÇÃO': 0, 'FECHADO': 0 };
-  clientesDash.forEach((c) => {
-    const s = c.status || 'NOVO';
-    if (funil[s] !== undefined) funil[s]++;
-    else funil.NOVO++;
-  });
-
   const nowDash = new Date();
   const dashCurrMonth = `${nowDash.getFullYear()}-${String(nowDash.getMonth() + 1).padStart(2, '0')}`;
   if (!state.dashPeriod) state.dashPeriod = dashCurrMonth;
@@ -334,30 +397,70 @@ function renderDashboard(container) {
     [...clientesDash, ...propostasDash, ...allVendasDash].map((r) => toMonthKey(r.created_at)).filter(Boolean)
   )].sort().reverse();
   if (!availMonthsDash.includes(dashCurrMonth)) availMonthsDash.unshift(dashCurrMonth);
-  if (state.dashPeriod !== 'all' && !availMonthsDash.includes(state.dashPeriod)) state.dashPeriod = dashCurrMonth;
+  const _periodoRaw = String(state.dashPeriod);
+  const _periodoValido = _periodoRaw === 'all' || _periodoRaw === 'last3'
+    || (DASH_MONTH_KEY_RE.test(_periodoRaw) && availMonthsDash.includes(_periodoRaw))
+    || resolveDashPeriod(_periodoRaw).kind === 'custom';
+  if (!_periodoValido) state.dashPeriod = dashCurrMonth;
 
   // Partição por período — TODOS os cards obedecem (antes Propostas ignorava)
-  const _dashGeralAtivo = state.dashPeriod === 'all';
-  const dashPrevKey = _dashGeralAtivo ? '' : toPrevMonthKey(state.dashPeriod);
-  const byMonth = (rows, mk) => rows.filter((r) => toMonthKey(r.created_at) === mk);
+  const dashPeriodo = resolveDashPeriod(state.dashPeriod);
+  const _dashGeralAtivo = dashPeriodo.geral;
+  const inRange = (rows, start, end) => rows.filter((r) => isDateWithinDashboardRange(r.created_at, start, end));
 
-  const clientesPer  = _dashGeralAtivo ? clientesDash  : byMonth(clientesDash, state.dashPeriod);
-  const propostasPer = _dashGeralAtivo ? propostasDash : byMonth(propostasDash, state.dashPeriod);
-  const vendasDashFilt = _dashGeralAtivo ? allVendasDash : byMonth(allVendasDash, state.dashPeriod);
-  const clientesPrev  = _dashGeralAtivo ? [] : byMonth(clientesDash, dashPrevKey);
-  const propostasPrev = _dashGeralAtivo ? [] : byMonth(propostasDash, dashPrevKey);
-  const vendasPrevArr = _dashGeralAtivo ? [] : byMonth(allVendasDash, dashPrevKey);
+  const clientesPer  = _dashGeralAtivo ? clientesDash  : inRange(clientesDash, dashPeriodo.start, dashPeriodo.end);
+  const propostasPer = _dashGeralAtivo ? propostasDash : inRange(propostasDash, dashPeriodo.start, dashPeriodo.end);
+  const vendasDashFilt = _dashGeralAtivo ? allVendasDash : inRange(allVendasDash, dashPeriodo.start, dashPeriodo.end);
+  const clientesPrev  = _dashGeralAtivo ? [] : inRange(clientesDash, dashPeriodo.prevStart, dashPeriodo.prevEnd);
+  const propostasPrev = _dashGeralAtivo ? [] : inRange(propostasDash, dashPeriodo.prevStart, dashPeriodo.prevEnd);
+  const vendasPrevArr = _dashGeralAtivo ? [] : inRange(allVendasDash, dashPeriodo.prevStart, dashPeriodo.prevEnd);
 
-  // Botões de período pré-calculados
-  const _dashBtns = availMonthsDash.map(m => {
-    const ativo   = state.dashPeriod === m;
-    const ehAtual = m === dashCurrMonth;
-    const cls = ativo
-      ? (ehAtual ? 'bg-orange-600 text-black border-orange-500 shadow-[0_0_8px_rgba(234,88,12,0.4)]' : 'bg-neutral-700 text-white border-neutral-600')
-      : 'bg-transparent border-neutral-800 text-neutral-600 hover:text-neutral-300 hover:border-neutral-700';
-    const label = formatMonthLabel(m) + (ehAtual ? ' ●' : '');
-    return `<button onclick="setDashPeriod('${m}')" class="${cls} border px-2.5 py-1 font-black uppercase text-[8px] tracking-widest transition-all whitespace-nowrap">${label}</button>`;
-  }).join('');
+  // Funil de vendas: clientes que entraram no período, pelo status atual
+  const funil = { 'NOVO': 0, 'PROPOSTA ENVIADA': 0, 'EM NEGOCIAÇÃO': 0, 'FECHADO': 0 };
+  clientesPer.forEach((c) => {
+    const s = c.status || 'NOVO';
+    if (funil[s] !== undefined) funil[s]++;
+    else funil.NOVO++;
+  });
+
+  // Controles de período: atalhos + seletor de mês + calendário (intervalo livre)
+  const _pBtnBase = 'border px-2.5 py-1 font-black uppercase text-[8px] tracking-widest transition-all whitespace-nowrap';
+  const _pBtnOff = 'bg-transparent border-neutral-800 text-neutral-600 hover:text-neutral-300 hover:border-neutral-700';
+  const _pBtnOn = 'bg-orange-600 text-black border-orange-500 shadow-[0_0_8px_rgba(234,88,12,0.4)]';
+  const _pBtn = (period, label, ativo) =>
+    `<button onclick="setDashPeriod('${period}')" class="${ativo ? _pBtnOn : _pBtnOff} ${_pBtnBase}">${label}</button>`;
+
+  const _mesAtivo = dashPeriodo.kind === 'month' ? dashPeriodo.monthKey : '';
+  const _outroMesAtivo = _mesAtivo && _mesAtivo !== dashCurrMonth;
+  const _customAtivo = dashPeriodo.kind === 'custom';
+  const _pickerFrom = _customAtivo ? dashPeriodo.from : `${dashCurrMonth}-01`;
+  const _pickerTo = _customAtivo ? dashPeriodo.to : toDashISODate(nowDash);
+
+  const dashPeriodControlsHTML = `
+    ${_pBtn(dashCurrMonth, 'Este mês', _mesAtivo === dashCurrMonth)}
+    ${_pBtn('last3', 'Últ. 3 meses', dashPeriodo.kind === 'last3')}
+    ${_pBtn('all', 'Geral', _dashGeralAtivo)}
+    <select onchange="if (this.value) setDashPeriod(this.value)" title="Escolher mês"
+      class="bg-black border ${_outroMesAtivo ? 'border-orange-500/60 text-orange-400' : 'border-neutral-800 text-neutral-500'} px-2 py-1 text-[8px] font-black uppercase tracking-widest">
+      <option value="" ${_outroMesAtivo ? '' : 'selected'}>MÊS…</option>
+      ${availMonthsDash.map((m) => `<option value="${m}" ${_outroMesAtivo && _mesAtivo === m ? 'selected' : ''}>${formatMonthLabel(m).toUpperCase()}${m === dashCurrMonth ? ' ●' : ''}</option>`).join('')}
+    </select>
+    <div class="relative" id="dash-period-picker-wrap">
+      <button type="button" onclick="toggleDashPeriodPicker(event)" title="Escolher período específico"
+        class="${_customAtivo ? 'border-orange-500/60 text-orange-400' : 'border-neutral-800 text-neutral-500 hover:text-neutral-300 hover:border-neutral-700'} bg-transparent border px-2 py-1 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest transition-all whitespace-nowrap">
+        <i data-lucide="calendar-range" class="w-3 h-3"></i>${_customAtivo ? escapeHTML(dashPeriodo.label) : 'Período'}
+      </button>
+      <div id="dash-period-picker" class="hidden absolute left-0 top-full mt-1 z-50 border border-neutral-700 bg-[#0b0b0b] p-3 flex flex-col gap-2 shadow-[0_12px_40px_rgba(0,0,0,0.6)]" style="min-width: 220px;">
+        <label class="flex flex-col gap-1 text-[8px] font-black uppercase tracking-widest text-neutral-500">De
+          <input id="dash-period-from" type="date" value="${_pickerFrom}" style="color-scheme: dark;" class="bg-black border border-neutral-800 text-neutral-200 px-2 py-1 text-[10px] font-bold">
+        </label>
+        <label class="flex flex-col gap-1 text-[8px] font-black uppercase tracking-widest text-neutral-500">Até
+          <input id="dash-period-to" type="date" value="${_pickerTo}" style="color-scheme: dark;" class="bg-black border border-neutral-800 text-neutral-200 px-2 py-1 text-[10px] font-bold">
+        </label>
+        <button type="button" onclick="applyDashCustomPeriod()" class="${_pBtnOn} ${_pBtnBase} mt-1">Aplicar</button>
+      </div>
+    </div>
+  `;
   const dashScopeSelectorHTML = getDashboardScopeSelectorHTML([...clientesScope, ...propostasScope, ...vendasScope]);
   const dashVendedorSelectorHTML = getDashboardVendedorSelectorHTML(vendedorOptions);
 
@@ -372,12 +475,12 @@ function renderDashboard(container) {
   const convPV = propostasPer.length > 0 ? Math.round((qtdVendas / propostasPer.length) * 100) : null;
   const convPVLabel = convPV === null ? 'n/d' : convPV + '%';
 
-  // Percentuais do funil (relativo ao total de clientes)
-  const maxF   = totalClientes || 1;
+  // Percentuais do funil (relativo aos clientes do período)
+  const maxF   = clientesPer.length || 1;
   const fPct   = k => Math.round((funil[k] / maxF) * 100);
   const fWidth = k => Math.max(fPct(k), 2); // mínimo visual de 2%
 
-  // Taxa de avanço entre etapas. O funil é snapshot do status ATUAL, então
+  // Taxa de avanço entre etapas. O funil usa o status ATUAL, então
   // quem está em NEGOCIAÇÃO já passou por PROPOSTA: compara quem chegou em
   // cada etapa (ela + as seguintes), senão dá coisas como 283÷101 = 280%.
   const _etapasFunil = ['NOVO', 'PROPOSTA ENVIADA', 'EM NEGOCIAÇÃO', 'FECHADO'];
@@ -388,7 +491,7 @@ function renderDashboard(container) {
   const convFech = toNum('EM NEGOCIAÇÃO', 'FECHADO');
 
   // Contexto exibido na barra de filtros
-  const ctxPeriodo = _dashGeralAtivo ? 'GERAL (toda a base)' : formatMonthLabel(state.dashPeriod);
+  const ctxPeriodo = dashPeriodo.label;
   const ctxFranquia = state.isAdmin
     ? (!state.adminViewAll
         ? (state.franquiaNome || 'Minha unidade')
@@ -561,15 +664,13 @@ function renderDashboard(container) {
          BARRA DE FILTROS UNIFICADA
          Todo número abaixo dela obedece: período × franquia × vendedor.
          ════════════════════════════════════════ -->
-    <div class="dash-filterbar stagger-2 border border-neutral-800/60 p-3 md:px-4 flex flex-col gap-2.5" style="background: rgba(8,8,8,0.85); border-left: 2px solid #f97316;">
+    <div class="dash-filterbar stagger-2 relative z-20 border border-neutral-800/60 p-3 md:px-4 flex flex-col gap-2.5" style="background: rgba(8,8,8,0.85); border-left: 2px solid #f97316;">
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-[8px] text-neutral-500 font-black uppercase tracking-widest flex items-center gap-1.5 mr-1">
           <i data-lucide="sliders-horizontal" class="w-3 h-3 text-orange-400"></i> Filtros
         </span>
         <div class="flex flex-wrap gap-1 items-center">
-          <button onclick="setDashPeriod('all')"
-            class="${_dashGeralAtivo ? 'bg-neutral-700 text-white border-neutral-600' : 'bg-transparent border-neutral-800 text-neutral-600 hover:text-neutral-300 hover:border-neutral-700'} border px-2.5 py-1 font-black uppercase text-[8px] tracking-widest transition-all">GERAL</button>
-          ${_dashBtns}
+          ${dashPeriodControlsHTML}
         </div>
         <div class="flex flex-wrap gap-1.5 items-center ml-auto">
           ${dashScopeSelectorHTML}
@@ -703,9 +804,8 @@ function renderDashboard(container) {
           <div class="p-1.5 bg-purple-500/10 border border-purple-500/25">
             <i data-lucide="git-merge" class="w-3.5 h-3.5 text-purple-400"></i>
           </div>
-          <h3 class="text-[10px] font-black text-white uppercase tracking-widest">Funil da Carteira</h3>
+          <h3 class="text-[10px] font-black text-white uppercase tracking-widest">Funil de Vendas</h3>
         </div>
-        <span class="text-[9px] font-bold px-2 py-0.5 border border-neutral-800 text-neutral-500 uppercase tracking-widest">snapshot atual · não muda com o período</span>
       </div>
 
       <div class="grid grid-cols-4 gap-2 md:gap-5 relative z-10">
@@ -850,6 +950,27 @@ function setDashPeriod(period) {
   state.dashPeriod = period;
   renderContent();
 }
+
+function toggleDashPeriodPicker(event) {
+  if (event) event.stopPropagation();
+  const picker = document.getElementById('dash-period-picker');
+  if (picker) picker.classList.toggle('hidden');
+}
+
+function applyDashCustomPeriod() {
+  const from = document.getElementById('dash-period-from')?.value || '';
+  const to = document.getElementById('dash-period-to')?.value || '';
+  if (!from && !to) return;
+  setDashPeriod(`custom:${from || to}:${to || from}`);
+}
+
+// Fecha o popover do calendário ao clicar fora dele
+document.addEventListener('click', (event) => {
+  const picker = document.getElementById('dash-period-picker');
+  if (!picker || picker.classList.contains('hidden')) return;
+  const wrap = document.getElementById('dash-period-picker-wrap');
+  if (wrap && !wrap.contains(event.target)) picker.classList.add('hidden');
+});
 
 
 
