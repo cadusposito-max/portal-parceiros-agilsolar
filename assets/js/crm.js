@@ -432,7 +432,7 @@ function renderCrm360() {
   overlay.innerHTML = `
     <!-- Barra Voltar (ocupa o lugar da topbar) -->
     <div class="shrink-0 bg-black/95 backdrop-blur-xl border-b border-neutral-800/60">
-      <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+      <div class="max-w-[2560px] mx-auto px-4 2xl:px-10 h-16 flex items-center justify-between gap-3">
         <button onclick="closeCrm360()" class="btn btn-ghost"><i data-lucide="arrow-left"></i>Voltar</button>
         <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-neutral-600"><i data-lucide="users" class="w-3.5 h-3.5"></i>Comercial <span class="text-neutral-700">/</span> <span class="text-neutral-400">Cliente</span></div>
         <button onclick="closeCrm360()" title="Fechar" class="p-2.5 border border-neutral-800 bg-black text-neutral-500 hover:text-white hover:border-neutral-600 transition-all"><i data-lucide="x" class="w-4 h-4"></i></button>
@@ -440,7 +440,7 @@ function renderCrm360() {
     </div>
     <!-- Conteúdo rolável -->
     <div class="flex-1 overflow-y-auto">
-      <div class="max-w-6xl mx-auto px-4 py-6">
+      <div class="max-w-[2560px] mx-auto px-4 2xl:px-10 py-6">
 
         <!-- HEADER do cliente -->
         <div class="flex flex-wrap items-center gap-4 pb-5 md:pb-6 border-b border-neutral-800">
@@ -653,7 +653,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
               <span class="text-[8px] px-1.5 py-0.5 uppercase font-black tracking-widest border shrink-0 ${stCls}">${st}</span>
               ${vistaInfo}
             </div>
-            <p class="text-neutral-600 text-[10px] font-mono mt-0.5">${formatDate(p.created_at)} · ${escapeHTML(String(p.kit_power || p.custom_system_power_kwp || '-'))} kWp ${p.geracao_estimada ? `· ~${Math.round(p.geracao_estimada)} kWh/mês` : ''}</p>
+            <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(p.created_at)} · ${escapeHTML(String(p.kit_power || p.custom_system_power_kwp || '-'))} kWp ${p.geracao_estimada ? `· ~${Math.round(p.geracao_estimada)} kWh/mês` : ''}</p>
           </div>
           ${state.isAdmin ? `<span data-prec-selo="${p.id}"></span>` : ''}
           <span class="text-green-400 font-black text-sm">${formatCurrency(preco || 0)}</span>
@@ -676,7 +676,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
       <div class="border border-green-900/40 bg-green-950/10 p-3.5 flex items-center gap-3 flex-wrap">
         <div class="flex-1 min-w-[160px]">
           <p class="text-white font-black text-xs uppercase">${escapeHTML(v.kit_nome || 'Venda')}</p>
-          <p class="text-neutral-600 text-[10px] font-mono mt-0.5">${formatDate(v.created_at)} · ${escapeHTML(String(v.kit_power || '-'))} kWp</p>
+          <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(v.created_at)} · ${escapeHTML(String(v.kit_power || '-'))} kWp</p>
         </div>
         <span class="text-green-400 font-black text-sm">${formatCurrency(v.kit_price || 0)}</span>
         ${typeof canGerarDocumentos === 'function' && canGerarDocumentos()
@@ -704,12 +704,12 @@ function renderCrm360TabContent(client, propostas, vendas) {
         ${sistemas.length > 0 ? `<div class="space-y-2">${sistemas.map((s) => `
           <div class="border border-neutral-800 bg-black/40 p-3.5">
             <p class="text-white font-black text-xs uppercase">${escapeHTML(s.apelido || 'Sistema')} ${s.potencia_kwp ? `· ${s.potencia_kwp} kWp` : ''}</p>
-            <p class="text-neutral-600 text-[10px] font-mono mt-0.5">${escapeHTML([s.marca_modulos, s.marca_inversor, s.tipo_telhado].filter(Boolean).join(' · ') || '-')}</p>
+            <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${escapeHTML([s.marca_modulos, s.marca_inversor, s.tipo_telhado].filter(Boolean).join(' · ') || '-')}</p>
           </div>`).join('')}</div>` : ''}
         ${propostasOm.length > 0 ? `<div class="space-y-2">${propostasOm.map((p) => `
           <div class="border border-neutral-800 bg-black/40 p-3 flex items-center gap-3">
             <div class="flex-1"><p class="text-white font-bold text-[11px] uppercase">${escapeHTML(p.tipo_servico || '-')} ${p.numero ? `· ${escapeHTML(p.numero)}` : ''}</p>
-            <p class="text-neutral-600 text-[9px] font-mono">${formatDate(p.created_at)} · ${escapeHTML(p.status || '')}</p></div>
+            <p class="text-neutral-600 text-[9px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400">${formatDate(p.created_at)} · ${escapeHTML(p.status || '')}</p></div>
             <span class="text-green-400 font-black text-xs">${formatCurrency(Number(p.valor_final) || 0)}</span>
           </div>`).join('')}</div>` : ''}
       </div>`;
@@ -761,7 +761,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-neutral-300 text-[11px] leading-snug">${escapeHTML(texto)}</p>
-              <p class="text-neutral-600 text-[9px] font-mono mt-0.5">${formatDate(ev.data)} · ${crmTimeAgo(ev.data)}${ev.autor ? ` · ${escapeHTML(String(ev.autor).split('@')[0])}` : ''}</p>
+              <p class="text-neutral-600 text-[9px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(ev.data)} · ${crmTimeAgo(ev.data)}${ev.autor ? ` · ${escapeHTML(String(ev.autor).split('@')[0])}` : ''}</p>
             </div>
           </div>`;
       }).join('')}
