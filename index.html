@@ -102,8 +102,8 @@
     }
   </script>
 
-  <link rel="stylesheet" href="assets/css/main.css?v=20260924-venda-anim2">
-  <link rel="stylesheet" href="assets/css/theme-light.css?v=20260922-login-desktop2" id="theme-light-css" disabled>
+  <link rel="stylesheet" href="assets/css/main.css?v=20260925-layout-c">
+  <link rel="stylesheet" href="assets/css/theme-light.css?v=20260925-layout-c" id="theme-light-css" disabled>
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
@@ -415,7 +415,7 @@
     <!-- Stripe animada no topo -->
     <div class="animated-stripe h-[2px] w-full"></div>
 
-    <div class="max-w-7xl mx-auto px-4 py-2.5">
+    <div class="max-w-[2560px] mx-auto px-4 2xl:px-10 py-2.5">
       <div class="flex items-center justify-between gap-4">
 
         <!-- Logo -->
@@ -544,7 +544,7 @@
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 py-6 md:py-8 relative animate-fade-in-up">
+  <main class="max-w-[2560px] mx-auto px-4 2xl:px-10 py-6 md:py-8 relative animate-fade-in-up">
 
     <div id="admin-bar" class="hidden mb-6 bg-red-950/20 border border-red-600/20 p-4 flex items-center justify-between backdrop-blur-sm gap-3">
       <div class="flex items-center gap-3">
@@ -612,7 +612,7 @@
 <div id="admin-overlay" class="fixed inset-0 z-[120] bg-black/95 backdrop-blur-md hidden overflow-y-auto">
   <!-- Cabeçalho fixo com botão de fechar -->
   <div class="sticky top-0 z-10 bg-black/90 backdrop-blur border-b border-neutral-800">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="max-w-[2560px] mx-auto px-4 2xl:px-10 py-3 flex items-center justify-between gap-3">
       <div class="flex items-center gap-3 min-w-0">
         <div class="bg-red-600/20 border border-red-600/30 p-2 text-red-400 shrink-0"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
         <div class="min-w-0">
@@ -627,7 +627,7 @@
     </div>
   </div>
 
-  <div class="max-w-7xl mx-auto px-4 py-6 md:py-8">
+  <div class="max-w-[2560px] mx-auto px-4 2xl:px-10 py-6 md:py-8">
     <!-- Barra de ações de kits (própria do overlay; espelha #admin-bar para a seção KITS) -->
     <div id="admin-overlay-kitsbar" class="hidden mb-6 bg-red-950/20 border border-red-600/20 p-4 flex items-center justify-between backdrop-blur-sm gap-3">
       <div class="flex items-center gap-3">
@@ -1275,7 +1275,7 @@
   local('api.js',              '20260723-nome-vendedor');
   local('auth.js',             '20260922-f5-rapido');
   local('comunicados.js',      '20260615-om-central-propostas');
-  local('dashboard.js',        '20260918-dash-light');
+  local('dashboard.js',        '20260925-layout-c');
   local('cidades.js',          '20260703-crm1');
   local('clientes.js',         '20260918-funil-vendedor');
   local('documentos.js',       '20260922-mascara-doc');
@@ -1290,15 +1290,15 @@
   local('vendas.js',           '20260924-venda-ficha');
   local('admin.js',            '20260922-busca-foco');
   local('profile.js',          '20260922-2fa-sobrio');
-  local('chat.js',             '20260615-om-central-propostas');
+  local('chat.js',             '20260925-layout-c');
   local('om.js',               '20260922-mascara-doc');
   w('https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js');
   local('om-os.js',            '20260707-checklist-trava');
-  local('financeiro.js',       '20260916-precificacao');
-  local('vistoria.js',         '20260626-vistoria-full');
+  local('financeiro.js',       '20260925-layout-c');
+  local('vistoria.js',         '20260925-layout-c');
   local('vistoria-os.js',      '20260626-vistoria-os');
-  local('engenharia.js',       '20260630-eng9');
-  local('app.js',              '20260922-f5-rapido');
+  local('engenharia.js',       '20260925-layout-c');
+  local('app.js',              '20260925-layout-c');
   local('update-notice.js',    '20260615-om-central-propostas');
 })();
 </script>

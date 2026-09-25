@@ -2037,3 +2037,9 @@ body.theme-light .sale-cel__hint { color: #94a3b8; }
 /* Ao fechar, raios e carimbo ficam parados enquanto o overlay some */
 .sale-cel.is-closing .sale-cel__rays  { opacity: 1; transform: scale(1); }
 .sale-cel.is-closing .sale-cel__stamp { opacity: 1; transform: rotate(-14deg); }
+
+/* Dashboard ≥1536px: a coluna "Conversas" (dash-rail) faz o papel do botão
+   flutuante do chat — esconde o FAB pra ele não cobrir a coluna. */
+@media (min-width: 1536px) {
+  body:has(#dash-rail-chat:not(.hidden)) #chat-fab-container { display: none; }
+}

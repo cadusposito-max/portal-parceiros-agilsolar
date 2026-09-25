@@ -598,7 +598,7 @@ function renderTabs() {
     if (subnav) {
       subnav.className = 'border-t border-neutral-800/60 bg-black/95 hidden lg:block';
       subnav.innerHTML = `
-        <div class="max-w-7xl mx-auto px-4">
+        <div class="max-w-[2560px] mx-auto px-4 2xl:px-10">
           <nav class="flex items-center gap-1 overflow-x-auto no-scrollbar">
             ${tabs.map(tab => {
               const isActive = activeId === tab.id;

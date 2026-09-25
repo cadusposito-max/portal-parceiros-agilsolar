@@ -2766,7 +2766,7 @@
     else if (phasePanels[tabId]) inner = phasePanelHTML(tabId);
     else inner = visaoHTML(), tabId = 'visao';
 
-    container.innerHTML = `<div class="fin-env"><div class="max-w-7xl mx-auto px-4 py-6 md:py-8" data-fin-panel="${tabId}">${inner}</div></div>`;
+    container.innerHTML = `<div class="fin-env"><div class="max-w-[2560px] mx-auto px-4 py-6 md:py-8" data-fin-panel="${tabId}">${inner}</div></div>`;
     finAfterRender(tabId);
     if (window.lucide) lucide.createIcons();
   }

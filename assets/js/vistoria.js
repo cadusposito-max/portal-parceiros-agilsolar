@@ -791,7 +791,7 @@
     _container = container;
     const { inner, active } = panelFor(tabId);
     _active = active;
-    container.innerHTML = `<div class="vis-env"><div class="max-w-7xl mx-auto px-4 py-6 md:py-8" data-vis-panel="${active}">${inner}</div></div>`;
+    container.innerHTML = `<div class="vis-env"><div class="max-w-[2560px] mx-auto px-4 py-6 md:py-8" data-vis-panel="${active}">${inner}</div></div>`;
     if (window.lucide) lucide.createIcons();
   }
 

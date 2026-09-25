@@ -608,7 +608,48 @@ function renderDashboard(container) {
     }).join('');
   }
 
+  const comunicadosPanelHTML = `
+      <div class="dash-comunicados-panel flex-1 border border-neutral-800/60 flex flex-col" style="background: linear-gradient(180deg, #0d0d0d 0%, #080808 100%);">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-800/50">
+          <h3 class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+            <div class="p-1.5 bg-orange-500/10 border border-orange-500/20">
+              <i data-lucide="megaphone" class="w-3 h-3 text-orange-400"></i>
+            </div>
+            Comunicados
+          </h3>
+          ${comunicadosMetaLabel}
+        </div>
+        <div class="flex flex-col min-h-[198px]">${comunicadosHTML}</div>
+        <div class="px-4 py-2.5 border-t border-neutral-900/70 flex items-center justify-between gap-3">
+          <span class="text-[9px] text-neutral-600 font-bold uppercase tracking-widest">${comunicadosFooterLabel}</span>
+          ${comunicadosNavHTML}
+        </div>
+      </div>`;
+
+  // (o painel "Materiais Úteis" foi removido: eram links href="#" sem
+  //  arquivo real. Recolocar só quando existirem materiais de verdade.)
+  const quickPanelHTML = `
+        <div class="dash-quick-panel relative overflow-hidden border border-orange-500/15 p-5 flex flex-col gap-4 shrink-0"
+          style="background: linear-gradient(135deg, rgba(234,88,12,0.06) 0%, #080808 60%);">
+          <div class="absolute inset-0 bg-grid-sm opacity-30 pointer-events-none"></div>
+          <div class="relative z-10">
+            <div class="text-[8px] font-black text-orange-400/50 uppercase tracking-[0.3em] mb-2">Ação Rápida</div>
+            <p class="text-sm font-bold text-neutral-300 leading-snug">Tem um cliente em mente?<br>Crie o orçamento agora.</p>
+          </div>
+          <button onclick="openNovaPropostaPicker()" class="btn btn-primary relative z-10">
+            <i data-lucide="file-plus-2"></i> Nova Proposta
+          </button>
+          <button onclick="setTab('clientes')" class="btn btn-ghost btn-sm relative z-10">
+            <i data-lucide="users"></i> Ir para Clientes
+          </button>
+        </div>`;
+
+  // Até 2xl: pilha única (igual ao mobile). ≥2xl: conteúdo + coluna fixa à
+  // direita. A grade fica num wrapper — o #main-container é reaproveitado
+  // pelas outras abas sem resetar a classe.
   container.innerHTML = `
+    <div class="w-full 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_380px] min-[1800px]:grid-cols-[minmax(0,1fr)_420px] 2xl:gap-6 2xl:items-start">
+    <div class="flex flex-col gap-5 min-w-0">
     <!-- ════════════════════════════════════════
          HERO HEADER compacto - saudação + escopo + relógio
          ════════════════════════════════════════ -->
@@ -888,54 +929,44 @@ function renderDashboard(container) {
     <!-- Metas vs realizado do time (crm-metas.js) — admin E gestor -->
     ${typeof renderMetasEquipeBlock === 'function' ? renderMetasEquipeBlock() : ''}
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-4">
+    <!-- Até 2xl: Comunicados + Ação rápida no fim da pilha. No 2xl eles
+         sobem pra coluna da direita (dash-rail) e este bloco some. -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 stagger-4 2xl:hidden">
+      <div class="col-span-1 lg:col-span-2 flex flex-col">${comunicadosPanelHTML}</div>
+      <div class="flex flex-col gap-3">${quickPanelHTML}</div>
+    </div>
+    </div>
 
-      <!-- Comunicados -->
-      <div class="dash-comunicados-panel col-span-1 lg:col-span-2 border border-neutral-800/60 flex flex-col" style="background: linear-gradient(180deg, #0d0d0d 0%, #080808 100%);">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-800/50">
+    <!-- ════════════════════════════════════════
+         COLUNA DA DIREITA (só ≥1536px) — preenche as laterais que ficavam
+         pretas: Ação rápida, Comunicados e Conversas do chat (chat.js).
+         ════════════════════════════════════════ -->
+    <aside class="dash-rail hidden 2xl:flex flex-col gap-3 sticky top-28 max-h-[calc(100dvh-8.5rem)] overflow-y-auto custom-scrollbar stagger-3">
+      ${quickPanelHTML}
+      ${comunicadosPanelHTML}
+      <section id="dash-rail-chat" class="dash-rail-chat hidden flex-col flex-1 min-h-[240px] border border-neutral-800/60" style="background: linear-gradient(180deg, #0d0d0d 0%, #080808 100%);">
+        <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-neutral-800/50">
           <h3 class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-            <div class="p-1.5 bg-orange-500/10 border border-orange-500/20">
-              <i data-lucide="megaphone" class="w-3 h-3 text-orange-400"></i>
+            <div class="p-1.5 bg-green-500/10 border border-green-500/20">
+              <i data-lucide="message-circle" class="w-3 h-3 text-green-400"></i>
             </div>
-            Comunicados
+            Conversas
+            <span id="dash-rail-chat-unread" class="hidden chat-conv-unread"></span>
           </h3>
-          ${comunicadosMetaLabel}
-        </div>
-        <div class="flex flex-col min-h-[198px]">${comunicadosHTML}</div>
-        <div class="px-4 py-2.5 border-t border-neutral-900/70 flex items-center justify-between gap-3">
-          <span class="text-[9px] text-neutral-600 font-bold uppercase tracking-widest">${comunicadosFooterLabel}</span>
-          ${comunicadosNavHTML}
-        </div>
-      </div>
-
-      <!-- Coluna lateral -->
-      <div class="flex flex-col gap-3">
-
-        <!-- CTA Ação Rápida -->
-        <!-- (o painel "Materiais Úteis" foi removido: eram links href="#" sem
-             arquivo real. Recolocar só quando existirem materiais de verdade.) -->
-        <div class="dash-quick-panel relative overflow-hidden border border-orange-500/15 p-5 flex flex-col gap-4"
-          style="background: linear-gradient(135deg, rgba(234,88,12,0.06) 0%, #080808 60%);">
-          <div class="absolute inset-0 bg-grid-sm opacity-30 pointer-events-none"></div>
-          <div class="relative z-10">
-            <div class="text-[8px] font-black text-orange-400/50 uppercase tracking-[0.3em] mb-2">Ação Rápida</div>
-            <p class="text-sm font-bold text-neutral-300 leading-snug">Tem um cliente em mente?<br>Crie o orçamento agora.</p>
-          </div>
-          <button onclick="openNovaPropostaPicker()" class="btn btn-primary relative z-10">
-            <i data-lucide="file-plus-2"></i> Nova Proposta
-          </button>
-          <button onclick="setTab('clientes')" class="btn btn-ghost btn-sm relative z-10">
-            <i data-lucide="users"></i> Ir para Clientes
+          <button onclick="chatOpenFromRail()" class="btn btn-ghost btn-sm">
+            <i data-lucide="maximize-2"></i> Abrir chat
           </button>
         </div>
-
-      </div>
+        <div id="dash-rail-chat-list" class="flex-1 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-0.5"></div>
+      </section>
+    </aside>
     </div>
   `;
   ensureDashComunicadoModal();
   lucide.createIcons();
   animateCounters();
   startDashboardClock();
+  if (typeof chatRenderRail === 'function') chatRenderRail();
 }
 
 

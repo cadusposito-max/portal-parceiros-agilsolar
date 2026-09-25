@@ -393,7 +393,65 @@ function _chatComputeUnread() {
   _chatUpdateFab();
 }
 
+// Coluna "Conversas" do dashboard (dashboard.js, só ≥1536px): espelha a lista
+// do popup; clicar abre o chat já na conversa.
+function chatRenderRail() {
+  const box = _chatEl('dash-rail-chat');
+  const list = _chatEl('dash-rail-chat-list');
+  if (!box || !list) return;
+
+  const chat = _chatState();
+  const show = _chatHasSession() && chat.hasAccess === true;
+  box.classList.toggle('hidden', !show);
+  box.classList.toggle('flex', show);
+  if (!show) { list.innerHTML = ''; return; }
+
+  const badge = _chatEl('dash-rail-chat-unread');
+  if (badge) {
+    badge.classList.toggle('hidden', !(chat.unreadTotal > 0));
+    badge.textContent = chat.unreadTotal > 99 ? '99+' : String(chat.unreadTotal || 0);
+  }
+
+  const items = (Array.isArray(chat.conversations) ? chat.conversations : []).slice(0, 12);
+  if (items.length === 0) {
+    list.innerHTML = `
+      <div class="flex-1 flex flex-col items-center justify-center gap-2 py-8 text-center">
+        <span class="text-neutral-600 font-bold uppercase tracking-widest text-[10px]">Nenhuma conversa ainda</span>
+        <button onclick="chatOpenFromRail()" class="text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-white">+ Iniciar conversa</button>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(item => {
+    const unread = Number(item.unread_count) || 0;
+    const title = _chatGetSafeTitle(item);
+    const preview = item.last_message_preview || 'Sem mensagens ainda';
+    const time = _chatFormatListTime(item.last_message_at || item.created_at);
+    return `
+      <button type="button" class="chat-conv-item" onclick="chatOpenFromRail('${escapeHTML(String(item.conversation_id))}')">
+        ${_chatAvatarHtml(item, 'chat-conv-avatar')}
+        <span class="chat-conv-main">
+          <span class="chat-conv-top">
+            <span class="chat-conv-title">${escapeHTML(title)}</span>
+            <span class="chat-conv-time">${escapeHTML(time)}</span>
+          </span>
+          <span class="chat-conv-bottom">
+            <span class="chat-conv-preview">${escapeHTML(preview)}</span>
+            ${unread > 0 ? `<span class="chat-conv-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
+          </span>
+        </span>
+      </button>
+    `;
+  }).join('');
+}
+
+function chatOpenFromRail(conversationId) {
+  _chatOpenShell();
+  if (conversationId) _chatOpenConversation(conversationId, true);
+}
+
 function _chatRenderConversationList() {
+  chatRenderRail();
   const chat = _chatState();
   const list = _chatEl('chat-list-items');
   const empty = _chatEl('chat-list-empty');
@@ -1191,9 +1249,12 @@ function chatTeardown(hideUI = false) {
 
   _chatUpdateFab();
   _chatRenderThreadHeader();
+  chatRenderRail();
 }
 
 window.chatBoot = chatBoot;
+window.chatRenderRail = chatRenderRail;
+window.chatOpenFromRail = chatOpenFromRail;
 window.chatTeardown = chatTeardown;
 window.chatHandleAppTabChange = chatHandleAppTabChange;
 

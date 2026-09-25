@@ -376,7 +376,7 @@ function renderEngCalculadora(container) {
     `)}`;
 
   container.innerHTML = `
-    <div class="p-6 max-w-7xl mx-auto">
+    <div class="p-6 max-w-[2560px] mx-auto">
       ${engHeader('Calculadora', 'Dimensionamento de strings, MPPT, proteções CA/CC e geração estimada', 'calculator')}
 
       ${state.eng.currentProjectId ? `
@@ -1223,7 +1223,7 @@ function renderEngEquipamentos(container) {
         </div>`).join('');
 
   container.innerHTML = `
-    <div class="p-6 max-w-7xl mx-auto">
+    <div class="p-6 max-w-[2560px] mx-auto">
       ${engHeader('Equipamentos', 'Catálogo de módulos e inversores (compartilhado pela franquia)', 'cpu')}
       ${ENG_DB_ENABLED ? '' : `<div class="mb-5 flex items-center gap-2 text-[11px] text-amber-400/90 bg-amber-500/5 border border-amber-500/20 px-3 py-2"><i data-lucide="info" class="w-3.5 h-3.5"></i> Modo local: os equipamentos somem ao recarregar a página. A persistência no banco entra na próxima etapa.</div>`}
 
@@ -1354,7 +1354,7 @@ function renderEngProjetos(container) {
       </div>`;
 
   container.innerHTML = `
-    <div class="p-6 max-w-7xl mx-auto">
+    <div class="p-6 max-w-[2560px] mx-auto">
       ${engHeader('Projetos', 'Dimensionamentos salvos', 'folder-open')}
       ${ENG_DB_ENABLED ? '' : `<div class="mb-5 flex items-center gap-2 text-[11px] text-amber-400/90 bg-amber-500/5 border border-amber-500/20 px-3 py-2"><i data-lucide="info" class="w-3.5 h-3.5"></i> Modo local: os projetos somem ao recarregar a página. A persistência no banco entra na próxima etapa.</div>`}
       ${lista}
@@ -1474,7 +1474,7 @@ function renderEngVisao(container) {
     </div>`).join('');
 
   container.innerHTML = `
-    <div class="p-6 max-w-7xl mx-auto">
+    <div class="p-6 max-w-[2560px] mx-auto">
       <!-- Hero -->
       <div class="relative overflow-hidden border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-indigo-500/10 p-5 md:p-6 mb-6">
         <div class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-sky-300">
@@ -1543,7 +1543,7 @@ function renderEngFunil(container) {
   }).join('');
 
   container.innerHTML = `
-    <div class="p-6 max-w-7xl mx-auto">
+    <div class="p-6 max-w-[2560px] mx-auto">
       ${engHeader('Funil', 'Do aguardando dimensionamento ao documento gerado', 'git-merge')}
       <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-start">${cols}</div>
     </div>`;
