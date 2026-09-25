@@ -107,11 +107,12 @@
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
-  <!-- F5 com sessão salva: já pinta o "carregando" em vez de piscar o login.
+  <!-- F5 com sessão salva: esconde o login (não pisca) e mostra só a barra fina
+       do topo (#boot-bar). A tela cheia com logo fica para o login.
        O checkAuth (auth.js) tira a classe assim que decide login x app. -->
   <style>
-    html.boot-resume #login-screen  { display: none; }
-    html.boot-resume #splash-screen { display: flex; }
+    html.boot-resume #login-screen { display: none; }
+    html.boot-resume #boot-bar     { display: block; }
   </style>
   <script>
     try {
@@ -122,6 +123,11 @@
   </script>
 </head>
 <body class="selection:bg-orange-500 selection:text-white overflow-x-hidden">
+
+<!-- F5 com sessão salva: barra fina de carregamento no topo (startSplashRapido, app.js) -->
+<div id="boot-bar" class="hidden fixed top-0 inset-x-0 z-[101] h-[3px] pointer-events-none transition-opacity duration-200" aria-hidden="true">
+  <div id="boot-bar-fill" class="h-full bg-gradient-to-r from-orange-600 to-yellow-400 shadow-[0_0_10px_rgba(234,88,12,0.6)] transition-[width] duration-200 ease-out" style="width: 0%"></div>
+</div>
 
 <!-- TELA DE LOGIN -->
 <div id="login-screen" class="fixed inset-0 z-[200] bg-[#050505] flex flex-col items-center justify-center lg:flex-row lg:items-stretch lg:justify-start overflow-hidden transition-opacity duration-500">
@@ -1273,13 +1279,13 @@
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20260924-venda-anim2');
   local('api.js',              '20260723-nome-vendedor');
-  local('auth.js',             '20260922-f5-rapido');
+  local('auth.js',             '20260925-f5-lugar');
   local('comunicados.js',      '20260615-om-central-propostas');
   local('dashboard.js',        '20260925-layout-c');
   local('cidades.js',          '20260703-crm1');
   local('clientes.js',         '20260925-fontes');
   local('documentos.js',       '20260922-mascara-doc');
-  local('crm.js',              '20260925-ficha');
+  local('crm.js',              '20260925-f5-lugar');
   local('crm-arquivos.js',     '20260925-arquivos');
   local('crm-fila.js',         '20260917-modal-altura');
   local('crm-metas.js',        '20260716-crm-loop');
@@ -1298,7 +1304,7 @@
   local('vistoria.js',         '20260925-layout-c');
   local('vistoria-os.js',      '20260626-vistoria-os');
   local('engenharia.js',       '20260925-layout-c');
-  local('app.js',              '20260925-layout-c');
+  local('app.js',              '20260925-f5-lugar');
   local('update-notice.js',    '20260615-om-central-propostas');
 })();
 </script>

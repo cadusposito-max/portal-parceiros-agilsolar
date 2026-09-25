@@ -244,13 +244,14 @@ async function checkAuth() {
         if (adminBtn) adminBtn.classList.remove('hidden');
       }
       document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('splash-screen').classList.remove('hidden');
+      // Sessão já existia (F5/reabrir): sem tela de carregamento, só a barra
+      // fina do topo enquanto os dados chegam. A tela com logo (initSplash)
+      // fica para o login. startSplashRapido antes do endBootResume: a barra
+      // já está visível pelo CSS do boot e não pisca na troca.
+      splashRapido = startSplashRapido();
       endBootResume();
 
       startInactivityWatcher();
-      // Sessão já existia (F5/reabrir): "carregando" curto, que só dura o tempo
-      // dos dados. A animação completa (initSplash) fica para o login.
-      splashRapido = startSplashRapido();
       await Promise.all([
         fetchFranquia(),
         fetchFranquiasCatalog(),
@@ -273,12 +274,17 @@ async function checkAuth() {
       // F5 mantém onde o usuário estava: se o hash tem uma rota válida
       // (#app/<env>/<tab>), restaura direto e pula o launcher.
       const savedRoute = (typeof appRouteParse === 'function') ? appRouteParse(window.location.hash) : null;
+      // Filtros/escolhas de cada tela voltam ao state antes do render da rota.
+      if (typeof appUiRestoreState === 'function') appUiRestoreState();
       if (savedRoute && typeof appRouteApply === 'function') {
         appRouteApply(savedRoute);
+        // Ficha do cliente / painel admin que estavam abertos.
+        if (typeof appUiRestoreOverlays === 'function') appUiRestoreOverlays();
       } else if (typeof launcherShouldShow === 'function' && launcherShouldShow()) {
         showLauncher();             // espera a escolha; renderContent() roda no enterEnvironment()
       } else {
         renderContent();            // caminho atual: 1 ambiente / técnico
+        if (typeof appUiRestoreOverlays === 'function') appUiRestoreOverlays();
       }
       // Só revela depois de a aba certa estar renderizada (não pisca a aba padrão).
       splashRapido.concluir();
@@ -817,6 +823,13 @@ async function handleLogout() {
   } finally {
     if (typeof resetUser === 'function') resetUser();
   }
+  // Depois de sair, o F5 não "volta onde estava" (app.js: APP_UI_KEY/APP_SCROLL_KEY).
+  // Sem usuário, o pagehide do reload abaixo também não regrava.
+  try {
+    sessionStorage.removeItem('app_ui_v1');
+    sessionStorage.removeItem('app_scroll_v1');
+  } catch (_) { /* sem storage: nada salvo */ }
+  state.currentUser = null;
   window.location.reload();
 }
 

@@ -364,7 +364,10 @@ function closeCrm360() {
   _crm360ClientId = null;
   pbParkEmbeddedPanel();
   const overlay = document.getElementById('crm360-overlay');
-  if (overlay) overlay.classList.remove('is-open');
+  if (overlay) {
+    overlay.classList.remove('is-open');
+    overlay.dataset.clientId = ''; // reabrir começa do topo
+  }
   document.body.style.overflow = '';
   document.removeEventListener('keydown', _crm360OnKeydown);
 }
@@ -429,6 +432,12 @@ function renderCrm360() {
   }
   if (omFlag) tabs.push({ id: 'om', label: 'O&M', icon: 'wrench' });
 
+  // O innerHTML recria o container rolável: sem isto, cada re-render (timeline
+  // e O&M chegam async) jogava a ficha de volta pro topo. Só mantém a rolagem
+  // se for o mesmo cliente (closeCrm360 limpa o data-client-id).
+  const prevScroll = document.getElementById('crm360-scroll');
+  const keepY = prevScroll && overlay.dataset.clientId === String(client.id) ? prevScroll.scrollTop : 0;
+
   overlay.innerHTML = `
     <!-- Barra Voltar (ocupa o lugar da topbar) -->
     <div class="shrink-0 bg-black/95 backdrop-blur-xl border-b border-neutral-800/60">
@@ -439,7 +448,7 @@ function renderCrm360() {
       </div>
     </div>
     <!-- Conteúdo rolável -->
-    <div class="flex-1 overflow-y-auto">
+    <div id="crm360-scroll" class="flex-1 overflow-y-auto">
       <div class="max-w-[2560px] mx-auto px-4 2xl:px-10 py-6">
 
         <!-- HEADER do cliente -->
@@ -543,6 +552,9 @@ function renderCrm360() {
   if (_crm360Tab === 'propostas' && state.isAdmin && typeof preencherSelosPrecificacao === 'function') preencherSelosPrecificacao();
 
   lucide.createIcons();
+  overlay.dataset.clientId = String(client.id);
+  const newScroll = document.getElementById('crm360-scroll');
+  if (newScroll && keepY) newScroll.scrollTop = keepY;
 }
 
 // Dados pessoais usados no contrato/procuração — só aparecem para a Matriz.

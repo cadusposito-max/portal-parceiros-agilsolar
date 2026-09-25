@@ -277,18 +277,19 @@ function initSplash() {
   });
 }
 
-// F5 com sessão já salva: sem a animação longa do login. A barra só anda
-// enquanto os dados carregam de verdade e a plataforma aparece (já na aba
-// restaurada) assim que concluir() é chamado — com fade curto.
+// F5 com sessão já salva: sem tela de carregamento — só a barra fina do topo
+// (#boot-bar), que anda enquanto os dados carregam de verdade. A plataforma
+// aparece (já na aba restaurada) assim que concluir() é chamado — com fade
+// curto. A tela cheia com logo (initSplash) fica só para o login.
 function startSplashRapido() {
-  const percentageEl = document.getElementById('loading-percentage');
-  const barEl        = document.getElementById('loading-bar');
+  const bootBar = document.getElementById('boot-bar');
+  const barEl   = document.getElementById('boot-bar-fill');
   const setProgress = (p) => {
-    if (percentageEl) percentageEl.innerText = `${p}%`;
     if (barEl) barEl.style.width = `${p}%`;
   };
   let progress = 0;
   setProgress(0);
+  if (bootBar) bootBar.classList.remove('hidden', 'opacity-0');
   const interval = setInterval(() => {
     // Aproxima de 90% cada vez mais devagar; os 100% ficam para quando terminar.
     progress = Math.min(90, progress + Math.max(1, Math.round((90 - progress) / 6)));
@@ -302,18 +303,16 @@ function startSplashRapido() {
       concluido = true;
       clearInterval(interval);
       setProgress(100);
-      const splash = document.getElementById('splash-screen');
-      const app    = document.getElementById('app-content');
-      splash.style.transitionDuration = '200ms';
-      app.style.transitionDuration    = '200ms';
-      splash.classList.add('opacity-0', 'pointer-events-none');
+      const app = document.getElementById('app-content');
+      app.style.transitionDuration = '200ms';
       app.classList.remove('opacity-0', 'scale-95', 'hidden');
       app.classList.add('opacity-100', 'scale-100');
+      if (bootBar) bootBar.classList.add('opacity-0');
       setTimeout(() => {
-        splash.classList.add('hidden');
-        // Devolve as transições originais para o próximo login/logout.
-        splash.style.transitionDuration = '';
-        app.style.transitionDuration    = '';
+        if (bootBar) bootBar.classList.add('hidden');
+        setProgress(0);
+        // Devolve a transição original para o próximo login/logout.
+        app.style.transitionDuration = '';
       }, 250);
     },
   };
@@ -330,6 +329,7 @@ window.addEventListener('pagehide', () => {
   if (!state.currentUser) return;
   try {
     sessionStorage.setItem(APP_SCROLL_KEY, JSON.stringify({ hash: window.location.hash, y: Math.round(window.scrollY) }));
+    sessionStorage.setItem(APP_UI_KEY, JSON.stringify(appUiSnapshot()));
   } catch (_) { /* sem storage: só não restaura a rolagem */ }
 });
 
@@ -348,6 +348,94 @@ function appRestoreScroll() {
       window.scrollTo(0, Math.min(saved.y, Math.max(0, max)));
       return;
     }
+    setTimeout(tentar, 100);
+  };
+  tentar();
+}
+
+// F5 volta EXATAMENTE onde estava: além da rota (hash) e da rolagem acima,
+// guarda os filtros/escolhas de cada tela e o que estiver aberto por cima
+// (ficha do cliente com a sub-aba, painel admin), com a rolagem de cada um.
+// sessionStorage: sobrevive ao F5, é por aba do navegador, some ao fechá-la
+// e não viaja nas requisições (cookie viajaria). Modais de formulário não
+// entram — reabrir um formulário pela metade confunde mais do que ajuda.
+const APP_UI_KEY = 'app_ui_v1';
+const APP_UI_STATE_KEYS = [
+  // Comercial
+  'dashPeriod', 'dashVendedor', 'dashComunicadosPage', 'gestorViewAll',
+  'searchTerm', 'clienteFilter', 'viewMode', 'vendasPeriod',
+  'propostasSearch', 'propostasVendedor', 'propostasMes', 'propostasStatus',
+  // Financeiro
+  'finSub', 'finPagSub',
+  // O&M
+  'omPropFilters', 'omClientesFilters', 'omOsFilters', 'omPendFilters', 'omRelFilters',
+  // Painel admin
+  'adminSection', 'adminUsersSearch', 'adminUsersStatus', 'adminComunicadosSearch', 'adminComunicadosStatus',
+];
+let _appUiPendente = null;
+
+function appUiSnapshot() {
+  const keys = {};
+  APP_UI_STATE_KEYS.forEach((k) => { if (state[k] !== undefined) keys[k] = state[k]; });
+  const snap = { user: state.currentUser ? state.currentUser.id : null, keys };
+  if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId) {
+    const sc = document.getElementById('crm360-scroll');
+    snap.crm360 = { id: _crm360ClientId, tab: _crm360Tab, y: sc ? Math.round(sc.scrollTop) : 0 };
+  }
+  if (state.adminOpen) {
+    const ov = document.getElementById('admin-overlay');
+    snap.admin = { y: ov ? Math.round(ov.scrollTop) : 0 };
+  }
+  return snap;
+}
+
+// Boot do F5, com os dados já carregados e ANTES de renderizar a rota:
+// devolve os filtros ao state. Só vale para o mesmo usuário.
+function appUiRestoreState() {
+  _appUiPendente = null;
+  let snap = null;
+  try {
+    snap = JSON.parse(sessionStorage.getItem(APP_UI_KEY) || 'null');
+    sessionStorage.removeItem(APP_UI_KEY);
+  } catch (_) { return; }
+  if (!snap || !snap.user || !state.currentUser || snap.user !== state.currentUser.id) return;
+  Object.entries(snap.keys || {}).forEach(([k, v]) => {
+    if (APP_UI_STATE_KEYS.includes(k)) state[k] = v;
+  });
+  _appUiPendente = snap;
+}
+
+// Depois da rota renderizada: reabre ficha do cliente / painel admin e
+// devolve a rolagem de dentro deles.
+function appUiRestoreOverlays() {
+  const snap = _appUiPendente;
+  _appUiPendente = null;
+  if (!snap) return;
+  if (snap.admin && typeof userCanAccessAdminPanel === 'function' && userCanAccessAdminPanel()) {
+    openAdmin();
+    appRestoreElScroll(() => document.getElementById('admin-overlay'), snap.admin.y);
+  }
+  const ficha = snap.crm360;
+  if (ficha && ficha.id && typeof openCrm360 === 'function'
+      && (state.clientes || []).some((c) => c.id === ficha.id)) {
+    openCrm360(ficha.id, ficha.tab);
+    // A timeline chega async e re-renderiza a ficha (que preserva a rolagem):
+    // espera ela crescer antes de rolar.
+    appRestoreElScroll(() => document.getElementById('crm360-scroll'), ficha.y);
+  }
+}
+
+function appRestoreElScroll(getEl, y) {
+  if (!(y > 0)) return;
+  const inicio = Date.now();
+  const tentar = () => {
+    const el = getEl();
+    const max = el ? el.scrollHeight - el.clientHeight : 0;
+    if (el && (max >= y || Date.now() - inicio > 4000)) {
+      el.scrollTop = Math.min(y, Math.max(0, max));
+      return;
+    }
+    if (Date.now() - inicio > 4000) return;
     setTimeout(tentar, 100);
   };
   tentar();
