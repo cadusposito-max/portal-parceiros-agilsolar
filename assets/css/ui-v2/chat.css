@@ -1,0 +1,48 @@
+/* ==========================================
+   VISUAL NOVO (v2) — CHAT INTERNO em janela no canto (estilo WhatsApp Web)
+   Só aparência: a lógica é a mesma de chat.js. Cores vêm de --chat-* (tokens.css).
+   ========================================== */
+html[data-ui="v2"] body #chat-shell.chat-shell--desktop {
+  inset: auto 20px 20px auto;
+  width: min(920px, calc(100vw - 40px));
+  height: min(680px, calc(100vh - 40px));
+}
+html[data-ui="v2"] body #chat-shell-backdrop { background: transparent !important; backdrop-filter: none !important; }
+html[data-ui="v2"] body .chat-shell-window { border: 0 !important; border-radius: 26px !important; background: var(--v2-card) !important; box-shadow: var(--v2-shadow-pop) !important; }
+html[data-ui="v2"] body .chat-shell--mobile .chat-shell-window { border-radius: 0 !important; }
+html[data-ui="v2"] body .chat-shell-header { background: var(--v2-card) !important; border-bottom: 1px solid var(--v2-line) !important; padding: 12px 14px 12px 18px !important; }
+html[data-ui="v2"] body .chat-shell-overline { display: none !important; }
+html[data-ui="v2"] body .chat-shell-title { font-size: 15px !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body .chat-shell-subtitle { font-size: 12.5px !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body .chat-icon-btn { border: 0 !important; border-radius: 12px !important; background: transparent !important; color: var(--v2-ink-2) !important; width: 36px; height: 36px; }
+html[data-ui="v2"] body .chat-icon-btn:hover { background: var(--v2-bg) !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body .chat-list-panel { background: var(--v2-card) !important; border-right: 1px solid var(--v2-line) !important; }
+html[data-ui="v2"] body .chat-search-wrap { padding: 12px 14px 8px !important; border: 0 !important; }
+html[data-ui="v2"] body #chat-shell .chat-search-wrap input { height: 40px; border: 0 !important; border-radius: 14px !important; background: var(--v2-bg) !important; color: var(--v2-ink) !important; font-size: 14px !important; text-transform: none !important; letter-spacing: 0 !important; padding: 0 14px !important; }
+html[data-ui="v2"] body .chat-conv-item { border: 0 !important; border-radius: 16px !important; margin: 2px 8px !important; padding: 10px !important; width: calc(100% - 16px) !important; }
+html[data-ui="v2"] body .chat-conv-item:hover { background: var(--v2-hover) !important; }
+html[data-ui="v2"] body .chat-conv-item.is-active { background: var(--v2-blue-50) !important; }
+html[data-ui="v2"] body :is(.chat-conv-title, .chat-directory-name) { font-size: 14px !important; font-weight: 700 !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body .chat-conv-preview { font-size: 13px !important; color: var(--v2-gray) !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] body .chat-conv-time { font-size: 11.5px !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body .chat-conv-unread { background: var(--v2-blue) !important; color: #fff !important; border: 0 !important; border-radius: 999px !important; font-weight: 800 !important; }
+html[data-ui="v2"] body :is(.chat-conv-avatar, .chat-profile-avatar-core, .chat-thread-avatar-core) { border-radius: 50% !important; background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; border: 0 !important; font-weight: 800 !important; }
+html[data-ui="v2"] body .chat-thread-panel,
+html[data-ui="v2"] body .chat-thread-body {
+  background-color: var(--v2-bg) !important;
+  background-image: radial-gradient(color-mix(in srgb, var(--v2-ink) 8%, transparent) 1px, transparent 1.3px) !important;
+  background-size: 20px 20px !important;
+}
+html[data-ui="v2"] body .chat-msg-day-separator span { background: var(--v2-card) !important; color: var(--v2-gray) !important; border: 0 !important; border-radius: 999px !important; font-size: 11.5px !important; font-weight: 700 !important; text-transform: none !important; letter-spacing: 0 !important; box-shadow: var(--v2-shadow); padding: 5px 12px !important; }
+html[data-ui="v2"] body .chat-msg-bubble { border: 0 !important; border-radius: 18px !important; font-size: 14px !important; line-height: 1.45; box-shadow: 0 1px 1px rgba(0,0,0,.06) !important; }
+html[data-ui="v2"] body .chat-msg-row.is-other .chat-msg-bubble { background: var(--v2-card) !important; color: var(--v2-ink) !important; border-top-left-radius: 6px !important; }
+html[data-ui="v2"] body .chat-msg-row.is-me .chat-msg-bubble { border-top-right-radius: 6px !important; border-bottom-right-radius: 18px !important; }
+html[data-ui="v2"] body .chat-msg-sender { color: var(--v2-blue-text) !important; font-size: 12.5px !important; }
+html[data-ui="v2"] body .chat-thread-form { background: var(--v2-card) !important; border-top: 1px solid var(--v2-line) !important; padding: 10px 12px !important; }
+html[data-ui="v2"] body #chat-shell .chat-thread-form textarea { border: 0 !important; border-radius: 22px !important; background: var(--v2-bg) !important; color: var(--v2-ink) !important; padding: 11px 16px !important; font-size: 14px !important; text-transform: none !important; letter-spacing: 0 !important; box-shadow: none !important; }
+html[data-ui="v2"] body .chat-thread-form button { border: 0 !important; border-radius: 50% !important; width: 44px !important; height: 44px !important; background: var(--v2-blue) !important; color: #fff !important; flex-shrink: 0; }
+html[data-ui="v2"] body .chat-thread-empty { color: var(--v2-gray) !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] body .chat-directory-card { border: 0 !important; border-radius: 22px !important; background: var(--v2-card) !important; box-shadow: var(--v2-shadow-pop) !important; }
+html[data-ui="v2"] body .chat-directory-item { border: 0 !important; border-radius: 14px !important; }
+html[data-ui="v2"] body .chat-directory-item:hover { background: var(--v2-bg) !important; }
+html[data-ui="v2"] body .chat-thread-profile-card { border: 0 !important; border-radius: 18px !important; background: var(--v2-card) !important; box-shadow: var(--v2-shadow-pop) !important; }
