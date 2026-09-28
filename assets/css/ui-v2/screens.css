@@ -38,13 +38,13 @@ html[data-ui="v2"] .v2s .v2-pill {
 }
 html[data-ui="v2"] .v2s .v2-pill.on { background: var(--v2-blue-50); color: var(--v2-blue-text); }
 html[data-ui="v2"] .v2s .v2-pill svg { width: 16px; height: 16px; }
-html[data-ui="v2"] .v2s select.v2-select {
+html[data-ui="v2"] body #main-container select.v2-select {
   height: 40px !important; border: 0 !important; border-radius: 999px !important; padding: 0 34px 0 14px !important; font-size: 13px !important; font-weight: 700 !important;
   background-color: var(--v2-card) !important; box-shadow: var(--v2-shadow) !important; color: var(--v2-ink-2) !important; appearance: none; cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23808284' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important; background-position: right 12px center !important; text-transform: none !important; letter-spacing: 0 !important;
 }
-html[data-ui="v2"] .v2s select.v2-select.on { color: var(--v2-blue-text) !important; box-shadow: 0 0 0 2px var(--v2-blue), var(--v2-shadow) !important; }
+html[data-ui="v2"] body #main-container select.v2-select.on { color: var(--v2-blue-text) !important; box-shadow: 0 0 0 2px var(--v2-blue), var(--v2-shadow) !important; }
 html[data-ui="v2"] .v2s .v2-grow { flex: 1; }
 html[data-ui="v2"] .v2s .v2-ctx { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
 html[data-ui="v2"] .v2s .v2-ctx b { color: var(--v2-ink); font-weight: 700; }
@@ -55,7 +55,7 @@ html[data-ui="v2"] .v2s .v2-picker {
 }
 html[data-ui="v2"] .v2s .v2-picker.hidden { display: none; }
 html[data-ui="v2"] .v2s .v2-picker label { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); display: flex; flex-direction: column; gap: 6px; }
-html[data-ui="v2"] .v2s .v2-picker input { height: 42px; padding: 0 12px; font-size: 14px; }
+html[data-ui="v2"] body #main-container .v2-picker input { height: 42px; padding: 0 12px; font-size: 14px; }
 
 /* KPIs */
 html[data-ui="v2"] .v2s .v2-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
@@ -188,4 +188,73 @@ html[data-ui="v2"] .v2s .v2-legacy > * { border-radius: 24px !important; }
   html[data-ui="v2"] .v2s table.v2-table td { padding: 10px 8px; }
   html[data-ui="v2"] .v2s .v2-filters { gap: 8px; }
   html[data-ui="v2"] .v2s .v2-filters .v2-seg { overflow-x: auto; max-width: 100%; }
+}
+
+/* ==========================================
+   CLIENTES e FUNIL
+   ========================================== */
+html[data-ui="v2"] body[data-v2screen] #main-toolbar,
+html[data-ui="v2"] body[data-v2screen] #empty-state { display: none !important; }
+html[data-ui="v2"] .v2s .v2-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+html[data-ui="v2"] .v2s .v2-sbox { display: flex; align-items: center; gap: 8px; background: var(--v2-card); border-radius: 14px; padding: 0 14px; height: 44px; min-width: 260px; color: var(--v2-gray); box-shadow: var(--v2-shadow); }
+html[data-ui="v2"] .v2s .v2-sbox svg { width: 17px; height: 17px; }
+html[data-ui="v2"] body #main-container .v2-sbox input { border: 0 !important; outline: 0; background: none !important; box-shadow: none !important; flex: 1; font-size: 14px; color: var(--v2-ink) !important; min-width: 0; padding: 0 !important; text-transform: none !important; letter-spacing: 0 !important; font-weight: 500; }
+html[data-ui="v2"] .v2s .v2-pills { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+html[data-ui="v2"] .v2s .v2-pills::-webkit-scrollbar { display: none; }
+html[data-ui="v2"] .v2s .v2-pills button { border: 0; background: var(--v2-card); box-shadow: var(--v2-shadow); height: 38px; border-radius: 999px; padding: 0 14px; font-size: 13px; font-weight: 700; color: var(--v2-ink-2); display: flex; align-items: center; gap: 8px; white-space: nowrap; cursor: pointer; }
+html[data-ui="v2"] .v2s .v2-pills button em { font-style: normal; font-size: 11px; font-weight: 800; background: var(--v2-bg); border-radius: 999px; padding: 2px 7px; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .v2-pills button.on { background: var(--v2-ink); color: var(--v2-bg); }
+html[data-ui="v2"] .v2s .v2-pills button.on em { background: color-mix(in srgb, var(--v2-bg) 20%, transparent); color: var(--v2-bg); }
+html[data-ui="v2"] .v2s .v2-pills button.warn { background: var(--v2-orange-50); color: var(--v2-orange-text); box-shadow: none; }
+html[data-ui="v2"] .v2s .v2-stbtn { border: 0; cursor: pointer; font-family: inherit; }
+html[data-ui="v2"] .v2s .v2-stbtn:hover { filter: brightness(.95); }
+html[data-ui="v2"] .v2s .v2-sq { width: 36px; height: 36px; border-radius: 12px; border: 0; background: var(--v2-bg); display: inline-grid; place-items: center; color: var(--v2-ink-2); cursor: pointer; text-decoration: none; }
+html[data-ui="v2"] .v2s .v2-sq:hover { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+html[data-ui="v2"] .v2s .v2-sq.wa:hover { background: rgba(31,169,113,.14); color: #12764E; }
+html[data-ui="v2"] .v2s .v2-sq svg { width: 16px !important; height: 16px !important; }
+html[data-ui="v2"] .v2s .v2-acts { display: flex; gap: 6px; justify-content: flex-end; }
+html[data-ui="v2"] .v2s .v2-more { display: flex; justify-content: center; }
+html[data-ui="v2"] .v2s .v2-alarm { color: #D14343; display: inline-flex; }
+html[data-ui="v2"] .v2s .v2-alarm svg { width: 14px !important; height: 14px !important; }
+
+/* quadro (funil) */
+html[data-ui="v2"] .v2s .v2-kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(272px, 1fr); gap: 14px; overflow-x: auto; padding-bottom: 8px; align-items: start; }
+html[data-ui="v2"] .v2s .v2-col { background: color-mix(in srgb, var(--v2-ink) 5%, var(--v2-bg)); border-radius: 24px; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 240px; transition: background .15s, box-shadow .15s; }
+html[data-ui="v2"] .v2s .v2-col.ring-1 { background: var(--v2-blue-50); box-shadow: inset 0 0 0 2px var(--v2-blue); }
+html[data-ui="v2"] .v2s .v2-colh { display: flex; align-items: center; gap: 8px; padding: 6px 8px 2px; }
+html[data-ui="v2"] .v2s .v2-colh i.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+html[data-ui="v2"] .v2s .v2-colh b { font-size: 14px; font-weight: 800; white-space: nowrap; }
+html[data-ui="v2"] .v2s .v2-colh em { font-style: normal; font-size: 12px; font-weight: 800; background: var(--v2-card); border-radius: 999px; padding: 1px 8px; color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .v2-colh small { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--v2-gray); white-space: nowrap; }
+html[data-ui="v2"] .v2s .v2-kcard { background: var(--v2-card); border-radius: 18px; padding: 14px; box-shadow: 0 1px 2px rgba(15,27,38,.06); cursor: grab; transition: transform .12s, box-shadow .12s; display: flex; flex-direction: column; gap: 10px; }
+html[data-ui="v2"] .v2s .v2-kcard:hover { box-shadow: 0 8px 20px rgba(15,27,38,.1); transform: translateY(-1px); }
+html[data-ui="v2"] .v2s .v2-kcard:active { cursor: grabbing; }
+html[data-ui="v2"] .v2s .v2-kcard .t { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+html[data-ui="v2"] .v2s .v2-kcard .t b { font-size: 14px; font-weight: 800; line-height: 1.3; display: flex; gap: 6px; align-items: center; }
+html[data-ui="v2"] .v2s .v2-kcard .t small { display: block; font-size: 12px; color: var(--v2-gray); font-weight: 500; margin-top: 2px; }
+html[data-ui="v2"] .v2s .v2-kcard .meta { display: flex; gap: 6px; flex-wrap: wrap; }
+html[data-ui="v2"] .v2s .v2-kcard .meta span { font-size: 11.5px; font-weight: 700; background: var(--v2-bg); border-radius: 8px; padding: 3px 8px; color: var(--v2-ink-2); display: inline-flex; gap: 4px; align-items: center; }
+html[data-ui="v2"] .v2s .v2-kcard .meta svg { width: 12px !important; height: 12px !important; }
+html[data-ui="v2"] .v2s .v2-kcard .f { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px dashed var(--v2-line-strong); padding-top: 10px; }
+html[data-ui="v2"] .v2s .v2-kcard .f b { font-size: 15px; font-weight: 800; }
+html[data-ui="v2"] .v2s .v2-kcard .f .none { font-size: 12.5px; font-weight: 700; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .v2-drop { border: 1.5px dashed var(--v2-line-strong); border-radius: 16px; padding: 26px 10px; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .v2-colmore { border: 0; background: var(--v2-card); border-radius: 14px; height: 38px; font-size: 13px; font-weight: 700; color: var(--v2-blue-text); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+/* menu de status (crm.js cria #crm-status-menu no body) */
+html[data-ui="v2"] body #crm-status-menu { background: var(--v2-card) !important; border: 0 !important; border-radius: 18px !important; box-shadow: var(--v2-shadow-pop) !important; padding: 6px; overflow: hidden; min-width: 210px !important; }
+html[data-ui="v2"] body #crm-status-menu button { border: 0 !important; border-radius: 12px; font-size: 13px !important; letter-spacing: 0 !important; text-transform: none !important; font-weight: 700 !important; color: var(--v2-ink-2) !important; background: none !important; }
+html[data-ui="v2"] body #crm-status-menu button:hover { background: var(--v2-bg) !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #crm-status-menu button[class*="/10"] { background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #crm-status-menu button span::first-letter { text-transform: uppercase; }
+html[data-ui="v2"] body #crm-status-menu button span { text-transform: lowercase; display: inline-block; }
+
+html[data-ui="v2"] .v2s .show-m, html[data-ui="v2"] .v2s .v2-filtbtn { display: none; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2s .show-m { display: block; }
+  html[data-ui="v2"] .v2s .v2-filtbtn { display: inline-flex; align-self: flex-start; }
+  html[data-ui="v2"] .v2s .v2-admfilters:not(.open) { display: none; }
+  html[data-ui="v2"] .v2s .v2-sbox { flex: 1 1 100%; min-width: 0; }
+  html[data-ui="v2"] .v2s .v2-toolbar .v2-grow { display: none; }
+  html[data-ui="v2"] .v2s .v2-kanban { grid-auto-columns: minmax(260px, 86vw); }
 }

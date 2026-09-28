@@ -249,8 +249,174 @@
     });
   }
 
+  // ==================== CLIENTES e FUNIL (Comercial) ====================
+  const ST_CLI = { NOVO: ['Novo', 't-gray', '#808284'], 'PROPOSTA ENVIADA': ['Proposta enviada', 't-blue', '#008FD4'], 'EM NEGOCIAÇÃO': ['Em negociação', 't-orange', '#FAA519'], FECHADO: ['Fechado', 't-green', '#1FA971'], PERDIDO: ['Perdido', 't-red', '#D14343'] };
+  const stCli = (s) => ST_CLI[normalizeClientStatus(s)] || ST_CLI.NOVO;
+  const vendNome = (email) => (has('dashVendedorNome') ? dashVendedorNome(email) : String(email || '').split('@')[0]);
+
+  // mesma fonte e mesmos filtros de clientes.js (admin x regular)
+  function clientesRows() {
+    if (has('buildCrmAggregates')) buildCrmAggregates();
+    const source = state.isAdmin ? applyAdminGlobalScope(state.clientes || []) : (Array.isArray(state.clientes) ? state.clientes : []);
+    const filtered = state.isAdmin ? applyAdminClientesFilters(source) : applyRegularClientesFilters(source);
+    state.lastFilteredClientes = filtered;
+    return { source, filtered, showSeller: (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll), showFranquia: state.isAdmin && state.adminViewAll };
+  }
+  const searchValue = () => (state.isAdmin ? (state.adminClientesFilters?.search || '') : (state.searchTerm || ''));
+  const statusFilter = () => (state.isAdmin ? (state.adminClientesFilters?.status || 'TODOS') : (state.clienteFilter || 'TODOS'));
+  const setStatusJs = (s) => (state.isAdmin ? `setAdminClientesFilter('status','${s}')` : `setClienteFilter('${s}')`);
+  function statusPills(source, current) {
+    const counts = { TODOS: source.length };
+    source.forEach((c) => { const s = normalizeClientStatus(c.status); counts[s] = (counts[s] || 0) + 1; });
+    return `<div class="v2-pills">${CLIENT_STATUS_OPTIONS.map((s) => `<button class="${current === s ? 'on' : ''}" onclick="${setStatusJs(s)}">${s === 'TODOS' ? 'Todos' : ST_CLI[s][0]}<em>${counts[s] || 0}</em></button>`).join('')}</div>`;
+  }
+  function searchBox(placeholder) {
+    return `<label class="v2-sbox">${ic('search')}<input id="v2-cli-search" type="text" value="${esc(searchValue())}" oninput="handleFunilSearchInput(this.value)" placeholder="${placeholder}" autocomplete="off"></label>`;
+  }
+  function adminFiltersRow(source) {
+    if (!state.isAdmin) return '';
+    ensureAdminClientesFiltersState();
+    const f = state.adminClientesFilters;
+    const o = getAdminClienteFilterOptions(source);
+    const sel = (key, allLabel, opts, cur) => `<select class="v2-select ${cur && cur !== 'all' ? 'on' : ''}" onchange="setAdminClientesFilter('${key}', this.value)"><option value="all">${allLabel}</option>${opts}</select>`;
+    const ativos = [f.vendedor_email, state.adminViewAll ? f.franquia_id : 'all', f.mes, f.cidade].filter((v) => v && v !== 'all').length + (f.preset && f.preset !== 'all' ? 1 : 0);
+    return `<button class="v2-pill v2-filtbtn ${ativos ? 'on' : ''}" onclick="uiV2Screens.toggleFiltros()">${ic('sliders-horizontal')}Filtros${ativos ? ' · ' + ativos : ''}</button>
+    <div class="v2-filters v2-admfilters ${uiV2Screens.filtrosAbertos ? 'open' : ''}">
+      ${sel('vendedor_email', 'Todos os vendedores', o.vendedores.map((v) => `<option value="${esc(v.email)}" ${f.vendedor_email === v.email ? 'selected' : ''}>${esc(v.nome)}</option>`).join(''), f.vendedor_email)}
+      ${state.adminViewAll ? sel('franquia_id', 'Todas as franquias', o.franquias.map((x) => `<option value="${esc(x.id)}" ${String(f.franquia_id) === String(x.id) ? 'selected' : ''}>${esc(x.nome)}</option>`).join(''), f.franquia_id) : ''}
+      ${sel('mes', 'Qualquer mês', o.meses.map((m) => `<option value="${m}" ${f.mes === m ? 'selected' : ''}>${cap(formatMonthLabel(m))}</option>`).join(''), f.mes)}
+      ${sel('cidade', 'Todas as cidades', o.cidades.map((c) => `<option value="${esc(c)}" ${f.cidade === c ? 'selected' : ''}>${esc(c)}</option>`).join(''), f.cidade)}
+      <div class="v2-seg">${ADMIN_CLIENT_PRESETS.map((p) => `<button class="${String(f.preset || 'all') === p.v ? 'on' : ''}" onclick="setAdminClientesPreset('${p.v}')">${esc(p.l)}</button>`).join('')}</div>
+      <button class="v2-pill" onclick="resetAdminClientesFilters()">${ic('filter-x')}Limpar</button>
+    </div>`;
+  }
+  function scopeLabel(source) {
+    if (!state.isAdmin) return state.franquiaNome || 'Minha carteira';
+    if (!state.adminViewAll) return state.franquiaNome || 'Minha unidade';
+    return String(state.adminScopeFranquiaId || 'all') === 'all' ? 'Todas as franquias' : getFranquiaNameById(state.adminScopeFranquiaId);
+  }
+  const waLink = (c) => (has('buildClientWhatsappLink') ? buildClientWhatsappLink(c) : '');
+  const followLate = (c) => c && c.proxima_acao_em && new Date(c.proxima_acao_em) < new Date();
+
+  function renderClientesListV2(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'clientes';
+    const { source, filtered, showSeller } = clientesRows();
+    const cur = statusFilter();
+    setPageMeta('comercial:clientes', 'Clientes', `${filtered.length} de ${source.length} · ${scopeLabel(source)}`);
+
+    const adminBtns = state.isAdmin ? `
+      <button class="v2-btn2 hide-m" onclick="openCrmDuplicatas()" title="Revisar cadastros com o mesmo telefone">${ic('merge')}Duplicatas</button>
+      <button class="v2-btn2 hide-m" onclick="adminEnriquecerCidades()" title="Preenche coordenadas e HSP dos clientes antigos">${ic('sun')}HSP</button>` : '';
+    const sortSeg = !state.isAdmin ? `<div class="v2-seg flat">${CLIENT_SORT_OPTIONS.map((o) => `<button class="${state.clienteSort === o.v ? 'on' : ''}" onclick="setClienteSort('${o.v}')">${o.v === 'alpha' ? 'A–Z' : 'Mais recentes'}</button>`).join('')}</div>` : '';
+
+    const visiveis = filtered.slice(0, _clientesRenderLimit);
+    const rows = visiveis.map((c) => {
+      const st = stCli(c.status);
+      const nProp = (_crmAgg.propostasByCliente || {})[c.id] || 0;
+      const nVend = (_crmAgg.vendasByCliente || {})[c.id] || 0;
+      const valor = has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0;
+      const wa = waLink(c);
+      return `<tr onclick="openCrm360('${esc(c.id)}')">
+        <td><div class="v2-who"><i class="v2-ini">${esc(initials(c.nome))}</i><div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small><span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${st[1]}">${st[0]}</span></span></div></div></td>
+        <td class="hide-m">${esc(c.cidade || '—')}${Number(c.hsp) > 0 ? `<small class="muted" style="display:block;font-size:12px">HSP ${esc(String(c.hsp).replace('.', ','))}</small>` : ''}</td>
+        <td class="hide-m"><button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Alterar status">${st[0]}</button></td>
+        <td class="hide-m">${nProp ? `${nProp} proposta${nProp > 1 ? 's' : ''}` : '<span class="muted">—</span>'}${nVend ? `<small style="display:block;font-size:12px;color:#1FA971;font-weight:700">${nVend} venda${nVend > 1 ? 's' : ''}</small>` : ''}</td>
+        <td class="hide-m" style="font-weight:800">${valor ? moneyC(valor) : '<span class="muted" style="font-weight:500">—</span>'}</td>
+        ${showSeller ? `<td class="hide-m"><span class="v2-who" style="font-weight:600;font-size:13px"><i class="v2-ini round o" style="width:26px;height:26px;font-size:10px">${esc(initials(vendNome(c.vendedor_email)))}</i>${esc(vendNome(c.vendedor_email))}</span></td>` : ''}
+        <td class="hide-m muted">${esc(formatDate(c.created_at))}</td>
+        <td><div class="v2-acts">
+          ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
+          <button class="v2-sq hide-m" onclick="event.stopPropagation(); openProposalBuilder('${esc(c.id)}')" title="Nova proposta">${ic('file-plus-2')}</button>
+          <button class="v2-sq" onclick="event.stopPropagation(); openCrm360('${esc(c.id)}')" title="Abrir ficha">${ic('chevron-right')}</button>
+        </div></td></tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        ${searchBox(state.isAdmin ? 'Nome, telefone, cidade ou vendedor' : 'Buscar por nome, telefone ou cidade')}
+        ${sortSeg}
+        <div class="v2-grow"></div>
+        ${adminBtns}
+        <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
+        <button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Novo cliente</button>
+      </div>
+      ${statusPills(source, cur)}
+      ${adminFiltersRow(source)}
+      <div class="v2-card" style="padding:14px 16px">
+        ${filtered.length ? `<div class="v2-tscroll"><table class="v2-table">
+          <thead><tr><th>Cliente</th><th class="hide-m">Cidade</th><th class="hide-m">Status</th><th class="hide-m">Propostas</th><th class="hide-m">Em aberto</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Cadastro</th><th></th></tr></thead>
+          <tbody>${rows}</tbody></table></div>`
+        : `<div class="v2-empty">${source.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum cliente na carteira ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Cadastrar cliente</button></div></div>`}
+      </div>
+      ${filtered.length > visiveis.length ? `<div class="v2-more"><button class="v2-btn2" onclick="clientesMostrarMais()">${ic('chevrons-down')}Carregar mais · ${visiveis.length} de ${filtered.length}</button></div>` : ''}`;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function renderFunilV2(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'funil';
+    const { source, filtered, showSeller } = clientesRows();
+    setPageMeta('comercial:funil', 'Funil', `${filtered.length} clientes · arraste os cards entre as etapas`);
+    const filtrosAtivos = has('funilActiveFilterCount') ? funilActiveFilterCount() : 0;
+
+    let vendSelect = '';
+    if (state.isAdmin) {
+      const vendSel = String(state.adminClientesFilters?.vendedor_email || 'all');
+      const opts = getAdminClienteFilterOptions(source).vendedores;
+      if (vendSel !== 'all' && !opts.some((v) => v.email === vendSel)) opts.unshift({ email: vendSel, nome: vendNome(vendSel) });
+      vendSelect = `<select class="v2-select ${vendSel !== 'all' ? 'on' : ''}" onchange="setAdminClientesFilter('vendedor_email', this.value)"><option value="all">Todos os vendedores</option>${opts.map((v) => `<option value="${esc(v.email)}" ${vendSel === v.email ? 'selected' : ''}>${esc(v.nome)}</option>`).join('')}</select>`;
+    }
+
+    const card = (c) => {
+      const nProp = (_crmAgg.propostasByCliente || {})[c.id] || 0;
+      const nVend = (_crmAgg.vendasByCliente || {})[c.id] || 0;
+      const valor = has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0;
+      const st = stCli(c.status);
+      const wa = waLink(c);
+      const meta = [];
+      meta.push(`<span>${ic('file-text')}${nProp} proposta${nProp === 1 ? '' : 's'}</span>`);
+      if (nVend) meta.push(`<span style="color:#1FA971">${ic('trophy')}${nVend}</span>`);
+      if (showSeller && c.vendedor_email) meta.push(`<span>${ic('user')}${esc(vendNome(c.vendedor_email).split(' ')[0])}</span>`);
+      return `<article class="v2-kcard" draggable="true" ondragstart="crmDragStart(event, '${esc(c.id)}')" onclick="openCrm360('${esc(c.id)}')">
+        <div class="t"><div><b>${esc(c.nome || 'Cliente')}${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado">${ic('alarm-clock')}</span>` : ''}</b><small>${esc([c.cidade, c.telefone].filter(Boolean).join(' · ') || '—')}</small></div>
+          ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}</div>
+        <div class="meta">${meta.join('')}</div>
+        <div class="f">${valor ? `<b>${moneyC(valor)}</b>` : '<span class="none">Sem proposta</span>'}
+          <button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Mudar etapa">${st[0]}</button></div>
+      </article>`;
+    };
+
+    const cols = CLIENT_STATUS_ALL.map((s) => {
+      const items = filtered.filter((c) => normalizeClientStatus(c.status) === s);
+      const limite = _funilColLimit[s] || CLIENTES_RENDER_LOTE;
+      const vis = items.slice(0, limite);
+      const soma = items.reduce((acc, c) => acc + (has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0), 0);
+      return `<div class="v2-col" ondragover="crmDragOver(event)" ondragleave="crmDragLeave(event)" ondrop="crmDropStatus(event, '${s}')">
+        <div class="v2-colh"><i class="dot" style="background:${ST_CLI[s][2]}"></i><b>${ST_CLI[s][0]}</b><em>${items.length}</em><small>${soma ? moneyC(soma) : ''}</small></div>
+        ${vis.length ? vis.map(card).join('') : '<div class="v2-drop">Arraste um cliente para cá</div>'}
+        ${items.length > vis.length ? `<button class="v2-colmore" onclick="funilMostrarMaisColuna('${s}')">${ic('chevrons-down')}Ver mais ${items.length - vis.length}</button>` : ''}
+      </div>`;
+    }).join('');
+
+    const higiene = has('renderHigieneBanner') ? renderHigieneBanner() : '';
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        ${searchBox('Buscar no funil por nome, telefone ou cidade')}
+        ${vendSelect}
+        ${filtrosAtivos ? `<div class="v2-pills"><button class="warn" onclick="funilLimparFiltros()">${ic('filter-x')}${filtrosAtivos} filtro${filtrosAtivos > 1 ? 's' : ''} da aba Clientes · limpar</button></div>` : ''}
+        <div class="v2-grow"></div>
+        <button class="v2-btn2" onclick="setTab('clientes')">${ic('list')}Ver em lista</button>
+        <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
+        <button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Novo lead</button>
+      </div>
+      ${higiene ? `<div class="v2-legacy">${higiene}</div>` : ''}
+      <div class="v2-kanban">${cols}</div>`;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   // ==================== troca de render ====================
-  const V2_SCREENS = { renderDashboard: renderDashboardV2 };
+  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2 };
   Object.entries(V2_SCREENS).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];
@@ -266,10 +432,12 @@
   // Telas não reconstruídas não têm título próprio: limpa o do anterior.
   if (has('renderContent')) {
     const _renderContent = renderContent;
-    renderContent = function () { window.uiV2PageMeta = null; return _renderContent.apply(this, arguments); };
+    renderContent = function () { window.uiV2PageMeta = null; delete document.body.dataset.v2screen; return _renderContent.apply(this, arguments); };
   }
 
   window.uiV2Screens = {
+    filtrosAbertos: false,
+    toggleFiltros() { this.filtrosAbertos = !this.filtrosAbertos; document.querySelectorAll('.v2-admfilters').forEach((el) => el.classList.toggle('open', this.filtrosAbertos)); },
     setMeses(n) { renderDashboardV2.meses = n; if (has('renderContent')) renderContent(); },
   };
 })();

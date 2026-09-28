@@ -267,7 +267,7 @@ html[data-ui="v2"] .v2-pal {
 html[data-ui="v2"] .v2-pal.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 html[data-ui="v2"] .v2-pal-in { display: flex; align-items: center; gap: 12px; padding: 0 18px; height: 64px; border-bottom: 1px solid var(--v2-line); flex-shrink: 0; }
 html[data-ui="v2"] .v2-pal-in > svg { color: var(--v2-blue); width: 22px; height: 22px; }
-html[data-ui="v2"][data-theme] body .v2-pal .v2-pal-in input {
+html[data-ui="v2"] body #v2-pal .v2-pal-in input {
   flex: 1; border: 0 !important; outline: 0; font-size: 17px; font-weight: 600; min-width: 0; background: none !important;
   box-shadow: none !important; color: var(--v2-ink) !important; padding: 0 !important; text-transform: none !important; letter-spacing: 0 !important;
 }
