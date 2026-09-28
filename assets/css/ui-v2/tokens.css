@@ -1,0 +1,102 @@
+/* ==========================================
+   VISUAL NOVO (v2 · "Clara") — TOKENS
+   Só vale com html[data-ui="v2"] (beta de admin, ver assets/js/ui-v2.js).
+   Cores oficiais medidas no logo: azul #008FD4 · laranja #FAA519 · cinza #808284.
+   ========================================== */
+
+html[data-ui="v2"] {
+  --v2-blue: #008FD4;
+  --v2-blue-hover: #0080BF;
+  --v2-orange: #FAA519;
+  --v2-orange-ink: #3D2600;   /* texto sobre o laranja (branco fica ilegível) */
+  --v2-gray: #808284;
+  --v2-green: #1FA971;
+  --v2-red: #D14343;
+
+  /* claro (padrão) */
+  --v2-bg: #F3F6F9;
+  --v2-bg2: #EEF2F6;
+  --v2-card: #FFFFFF;
+  --v2-soft: #F8FAFB;
+  --v2-hover: #EAF0F5;
+  --v2-ink: #0F1B26;
+  --v2-ink-2: #4A5561;
+  --v2-line: #E3E8ED;
+  --v2-line-strong: #D3DAE1;
+  --v2-blue-50: #E6F4FB;
+  --v2-blue-text: #006A9E;    /* azul para texto pequeno (contraste AA) */
+  --v2-orange-50: #FEF4E3;
+  --v2-orange-text: #8A5500;
+  --v2-shadow: 0 1px 2px rgba(15,27,38,.04), 0 8px 24px rgba(15,27,38,.05);
+  --v2-shadow-pop: 0 12px 40px rgba(15,27,38,.16), 0 2px 6px rgba(15,27,38,.06);
+  --v2-scrim: rgba(15,27,38,.45);
+  --v2-logo-a: #008FD4;
+
+  --v2-r-card: 20px;
+  --v2-r-panel: 24px;
+  --v2-r-ctl: 12px;
+}
+
+/* escuro · Azul-noite */
+html[data-ui="v2"][data-theme="dark"] {
+  color-scheme: dark;
+  --v2-bg: #0A1118;
+  --v2-bg2: #0D161F;
+  --v2-card: #111B25;
+  --v2-soft: #172330;
+  --v2-hover: rgba(255,255,255,.06);
+  --v2-ink: #E8EEF3;
+  --v2-ink-2: #A7B3BF;
+  --v2-line: rgba(255,255,255,.08);
+  --v2-line-strong: rgba(255,255,255,.13);
+  --v2-blue-50: rgba(0,143,212,.16);
+  --v2-blue-text: #5CC3F2;
+  --v2-orange-50: rgba(250,165,25,.13);
+  --v2-orange-text: #FBBF4F;
+  --v2-shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.045);
+  --v2-shadow-pop: 0 16px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.07);
+  --v2-scrim: rgba(4,8,12,.62);
+  --v2-logo-a: #FFFFFF;
+}
+
+/* Acento de todos os ambientes (O&M, Financeiro, Vistoria) passa a ser o azul da marca. */
+html[data-ui="v2"] {
+  --om: #008FD4; --om-soft: #006A9E; --om-strong: #0080BF; --om-on: #CCE9F6;
+  --om-chip-bg: rgba(0,143,212,.12); --om-pill-bg: rgba(0,143,212,.10);
+  --om-avatar-bg: rgba(0,143,212,.14); --om-avatar-bd: rgba(0,143,212,.22);
+  --om-border-50: rgba(0,143,212,.5); --om-border-40: rgba(0,143,212,.4); --om-border-30: rgba(0,143,212,.3); --om-border-20: rgba(0,143,212,.2);
+  --om-focus: rgba(0,143,212,.55); --om-hatch: rgba(0,143,212,.2); --om-contour: #008FD4; --om-contour-dot: rgba(0,143,212,.45);
+  --om-shadow: rgba(0,143,212,.25); --om-radial: rgba(0,143,212,.05); --om-radial2: rgba(250,165,25,.03);
+  --om-deep-grad: radial-gradient(120% 120% at 15% 0%, rgba(92,195,242,.16), transparent 50%), linear-gradient(135deg, #0B2A40 0%, #0E3752 50%, #0A2233 100%);
+  --om-deep-border: rgba(0,143,212,.35);
+
+  --fin: #008FD4; --fin-soft: #006A9E; --fin-strong: #0080BF; --fin-on: #CCE9F6;
+  --fin-chip-bg: rgba(0,143,212,.12);
+  --fin-border-50: rgba(0,143,212,.5); --fin-border-40: rgba(0,143,212,.4); --fin-border-30: rgba(0,143,212,.3); --fin-border-20: rgba(0,143,212,.2);
+  --fin-focus: rgba(0,143,212,.55); --fin-contour: #008FD4; --fin-contour-dot: rgba(0,143,212,.45);
+  --fin-shadow: rgba(0,143,212,.25); --fin-radial: rgba(0,143,212,.05); --fin-radial2: rgba(250,165,25,.03);
+  --fin-deep-grad: linear-gradient(135deg, #0B2A40 0%, #0E3752 52%, #0A2233 100%);
+  --fin-deep-border: rgba(0,143,212,.35);
+
+  --vis: #008FD4; --vis-soft: #006A9E; --vis-strong: #0080BF; --vis-on: #CCE9F6;
+  --vis-chip-bg: rgba(0,143,212,.12);
+  --vis-border-50: rgba(0,143,212,.5); --vis-border-40: rgba(0,143,212,.4); --vis-border-30: rgba(0,143,212,.3); --vis-border-20: rgba(0,143,212,.2);
+  --vis-focus: rgba(0,143,212,.55); --vis-contour: #008FD4; --vis-contour-dot: rgba(0,143,212,.45);
+  --vis-shadow: rgba(0,143,212,.25); --vis-radial: rgba(0,143,212,.05); --vis-radial2: rgba(250,165,25,.03);
+  --vis-deep-grad: linear-gradient(135deg, #0B2A40 0%, #0E3752 52%, #0A2233 100%);
+  --vis-deep-border: rgba(0,143,212,.35);
+}
+html[data-ui="v2"][data-theme="dark"] { --om-soft: #5CC3F2; --fin-soft: #5CC3F2; --vis-soft: #5CC3F2; }
+
+/* Chat interno (main.css usa --chat-*) */
+html[data-ui="v2"] body {
+  --chat-bg: var(--v2-bg);
+  --chat-panel: var(--v2-card);
+  --chat-muted: var(--v2-gray);
+  --chat-border: var(--v2-line);
+  --chat-accent: var(--v2-blue);
+  --chat-accent-2: var(--v2-orange);
+  --chat-text: var(--v2-ink);
+  --chat-me: var(--v2-blue);
+  --chat-other: var(--v2-card);
+}

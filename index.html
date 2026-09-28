@@ -104,6 +104,20 @@
 
   <link rel="stylesheet" href="assets/css/main.css?v=20260925-fontes">
   <link rel="stylesheet" href="assets/css/theme-light.css?v=20260925-layout-c" id="theme-light-css" disabled>
+  <!-- Visual novo (v2) — BETA só para admins. Desligado por padrão (media="not all"); tudo nele é
+       escopado em html[data-ui="v2"] e quem liga/desliga é assets/js/ui-v2.js. -->
+  <link rel="stylesheet" href="assets/css/ui-v2/tokens.css?v=20260928-f1" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/reskin.css?v=20260928-f1" data-ui-v2 media="not all">
+  <script>
+    /* Se o admin já ligou o visual novo neste navegador, aplica antes de pintar
+       (sem piscar). O ui-v2.js confirma após o login e desliga se não for admin. */
+    try {
+      if (localStorage.getItem('ui_v2') === '1' && new URLSearchParams(location.search).get('ui') !== 'v1') {
+        document.documentElement.setAttribute('data-ui', 'v2');
+        document.querySelectorAll('link[data-ui-v2]').forEach(function (l) { l.media = 'all'; });
+      }
+    } catch (_) { /* sem storage: visual de sempre */ }
+  </script>
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
@@ -1305,6 +1319,7 @@
   local('vistoria-os.js',      '20260626-vistoria-os');
   local('engenharia.js',       '20260925-layout-c');
   local('app.js',              '20260925-f5-lugar');
+  local('ui-v2.js',            '20260928-f1');
   local('update-notice.js',    '20260615-om-central-propostas');
 })();
 </script>

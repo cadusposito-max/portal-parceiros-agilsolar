@@ -1,0 +1,252 @@
+/* ==========================================
+   VISUAL NOVO (v2 · "Clara") — RESKIN DO PORTAL ATUAL (Fase 1)
+   Só vale com html[data-ui="v2"]. Não muda estrutura, só aparência:
+   cores oficiais, cantos arredondados, fonte e superfícies claro/Azul-noite.
+   Claro: roda POR CIMA do theme-light.css (que continua convertendo
+   escuro→claro); aqui só se troca o azul genérico dele pelo da marca.
+   Seletores com html[data-ui="v2"] … body têm especificidade maior que
+   body.theme-light […], então vencem mesmo com !important dos dois lados.
+   ========================================== */
+
+/* ─── 1. BASE ─────────────────────────────── */
+html[data-ui="v2"] body {
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif !important;
+  background-color: var(--v2-bg) !important;
+  color: var(--v2-ink) !important;
+  -webkit-font-smoothing: antialiased;
+}
+html[data-ui="v2"] body ::selection { background-color: var(--v2-blue) !important; color: #fff !important; }
+html[data-ui="v2"] body main,
+html[data-ui="v2"] body #app-content,
+html[data-ui="v2"] body #launcher-screen,
+html[data-ui="v2"] body #splash-screen,
+html[data-ui="v2"] body #boot-bar {
+  background-color: var(--v2-bg) !important;
+  background-image: none !important;
+}
+html[data-ui="v2"] body .font-black { font-weight: 800 !important; }
+html[data-ui="v2"] body [class*="tracking-widest"],
+html[data-ui="v2"] body [class*="tracking-[0."] { letter-spacing: .06em !important; }
+html[data-ui="v2"] body [class*="tracking-wider"] { letter-spacing: .04em !important; }
+html[data-ui="v2"] body ::-webkit-scrollbar-thumb { background: var(--v2-line-strong); border-radius: 999px; }
+html[data-ui="v2"] body ::-webkit-scrollbar-thumb:hover { background: var(--v2-blue); }
+html[data-ui="v2"] body ::-webkit-scrollbar-track { background: transparent; }
+
+/* ─── 2. HEADER ATUAL (a casca nova vem na Fase 2) ─── */
+html[data-ui="v2"] body #app-content > header {
+  background: color-mix(in srgb, var(--v2-card) 92%, transparent) !important;
+  border-bottom: 1px solid var(--v2-line) !important;
+  box-shadow: 0 1px 0 var(--v2-line), 0 6px 24px rgba(15,27,38,.05) !important;
+}
+html[data-ui="v2"] body #app-content > header .animated-stripe {
+  background: linear-gradient(90deg, var(--v2-blue) 0 72%, var(--v2-orange) 72%) !important;
+  animation: none !important;
+  height: 3px !important;
+}
+html[data-ui="v2"] body #app-content > header img[data-theme-logo],
+html[data-ui="v2"] body #app-content > header img[src*="logo-icon"] { display: none !important; }
+html[data-ui="v2"] body #app-content > header .border-l.pl-3 { display: none !important; }
+.ui-v2-logo { display: none; }
+html[data-ui="v2"] .ui-v2-logo { display: flex; align-items: center; gap: 10px; }
+html[data-ui="v2"] .ui-v2-logo svg { height: 30px; width: auto; flex-shrink: 0; }
+html[data-ui="v2"] .ui-v2-logo .wm { display: flex; flex-direction: column; line-height: 1; white-space: nowrap; }
+html[data-ui="v2"] .ui-v2-logo .wm b { font-family: Inter, sans-serif; font-weight: 900; font-size: 21px; letter-spacing: -.03em; }
+html[data-ui="v2"] .ui-v2-logo .wm small { font-size: 7px; letter-spacing: .32em; color: var(--v2-gray); font-weight: 700; margin-top: 3px; }
+@media (max-width: 1023px) { html[data-ui="v2"] .ui-v2-logo .wm { display: none; } }
+
+/* Navegação: item ativo = azul da marca (como no mockup) */
+html[data-ui="v2"] body :is(#env-switcher, #env-switcher-mobile, #tab-container, #om-subnav, #mobile-menu-tabs) {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+html[data-ui="v2"] body :is(#env-switcher, #env-switcher-mobile, #tab-container, #om-subnav, #mobile-menu-tabs, #om-more-menu) button {
+  border-radius: 999px !important;
+  letter-spacing: .04em !important;
+}
+html[data-ui="v2"] body :is(#env-switcher, #env-switcher-mobile, #tab-container, #om-subnav, #mobile-menu-tabs, #om-more-menu) button:is([class*="from-"], .om-nav-grad, .fin-nav-grad, .vis-nav-grad, .is-active) {
+  background: var(--v2-blue) !important;
+  background-image: none !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(0,143,212,.28) !important;
+}
+html[data-ui="v2"] body #om-subnav { border-top: 1px solid var(--v2-line) !important; }
+html[data-ui="v2"] body #om-subnav nav { padding: 6px 0; gap: 4px; }
+html[data-ui="v2"] body #app-content > header button:not([class*="rounded"]):not(.env-btn):not(.env-btn-mobile) { border-radius: var(--v2-r-ctl) !important; }
+html[data-ui="v2"] body #header-user-avatar {
+  background: var(--v2-orange) !important;
+  color: var(--v2-orange-ink) !important;
+  animation: none !important;
+  box-shadow: none !important;
+}
+html[data-ui="v2"] body #ui-v2-toggle-btn.is-on {
+  background: var(--v2-blue-50) !important;
+  border-color: transparent !important;
+  color: var(--v2-blue-text) !important;
+}
+
+/* ─── 3. SUPERFÍCIES · ESCURO (Azul-noite) ── */
+html[data-ui="v2"][data-theme="dark"] body :is([class^="bg-neutral-950"], [class*=" bg-neutral-950"]) { background-color: var(--v2-bg2) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class^="bg-neutral-900"], [class*=" bg-neutral-900"]) { background-color: var(--v2-card) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class^="bg-neutral-800"], [class*=" bg-neutral-800"]) { background-color: var(--v2-soft) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class^="bg-neutral-700"], [class*=" bg-neutral-700"]) { background-color: #1F2E3C !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class^="bg-neutral-950/"], [class*=" bg-neutral-950/"], [class^="bg-neutral-900/"], [class*=" bg-neutral-900/"]) { background-color: rgba(17,27,37,.6) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class^="bg-neutral-800/"], [class*=" bg-neutral-800/"]) { background-color: rgba(23,35,48,.7) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class^="bg-black "], [class*=" bg-black "], [class$=" bg-black"], [class="bg-black"]) { background-color: var(--v2-bg2) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class*="bg-black/9"], [class*="bg-black/8"]) { background-color: rgba(6,11,16,.86) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class*="bg-[#050505]"], [class*="bg-[#080808]"], [class*="bg-[#070707]"]) { background-color: var(--v2-bg2) !important; background-image: none !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class*="bg-[#0a0a0a]"], [class*="bg-[#0b0b0b]"], [class*="bg-[#0c0c0c]"], [class*="bg-[#0d0d0d]"], [class*="bg-[#0d0d0f]"], [class*="bg-[#0f0f0f]"], [class*="bg-[#0f0f10]"], [class*="bg-[#101012]"], [class*="bg-[#111111]"], [class*="bg-[#111]"]) { background-color: var(--v2-card) !important; background-image: none !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class*="bg-[#141414]"], [class*="bg-[#161616]"], [class*="bg-[#171717]"], [class*="bg-[#1a1a1a]"]) { background-color: var(--v2-soft) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class*="hover:bg-neutral-9"], [class*="hover:bg-neutral-8"], [class*="hover:bg-black"]):hover { background-color: var(--v2-hover) !important; }
+html[data-ui="v2"][data-theme="dark"] body [class*="via-black"],
+html[data-ui="v2"][data-theme="dark"] body [class*="to-black"] { --tw-gradient-to: transparent !important; --tw-gradient-via: transparent !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class*="border-neutral-800"], [class*="border-neutral-900"], [class*="border-black"]) { border-color: var(--v2-line) !important; }
+html[data-ui="v2"][data-theme="dark"] body [class*="border-neutral-700"] { border-color: var(--v2-line-strong) !important; }
+html[data-ui="v2"][data-theme="dark"] body [class*="divide-neutral-"] > * + * { border-color: var(--v2-line) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class^="text-white"], [class*=" text-white"]) { color: var(--v2-ink) !important; }
+html[data-ui="v2"][data-theme="dark"] body .metric-card { background: var(--v2-card) !important; border-color: var(--v2-line) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is(.dash-kpi-strip, .dash-panel, .dash-hero, .dash-pipeline, .dash-comunicados-panel, .dash-materials-panel, .dash-quick-panel, .dash-rail-chat, .dash-filterbar, #dash-rail-chat) {
+  background: var(--v2-card) !important;
+  border-color: var(--v2-line) !important;
+}
+html[data-ui="v2"][data-theme="dark"] body .dash-kpi-strip > article { background: var(--v2-card) !important; }
+
+/* ─── 4. SUPERFÍCIES · CLARO (por cima do theme-light) ── */
+html[data-ui="v2"][data-theme="light"] body main,
+html[data-ui="v2"][data-theme="light"] body #app-content { background-color: var(--v2-bg) !important; }
+html[data-ui="v2"][data-theme="light"] body :is([class*="bg-[#050505]"], [class*="bg-[#080808]"], [class*="bg-[#0a0a0a]"], [class*="bg-[#0d0d0d]"], [class*="bg-[#0f0f0f]"], [class*="bg-[#111111]"], [class*="bg-[#171717]"], [class*="bg-[#1a1a1a]"]) { background-color: var(--v2-soft) !important; }
+html[data-ui="v2"][data-theme="light"] body :is([class*="border-neutral-700"], [class*="border-neutral-800"], [class*="border-neutral-900"], [class*="border-black"]) { border-color: var(--v2-line) !important; }
+html[data-ui="v2"][data-theme="light"] body .dash-filterbar { border-left-color: var(--v2-blue) !important; }
+html[data-ui="v2"][data-theme="light"] body :is(.metric-card, .dash-kpi-strip, .dash-panel, .dash-hero, .dash-pipeline, .dash-comunicados-panel) { box-shadow: var(--v2-shadow) !important; }
+
+/* ─── 5. ACENTOS · laranja do texto → azul; laranja de ação → #FAA519 ── */
+/* texto/ícone laranja (rótulos, links, destaques) vira azul da marca */
+html[data-ui="v2"][data-theme="dark"] body :is([class^="text-orange-"], [class*=" text-orange-"], [class^="text-yellow-"], [class*=" text-yellow-"], [class^="text-amber-"], [class*=" text-amber-"]) { color: var(--v2-orange-text) !important; }
+html[data-ui="v2"][data-theme="dark"] body :is([class^="text-orange-"], [class*=" text-orange-"]) { color: var(--v2-blue-text) !important; }
+html[data-ui="v2"][data-theme="dark"] body [class*="hover:text-orange-"]:hover { color: var(--v2-blue-text) !important; }
+html[data-ui="v2"][data-theme="light"] body [class*="text-orange-"] { color: var(--v2-blue-text) !important; }
+html[data-ui="v2"][data-theme="light"] body :is([class^="text-yellow-"], [class*=" text-yellow-"], [class^="text-amber-"], [class*=" text-amber-"]) { color: var(--v2-orange-text) !important; }
+
+/* azul genérico (Tailwind blue/sky/indigo) → azul da marca */
+html[data-ui="v2"] body :is([class^="text-blue-"], [class*=" text-blue-"], [class^="text-sky-"], [class*=" text-sky-"], [class^="text-cyan-"], [class*=" text-cyan-"], [class^="text-indigo-"], [class*=" text-indigo-"]) { color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body :is([class^="bg-blue-5"], [class*=" bg-blue-5"], [class^="bg-blue-6"], [class*=" bg-blue-6"], [class^="bg-blue-7"], [class*=" bg-blue-7"], [class^="bg-sky-5"], [class*=" bg-sky-5"], [class^="bg-sky-6"], [class*=" bg-sky-6"]):not([class*="/"]) { background-color: var(--v2-blue) !important; color: #fff !important; }
+html[data-ui="v2"] body :is([class*="bg-blue-"], [class*="bg-sky-"], [class*="bg-indigo-"])[class*="/"] { background-color: var(--v2-blue-50) !important; }
+html[data-ui="v2"] body :is([class*="border-blue-"], [class*="border-sky-"], [class*="border-indigo-"]) { border-color: rgba(0,143,212,.35) !important; }
+html[data-ui="v2"] body :is([class*="from-blue-"], [class*="from-sky-"], [class*="from-indigo-"]) { --tw-gradient-from: var(--v2-blue) !important; --tw-gradient-stops: var(--v2-blue), var(--v2-blue) !important; }
+
+/* ações em laranja (botões/gradientes) → laranja oficial sólido com texto escuro */
+html[data-ui="v2"] body :is([class^="bg-orange-5"], [class*=" bg-orange-5"], [class^="bg-orange-6"], [class*=" bg-orange-6"], [class^="bg-orange-4"], [class*=" bg-orange-4"], [class^="bg-yellow-5"], [class*=" bg-yellow-5"]):not([class*="/"]) {
+  background-color: var(--v2-orange) !important;
+  color: var(--v2-orange-ink) !important;
+}
+html[data-ui="v2"] body :is([class*="bg-orange-"], [class*="bg-yellow-"], [class*="bg-amber-"])[class*="/"]:not([class*="blur-"]) { background-color: var(--v2-orange-50) !important; }
+html[data-ui="v2"] body [class*="from-orange-"],
+html[data-ui="v2"] body [class*="from-yellow-"],
+html[data-ui="v2"] body [class*="from-amber-"] {
+  --tw-gradient-from: var(--v2-orange) !important;
+  --tw-gradient-to: var(--v2-orange) !important;
+  --tw-gradient-stops: var(--v2-orange), var(--v2-orange) !important;
+}
+html[data-ui="v2"] body :is([class*="from-orange-"], [class*="bg-orange-5"], [class*="bg-orange-6"]):is([class*="text-black"], [class*="text-white"]),
+html[data-ui="v2"] body :is([class*="from-orange-"], [class*="bg-orange-5"], [class*="bg-orange-6"]) :is([class*="text-black"], [class*="text-white"]) { color: var(--v2-orange-ink) !important; }
+html[data-ui="v2"] body [class*="from-orange-900"],
+html[data-ui="v2"] body [class*="from-orange-950"] { --tw-gradient-from: rgba(250,165,25,.06) !important; --tw-gradient-stops: rgba(250,165,25,.06), transparent !important; }
+html[data-ui="v2"] body [class*="border-orange-"],
+html[data-ui="v2"] body [class*="border-yellow-"] { border-color: rgba(250,165,25,.45) !important; }
+html[data-ui="v2"] body [class*="ring-orange-"] { --tw-ring-color: rgba(0,143,212,.3) !important; }
+html[data-ui="v2"] body [class*="shadow-["][class*="rgba(249,115"],
+html[data-ui="v2"] body [class*="shadow-["][class*="rgba(234,88"] { box-shadow: 0 6px 16px rgba(250,165,25,.28) !important; }
+html[data-ui="v2"] body [class*="shadow-[inset"][class*="rgba(234,88"] { box-shadow: none !important; }
+html[data-ui="v2"] body :is([class*="bg-orange-"], [class*="bg-yellow-"], [class*="bg-blue-"])[class*="blur-"] { opacity: .06 !important; }
+
+/* ─── 6. BOTÕES (.btn do main.css) ─────────── */
+html[data-ui="v2"] body .btn {
+  border-radius: var(--v2-r-ctl) !important;
+  font-weight: 800 !important;
+  letter-spacing: .04em !important;
+}
+html[data-ui="v2"] body .btn-primary {
+  background: var(--v2-orange) !important;
+  color: var(--v2-orange-ink) !important;
+  box-shadow: 0 6px 16px rgba(250,165,25,.3) !important;
+}
+html[data-ui="v2"] body .btn-primary:hover { filter: brightness(1.04); box-shadow: 0 10px 22px rgba(250,165,25,.4) !important; }
+html[data-ui="v2"] body .btn-secondary {
+  background: var(--v2-card) !important;
+  color: var(--v2-ink) !important;
+  border-color: var(--v2-line-strong) !important;
+}
+html[data-ui="v2"] body .btn-secondary:hover { border-color: var(--v2-blue) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body .btn-ghost { color: var(--v2-ink-2) !important; }
+html[data-ui="v2"] body .btn-ghost:hover { background: var(--v2-hover) !important; color: var(--v2-ink) !important; }
+
+/* ─── 7. CAMPOS ────────────────────────────── */
+html[data-ui="v2"] body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), select, textarea) {
+  border-radius: var(--v2-r-ctl) !important;
+}
+html[data-ui="v2"][data-theme="dark"] body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), select, textarea, .crm360-input) {
+  background-color: var(--v2-bg2) !important;
+  border-color: var(--v2-line-strong) !important;
+  color: var(--v2-ink) !important;
+}
+html[data-ui="v2"][data-theme="light"] body :is(input, select, textarea, .crm360-input) { border-color: var(--v2-line-strong) !important; background-color: var(--v2-card) !important; }
+html[data-ui="v2"] body :is(input, select, textarea, .crm360-input):focus {
+  border-color: var(--v2-blue) !important;
+  box-shadow: 0 0 0 4px rgba(0,143,212,.14) !important;
+  outline: none !important;
+}
+html[data-ui="v2"] body :is(input[type="checkbox"], input[type="radio"], input[type="range"]) { accent-color: var(--v2-blue); }
+
+/* ─── 8. CANTOS ARREDONDADOS ───────────────── */
+/* cards/containers: têm fundo + borda e ainda não têm rounded-* */
+html[data-ui="v2"] body :is(#main-container, #crm360-overlay, #admin-overlay-content, #launcher-screen) :is([class^="bg-"], [class*=" bg-"])[class*="border"]:not([class*="rounded"]):not([class*="border-l-"]):not([class*="border-r-"]):not([class*="border-b"]):not([class*="border-t"]):not(tr):not(td):not(th):not(button):not(input):not(select):not(textarea) {
+  border-radius: var(--v2-r-card) !important;
+}
+html[data-ui="v2"] body :is(#main-container, #crm360-overlay, #admin-overlay-content, #launcher-screen, #admin-bar) button:not([class*="rounded"]) { border-radius: var(--v2-r-ctl) !important; }
+html[data-ui="v2"] body :is(#main-container, #crm360-overlay, #admin-overlay-content) a[class*="border"]:not([class*="rounded"]) { border-radius: var(--v2-r-ctl) !important; }
+html[data-ui="v2"] body :is(.metric-card, .dash-kpi-strip, .dash-panel, .dash-hero, .dash-pipeline, .dash-comunicados-panel, .dash-materials-panel, .dash-quick-panel, .dash-filterbar, #dash-rail-chat, .mod-card, #admin-bar, #empty-state) {
+  border-radius: var(--v2-r-panel) !important;
+}
+html[data-ui="v2"] body .dash-kpi-strip > article { border-radius: 18px !important; }
+html[data-ui="v2"] body :is([id$="modal-overlay"], #fecha-venda-modal, #confirm-modal-overlay) > div {
+  border-radius: 26px !important;
+  overflow: hidden;
+  border-color: var(--v2-line) !important;
+  box-shadow: var(--v2-shadow-pop) !important;
+}
+html[data-ui="v2"] body :is([id$="modal-overlay"], #confirm-modal-overlay, #chat-shell-backdrop) { background-color: var(--v2-scrim) !important; }
+/* toast: pílula escura (claro) / clara (escuro), sem brilho laranja */
+html[data-ui="v2"] body #toast {
+  background: var(--v2-ink) !important;
+  background-image: none !important;
+  color: var(--v2-bg) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  padding: 12px 20px 12px 12px !important;
+  box-shadow: var(--v2-shadow-pop) !important;
+  gap: 10px !important;
+}
+html[data-ui="v2"] body #toast > div { background: var(--v2-blue) !important; border-radius: 999px !important; padding: 5px !important; }
+html[data-ui="v2"] body #toast > div svg { color: #fff !important; width: 16px !important; height: 16px !important; }
+html[data-ui="v2"] body #toast #toast-msg { color: var(--v2-bg) !important; font-size: 13px !important; letter-spacing: .02em !important; }
+
+/* ─── 9. CHAT (main.css .chat-*) ──────────── */
+html[data-ui="v2"] body .chat-shell-window { border-radius: 26px !important; box-shadow: var(--v2-shadow-pop) !important; }
+html[data-ui="v2"] body .chat-fab-btn {
+  background: var(--v2-blue) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 10px 26px rgba(0,143,212,.35) !important;
+}
+html[data-ui="v2"] body .chat-conv-item.is-active { border-color: transparent !important; background: var(--v2-blue-50) !important; }
+html[data-ui="v2"] body .chat-msg-row.is-me .chat-msg-bubble {
+  background: var(--v2-blue) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+html[data-ui="v2"] body .chat-msg-row.is-me .chat-msg-meta { color: rgba(255,255,255,.8) !important; }
+
+/* ─── 10. CRM 360 (ficha do cliente) ──────── */
+html[data-ui="v2"] body #crm360-overlay.crm360-aba { background: var(--v2-bg) !important; }
+
+/* ─── 11. ADMIN / MODO ADMIN ───────────────── */
+html[data-ui="v2"] body #admin-overlay { background: var(--v2-bg) !important; }

@@ -84,6 +84,24 @@
       ]
     },
     {
+      "source": "/assets/js/ui-v2.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/assets/css/ui-v2/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
       "source": "/proposta.html",
       "headers": [
         {

@@ -30,6 +30,12 @@
 /assets/js/om-os.js
   Cache-Control: no-store, max-age=0
 
+/assets/js/ui-v2.js
+  Cache-Control: no-store, max-age=0
+
+/assets/css/ui-v2/*
+  Cache-Control: no-store, max-age=0
+
 /proposta.html
   Cache-Control: no-store, max-age=0
   X-Robots-Tag: noindex, nofollow, noarchive
