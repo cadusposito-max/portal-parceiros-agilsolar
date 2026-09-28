@@ -144,6 +144,8 @@
     const unread = (state.chat && state.chat.unreadTotal) || 0;
     const canAdmin = has('userCanAccessAdminPanel') && userCanAccessAdminPanel();
     const multiEnv = Object.keys(ENVS).filter(envAllowed).length > 1;
+    const meta = window.uiV2PageMeta;
+    const metaOk = !!(meta && meta.key === k + ':' + cur);
 
     $('#v2-side').innerHTML = `
       <div class="v2-brand">${LOGO}<button class="v2-collapse" data-v2="rail" title="Recolher menu">${ic('chevrons-left')}</button></div>
@@ -159,7 +161,7 @@
       <button class="v2-av" data-v2="sheet" data-target="v2-sheet-user">${u.avatar}</button>`;
 
     $('#v2-top').innerHTML = `
-      <div><div class="v2-crumb">${ic(E.i)}${E.n}</div><h1>${esc(sentence(curTab.label))}</h1></div>
+      <div><div class="v2-crumb">${ic(E.i)}${E.n}</div><h1>${metaOk ? esc(meta.title) : esc(sentence(curTab.label))}</h1>${metaOk && meta.sub ? `<p class="v2-sub">${esc(meta.sub)}</p>` : ''}</div>
       <div class="v2-grow"></div>
       <button class="v2-icb v2-msearch" data-v2="palette" title="Buscar">${ic('search')}</button>
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>

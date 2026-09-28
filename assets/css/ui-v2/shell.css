@@ -155,6 +155,7 @@ html[data-ui="v2"] .v2-crumb { font-size: 12px; font-weight: 700; color: var(--v
 html[data-ui="v2"] .v2-crumb svg { width: 14px; height: 14px; }
 html[data-ui="v2"] .v2-top h1 { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; color: var(--v2-ink) !important; text-transform: none; }
 html[data-ui="v2"] .v2-grow { flex: 1; }
+html[data-ui="v2"] .v2-top .v2-sub { color: var(--v2-gray); font-size: 14px; font-weight: 500; margin-top: 2px; }
 html[data-ui="v2"] .v2-search {
   display: flex; align-items: center; gap: 8px; background: var(--v2-card); border-radius: 999px; padding: 0 8px 0 16px;
   height: 46px; width: min(360px, 30vw); color: var(--v2-gray); box-shadow: var(--v2-shadow); border: 0; cursor: text; font-family: inherit; font-size: 14px;
