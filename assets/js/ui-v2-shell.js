@@ -170,7 +170,9 @@
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
     // celular: início · 2 abas · + · mais
-    const home = T[0], picks = T.slice(1, 3), inBar = [home, ...picks].filter(Boolean).map((t) => t.id);
+    const MOB = { comercial: ['clientes', 'propostas'], om: ['os', 'clientes'], financeiro: ['recebiveis', 'pagamentos'], vistoria: ['agenda', 'os'], engenharia: ['calculadora', 'projetos'] };
+    const pref = (MOB[k] || []).map((id) => T.find((t) => t.id === id)).filter(Boolean);
+    const home = T[0], picks = (pref.length === 2 ? pref : T.slice(1, 3)), inBar = [home, ...picks].filter(Boolean).map((t) => t.id);
     const mBtn = (t, label) => t ? `<button class="${t.id === cur ? 'on' : ''}" data-v2="tab" data-tab="${t.id}">${ic(t.icon || 'circle')}${esc(label || shortLabel(t.label))}</button>` : '';
     $('#v2-mnav').innerHTML = `${mBtn(home, 'Início')}${mBtn(picks[0])}
       ${cta ? `<button class="plus" data-v2="cta" title="${cta[0]}">${ic('plus')}</button>` : ''}

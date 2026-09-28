@@ -415,8 +415,92 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
+  // ==================== PROPOSTAS (Comercial) ====================
+  const PROP_INFO = {
+    GERADA: ['file-clock', 'Gerada, ainda não enviada ao cliente', 'g'],
+    ENVIADA: ['send', 'Enviada, aguardando o cliente abrir', 'b'],
+    VISTA: ['eye', '', 'o'],
+    ACEITA: ['badge-check', 'Aceita, venda vinculada', 'gr'],
+  };
+  const timeAgo = (d) => (has('crmTimeAgo') ? crmTimeAgo(d) : formatDate(d));
+
+  function renderPropostasListV2(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'propostas';
+    if (typeof _propostasObserver !== 'undefined' && _propostasObserver) { _propostasObserver.disconnect(); _propostasObserver = null; }
+    const { escopo, rows, filtered, term, vendedor, mes, status } = getPropostasFiltradas();
+
+    // mesmos números do topo de app.js (escopo + vendedor + mês)
+    const now = new Date();
+    const soma = rows.reduce((a, p) => a + propostaPreco(p), 0);
+    const ticket = rows.length ? soma / rows.length : 0;
+    const fechadoIds = new Set(getDashboardScopedRows(state.clientes || []).filter((c) => String(c.status || '').toUpperCase() === 'FECHADO').map((c) => c.id));
+    const maior = new Map();
+    rows.forEach((p) => { if (!fechadoIds.has(p.cliente_id)) return; const v = propostaPreco(p); if (v > (maior.get(p.cliente_id) || 0)) maior.set(p.cliente_id, v); });
+    const valorFechado = [...maior.values()].reduce((a, b) => a + b, 0);
+    const noMes = rows.filter((p) => { const d = new Date(p.created_at); return !Number.isNaN(d.getTime()) && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); }).length;
+    const count = { ALL: rows.length };
+    rows.forEach((p) => { const s = propostaStatus(p); count[s] = (count[s] || 0) + 1; });
+
+    setPageMeta('comercial:propostas', 'Propostas', `${rows.length} proposta${rows.length === 1 ? '' : 's'} · ${noMes} no mês`);
+
+    const vendOpts = canUseDashVendedorFilter()
+      ? getDashboardVendedorOptions([escopo]).map((e) => ({ v: e, l: dashVendedorNome(e) })).sort((a, b) => a.l.localeCompare(b.l, 'pt-BR'))
+      : [];
+    if (vendedor !== 'all' && !vendOpts.some((o) => o.v === vendedor)) vendOpts.unshift({ v: vendedor, l: dashVendedorNome(vendedor) });
+    const mesOpts = [...new Set(escopo.map((p) => toMonthKey(p.created_at)).filter(Boolean))].sort().reverse();
+    const filtrosAtivos = [vendedor !== 'all', mes !== 'all', status !== 'ALL', Boolean(term)].filter(Boolean).length;
+    const showSeller = canUseDashVendedorFilter();
+
+    const kpi = (label, value, icon, color, sub, hero) => `<div class="v2-card v2-kpi ${hero ? 'hero' : ''}" style="cursor:default"><div class="h"><span>${label}</span><div class="ic" style="background:${color}1F;color:${color}">${ic(icon)}</div></div><div class="v">${value}</div><div class="foot"><span>${sub}</span></div></div>`;
+    const card = (p) => {
+      const st = propostaStatus(p);
+      const [stl, stc] = PROP_ST[st] || PROP_ST.GERADA;
+      const inf = PROP_INFO[st] || PROP_INFO.GERADA;
+      const kwp = propostaPotencia(p);
+      const ger = Number(p.geracao_estimada) || 0;
+      const vistas = Number(p.vista_count) || 0;
+      const infoTxt = st === 'VISTA' ? `Aberta ${vistas > 1 ? vistas + '× · última ' : ''}${esc(timeAgo(p.vista_em || p.created_at))}` : inf[1];
+      const open = p.cliente_id ? `openCrm360('${esc(p.cliente_id)}','propostas')` : '';
+      return `<div class="v2-card v2-pcard" ${open ? `onclick="${open}"` : ''}>
+        <div class="hd"><i class="v2-ini ${st === 'ACEITA' ? 'gr' : st === 'VISTA' ? 'o' : ''}">${esc(initials(p.cliente_nome))}</i><div class="tx"><b>${esc(p.cliente_nome || 'Sem cliente')}</b><small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(formatDate(p.created_at))}</small></div><span class="v2-chip dot ${stc}">${stl}</span></div>
+        <div class="kit">${ic('solar-panel')}<span>${esc(p.kit_nome || 'Proposta personalizada')}</span></div>
+        <div class="specs"><div><small>Potência</small><b>${kwp ? esc(String(kwp).replace('.', ',')) + ' kWp' : '—'}</b></div><div><small>Geração</small><b>${ger ? Math.round(ger).toLocaleString('pt-BR') + ' kWh' : '—'}</b></div><div><small>${showSeller ? 'Vendedor' : 'Criada'}</small><b>${showSeller ? esc(vendNome(p.vendedor_email).split(' ')[0] || '—') : esc(timeAgo(p.created_at))}</b></div></div>
+        <div class="info ${inf[2]}">${ic(inf[0])}<span>${infoTxt}</span></div>
+        <div class="ft"><div class="price">${money(propostaPreco(p))}<small>${ticket && propostaPreco(p) > ticket ? 'acima do ticket médio' : 'valor da proposta'}</small></div>
+          <div class="v2-acts">
+            <button class="v2-sq" title="Copiar link da proposta" onclick="event.stopPropagation(); uiV2Screens.copiarLink('${esc(p.id)}')">${ic('link')}</button>
+            <a class="v2-sq" title="Baixar PDF" href="proposta-pdf.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('file-down')}</a>
+            <a class="v2-sq" title="Abrir a proposta como o cliente vê" href="proposta.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('external-link')}</a>
+          </div></div>
+      </div>`;
+    };
+    const visible = filtered.slice(0, _propostasRenderLimit);
+    const pill = (v, label) => `<button class="${status === v ? 'on' : ''}" onclick="setPropostasFiltro('status','${v}')">${label}<em>${count[v] || 0}</em></button>`;
+
+    container.innerHTML = `
+      <div class="v2-kpis">
+        ${kpi('Valor fechado', moneyC(valorFechado), 'badge-dollar-sign', '#008FD4', 'maior proposta de cada cliente fechado', true)}
+        ${kpi('Vistas pelo cliente', count.VISTA || 0, 'eye', '#FAA519', 'abriram o link da proposta')}
+        ${kpi('Aceitas', count.ACEITA || 0, 'badge-check', '#1FA971', 'com venda vinculada')}
+        ${kpi('Ticket médio', moneyC(ticket), 'receipt', '#808284', `sobre ${rows.length} proposta${rows.length === 1 ? '' : 's'}`)}
+      </div>
+      <div class="v2-toolbar">
+        <label class="v2-sbox">${ic('search')}<input id="v2-prop-search" type="text" value="${esc(state.propostasSearch || '')}" oninput="handlePropostasSearchInput(this.value)" placeholder="Buscar por cliente ou kit" autocomplete="off"></label>
+        ${vendOpts.length ? `<select class="v2-select ${vendedor !== 'all' ? 'on' : ''}" onchange="setPropostasFiltro('vendedor', this.value)"><option value="all">Todos os vendedores</option>${vendOpts.map((o) => `<option value="${esc(o.v)}" ${o.v === vendedor ? 'selected' : ''}>${esc(o.l)}</option>`).join('')}</select>` : ''}
+        <select class="v2-select ${mes !== 'all' ? 'on' : ''}" onchange="setPropostasFiltro('mes', this.value)"><option value="all">Todos os meses</option>${mesOpts.map((m) => `<option value="${m}" ${m === mes ? 'selected' : ''}>${cap(formatMonthLabel(m))}</option>`).join('')}</select>
+        ${filtrosAtivos ? `<button class="v2-pill" onclick="limparPropostasFiltros()">${ic('filter-x')}Limpar · ${filtered.length} de ${escopo.length}</button>` : ''}
+        <div class="v2-grow"></div>
+        <button class="v2-btno" style="width:auto;height:44px" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button>
+      </div>
+      <div class="v2-pills">${pill('ALL', 'Todas')}${pill('GERADA', 'Geradas')}${pill('ENVIADA', 'Enviadas')}${pill('VISTA', 'Vistas')}${pill('ACEITA', 'Aceitas')}</div>
+      ${visible.length ? `<div class="v2-pgrid">${visible.map(card).join('')}</div>` : `<div class="v2-card v2-empty">${filtrosAtivos ? 'Nenhuma proposta com esses filtros.' : 'Nenhuma proposta gerada ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button></div></div>`}
+      ${filtered.length > visible.length ? `<div class="v2-more"><button class="v2-btn2" onclick="uiV2Screens.maisPropostas()">${ic('chevrons-down')}Carregar mais · ${visible.length} de ${filtered.length}</button></div>` : ''}`;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   // ==================== troca de render ====================
-  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2 };
+  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2 };
   Object.entries(V2_SCREENS).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];
@@ -438,6 +522,13 @@
   window.uiV2Screens = {
     filtrosAbertos: false,
     toggleFiltros() { this.filtrosAbertos = !this.filtrosAbertos; document.querySelectorAll('.v2-admfilters').forEach((el) => el.classList.toggle('open', this.filtrosAbertos)); },
+    maisPropostas() { _propostasRenderLimit += 12; if (has('renderContent')) renderContent(); },
+    copiarLink(id) {
+      const url = new URL('proposta.html?id=' + encodeURIComponent(id), window.location.href).href;
+      const ok = () => has('showToast') && showToast('LINK DA PROPOSTA COPIADO');
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, () => window.prompt('Copie o link:', url));
+      else window.prompt('Copie o link:', url);
+    },
     setMeses(n) { renderDashboardV2.meses = n; if (has('renderContent')) renderContent(); },
   };
 })();

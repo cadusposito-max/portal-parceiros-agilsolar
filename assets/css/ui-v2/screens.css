@@ -258,3 +258,33 @@ html[data-ui="v2"] .v2s .show-m, html[data-ui="v2"] .v2s .v2-filtbtn { display: 
   html[data-ui="v2"] .v2s .v2-toolbar .v2-grow { display: none; }
   html[data-ui="v2"] .v2s .v2-kanban { grid-auto-columns: minmax(260px, 86vw); }
 }
+
+/* ==========================================
+   PROPOSTAS
+   ========================================== */
+html[data-ui="v2"] .v2s .v2-pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+html[data-ui="v2"] .v2s .v2-pcard { display: flex; flex-direction: column; gap: 14px; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+html[data-ui="v2"] .v2s .v2-pcard:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(15,27,38,.09); }
+html[data-ui="v2"] .v2s .v2-pcard .hd { display: flex; gap: 12px; align-items: center; }
+html[data-ui="v2"] .v2s .v2-pcard .hd .tx { flex: 1; min-width: 0; }
+html[data-ui="v2"] .v2s .v2-pcard .hd b { display: block; font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2s .v2-pcard .hd small { font-size: 12px; color: var(--v2-gray); font-weight: 500; }
+html[data-ui="v2"] .v2s .v2-pcard .v2-ini.gr { background: rgba(31,169,113,.14); color: #12764E; }
+html[data-ui="v2"] .v2s .v2-pcard .kit { font-size: 13px; color: var(--v2-ink-2); font-weight: 600; display: flex; gap: 8px; align-items: center; min-width: 0; }
+html[data-ui="v2"] .v2s .v2-pcard .kit span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2s .v2-pcard .kit svg { color: var(--v2-blue); width: 16px !important; height: 16px !important; }
+html[data-ui="v2"] .v2s .v2-pcard .specs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+html[data-ui="v2"] .v2s .v2-pcard .specs div { background: var(--v2-soft); border-radius: 14px; padding: 10px 12px; min-width: 0; }
+html[data-ui="v2"] .v2s .v2-pcard .specs small { display: block; font-size: 11px; color: var(--v2-gray); font-weight: 600; }
+html[data-ui="v2"] .v2s .v2-pcard .specs b { font-size: 14px; font-weight: 800; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2s .v2-pcard .info { font-size: 12.5px; font-weight: 600; display: flex; gap: 6px; align-items: center; border-radius: 12px; padding: 8px 10px; }
+html[data-ui="v2"] .v2s .v2-pcard .info svg { width: 15px !important; height: 15px !important; }
+html[data-ui="v2"] .v2s .v2-pcard .info.o { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] .v2s .v2-pcard .info.b { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+html[data-ui="v2"] .v2s .v2-pcard .info.gr { background: rgba(31,169,113,.12); color: #12764E; }
+html[data-ui="v2"][data-theme="dark"] .v2s .v2-pcard .info.gr, html[data-ui="v2"][data-theme="dark"] .v2s .v2-pcard .v2-ini.gr { color: #4FD49A; }
+html[data-ui="v2"] .v2s .v2-pcard .info.g { background: var(--v2-bg); color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .v2-pcard .ft { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--v2-line); padding-top: 14px; margin-top: auto; }
+html[data-ui="v2"] .v2s .v2-pcard .ft .price { font-size: 20px; font-weight: 800; letter-spacing: -.01em; flex: 1; min-width: 0; }
+html[data-ui="v2"] .v2s .v2-pcard .ft .price small { display: block; font-size: 11px; color: var(--v2-gray); font-weight: 600; letter-spacing: 0; }
+@media (max-width: 760px) { html[data-ui="v2"] .v2s .v2-pgrid { grid-template-columns: 1fr; } }
