@@ -1,0 +1,70 @@
+/* ==========================================
+   VISUAL NOVO (v2) — MODAIS
+   Novo cliente (index.html #client-modal-overlay), nova proposta
+   (#np-picker-overlay), motivo de perda (#crm-motivo-overlay).
+   ========================================== */
+html[data-ui="v2"] body :is(#client-modal-overlay, #np-picker-overlay, #crm-motivo-overlay) { background: var(--v2-scrim) !important; backdrop-filter: none !important; }
+html[data-ui="v2"] body :is(#client-modal-overlay, #np-picker-overlay, #crm-motivo-overlay) > div {
+  background: var(--v2-card) !important; border: 0 !important; border-radius: 28px !important;
+  box-shadow: var(--v2-shadow-pop) !important; max-width: 560px !important; color: var(--v2-ink);
+}
+html[data-ui="v2"] body #client-modal-overlay > div > div:first-child,
+html[data-ui="v2"] body :is(#np-picker-overlay, #crm-motivo-overlay) > div > div:first-child {
+  background: transparent !important; border-bottom: 0 !important; padding: 22px 20px 6px 24px !important;
+  display: grid !important; grid-template-columns: auto 1fr auto; column-gap: 14px; align-items: center;
+}
+html[data-ui="v2"] .v2m-ic { grid-row: span 2; width: 48px; height: 48px; border-radius: 16px; background: var(--v2-blue); color: #fff; display: grid; place-items: center; }
+html[data-ui="v2"] .v2m-ic svg { width: 22px; height: 22px; }
+html[data-ui="v2"] body #client-modal-overlay h2 {
+  font-size: 20px !important; font-weight: 800 !important; font-style: normal !important; letter-spacing: -.01em !important;
+  text-transform: none !important; background: none !important; -webkit-text-fill-color: var(--v2-ink) !important; color: var(--v2-ink) !important; padding: 0 !important; margin: 0;
+}
+html[data-ui="v2"] .v2m-sub { grid-column: 2; font-size: 13px; color: var(--v2-gray); font-weight: 500; margin: 0; }
+html[data-ui="v2"] body #client-modal-overlay > div > div:first-child > button { grid-column: 3; grid-row: 1 / span 2; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #client-modal-overlay > div > div:first-child > button:hover { background: var(--v2-bg); color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #client-modal-overlay > div > div:first-child > button svg { width: 20px !important; height: 20px !important; }
+html[data-ui="v2"] body #client-form { padding: 14px 24px 22px !important; }
+html[data-ui="v2"] body #client-form label { font-size: 12px !important; font-weight: 700 !important; color: var(--v2-ink-2) !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] body #client-form label span { color: var(--v2-gray) !important; font-weight: 500 !important; }
+html[data-ui="v2"] body #client-form :is(input, select) {
+  height: 48px; border-radius: 14px !important; font-size: 14px !important; font-weight: 600 !important; text-transform: none !important;
+  font-family: inherit !important; letter-spacing: 0 !important; padding: 0 14px !important; border-width: 1.5px !important;
+}
+html[data-ui="v2"] body #client-form #client-origem { display: none; }
+html[data-ui="v2"] .v2m-origs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+html[data-ui="v2"] .v2m-origs button {
+  height: 38px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); border-radius: 999px; padding: 0 14px;
+  font-size: 13px; font-weight: 700; color: var(--v2-ink-2); display: inline-flex; gap: 6px; align-items: center; cursor: pointer; font-family: inherit;
+}
+html[data-ui="v2"] .v2m-origs button svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .v2m-origs button:hover { border-color: var(--v2-blue); }
+html[data-ui="v2"] .v2m-origs button.on { border-color: var(--v2-blue); background: var(--v2-blue-50); color: var(--v2-blue-text); }
+html[data-ui="v2"] body #client-form > .grid { grid-template-columns: 1fr !important; }
+html[data-ui="v2"] body #client-dup-warning {
+  border-radius: 14px !important; padding: 11px 12px !important; font-size: 13px !important; font-weight: 500 !important; line-height: 1.45;
+  text-transform: none !important; letter-spacing: 0 !important; border: 0 !important; margin-top: 8px !important;
+}
+html[data-ui="v2"] body #client-cidade-hsp:not(.hidden) {
+  display: inline-flex !important; margin-top: 8px; font-size: 12px !important; font-weight: 700 !important; text-transform: none !important; letter-spacing: 0 !important;
+  background: var(--v2-orange-50); color: var(--v2-orange-text) !important; border-radius: 999px; padding: 5px 11px;
+}
+html[data-ui="v2"] body #btn-save-client {
+  height: 50px; padding: 0 !important; border: 0 !important; border-radius: 14px !important; background: var(--v2-blue) !important; background-image: none !important;
+  color: #fff !important; font-size: 15px !important; font-weight: 800 !important; letter-spacing: 0 !important; text-transform: none !important;
+  box-shadow: 0 8px 20px rgba(0,143,212,.25) !important; display: flex; align-items: center; justify-content: center; gap: 8px; transform: none !important;
+}
+html[data-ui="v2"] body #btn-save-client svg { width: 18px; height: 18px; }
+html[data-ui="v2"] body #btn-save-client:hover { background: var(--v2-blue-hover) !important; }
+html[data-ui="v2"] body #btn-save-client:disabled { opacity: .45; box-shadow: none !important; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] body #client-modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+  html[data-ui="v2"] body #client-modal-overlay > div { max-width: none !important; border-radius: 28px 28px 0 0 !important; max-height: 94vh !important; }
+}
+
+/* seletor "Nova proposta — para quem?" e motivo de perda: só moldura e tipografia */
+html[data-ui="v2"] body :is(#np-picker-overlay, #crm-motivo-overlay) :is(p, h2, label) { text-transform: none !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] body :is(#np-picker-overlay, #crm-motivo-overlay) :is(p, h2) { font-size: 17px !important; font-weight: 800 !important; color: var(--v2-ink) !important; -webkit-text-fill-color: currentColor; }
+html[data-ui="v2"] body #np-picker-list button { border-radius: 14px; margin: 2px 8px; width: calc(100% - 16px); border: 0 !important; }
+html[data-ui="v2"] body #np-picker-list button:hover { background: var(--v2-blue-50) !important; }
+html[data-ui="v2"] body #np-picker-list button span span:first-child { text-transform: none !important; font-size: 14px !important; font-weight: 700 !important; }
+html[data-ui="v2"] body #crm-motivo-confirm { border-radius: 14px; background: #D14343 !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 14px !important; }
