@@ -84,7 +84,7 @@
       ]
     },
     {
-      "source": "/assets/js/ui-v2.js",
+      "source": "/assets/js/ui-v2(.*).js",
       "headers": [
         {
           "key": "Cache-Control",

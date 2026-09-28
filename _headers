@@ -30,7 +30,7 @@
 /assets/js/om-os.js
   Cache-Control: no-store, max-age=0
 
-/assets/js/ui-v2.js
+/assets/js/ui-v2*
   Cache-Control: no-store, max-age=0
 
 /assets/css/ui-v2/*

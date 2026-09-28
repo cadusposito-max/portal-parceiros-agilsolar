@@ -63,6 +63,7 @@
     setStylesheets(on);
     setLogo(on);
     if (typeof applyThemeMode === 'function') applyThemeMode();
+    document.dispatchEvent(new CustomEvent('uiv2:change', { detail: { on } }));
   }
 
   // Chamado depois que os papéis do usuário são conhecidos (via renderHeaderUser).
