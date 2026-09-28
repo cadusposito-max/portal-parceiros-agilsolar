@@ -551,6 +551,15 @@ function docDadosIniciais(client, fonte) {
     condicao,
     cliente,
     instalacao: { concessionaria: DOC_DEFAULTS.concessionaria, mesmo_endereco: true, ...(salvo.instalacao || {}) },
+    // Titular da UC quando a conta de luz está em nome de outra pessoa (só a procuração usa)
+    titular: {
+      outro_titular: false,
+      tipo_pessoa: 'PF',
+      rg_orgao: 'SP/SSP',
+      ...(salvo.titular || {}),
+      endereco: { ...(salvo.titular?.endereco || {}) },
+      representante: { rg_orgao: 'SP/SSP', mesmo_endereco: true, ...(salvo.titular?.representante || {}) },
+    },
     sistema: base.sistema,
     financeiro: base.financeiro,
     prazo_entrega_dias: salvo.prazo_entrega_dias || DOC_DEFAULTS.prazo_entrega_dias,
@@ -714,6 +723,44 @@ function _docRender() {
       ${_docEnderecoHTML('doc-end', e)}
     </div>`;
 
+  // Titular da UC (outorgante da procuração), quando não é o contratante
+  const tit = d.titular || {};
+  const titPj = tit.tipo_pessoa === 'PJ';
+  const te = (tit.endereco && typeof tit.endereco === 'object') ? tit.endereco : {};
+  const tr = tit.representante || {};
+  const avisoNome = `oninput="_docAvisoTitular()"`;
+  const titularHTML = !tit.outro_titular ? '' : `
+    <div class="border-l-2 border-orange-500 pl-4 pt-1 space-y-3">
+      <p class="text-neutral-400 text-[10px] font-black uppercase tracking-widest">Titular da UC (outorgante da procuração)</p>
+      <div class="grid grid-cols-2 gap-3">
+        ${_docCampo('Tipo', _docSelect('doc-tit-tipo', tit.tipo_pessoa, [['PF', 'Pessoa física (CPF)'], ['PJ', 'Pessoa jurídica (CNPJ)']], '_docLer(); _docRender()'))}
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        ${titPj ? `
+          ${_docCampo('Razão social', _docText('doc-tit-nome', tit.nome, `uppercase" ${avisoNome}`), 'col-span-2 md:col-span-3')}
+          ${_docCampo('CNPJ', _docText('doc-tit-cpf', tit.cpf, 'font-mono'))}` : `
+          ${_docCampo('Nome completo', _docText('doc-tit-nome', tit.nome, `uppercase" ${avisoNome}`), 'col-span-2 md:col-span-4')}
+          ${_docCampo('CPF', _docText('doc-tit-cpf', tit.cpf, 'font-mono'))}
+          ${_docCampo('RG', _docText('doc-tit-rg', tit.rg, 'font-mono'))}
+          ${_docCampo('Órgão emissor', _docText('doc-tit-rg-orgao', tit.rg_orgao, 'uppercase'))}
+          ${_docCampo('Gênero', _docSelect('doc-tit-genero', tit.genero, DOC_OPCOES_GENERO))}`}
+        ${_docEnderecoHTML('doc-tit-end', te)}
+      </div>
+      <button type="button" onclick="_docTitularEnderecoDaUsina()" class="btn btn-secondary btn-sm"><i data-lucide="map-pin"></i> Usar endereço da usina</button>
+      ${titPj ? `
+        <p class="text-neutral-400 text-[10px] font-black uppercase tracking-widest pt-2">Responsável legal (assina pela empresa)</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          ${_docCampo('Nome completo', _docText('doc-tit-rep-nome', tr.nome, 'uppercase'), 'col-span-2')}
+          ${_docCampo('CPF', _docText('doc-tit-rep-cpf', tr.cpf, 'font-mono'))}
+          ${_docCampo('Cargo', _docText('doc-tit-rep-profissao', tr.profissao, 'uppercase" placeholder="SÓCIO(A)'))}
+        </div>
+        <label class="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer">
+          <input id="doc-tit-rep-mesmo-endereco" type="checkbox" ${tr.mesmo_endereco !== false ? 'checked' : ''} onchange="_docLer(); _docRender()"> Responsável mora no endereço da empresa
+        </label>
+        ${tr.mesmo_endereco === false ? _docCampo('Endereço do responsável', _docText('doc-tit-rep-endereco', typeof tr.endereco === 'string' ? tr.endereco : docFormatEndereco(tr.endereco), '" placeholder="Rua, nº, bairro, cidade/UF - CEP')) : ''}` : ''}
+    </div>`;
+  const procuracaoPj = (tit.outro_titular ? tit.tipo_pessoa : d.tipo_pessoa) === 'PJ';
+
   overlay.innerHTML = `
     <div class="bg-neutral-900 border-2 border-orange-600/40 w-full max-w-3xl max-h-full flex flex-col ${_docCtx.animado ? '' : 'animate-fade-in-up'}">
       <div class="flex justify-between items-center p-5 border-b border-neutral-800 bg-neutral-950 shrink-0">
@@ -745,7 +792,14 @@ function _docRender() {
           <label class="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer">
             <input id="doc-mesmo-endereco" type="checkbox" ${inst.mesmo_endereco !== false ? 'checked' : ''} onchange="_docLer(); _docRender()"> Usina no mesmo endereço ${pj ? 'da empresa' : 'do cliente'}
           </label>
-          ${inst.mesmo_endereco === false ? `<div class="grid grid-cols-2 md:grid-cols-4 gap-3">${_docEnderecoHTML('doc-inst', ie)}</div>` : ''}`)}
+          ${inst.mesmo_endereco === false ? `<div class="grid grid-cols-2 md:grid-cols-4 gap-3">${_docEnderecoHTML('doc-inst', ie)}</div>` : ''}
+          <div>
+            <label class="flex items-center gap-2 text-xs text-neutral-200 cursor-pointer">
+              <input id="doc-outro-titular" type="checkbox" ${tit.outro_titular ? 'checked' : ''} onchange="_docLer(); _docRender()"> Conta de luz (UC) em nome de outra pessoa
+            </label>
+            <p class="text-[10px] text-neutral-500 mt-1 ml-5">A procuração sai no nome do titular da conta. O contrato continua com ${pj ? 'a empresa' : 'o cliente'}.</p>
+          </div>
+          ${titularHTML}`)}
 
         ${_docSecao('sun', 'Sistema', `
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -779,9 +833,12 @@ function _docRender() {
           </div>`)}
       </div>
 
-      <div class="p-5 border-t border-neutral-800 bg-neutral-950 flex flex-col sm:flex-row gap-2 shrink-0">
-        <button id="doc-btn-contrato" onclick="_docGerar('contrato')" class="btn btn-primary flex-1"><i data-lucide="file-text"></i> Gerar contrato ${pj ? 'PJ' : 'PF'}</button>
-        <button id="doc-btn-procuracao" onclick="_docGerar('procuracao')" class="btn btn-secondary flex-1"><i data-lucide="file-pen"></i> Gerar procuração ${pj ? 'PJ' : 'PF'}</button>
+      <div class="p-5 border-t border-neutral-800 bg-neutral-950 shrink-0">
+        ${tit.outro_titular ? `<p class="mb-3 text-xs text-orange-300 bg-orange-600/10 border border-orange-600/40 px-3 py-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i><span id="doc-aviso-titular">${escapeHTML(_docTextoAvisoTitular(tit.nome))}</span></p>` : ''}
+        <div class="flex flex-col sm:flex-row gap-2">
+          <button id="doc-btn-contrato" onclick="_docGerar('contrato')" class="btn btn-primary flex-1"><i data-lucide="file-text"></i> Gerar contrato ${pj ? 'PJ' : 'PF'}</button>
+          <button id="doc-btn-procuracao" onclick="_docGerar('procuracao')" class="btn btn-secondary flex-1"><i data-lucide="file-pen"></i> Gerar procuração ${procuracaoPj ? 'PJ' : 'PF'}</button>
+        </div>
       </div>
     </div>`;
 
@@ -792,6 +849,9 @@ function _docRender() {
     ligarMascara(document.getElementById('doc-rep-cpf'), 'cpf');
     ligarMascara(document.getElementById('doc-end-cep'), 'cep');
     ligarMascara(document.getElementById('doc-inst-cep'), 'cep');
+    ligarMascara(document.getElementById('doc-tit-cpf'), titPj ? 'cnpj' : 'cpf');
+    ligarMascara(document.getElementById('doc-tit-rep-cpf'), 'cpf');
+    ligarMascara(document.getElementById('doc-tit-end-cep'), 'cep');
   }
   _docAtualizarSoma();
   lucide.createIcons();
@@ -857,6 +917,33 @@ function _docLer() {
         }
       : instAnterior.endereco,
   };
+  const t0 = d.titular || {}, te0 = t0.endereco || {}, tr0 = t0.representante || {};
+  d.titular = {
+    outro_titular: document.getElementById('doc-outro-titular') ? document.getElementById('doc-outro-titular').checked : Boolean(t0.outro_titular),
+    tipo_pessoa: manter(val('doc-tit-tipo'), t0.tipo_pessoa),
+    nome: manter(upv('doc-tit-nome'), t0.nome),
+    cpf: manter(val('doc-tit-cpf'), t0.cpf),
+    rg: manter(val('doc-tit-rg'), t0.rg),
+    rg_orgao: manter(upv('doc-tit-rg-orgao'), t0.rg_orgao),
+    genero: manter(val('doc-tit-genero'), t0.genero),
+    endereco: {
+      logradouro: manter(val('doc-tit-end-logradouro'), te0.logradouro),
+      numero: manter(val('doc-tit-end-numero'), te0.numero),
+      complemento: manter(val('doc-tit-end-complemento'), te0.complemento),
+      bairro: manter(val('doc-tit-end-bairro'), te0.bairro),
+      cidade: manter(val('doc-tit-end-cidade'), te0.cidade),
+      uf: manter(upv('doc-tit-end-uf'), te0.uf),
+      cep: manter(val('doc-tit-end-cep'), te0.cep),
+    },
+    representante: {
+      nome: manter(upv('doc-tit-rep-nome'), tr0.nome),
+      cpf: manter(val('doc-tit-rep-cpf'), tr0.cpf),
+      rg_orgao: tr0.rg_orgao,
+      profissao: manter(upv('doc-tit-rep-profissao'), tr0.profissao),
+      mesmo_endereco: document.getElementById('doc-tit-rep-mesmo-endereco') ? document.getElementById('doc-tit-rep-mesmo-endereco').checked : tr0.mesmo_endereco,
+      endereco: manter(val('doc-tit-rep-endereco'), tr0.endereco),
+    },
+  };
   const itens = [];
   for (let i = 0; document.getElementById(`doc-item-desc-${i}`); i++) {
     itens.push({ quantidade: val(`doc-item-qtd-${i}`), descricao: val(`doc-item-desc-${i}`) });
@@ -880,6 +967,25 @@ function _docLer() {
   };
   d.prazo_entrega_dias = Number(val('doc-prazo')) || DOC_DEFAULTS.prazo_entrega_dias;
   d.data = val('doc-data') || new Date().toISOString().slice(0, 10);
+}
+
+function _docTextoAvisoTitular(nome) {
+  return `Procuração em nome de ${String(nome || '').trim().toUpperCase() || '(preencha o titular da UC)'}`;
+}
+
+// Atualiza o aviso do rodapé enquanto digita o nome do titular
+function _docAvisoTitular() {
+  const el = document.getElementById('doc-aviso-titular');
+  if (el) el.textContent = _docTextoAvisoTitular(document.getElementById('doc-tit-nome')?.value);
+}
+
+// Copia para o titular o endereço da usina (ou do cliente, se a usina é no mesmo endereço)
+function _docTitularEnderecoDaUsina() {
+  _docLer();
+  const d = _docCtx.dados;
+  const origem = d.instalacao.mesmo_endereco !== false ? d.cliente.endereco : d.instalacao.endereco;
+  d.titular.endereco = { ...(origem && typeof origem === 'object' ? origem : {}) };
+  _docRender();
 }
 
 // Troca a base: mantém cliente/instalação/prazo, refaz kit e valores
@@ -961,10 +1067,20 @@ function _docAtualizarSoma() {
 }
 
 // Dados que o montador recebe: formulário + empresa/procurador do banco
-// (instalação usa o endereço do cliente quando "mesmo endereço")
-function _docDadosParaGerar() {
+// (instalação usa o endereço do cliente quando "mesmo endereço").
+// Procuração com UC em nome de outra pessoa: o titular entra no lugar do cliente.
+function _docDadosParaGerar(tipo) {
   const d = JSON.parse(JSON.stringify(_docCtx.dados));
   if (d.instalacao.mesmo_endereco !== false) delete d.instalacao.endereco;
+  const tit = d.titular || {};
+  if (tipo === 'procuracao' && tit.outro_titular) {
+    d.tipo_pessoa = tit.tipo_pessoa === 'PJ' ? 'PJ' : 'PF';
+    d.cliente = {
+      nome: tit.nome, cpf: tit.cpf, rg: tit.rg, rg_orgao: tit.rg_orgao, genero: tit.genero,
+      endereco: tit.endereco || {},
+      representante: tit.representante || {},
+    };
+  }
   d.data = d.data ? `${d.data}T12:00:00` : undefined;
   d.contratada = _docCtx.config?.contratada || {};
   d.procurador = _docCtx.config?.procurador || {};
@@ -1023,7 +1139,8 @@ async function _docRegistrarNaTimeline(tipo, modelo, dados) {
     const condicao = (DOC_CONDICOES.find(([v]) => v === dados.condicao) || [])[1] || 'Personalizada';
     descricao = `Contrato ${pj} gerado · ${condicao} · ${docFormatBRL(dados.financeiro?.valor_total)} · ${docFormatKwp(dados.sistema?.potencia_kwp)} kWp`;
   } else {
-    descricao = `Procuração ${pj} gerada · UC ${dados.instalacao?.numero_instalacao || '-'} · ${String(dados.instalacao?.concessionaria || DOC_DEFAULTS.concessionaria).toUpperCase()}`;
+    const titular = dados.titular?.outro_titular ? ` · titular ${String(dados.cliente?.nome || '').toUpperCase()}` : '';
+    descricao = `Procuração ${pj} gerada${titular} · UC ${dados.instalacao?.numero_instalacao || '-'} · ${String(dados.instalacao?.concessionaria || DOC_DEFAULTS.concessionaria).toUpperCase()}`;
   }
   const { error } = await supabaseClient.from('crm_atividades').insert([{
     cliente_id: client.id,
@@ -1031,7 +1148,10 @@ async function _docRegistrarNaTimeline(tipo, modelo, dados) {
     autor_email: state.currentUser?.email || 'sistema',
     tipo: 'documento',
     descricao,
-    meta: { modelo, condicao: dados.condicao || null, valor_total: dados.financeiro?.valor_total || null, origem: dados.origem || null },
+    meta: {
+      modelo, condicao: dados.condicao || null, valor_total: dados.financeiro?.valor_total || null, origem: dados.origem || null,
+      ...(tipo === 'procuracao' && dados.titular?.outro_titular ? { titular: dados.cliente?.nome || null } : {}),
+    },
   }]);
   if (error) { console.warn('[documentos] Falha ao registrar na timeline.', error); return; }
   // Ficha aberta por baixo? Atualiza a timeline na hora.
@@ -1042,11 +1162,12 @@ async function _docRegistrarNaTimeline(tipo, modelo, dados) {
 async function _docGerar(tipo) {
   if (!_docCtx) return;
   _docLer();
-  const dados = _docDadosParaGerar();
+  const dados = _docDadosParaGerar(tipo);
   const modelo = `${tipo}_${dados.tipo_pessoa === 'PJ' ? 'pj' : 'pf'}`;
   const faltando = validarDadosDocumento(modelo, dados);
   if (faltando.length) {
-    showToast('Falta preencher: ' + faltando.map((k) => DOC_ROTULOS[k] || k).join(', '));
+    const deQuem = tipo === 'procuracao' && dados.titular?.outro_titular ? 'Titular da UC — falta preencher: ' : 'Falta preencher: ';
+    showToast(deQuem + faltando.map((k) => DOC_ROTULOS[k] || k).join(', '));
     return;
   }
   const btn = document.getElementById(tipo === 'contrato' ? 'doc-btn-contrato' : 'doc-btn-procuracao');
