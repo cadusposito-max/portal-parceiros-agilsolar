@@ -46,7 +46,7 @@ function getVendasDoMes(mesKey = metaMesAtualKey()) {
 }
 
 // =======================================================================
-// BLOCO DO VENDEDOR — meta do mês + comissão estimada
+// BLOCO DO VENDEDOR — meta do mês + vendas do mês (comissão oculta, ver abaixo)
 // =======================================================================
 function renderMetaBlock() {
   // Admin/gestor têm a visão de time na seção admin; aqui é a régua pessoal.
@@ -67,10 +67,12 @@ function renderMetaBlock() {
   const falta = Math.max(meta - realizado, 0);
   const bateu = meta > 0 && realizado >= meta;
 
-  const comissaoPct = Number(state.comissaoPct) || 0;
-  const comissaoEstimada = realizado * (comissaoPct / 100);
+  // Comissão estimada REMOVIDA temporariamente (28/09/2026): o cálculo estava
+  // errado e o vendedor não deve ver valor de comissão até ser corrigido.
+  // No lugar, o card mostra quantidade de vendas e ticket médio do mês.
+  const ticketMedio = vendas.length > 0 ? realizado / vendas.length : 0;
 
-  // Sem meta cadastrada não inventamos número: mostra só a comissão.
+  // Sem meta cadastrada não inventamos número.
   const barra = meta > 0
     ? `
       <div class="mt-3">
@@ -98,13 +100,12 @@ function renderMetaBlock() {
       </div>
       <div class="border border-neutral-800/60 bg-[#080808] p-4 flex flex-col justify-between">
         <div class="flex items-center gap-2.5">
-          <div class="bg-green-500/10 border border-green-500/30 p-1.5"><i data-lucide="wallet" class="w-3.5 h-3.5 text-green-400"></i></div>
-          <span class="text-white font-black text-[11px] uppercase tracking-widest">Comissão estimada</span>
+          <div class="bg-green-500/10 border border-green-500/30 p-1.5"><i data-lucide="trending-up" class="w-3.5 h-3.5 text-green-400"></i></div>
+          <span class="text-white font-black text-[11px] uppercase tracking-widest">Vendas do mês</span>
         </div>
         <div class="mt-3">
-          <p class="text-2xl font-black text-green-400 num leading-none">${formatCurrency(comissaoEstimada)}</p>
-          <p class="text-[9px] font-bold text-neutral-600 mt-1.5 uppercase tracking-widest">${comissaoPct}% sobre ${vendas.length} venda${vendas.length === 1 ? '' : 's'}</p>
-          <p class="text-[9px] text-neutral-700 font-medium mt-1">Estimativa — o valor oficial é apurado no Financeiro.</p>
+          <p class="text-2xl font-black text-green-400 num leading-none">${vendas.length} venda${vendas.length === 1 ? '' : 's'}</p>
+          <p class="text-[9px] font-bold text-neutral-600 mt-1.5 uppercase tracking-widest">Ticket médio ${formatCurrency(ticketMedio)}</p>
         </div>
       </div>
     </div>`;

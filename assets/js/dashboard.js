@@ -696,7 +696,7 @@ function renderDashboard(container) {
          ════════════════════════════════════════ -->
 
     <!-- ════════════════════════════════════════
-         META DO MÊS + COMISSÃO ESTIMADA (crm-metas.js)
+         META DO MÊS + VENDAS DO MÊS (crm-metas.js)
          Só para vendedor; admin/gestor têm a visão de time mais abaixo.
          ════════════════════════════════════════ -->
     ${typeof renderMetaBlock === 'function' ? renderMetaBlock() : ''}
