@@ -7,8 +7,8 @@
 //
 // Padrão: window.UI_V2_PADRAO (definido no <head> do index.html). Com true,
 // todo mundo entra no visual novo; com false, volta a ser beta só de admin.
-// Reserva: "Voltar ao visual antigo" no menu do usuário grava ui_v2 = '0'
-// neste navegador; o botão "Visual novo" do header antigo grava '1'.
+// Reserva: ?ui=v1 na URL abre o visual antigo nesta carga (não há mais botão
+// para voltar no menu). Quem estiver no antigo tem o botão "Visual novo".
 // Escape: ?ui=v1 na URL força o visual antigo nesta carga.
 // ==========================================
 

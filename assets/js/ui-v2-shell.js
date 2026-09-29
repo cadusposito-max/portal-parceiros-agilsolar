@@ -128,8 +128,6 @@
         <button class="${pref === 'system' ? 'on' : ''}" data-v2="theme" data-theme="system" title="Igual ao sistema">${ic('monitor')}</button></span></div>
       ${canAdmin ? `<button class="v2-mi" data-v2="admin">${ic('settings')}Painel administrativo</button>` : ''}
       <div class="v2-sep"></div>
-      <button class="v2-mi" data-v2="oldui">${ic('undo-2')}Voltar ao visual antigo</button>
-      <div class="v2-sep"></div>
       <button class="v2-mi danger" data-v2="logout">${ic('log-out')}Sair da plataforma</button>`;
   }
   function scopeButton() {
@@ -283,7 +281,6 @@
     if (has('openProfileModal')) acts.push(['Meu perfil', 'Nome, foto, senha e segurança', 'user', () => openProfileModal()]);
     if (has('setThemePreference')) acts.push([document.documentElement.getAttribute('data-theme') === 'dark' ? 'Tema claro' : 'Tema escuro', 'Trocar a aparência', 'sun-moon', () => setThemePreference(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')]);
     if (has('userCanAccessAdminPanel') && userCanAccessAdminPanel()) acts.push(['Painel administrativo', 'Usuários, kits, financiadoras', 'settings', () => openAdmin()]);
-    acts.push(['Voltar ao visual antigo', 'Usa o visual anterior neste navegador', 'undo-2', () => window.uiV2.toggle()]);
     acts.forEach((a) => items.push({ g: 'nav', t: a[0], s: a[1], k: 'acao atalho', i: a[2], run: a[3], action: 1 }));
     return items;
   }
@@ -367,7 +364,6 @@
       case 'admin': if (has('openAdmin')) openAdmin(); break;
       case 'scope': if (state.isAdmin && has('toggleAdminViewMode')) toggleAdminViewMode(); else if (has('toggleGestorViewMode')) toggleGestorViewMode(); break;
       case 'chat': if (has('_chatToggleShell')) _chatToggleShell(); break;
-      case 'oldui': window.uiV2.toggle(); break;
       case 'logout': if (has('handleLogout')) handleLogout(); break;
       case 'palette': openPalette(); break;
       case 'palclose': closePalette(); break;
