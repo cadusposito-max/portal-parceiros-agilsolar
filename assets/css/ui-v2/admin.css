@@ -1,0 +1,160 @@
+/* ==========================================
+   VISUAL NOVO (v2) — PAINEL ADMINISTRATIVO (#admin-overlay)
+   Moldura (menu lateral + cabeçalho) vem de ui-v2-admin.js; aqui a aparência
+   dela e do conteúdo que admin.js desenha em #admin-section-content.
+   ========================================== */
+html[data-ui="v2"] body #admin-overlay { background: var(--v2-bg) !important; backdrop-filter: none !important; color: var(--v2-ink); }
+
+/* cabeçalho fixo */
+html[data-ui="v2"] body #admin-overlay > div:first-child { background: var(--v2-card) !important; backdrop-filter: none !important; border-bottom: 1px solid var(--v2-line) !important; }
+html[data-ui="v2"] body #admin-overlay > div:first-child > div { max-width: 1320px !important; padding: 14px 24px !important; }
+html[data-ui="v2"] body #admin-overlay > div:first-child > div > div:first-child > div:first-child {
+  width: 42px; height: 42px; border: 0 !important; border-radius: 14px; background: var(--v2-blue) !important; color: #fff !important; display: grid; place-items: center; padding: 0 !important;
+}
+html[data-ui="v2"] body #admin-overlay > div:first-child > div > div:first-child > div:first-child svg { width: 20px !important; height: 20px !important; }
+html[data-ui="v2"] body #admin-overlay > div:first-child span:is(.block) { font-size: 17px !important; font-weight: 800 !important; letter-spacing: -.01em !important; text-transform: none !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #admin-overlay > div:first-child span.block + span { font-size: 12.5px !important; font-weight: 500 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #admin-close-btn {
+  height: 40px; border: 1.5px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink) !important; border-radius: 999px !important;
+  font-size: 13px !important; font-weight: 700 !important; text-transform: none !important; letter-spacing: 0 !important; padding: 0 16px !important;
+}
+html[data-ui="v2"] body #admin-close-btn:hover { border-color: var(--v2-blue) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #admin-overlay > div:nth-child(2) { max-width: 1320px !important; padding: 22px 24px 40px !important; background: transparent !important; }
+html[data-ui="v2"] body #admin-overlay-content.v2a { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+
+/* moldura: menu + corpo */
+html[data-ui="v2"] body #admin-overlay-content.v2a { display: grid !important; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
+html[data-ui="v2"] .v2a-nav { position: sticky; top: 92px; background: var(--v2-card); border-radius: 22px; padding: 8px; box-shadow: var(--v2-shadow); display: flex; flex-direction: column; gap: 2px; }
+html[data-ui="v2"] .v2a-nav .lbl { font-size: 11.5px; font-weight: 700; color: var(--v2-gray); padding: 12px 12px 4px; }
+html[data-ui="v2"] .v2a-nav .lbl:first-child { padding-top: 6px; }
+html[data-ui="v2"] .v2a-nav button {
+  border: 0; background: none; border-radius: 14px; padding: 9px 10px; display: flex; align-items: center; gap: 11px; text-align: left; cursor: pointer;
+  color: var(--v2-ink); font-family: inherit; transition: background .12s;
+}
+html[data-ui="v2"] .v2a-nav button > svg:first-child { width: 34px; height: 34px; padding: 8px; box-sizing: border-box; border-radius: 11px; background: var(--v2-bg); color: var(--v2-ink-2); flex-shrink: 0; }
+html[data-ui="v2"] .v2a-nav button .tx { min-width: 0; }
+html[data-ui="v2"] .v2a-nav button b { display: block; font-size: 14px; font-weight: 700; }
+html[data-ui="v2"] .v2a-nav button small { display: block; font-size: 12px; color: var(--v2-gray); font-weight: 500; }
+html[data-ui="v2"] .v2a-nav button:hover { background: var(--v2-bg); }
+html[data-ui="v2"] .v2a-nav button.on { background: var(--v2-blue-50); }
+html[data-ui="v2"] .v2a-nav button.on > svg:first-child { background: var(--v2-blue); color: #fff; }
+html[data-ui="v2"] .v2a-nav button.on b { color: var(--v2-blue-text); }
+html[data-ui="v2"] .v2a-nav button.ext .go { width: 16px; height: 16px; margin-left: auto; color: var(--v2-gray); }
+html[data-ui="v2"] .v2a-body { background: var(--v2-card); border-radius: 24px; padding: 22px; box-shadow: var(--v2-shadow); min-width: 0; }
+html[data-ui="v2"] .v2a-h { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+html[data-ui="v2"] .v2a-ic { width: 46px; height: 46px; border-radius: 15px; background: var(--v2-blue-50); color: var(--v2-blue-text); display: grid; place-items: center; flex-shrink: 0; }
+html[data-ui="v2"] .v2a-ic svg { width: 22px; height: 22px; }
+html[data-ui="v2"] .v2a-h h2 { font-size: 20px; font-weight: 800; letter-spacing: -.01em; margin: 0; color: var(--v2-ink); }
+html[data-ui="v2"] .v2a-h p { font-size: 13px; color: var(--v2-gray); margin: 2px 0 0; font-weight: 500; }
+
+/* conteúdo das seções (markup de admin.js) */
+html[data-ui="v2"] body #admin-section-content :is(p, span, label, button, h3, h4, div) { letter-spacing: 0 !important; }
+html[data-ui="v2"] body #admin-section-content :is(p, span, label, button, h3, h4):not(input) { text-transform: none !important; }
+html[data-ui="v2"] body #admin-section-content [class*="text-[8px]"],
+html[data-ui="v2"] body #admin-section-content [class*="text-[9px]"],
+html[data-ui="v2"] body #admin-section-content [class*="text-[10px]"] { font-size: 12px !important; }
+html[data-ui="v2"] body #admin-section-content :is([class*="text-white"], [class*="text-neutral-2"], [class*="text-neutral-3"]) { color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #admin-section-content :is([class*="text-neutral-4"], [class*="text-neutral-5"], [class*="text-neutral-6"], [class*="text-neutral-7"]) { color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #admin-section-content [class*="font-black"] { font-weight: 800 !important; }
+
+/* linhas / cartões */
+html[data-ui="v2"] body #admin-section-content :is([class*="bg-neutral-900/"], [class*="bg-neutral-950"], [class*="bg-black/"]) {
+  background: var(--v2-soft) !important; border: 0 !important; border-radius: 16px !important; box-shadow: none !important;
+}
+html[data-ui="v2"] body #admin-section-content .flex.flex-col.gap-2 > div { padding: 12px 14px !important; }
+html[data-ui="v2"] body #admin-section-content .flex.flex-col.gap-2 > div:hover { background: var(--v2-blue-50) !important; }
+/* números do topo (Usuários) */
+html[data-ui="v2"] body #admin-section-content .grid > div[class*="p-3"] { background: var(--v2-soft) !important; border: 0 !important; border-radius: 16px !important; padding: 12px 14px !important; }
+html[data-ui="v2"] body #admin-section-content .grid > div[class*="p-3"] p:first-child { color: var(--v2-gray) !important; font-size: 12px !important; font-weight: 600 !important; }
+html[data-ui="v2"] body #admin-section-content .grid > div[class*="p-3"] p + p { color: var(--v2-ink) !important; font-size: 22px !important; font-weight: 800 !important; }
+html[data-ui="v2"] body #admin-section-content .grid > div[class*="green-9"] p + p { color: #1FA971 !important; }
+html[data-ui="v2"] body #admin-section-content .grid > div[class*="red-9"] p + p { color: #D14343 !important; }
+html[data-ui="v2"] body #admin-section-content .grid > div[class*="blue-9"] p + p { color: var(--v2-blue-text) !important; }
+
+/* etiquetas (perfil, ativo, chat) */
+html[data-ui="v2"] body #admin-section-content span[class*="py-0.5"][class*="border"] {
+  border: 0 !important; border-radius: 999px !important; padding: 3px 9px !important; font-size: 11.5px !important; font-weight: 700 !important;
+  background: var(--v2-bg) !important; color: var(--v2-ink-2) !important;
+}
+html[data-ui="v2"] body #admin-section-content span[class*="py-0.5"][class*="text-green"] { background: rgba(31,169,113,.13) !important; color: #12764E !important; }
+html[data-ui="v2"] body #admin-section-content span[class*="py-0.5"][class*="text-red"] { background: rgba(209,67,67,.12) !important; color: #B42F2F !important; }
+html[data-ui="v2"] body #admin-section-content span[class*="py-0.5"][class*="text-purple"] { background: rgba(124,92,230,.13) !important; color: #5B3FC4 !important; }
+html[data-ui="v2"] body #admin-section-content span[class*="py-0.5"]:is([class*="text-blue"], [class*="text-cyan"]) { background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #admin-section-content span[class*="py-0.5"][class*="text-orange"] { background: var(--v2-orange-50) !important; color: var(--v2-orange-text) !important; }
+html[data-ui="v2"][data-theme="dark"] body #admin-section-content span[class*="py-0.5"][class*="text-green"] { color: #4FD49A !important; }
+html[data-ui="v2"][data-theme="dark"] body #admin-section-content span[class*="py-0.5"][class*="text-red"] { color: #F08A8A !important; }
+html[data-ui="v2"][data-theme="dark"] body #admin-section-content span[class*="py-0.5"][class*="text-purple"] { color: #B9A8FF !important; }
+
+/* botões: adicionar, editar, excluir, ações de usuário */
+html[data-ui="v2"] body #admin-section-content button[class*="from-red-600"] {
+  height: 40px; border: 0 !important; border-radius: 12px !important; background: var(--v2-blue) !important; background-image: none !important; color: #fff !important;
+  font-size: 13px !important; font-weight: 800 !important; padding: 0 16px !important; box-shadow: 0 6px 16px rgba(0,143,212,.22);
+}
+html[data-ui="v2"] body #admin-section-content button[class*="from-red-600"]:hover { background: var(--v2-blue-hover) !important; }
+html[data-ui="v2"] body #admin-section-content button[class^="p-1.5 "] {
+  width: 34px; height: 34px; padding: 0 !important; border-radius: 11px !important; display: grid; place-items: center; background: var(--v2-card) !important; color: var(--v2-ink-2) !important; border: 0 !important;
+}
+html[data-ui="v2"] body #admin-section-content button[class^="p-1.5 "] svg { width: 16px !important; height: 16px !important; }
+html[data-ui="v2"] body #admin-section-content button[class^="p-1.5 "][class*="bg-blue"]:hover { background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #admin-section-content button[class^="p-1.5 "][class*="bg-red"]:hover { background: rgba(209,67,67,.12) !important; color: #D14343 !important; }
+html[data-ui="v2"] body #admin-section-content button[class*="py-1.5"] {
+  height: 34px; border: 0 !important; border-radius: 11px !important; padding: 0 12px !important; font-size: 12.5px !important; font-weight: 700 !important;
+  background: var(--v2-card) !important; color: var(--v2-ink-2) !important; gap: 6px !important;
+}
+html[data-ui="v2"] body #admin-section-content button[class*="py-1.5"][class*="text-blue"]:hover { background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #admin-section-content button[class*="py-1.5"][class*="text-red"]:hover { background: rgba(209,67,67,.12) !important; color: #D14343 !important; }
+html[data-ui="v2"] body #admin-section-content button[class*="py-1.5"][class*="text-green"] { color: #12764E !important; }
+html[data-ui="v2"] body #admin-section-content button[class*="py-1.5"] svg { width: 14px !important; height: 14px !important; }
+
+/* campos e filtros */
+html[data-ui="v2"] body #admin-section-content :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+  height: 44px; border-radius: 12px !important; font-size: 14px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: 0 !important; padding: 0 12px !important; font-family: inherit !important;
+}
+html[data-ui="v2"] body #admin-section-content input.flex-1 { flex: 1 1 auto !important; min-height: 44px; }
+html[data-ui="v2"] body #admin-section-content input[type="number"][class*="w-20"] { width: 76px !important; height: 38px; text-align: center; }
+html[data-ui="v2"] body #admin-section-content textarea { border-radius: 12px !important; font-family: inherit !important; }
+
+/* avisos e erros */
+html[data-ui="v2"] body #admin-section-content [class*="bg-amber-950"] { background: var(--v2-orange-50) !important; border: 0 !important; border-radius: 14px !important; padding: 10px 12px !important; }
+html[data-ui="v2"] body #admin-section-content [class*="bg-amber-950"] :is(p, svg) { color: var(--v2-orange-text) !important; font-size: 13px !important; font-weight: 600 !important; }
+html[data-ui="v2"] body #admin-section-content p[class*="text-red-500"][class*="border"] { border: 0 !important; border-radius: 14px !important; background: rgba(209,67,67,.1) !important; color: #B42F2F !important; }
+
+/* ---------- modal de formulário do admin (#admin-modal-overlay) ---------- */
+html[data-ui="v2"] body #admin-modal-overlay { background: var(--v2-scrim) !important; backdrop-filter: none !important; z-index: 130 !important; }
+html[data-ui="v2"] body #admin-modal-overlay > div { background: var(--v2-card) !important; border: 0 !important; border-radius: 28px !important; box-shadow: var(--v2-shadow-pop) !important; max-width: 560px !important; color: var(--v2-ink); }
+html[data-ui="v2"] body #admin-modal-overlay > div > div:first-child { background: var(--v2-card) !important; border-bottom: 1px solid var(--v2-line) !important; padding: 20px 20px 16px 24px !important; }
+html[data-ui="v2"] body #admin-modal-title { font-size: 20px !important; font-weight: 800 !important; letter-spacing: -.01em !important; text-transform: none !important; background: none !important; -webkit-text-fill-color: var(--v2-ink) !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #admin-modal-overlay > div > div:first-child > button { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #admin-modal-overlay > div > div:first-child > button:hover { background: var(--v2-bg); color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #admin-modal-overlay > div > div:first-child > button svg { width: 20px !important; height: 20px !important; }
+html[data-ui="v2"] body #admin-modal-form { padding: 20px 24px 24px !important; }
+html[data-ui="v2"] body #admin-modal-form label { font-size: 12px !important; font-weight: 700 !important; color: var(--v2-ink-2) !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] body #admin-modal-form label span { font-size: 14px !important; color: var(--v2-ink) !important; text-transform: none !important; }
+html[data-ui="v2"] body #admin-modal-form :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+  height: 48px; border-radius: 14px !important; font-size: 14px !important; font-weight: 600 !important; padding: 0 14px !important; border-width: 1.5px !important; font-family: inherit !important; letter-spacing: 0 !important;
+}
+html[data-ui="v2"] body #admin-modal-form input:not([type="checkbox"]) { text-transform: none !important; }
+html[data-ui="v2"] body #admin-modal-form textarea { border-radius: 14px !important; border-width: 1.5px !important; font-family: inherit !important; }
+html[data-ui="v2"] body #admin-modal-form input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--v2-blue); }
+html[data-ui="v2"] body #admin-modal-form > div:last-child > button {
+  height: 50px; padding: 0 !important; border-radius: 14px !important; font-size: 15px !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: 0 !important; background-image: none !important;
+}
+html[data-ui="v2"] body #admin-modal-form > div:last-child > button[type="button"] { border: 1.5px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #admin-modal-save { border: 0 !important; background: var(--v2-blue) !important; color: #fff !important; box-shadow: 0 8px 20px rgba(0,143,212,.25) !important; }
+html[data-ui="v2"] body #admin-modal-save:hover { background: var(--v2-blue-hover) !important; }
+
+/* ---------- celular ---------- */
+@media (max-width: 900px) {
+  html[data-ui="v2"] body #admin-overlay-content.v2a { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  html[data-ui="v2"] .v2a-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: none; padding: 6px; border-radius: 18px; }
+  html[data-ui="v2"] .v2a-nav::-webkit-scrollbar { display: none; }
+  html[data-ui="v2"] .v2a-nav .lbl { display: none; }
+  html[data-ui="v2"] .v2a-nav button { flex-shrink: 0; padding: 6px 10px 6px 6px; }
+  html[data-ui="v2"] .v2a-nav button small { display: none; }
+  html[data-ui="v2"] .v2a-nav button > svg:first-child { width: 30px; height: 30px; padding: 7px; }
+  html[data-ui="v2"] .v2a-body { padding: 16px; border-radius: 20px; }
+  html[data-ui="v2"] body #admin-overlay > div:nth-child(2) { padding: 14px 12px 32px !important; }
+  html[data-ui="v2"] body #admin-overlay > div:first-child > div { padding: 12px 14px !important; }
+  html[data-ui="v2"] body #admin-modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+  html[data-ui="v2"] body #admin-modal-overlay > div { max-width: none !important; border-radius: 28px 28px 0 0 !important; }
+}

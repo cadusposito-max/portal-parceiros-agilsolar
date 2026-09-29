@@ -75,7 +75,7 @@
   // O profile.js escreve rótulos em CAIXA ALTA ("SALVAR DADOS") e em Título
   // ("Nome de Exibição"). No v2 reescreve só o texto exibido, sem tocar em ids,
   // valores ou handlers. O cabeçalho (nome/e-mail do usuário) fica de fora.
-  const KEEP = { KWP: 'kWp', WP: 'Wp', '2FA': '2FA', WHATSAPP: 'WhatsApp', PIN: 'PIN', ID: 'ID', QR: 'QR', JPG: 'JPG', PNG: 'PNG', MB: 'MB', '2MB': '2MB' };
+  const KEEP = { KWP: 'kWp', WP: 'Wp', URL: 'URL', CSS: 'CSS', PDF: 'PDF', UC: 'UC', CPF: 'CPF', CNPJ: 'CNPJ', '2FA': '2FA', WHATSAPP: 'WhatsApp', PIN: 'PIN', ID: 'ID', QR: 'QR', JPG: 'JPG', PNG: 'PNG', MB: 'MB', '2MB': '2MB' };
   function frase(txt) {
     let first = /^[^\p{L}\p{N}]*\p{Lu}/u.test(txt); // "(não editável)" continua minúsculo
     return txt.replace(/[\p{L}\p{N}]+/gu, (w) => {
@@ -87,15 +87,18 @@
   }
   // rotulos: seletor dos elementos em Título que também viram frase.
   // <option>/<select> ficam de fora: o texto da opção pode ser o valor salvo.
-  function normalizarTextos(root, rotulos) {
+  // capsEm (opcional): só converte CAIXA ALTA dentro desses elementos (ex.: botões
+  // e etiquetas), para não mexer em dados gravados em maiúsculas.
+  function normalizarTextos(root, rotulos, capsEm) {
     if (!window.uiV2.isActive() || !root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const t = n.nodeValue;
       if (!/\p{L}{2}/u.test(t)) continue;
       const el = n.parentElement;
-      if (!el || el.closest('option, select, textarea')) continue;
-      const caps = t === t.toLocaleUpperCase('pt-BR');
+      // opção sem value: o texto É o valor salvo, não mexe; com value, é só rótulo
+      if (!el || el.closest('textarea') || (el.tagName === 'OPTION' && !el.hasAttribute('value'))) continue;
+      const caps = t === t.toLocaleUpperCase('pt-BR') && (!capsEm || el.closest(capsEm));
       const rotulo = el.closest(rotulos);
       if (caps || rotulo) { const novo = frase(t); if (novo !== t) n.nodeValue = novo; }
     }
@@ -122,6 +125,7 @@
     run();
   });
   document.addEventListener('uiv2:change', () => ['#modal-overlay', '#equip-modal-overlay'].forEach((s) => normalizarTextos(document.querySelector(s), 'label, h2')));
+  window.uiV2Textos = { normalizarTextos };
 
   const _open = openClientModal;
   openClientModal = function () {
