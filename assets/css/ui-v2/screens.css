@@ -377,3 +377,8 @@ html[data-ui="v2"][data-theme="dark"] .v2s .v2-ini.pj { color: #B9A8FF; }
 html[data-ui="v2"] .v2s .v2-ini.sm { width: 26px; height: 26px; border-radius: 50%; }
 html[data-ui="v2"] .v2s .v2-ini.sm svg { width: 14px !important; height: 14px !important; }
 html[data-ui="v2"] .v2s .v2-podium .v2-ini svg { width: 24px !important; height: 24px !important; }
+
+/* ---------- pílulas: vencem a regra geral de reskin.css que força 12px em todo <button> ---------- */
+html[data-ui="v2"] body #main-container.v2s :is(.v2-seg button, .v2-pills button, button.v2-pill, button.v2-chip),
+html[data-ui="v2"] body #crm360-overlay :is(.v2-seg button, .v2-pills button, button.v2-pill, button.v2-chip) { border-radius: 999px !important; }
+html[data-ui="v2"] body #admin-overlay-content .v2a-nav button { border-radius: 14px !important; }
