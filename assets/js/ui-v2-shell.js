@@ -283,7 +283,7 @@
     if (has('openProfileModal')) acts.push(['Meu perfil', 'Nome, foto, senha e segurança', 'user', () => openProfileModal()]);
     if (has('setThemePreference')) acts.push([document.documentElement.getAttribute('data-theme') === 'dark' ? 'Tema claro' : 'Tema escuro', 'Trocar a aparência', 'sun-moon', () => setThemePreference(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')]);
     if (has('userCanAccessAdminPanel') && userCanAccessAdminPanel()) acts.push(['Painel administrativo', 'Usuários, kits, financiadoras', 'settings', () => openAdmin()]);
-    acts.push(['Voltar ao visual antigo', 'Desliga o beta neste navegador', 'undo-2', () => window.uiV2.toggle()]);
+    acts.push(['Voltar ao visual antigo', 'Usa o visual anterior neste navegador', 'undo-2', () => window.uiV2.toggle()]);
     acts.forEach((a) => items.push({ g: 'nav', t: a[0], s: a[1], k: 'acao atalho', i: a[2], run: a[3], action: 1 }));
     return items;
   }
