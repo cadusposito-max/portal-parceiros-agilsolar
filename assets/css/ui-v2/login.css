@@ -1,0 +1,134 @@
+/* ==========================================
+   VISUAL NOVO (v2) — LOGIN E CARREGAMENTO (index.html #login-screen / #splash-screen)
+   Peças extras vêm de ui-v2-login.js com a classe "hidden" (somem fora do v2).
+   ========================================== */
+
+html[data-ui="v2"] body #login-screen { background: var(--v2-bg) !important; color: var(--v2-ink); }
+html[data-ui="v2"] body #login-screen > div:first-child:not(.login-lado-form) { display: none !important; } /* brilho que pulsa */
+
+/* ---------- logo ---------- */
+html[data-ui="v2"] body :is(.v2l-logo, .v2l-mlogo) { --v2-logo-a: #FFFFFF; }
+html[data-ui="v2"] body :is(.v2l-logo, .v2l-mlogo) .wm small { color: rgba(255,255,255,.78) !important; }
+html[data-ui="v2"] body .v2l-logo { display: block !important; position: relative; }
+html[data-ui="v2"] body .v2l-logo .ui-v2-logo svg { height: 40px; }
+html[data-ui="v2"] body .v2l-logo .ui-v2-logo .wm { display: flex !important; }
+html[data-ui="v2"] body .v2l-logo .ui-v2-logo .wm b { font-size: 26px; }
+html[data-ui="v2"] body .v2l-logo .ui-v2-logo .wm small { font-size: 8px; }
+
+/* ---------- painel da marca (computador) ---------- */
+html[data-ui="v2"] body #login-screen .login-brand { background: var(--v2-blue) !important; border: 0 !important; width: 50%; padding: 48px 56px; }
+html[data-ui="v2"][data-theme="dark"] body #login-screen .login-brand { background: #0B5F8C !important; }
+html[data-ui="v2"] body #login-screen .login-brand::after { content: ""; position: absolute; right: -140px; top: -140px; width: 420px; height: 420px; border-radius: 50%; background: rgba(255,255,255,.07); pointer-events: none; }
+html[data-ui="v2"] body #login-screen .login-brand::before { content: ""; position: absolute; left: -90px; bottom: -120px; width: 300px; height: 300px; border-radius: 50%; background: rgba(255,255,255,.05); pointer-events: none; }
+html[data-ui="v2"] body #login-screen :is(.login-brand-glow, .login-brand-placas) { display: none !important; }
+html[data-ui="v2"] body #login-screen .login-brand > img { display: none !important; }
+html[data-ui="v2"] body #login-screen .login-brand p.text-orange-500 { color: rgba(255,255,255,.82) !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 15px !important; font-weight: 700 !important; margin-bottom: 10px !important; }
+html[data-ui="v2"] body #login-screen .login-brand h1 { color: #fff !important; text-transform: none !important; letter-spacing: -.025em !important; font-size: clamp(38px, 3.6vw, 52px) !important; font-weight: 800 !important; line-height: 1.08 !important; }
+html[data-ui="v2"] body #login-screen .login-brand h1 span { background: none !important; color: #FFD28A !important; -webkit-text-fill-color: #FFD28A; }
+html[data-ui="v2"] body #login-screen .login-brand .grid { display: flex !important; flex-direction: column; gap: 16px !important; margin-top: 36px !important; }
+html[data-ui="v2"] body #login-screen .login-brand .grid > div { border: 0 !important; padding: 0 !important; display: grid; grid-template-columns: 42px 1fr; column-gap: 14px; align-items: center; }
+html[data-ui="v2"] body #login-screen .v2l-fi { display: grid !important; place-items: center; grid-row: span 2; width: 42px; height: 42px; border-radius: 14px; background: rgba(255,255,255,.16); color: #fff; }
+html[data-ui="v2"] body #login-screen .v2l-fi svg { width: 20px; height: 20px; }
+html[data-ui="v2"] body #login-screen .login-brand .grid p { margin: 0 !important; }
+html[data-ui="v2"] body #login-screen .login-brand .grid p:first-of-type { color: #fff !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 15px !important; font-weight: 700 !important; }
+html[data-ui="v2"] body #login-screen .login-brand .grid p + p { color: rgba(255,255,255,.75) !important; font-size: 13.5px !important; }
+html[data-ui="v2"] body #login-screen .login-brand > p:last-child { visibility: hidden; } /* repetiria o nome do topo */
+
+/* ---------- lado do formulário ---------- */
+html[data-ui="v2"] body #login-screen .login-lado-form { background: transparent !important; }
+html[data-ui="v2"] body #login-screen .login-lado-form > .relative.mb-10 { display: none !important; } /* logo antiga do celular */
+html[data-ui="v2"] body #login-screen .login-card {
+  background: var(--v2-card) !important; border: 0 !important; border-radius: 28px !important; box-shadow: var(--v2-shadow) !important;
+  backdrop-filter: none !important; padding: 32px 30px !important; width: 100%; max-width: 420px !important; color: var(--v2-ink);
+}
+html[data-ui="v2"] body #login-screen .login-card > .mb-8.text-center { display: none !important; }
+html[data-ui="v2"] body #login-screen .login-titulo-desktop { display: block !important; margin-bottom: 24px !important; }
+html[data-ui="v2"] body #login-screen .login-card:has(#mfa-step:not(.hidden)) .login-titulo-desktop { display: none !important; }
+html[data-ui="v2"] body #login-screen .login-titulo-desktop h2 { color: var(--v2-ink) !important; text-transform: none !important; letter-spacing: -.02em !important; font-size: 28px !important; font-weight: 800 !important; }
+html[data-ui="v2"] body #login-screen .login-titulo-desktop p { color: var(--v2-gray) !important; font-size: 14px !important; font-weight: 500; }
+html[data-ui="v2"] body #login-screen #login-form { gap: 0; }
+html[data-ui="v2"] body #login-screen #login-form > * + * { margin-top: 16px !important; }
+html[data-ui="v2"] body #login-screen #login-form > .space-y-1 { position: relative; }
+html[data-ui="v2"] body #login-screen #login-form label { display: block; color: var(--v2-ink-2) !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 700 !important; margin-bottom: 6px; }
+html[data-ui="v2"] body #login-screen :is(#login-email, #login-password, #mfa-login-code) {
+  height: 52px; border-radius: 14px !important; border: 1.5px solid transparent !important; background: var(--v2-bg) !important; color: var(--v2-ink) !important;
+  font-size: 15px !important; font-weight: 600 !important; font-family: inherit !important; padding: 0 16px 0 46px !important; box-shadow: none !important; outline: 0;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+html[data-ui="v2"] body #login-screen #login-password { padding-right: 52px !important; }
+html[data-ui="v2"] body #login-screen :is(#login-email, #login-password, #mfa-login-code):focus { border-color: var(--v2-blue) !important; background: var(--v2-card) !important; box-shadow: 0 0 0 4px color-mix(in srgb, var(--v2-blue) 18%, transparent) !important; }
+html[data-ui="v2"] body #login-screen :is(#login-email, #login-password, #mfa-login-code)::placeholder { color: var(--v2-gray) !important; font-weight: 500; opacity: .8; }
+html[data-ui="v2"] body #login-screen .v2l-ic { display: grid !important; place-items: center; position: absolute; left: 14px; bottom: 0; height: 52px; color: var(--v2-gray); pointer-events: none; }
+html[data-ui="v2"] body #login-screen .v2l-ic svg { width: 19px; height: 19px; }
+html[data-ui="v2"] body #login-screen .space-y-1:focus-within .v2l-ic { color: var(--v2-blue-text); }
+html[data-ui="v2"] body #login-screen .v2l-eye { display: grid !important; place-items: center; position: absolute; right: 6px; bottom: 6px; width: 40px; height: 40px; border: 0; border-radius: 11px !important; background: none; color: var(--v2-gray); cursor: pointer; padding: 0; }
+html[data-ui="v2"] body #login-screen .v2l-eye:hover { background: var(--v2-hover); color: var(--v2-ink); }
+html[data-ui="v2"] body #login-screen .v2l-eye svg { width: 19px; height: 19px; }
+
+html[data-ui="v2"] body #login-screen :is(#btn-submit-login, #btn-mfa-submit) {
+  height: 54px; padding: 0 !important; border: 0 !important; border-radius: 14px !important; background: var(--v2-orange) !important; background-image: none !important;
+  color: var(--v2-orange-ink) !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 16px !important; font-weight: 800 !important;
+  box-shadow: 0 8px 20px rgba(250,165,25,.3) !important; margin-top: 20px !important;
+}
+html[data-ui="v2"] body #login-screen :is(#btn-submit-login, #btn-mfa-submit):hover { filter: brightness(1.04); }
+html[data-ui="v2"] body #login-screen :is(#btn-submit-login, #btn-mfa-submit):disabled { opacity: .55; box-shadow: none !important; cursor: not-allowed; }
+html[data-ui="v2"] body #login-screen :is(#btn-submit-login, #btn-mfa-submit) svg { width: 19px !important; height: 19px !important; stroke-width: 2.5px !important; }
+html[data-ui="v2"] body #login-screen #login-form .h-px { background: var(--v2-line) !important; }
+html[data-ui="v2"] body #login-screen #login-form .h-px + span { color: var(--v2-gray) !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 12.5px !important; font-weight: 600 !important; }
+html[data-ui="v2"] body #login-screen #btn-login-passkey {
+  height: 52px; padding: 0 !important; border: 1.5px solid var(--v2-line-strong) !important; border-radius: 14px !important; background: var(--v2-card) !important;
+  color: var(--v2-ink) !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 14.5px !important; font-weight: 700 !important;
+}
+html[data-ui="v2"] body #login-screen #btn-login-passkey:hover { border-color: var(--v2-blue) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #login-screen #btn-login-passkey svg { width: 19px !important; height: 19px !important; stroke-width: 2px !important; }
+html[data-ui="v2"] body #login-screen #btn-forgot-password,
+html[data-ui="v2"] body #login-screen #mfa-step button[onclick="cancelMfaStep()"] { text-transform: none !important; letter-spacing: 0 !important; font-size: 14px !important; font-weight: 700 !important; color: var(--v2-blue-text) !important; padding: 6px 10px; border-radius: 10px !important; }
+html[data-ui="v2"] body #login-screen #btn-forgot-password:hover,
+html[data-ui="v2"] body #login-screen #mfa-step button[onclick="cancelMfaStep()"]:hover { background: var(--v2-blue-50); }
+html[data-ui="v2"] body #login-screen :is(#login-error, #mfa-login-error) { border: 0 !important; border-radius: 12px !important; background: rgba(209,67,67,.1) !important; color: #B42318 !important; font-size: 13px !important; font-weight: 600 !important; padding: 10px 12px !important; }
+html[data-ui="v2"][data-theme="dark"] body #login-screen :is(#login-error, #mfa-login-error) { color: #F59A9A !important; }
+
+/* 2FA */
+html[data-ui="v2"] body #login-screen #mfa-step .rounded-full { width: 60px !important; height: 60px !important; border: 0 !important; border-radius: 20px !important; background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #login-screen #mfa-step .rounded-full svg { color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #login-screen #mfa-step h2 { color: var(--v2-ink) !important; text-transform: none !important; letter-spacing: -.01em !important; font-size: 22px !important; font-weight: 800 !important; }
+html[data-ui="v2"] body #login-screen #mfa-step h2 + p { color: var(--v2-gray) !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 14px !important; font-weight: 500 !important; }
+html[data-ui="v2"] body #login-screen #mfa-login-code { height: 64px; padding: 0 16px !important; font-size: 26px !important; font-weight: 800 !important; letter-spacing: .45em !important; font-variant-numeric: tabular-nums; }
+
+/* ---------- celular: faixa azul no topo, cartão por cima ---------- */
+@media (max-width: 1023px) {
+  html[data-ui="v2"] body #login-screen { justify-content: flex-start !important; overflow-y: auto !important; }
+  html[data-ui="v2"] body #login-screen::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 240px; background: var(--v2-blue); border-radius: 0 0 32px 32px; }
+  html[data-ui="v2"][data-theme="dark"] body #login-screen::before { background: #0B5F8C; }
+  html[data-ui="v2"] body #login-screen .login-lado-form { padding: 40px 16px 32px !important; max-width: 460px; margin: 0 auto; }
+  html[data-ui="v2"] body #login-screen .v2l-mlogo { display: flex !important; justify-content: center; margin-bottom: 30px; }
+  html[data-ui="v2"] body #login-screen .v2l-mlogo .ui-v2-logo .wm { display: flex !important; }
+  html[data-ui="v2"] body #login-screen .v2l-mlogo .ui-v2-logo svg { height: 36px; }
+  html[data-ui="v2"] body #login-screen .v2l-mlogo .ui-v2-logo .wm b { font-size: 24px; }
+  html[data-ui="v2"] body #login-screen .login-card { padding: 26px 22px !important; box-shadow: 0 10px 30px rgba(0,40,70,.12) !important; max-width: none !important; }
+  html[data-ui="v2"] body #login-screen .login-titulo-desktop h2 { font-size: 24px !important; }
+}
+
+/* ---------- entrada suave ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ui="v2"] body #login-screen .login-card { animation: v2-lcard .45s cubic-bezier(.2,.8,.2,1) both; }
+  html[data-ui="v2"] body #login-screen .login-brand > div.relative { animation: v2-lcard .5s .08s cubic-bezier(.2,.8,.2,1) both; }
+}
+@keyframes v2-lcard { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ---------- tela de carregamento ---------- */
+html[data-ui="v2"] body #splash-screen > div:first-child:not(#splash-content) { display: none !important; }
+html[data-ui="v2"] body #splash-content > .relative.mb-6 { display: none !important; }
+html[data-ui="v2"] body #splash-content .v2l-slogo { display: block !important; }
+html[data-ui="v2"] body #splash-content .v2l-slogo .ui-v2-logo svg { height: 52px; }
+html[data-ui="v2"] body #splash-content .v2l-slogo .ui-v2-logo .wm { display: flex !important; }
+html[data-ui="v2"] body #splash-content .v2l-slogo .ui-v2-logo .wm b { font-size: 34px; }
+html[data-ui="v2"] body #splash-content .v2l-slogo .ui-v2-logo .wm small { font-size: 10px; }
+html[data-ui="v2"] body #splash-content > .flex.flex-col { margin-top: 36px !important; }
+html[data-ui="v2"] body #splash-content .justify-between { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 700 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #splash-content #loading-percentage { color: var(--v2-blue-text) !important; font-variant-numeric: tabular-nums; }
+html[data-ui="v2"] body #splash-content #loading-bar { background: var(--v2-blue) !important; background-image: none !important; box-shadow: none !important; border-radius: 99px; }
+html[data-ui="v2"] body #splash-content #loading-bar:only-child { border-radius: 99px; }
+html[data-ui="v2"] body #splash-content #loading-bar { transition: width .25s ease-out !important; }
+html[data-ui="v2"] body #splash-content .h-1\.5 { height: 6px !important; background: var(--v2-line) !important; border: 0 !important; border-radius: 99px !important; }
+html[data-ui="v2"] body #splash-content p.font-mono { font-family: inherit !important; font-size: 13px !important; font-weight: 500; color: var(--v2-gray) !important; animation: none !important; }

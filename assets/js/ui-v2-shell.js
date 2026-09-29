@@ -53,7 +53,7 @@
   const activeTab = () => (has('getActiveTabId') ? getActiveTabId() : state.activeTab);
   const ctaFor = (k) => { const c = ENVS[k] && ENVS[k].cta; return c && has(c[1]) ? c : null; };
 
-  const LOGO = '<span class="ui-v2-logo" aria-label="Ágil Solar"><svg viewBox="0 0 620 425" aria-hidden="true"><path fill="#008FD4" d="M162 0H345Q375 0 388 24L620 425H435Q405 425 392 402L310 258L336 213H285Z"/><path fill="#FAA519" d="M150 213H285L310 258L228 402Q215 425 186 425H0L107 238Q121 213 150 213Z"/></svg><span class="wm"><b><span style="color:var(--v2-logo-a)">Ágil</span><span style="color:#FAA519">Solar</span></b><small>ENERGIA FOTOVOLTAICA</small></span></span>';
+  const LOGO = '<span class="ui-v2-logo" aria-label="Ágil Solar"><svg viewBox="0 0 620 425" aria-hidden="true"><path fill="#008FD4" d="M162 0H345Q375 0 388 24L620 425H435Q405 425 392 402L310 258L336 213H285Z"/><path fill="#FAA519" d="M150 213H285L310 258L228 402Q215 425 186 425H0L107 238Q121 213 150 213Z"/></svg><span class="wm"><b><span style="color:var(--v2-logo-a)">Ágil</span><span style="color:#FAA519">Solar</span></b></span></span>';
 
   function userInfo() {
     const nome = (state.profile && state.profile.nome) || (has('getFirstName') ? getFirstName() : '') || (state.currentUser && state.currentUser.email) || '';

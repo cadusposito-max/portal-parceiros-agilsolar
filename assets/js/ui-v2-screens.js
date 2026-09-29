@@ -84,6 +84,60 @@
 
   const PROP_ST = { GERADA: ['Gerada', 't-gray'], ENVIADA: ['Enviada', 't-blue'], VISTA: ['Vista', 't-orange'], ACEITA: ['Aceita', 't-green'] };
 
+  // ==================== PARA HOJE (fila do crm-fila.js, sem fetch novo) ====================
+  const FILA_V2 = {
+    followup_vencido: ['alarm-clock', 't-red', 'Atrasado'],
+    followup_hoje: ['alarm-clock', 't-orange', 'Hoje'],
+    proposta_vista: ['flame', 't-orange', 'Abriu a proposta'],
+    proposta_sem_resposta: ['send', 't-blue', 'Sem resposta'],
+    novo_sem_contato: ['user-plus', 't-green', 'Lead novo'],
+    parado: ['snowflake', 't-gray', 'Parado'],
+  };
+  const HOJE_PREVIA = 5;
+  const hoje = { modo: 'todos', tudo: false };
+  function paraHojeHTML() {
+    let itens = has('buildFilaDoDia') ? buildFilaDoDia() : [];
+    const vendSel = String(state.dashVendedor || 'all').toLowerCase();
+    if (vendSel !== 'all' && has('canUseDashVendedorFilter') && canUseDashVendedorFilter()) itens = itens.filter((i) => String(i.client.vendedor_email || '').toLowerCase() === vendSel);
+    const quentes = itens.filter((i) => i.tipo === 'proposta_vista');
+    const lista = hoje.modo === 'quentes' ? quentes : itens;
+    const vis = hoje.tudo ? lista : lista.slice(0, HOJE_PREVIA);
+    const resto = lista.length - vis.length;
+    const mostraVend = state.isAdmin || (state.isGestor && state.gestorViewAll);
+    const linha = (i) => {
+      const c = i.client;
+      const t = FILA_V2[i.tipo] || FILA_V2.parado;
+      const wa = has('buildClientWhatsappLink') ? buildClientWhatsappLink(c) : '';
+      const vend = mostraVend && c.vendedor_email ? ' · ' + esc(vendNome(c.vendedor_email).split(' ')[0]) : '';
+      return `<div class="v2-hj" role="button" tabindex="0" onclick="openCrm360('${esc(c.id)}')">
+        <i class="v2-hjic ${t[1]}">${ic(t[0])}</i>
+        <div class="tx"><b><span>${esc(c.nome || 'Cliente')}</span>${i.valor > 0 ? `<em>${moneyC(i.valor)}</em>` : ''}</b>
+          <small><span class="v2-chip ${t[1]}">${t[2]}</span>${esc(i.detalhe)}${vend}</small></div>
+        <div class="ac" onclick="event.stopPropagation()">
+          ${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener noreferrer" title="Abrir WhatsApp">${ic('message-circle')}</a>` : ''}
+          <button type="button" title="Registrar contato" onclick="filaConcluir('${esc(c.id)}')">${ic('check')}</button>
+        </div></div>`;
+    };
+    const vazio = hoje.modo === 'quentes'
+      ? 'Ninguém abriu proposta nos últimos 7 dias.'
+      : 'Nenhum cliente pedindo atenção agora. Bom momento para prospectar.';
+    return `
+      <div class="v2-card v2-hoje" id="v2-hoje">
+        <div class="v2-ch"><div><h3>Para hoje</h3><small>${itens.length ? `${itens.length} cliente${itens.length > 1 ? 's' : ''} esperando você` : 'Tudo em dia'}</small></div>
+          <button class="v2-hjnova" onclick="openNovaPropostaPicker()">${ic('file-plus-2')}Nova proposta</button></div>
+        ${itens.length ? `<div class="v2-seg flat v2-hjseg"><button class="${hoje.modo === 'todos' ? 'on' : ''}" onclick="uiV2Screens.setHoje('todos')">Todos · ${itens.length}</button><button class="${hoje.modo === 'quentes' ? 'on' : ''}" onclick="uiV2Screens.setHoje('quentes')">${ic('flame')}Abriram a proposta · ${quentes.length}</button></div>` : ''}
+        ${vis.length ? vis.map(linha).join('') : `<div class="v2-hjvazio">${ic(hoje.modo === 'quentes' ? 'flame' : 'check-check')}<span>${vazio}</span></div>`}
+        ${resto > 0 ? `<button class="v2-hjmais" onclick="uiV2Screens.hojeTudo(true)">Ver os outros ${resto}${ic('chevron-down')}</button>`
+          : (hoje.tudo && lista.length > HOJE_PREVIA ? `<button class="v2-hjmais" onclick="uiV2Screens.hojeTudo(false)">Mostrar menos${ic('chevron-up')}</button>` : '')}
+      </div>`;
+  }
+  function repintarHoje() {
+    const el = document.getElementById('v2-hoje');
+    if (!el) return;
+    el.outerHTML = paraHojeHTML();
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   // ==================== VISÃO GERAL (Comercial) ====================
   function renderDashboardV2(container) {
     container.className = 'v2s';
@@ -253,12 +307,7 @@
             <img src="${esc(has('safeImageUrl') ? safeImageUrl(c.coverImageUrl, 'assets/img/logo-light.png') : '')}" alt="" loading="lazy" onerror="this.src='assets/img/logo-light.png';this.onerror=null;">
             <div class="tx"><b>${esc(c.title || 'Comunicado')}</b><small>${esc(cap(c.type || 'comunicado'))} · ${esc(formatDate(c.publishedAt || c.createdAt))}</small></div></div>`).join('') || '<div class="v2-empty">Sem comunicados por enquanto.</div>'}
       </div>`;
-    const quickCard = `
-      <div class="v2-card v2-quick">
-        <h3>Tem um cliente em mente?</h3><p>Monte o orçamento agora, com kit e financiamento.</p>
-        <button class="v2-btno" onclick="openNovaPropostaPicker()">${ic('file-plus-2')}Nova proposta</button>
-        <button class="v2-btn2" onclick="setTab('clientes')">${ic('users')}Ir para clientes</button>
-      </div>`;
+    const quickCard = paraHojeHTML();
 
     // --- análise do recorte (admin / gestor com a unidade)
     const mostraAnalise = state.isAdmin || (state.isGestor && state.gestorViewAll);
@@ -975,6 +1024,8 @@
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, () => window.prompt('Copie o link:', url));
       else window.prompt('Copie o link:', url);
     },
+    setHoje(m) { hoje.modo = m; hoje.tudo = false; repintarHoje(); },
+    hojeTudo(v) { hoje.tudo = !!v; repintarHoje(); },
     setMeses(n) { renderDashboardV2.meses = n; if (has('renderContent')) renderContent(); },
     setModo(tela, m) {
       try { localStorage.setItem('ui_v2_view_' + tela, m); } catch (_) {}

@@ -300,3 +300,41 @@ html[data-ui="v2"] body #profile-modal > div.v2-hanim { transition: height .28s 
 @keyframes v2-pitem { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes v2-pinr { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
 @keyframes v2-pinl { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Registrar contato (crm-fila.js #fila-concluir-overlay): só aparência ---------- */
+html[data-ui="v2"] body #fila-concluir-overlay { background: var(--v2-scrim) !important; backdrop-filter: none !important; }
+html[data-ui="v2"] body #fila-concluir-overlay > div { background: var(--v2-card) !important; border: 0 !important; border-radius: 28px !important; box-shadow: var(--v2-shadow-pop) !important; color: var(--v2-ink); }
+html[data-ui="v2"] body #fila-concluir-overlay > div > div:first-child { background: none !important; border-bottom: 0 !important; padding: 22px 20px 6px 24px !important; }
+html[data-ui="v2"] body #fila-concluir-overlay > div > div:first-child p { font-size: 12px !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important; color: #12764E !important; }
+html[data-ui="v2"] body #fila-concluir-overlay h2 { font-size: 19px !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: -.01em !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay > div > div:first-child > button { width: 36px; height: 36px; border-radius: 12px !important; display: grid; place-items: center; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay > div > div:first-child > button:hover { background: var(--v2-bg); color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay > div > div:first-child > button svg { width: 20px !important; height: 20px !important; }
+html[data-ui="v2"] body #fila-concluir-overlay > div > div + div { padding: 14px 24px 24px !important; }
+html[data-ui="v2"] body #fila-concluir-overlay .border-t { border-color: var(--v2-line) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay p.text-\[10px\] { font-size: 12.5px !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--v2-ink-2) !important; margin-bottom: 8px !important; }
+html[data-ui="v2"] body #fila-concluir-overlay p.text-\[10px\] span { color: var(--v2-gray) !important; font-weight: 500; }
+html[data-ui="v2"] body #fila-concluir-overlay :is(.fila-tipo-btn, .fila-prox-btn) {
+  border: 1.5px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink-2) !important; border-radius: 14px !important;
+  font-size: 12.5px !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important; transition: border-color .15s, background .15s, color .15s;
+}
+html[data-ui="v2"] body #fila-concluir-overlay .fila-tipo-btn { padding: 12px 4px !important; gap: 6px !important; }
+html[data-ui="v2"] body #fila-concluir-overlay .fila-tipo-btn svg { width: 18px !important; height: 18px !important; }
+html[data-ui="v2"] body #fila-concluir-overlay .fila-prox-btn { height: 40px; padding: 0 4px !important; border-radius: 999px !important; }
+html[data-ui="v2"] body #fila-concluir-overlay :is(.fila-tipo-btn, .fila-prox-btn):hover { border-color: var(--v2-blue) !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay :is(.fila-tipo-btn.border-green-500, .fila-prox-btn.border-orange-500) { border-color: var(--v2-blue) !important; background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay :is(textarea, input) {
+  border: 1.5px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink) !important; border-radius: 14px !important;
+  font-size: 14px !important; font-weight: 600 !important; padding: 11px 14px !important; font-family: inherit !important;
+}
+html[data-ui="v2"] body #fila-concluir-overlay input { height: 46px; }
+html[data-ui="v2"] body #fila-concluir-overlay :is(textarea, input):focus { border-color: var(--v2-blue) !important; outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--v2-blue) 25%, transparent) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay :is(textarea, input)::placeholder { color: var(--v2-gray) !important; font-weight: 500; }
+html[data-ui="v2"] body #fila-concluir-overlay input:disabled { opacity: .5; }
+html[data-ui="v2"] body #fila-concluir-overlay #fila-salvar { height: 50px; border: 0 !important; border-radius: 14px !important; background: var(--v2-blue) !important; color: #fff !important; font-size: 15px !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: 0 !important; box-shadow: 0 6px 16px rgba(0,143,212,.25) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay #fila-salvar:hover { background: var(--v2-blue-hover) !important; }
+html[data-ui="v2"] body #fila-concluir-overlay #fila-erro { border-radius: 12px; border: 0 !important; background: rgba(209,67,67,.1) !important; color: #B42318 !important; font-size: 13px !important; }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ui="v2"] body #fila-concluir-overlay { animation: v2-pfade .22s ease-out; }
+  html[data-ui="v2"] body #fila-concluir-overlay > div { animation: v2-pup .3s cubic-bezier(.2,.8,.2,1) !important; }
+}
