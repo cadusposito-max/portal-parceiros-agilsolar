@@ -499,8 +499,115 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
+  // ==================== VENDAS (Comercial) ====================
+  function podium(list) {
+    if (!list.length) return '<div class="v2-empty">Sem vendas no recorte.</div>';
+    const ord = [1, 0, 2].filter((i) => list[i]);
+    const H = [118, 88, 66], COL = ['#FAA519', '#008FD4', '#9FA2A5'];
+    return `<div class="v2-podium">${ord.map((i) => { const s = list[i]; return `<div class="pod"><i class="v2-ini round ${i === 0 ? 'o' : i === 1 ? '' : 'g'}">${esc(initials(s.nome))}</i><b>${esc(String(s.nome).split(' ')[0])}</b><small>${moneyC(s.total)}</small><div class="step" style="height:${H[i]}px;background:${COL[i]}">${i + 1}º</div></div>`; }).join('')}</div>`
+      + list.slice(3).map((s, k) => `<div class="v2-lst"><span class="pos">${k + 4}</span><i class="v2-ini round g">${esc(initials(s.nome))}</i><div class="tx"><b>${esc(s.nome)}</b><small>${s.qtd} venda${s.qtd > 1 ? 's' : ''} · ticket ${moneyC(s.ticket)}</small></div><div class="val">${moneyC(s.total)}</div></div>`).join('');
+  }
+
+  function renderVendasV2(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'vendas';
+    const source = state.isAdmin ? applyAdminGlobalScope(state.vendas || []) : (Array.isArray(state.vendas) ? state.vendas : []);
+    const vendas = state.isAdmin ? applyAdminVendasFilters(source) : applyRegularVendasFilters(source);
+    state.lastFilteredVendas = vendas;
+    const sum = computeSalesSummary(vendas);
+    const showSeller = (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll);
+    const now = new Date();
+    const currMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    let periodoLbl = '';
+    let filtros = '';
+    if (state.isAdmin) {
+      ensureAdminVendasFiltersState();
+      const f = state.adminVendasFilters;
+      const o = getAdminSalesFilterOptions(source);
+      periodoLbl = { all: 'Geral', today: 'Hoje', month: 'Mês atual', '30d': 'Últimos 30 dias' }[f.period] || cap(formatMonthLabel(f.period));
+      const ativos = [f.vendedor_email, state.adminViewAll ? f.franquia_id : 'all'].filter((v) => v && v !== 'all').length + (f.min_price ? 1 : 0) + (f.max_price ? 1 : 0) + (f.preset && f.preset !== 'all' ? 1 : 0);
+      filtros = `
+        <div class="v2-toolbar">
+          <label class="v2-sbox">${ic('search')}<input id="v2-vend-search" type="text" value="${esc(f.search || '')}" oninput="handleAdminVendasSearchInput(this.value)" placeholder="Cliente, kit ou vendedor" autocomplete="off"></label>
+          <select class="v2-select ${f.period !== 'all' ? 'on' : ''}" onchange="setAdminVendasFilter('period', this.value)">
+            ${[['all', 'Geral'], ['today', 'Hoje'], ['month', 'Mês atual'], ['30d', 'Últimos 30 dias']].map(([v, l]) => `<option value="${v}" ${f.period === v ? 'selected' : ''}>${l}</option>`).join('')}
+            ${o.months.map((m) => `<option value="${m}" ${f.period === m ? 'selected' : ''}>${cap(formatMonthLabel(m))}</option>`).join('')}
+          </select>
+          <select class="v2-select" onchange="setAdminVendasFilter('sort', this.value)">${SALES_SORT_OPTIONS.map((x) => `<option value="${x.v}" ${f.sort === x.v ? 'selected' : ''}>${x.l}</option>`).join('')}</select>
+          <div class="v2-grow"></div>
+          <button class="v2-btn2 hide-m" onclick="exportVendasXLSX()">${ic('download')}XLSX</button>
+        </div>
+        <button class="v2-pill v2-filtbtn ${ativos ? 'on' : ''}" onclick="uiV2Screens.toggleFiltros()">${ic('sliders-horizontal')}Filtros${ativos ? ' · ' + ativos : ''}</button>
+        <div class="v2-filters v2-admfilters ${uiV2Screens.filtrosAbertos ? 'open' : ''}">
+          <select class="v2-select ${f.vendedor_email !== 'all' ? 'on' : ''}" onchange="setAdminVendasFilter('vendedor_email', this.value)"><option value="all">Todos os vendedores</option>${o.vendedores.map((v) => `<option value="${esc(v.email)}" ${f.vendedor_email === v.email ? 'selected' : ''}>${esc(vendNome(v.email))}</option>`).join('')}</select>
+          ${state.adminViewAll ? `<select class="v2-select ${f.franquia_id !== 'all' ? 'on' : ''}" onchange="setAdminVendasFilter('franquia_id', this.value)"><option value="all">Todas as franquias</option>${o.franquias.map((x) => `<option value="${esc(x.id)}" ${String(f.franquia_id) === String(x.id) ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select>` : ''}
+          <label class="v2-pill" style="cursor:text">R$ mín.<input class="v2-money" type="number" min="0" step="100" value="${esc(String(f.min_price || ''))}" onchange="setAdminVendasFilter('min_price', this.value)"></label>
+          <label class="v2-pill" style="cursor:text">R$ máx.<input class="v2-money" type="number" min="0" step="100" value="${esc(String(f.max_price || ''))}" onchange="setAdminVendasFilter('max_price', this.value)"></label>
+          <div class="v2-seg">${ADMIN_SALES_PRESETS.map((p) => `<button class="${String(f.preset || 'all') === p.v ? 'on' : ''}" onclick="setAdminVendasPreset('${p.v}')">${esc(p.l)}</button>`).join('')}</div>
+          <button class="v2-pill" onclick="resetAdminVendasFilters()">${ic('filter-x')}Limpar</button>
+        </div>`;
+    } else {
+      const meses = [...new Set(source.map((v) => toMonthKey(v.created_at)).filter(Boolean))].sort().reverse();
+      if (!meses.includes(currMonth)) meses.unshift(currMonth);
+      periodoLbl = state.vendasPeriod === 'all' ? 'Geral' : cap(formatMonthLabel(state.vendasPeriod));
+      filtros = `<div class="v2-toolbar"><div class="v2-pills">
+          <button class="${state.vendasPeriod === 'all' ? 'on' : ''}" onclick="setVendasPeriod('all')">Geral</button>
+          ${meses.map((m) => `<button class="${state.vendasPeriod === m ? 'on' : ''}" onclick="setVendasPeriod('${m}')">${cap(formatMonthLabel(m))}${m === currMonth ? ' ·' : ''}</button>`).join('')}
+        </div><div class="v2-grow"></div><button class="v2-btn2 hide-m" onclick="exportVendasXLSX()">${ic('download')}XLSX</button></div>`;
+    }
+    setPageMeta('comercial:vendas', state.isAdmin ? 'Vendas' : 'Minhas vendas', `${sum.qtd} venda${sum.qtd === 1 ? '' : 's'} · ${periodoLbl}`);
+
+    const kpi = (label, value, icon, color, sub, hero) => `<div class="v2-card v2-kpi ${hero ? 'hero' : ''}" style="cursor:default"><div class="h"><span>${label}</span><div class="ic" style="background:${color}1F;color:${color}">${ic(icon)}</div></div><div class="v">${value}</div><div class="foot"><span>${sub}</span></div></div>`;
+    const kwpTotal = vendas.reduce((a, v) => a + (Number(v.kit_power) || 0), 0);
+    const kpis = `<div class="v2-kpis">
+      ${kpi('Total vendido', moneyC(sum.totalVendido), 'badge-dollar-sign', '#008FD4', periodoLbl, true)}
+      ${kpi('Negócios fechados', sum.qtd, 'handshake', '#FAA519', sum.ultima ? 'última em ' + formatDate(sum.ultima.created_at) : 'nenhuma ainda')}
+      ${kpi('Ticket médio', moneyC(sum.ticketMedio), 'receipt', '#1FA971', `sobre ${sum.qtd} venda${sum.qtd === 1 ? '' : 's'}`)}
+      ${kpi('Potência vendida', kwpTotal ? kwpTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' kWp' : '—', 'sun', '#808284', 'soma dos kits')}
+    </div>`;
+
+    let ranking = '';
+    if (state.isAdmin || (state.isGestor && state.gestorViewAll)) {
+      const sellers = buildSalesRanking(vendas).map((s) => ({ ...s, nome: vendNome(s.email) }));
+      const fr = state.isAdmin && state.adminViewAll ? buildFranquiaRanking(vendas) : [];
+      ranking = `<div class="v2-row ${fr.length ? 'r2' : ''}" ${fr.length ? '' : 'style="grid-template-columns:1fr"'}>
+        <div class="v2-card"><div class="v2-ch"><div><h3>Ranking da equipe</h3><small>Valor fechado no recorte</small></div></div>${podium(sellers)}</div>
+        ${fr.length ? `<div class="v2-card"><div class="v2-ch"><div><h3>Franquias</h3><small>Valor fechado no recorte</small></div></div>${fr.map((x, i) => `<div class="v2-lst"><span class="pos">${i + 1}</span><i class="v2-ini">${esc(initials(x.nome))}</i><div class="tx"><b>${esc(x.nome)}</b><small>${x.qtd} venda${x.qtd > 1 ? 's' : ''}</small></div><div class="val">${moneyC(x.total)}</div></div>`).join('')}</div>` : ''}
+      </div>`;
+    }
+
+    const rows = vendas.map((v) => {
+      const tel = digitsOnly(v.cliente_telefone);
+      const first = String(v.cliente_nome || '').split(' ')[0] || 'cliente';
+      const wa = tel ? `https://wa.me/55${tel}?text=${encodeURIComponent(`Olá ${first}, parabéns pela aquisição do seu sistema solar!`)}` : '';
+      return `<tr onclick="openVendaClienteFicha('${esc(v.id)}')">
+        <td><div class="v2-who"><i class="v2-ini" style="background:rgba(31,169,113,.14);color:#1FA971">${ic('trophy', 'style="width:16px;height:16px"')}</i><div>${esc(v.cliente_nome || '—')}<small style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${esc(v.kit_nome || '—')}</small></div></div></td>
+        <td class="hide-m">${v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—'}</td>
+        <td class="hide-m muted">${esc(formatDate(v.created_at))}</td>
+        ${showSeller ? `<td class="hide-m">${esc(vendNome(v.vendedor_email))}${state.isAdmin && state.adminViewAll && v.franquia_id ? `<small class="muted" style="display:block;font-size:12px">${esc(getFranquiaNameById(v.franquia_id))}</small>` : ''}</td>` : ''}
+        <td style="font-weight:800">${money(getSaleValue(v))}</td>
+        <td><div class="v2-acts">
+          ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
+          ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); enviarVendaGroner('${esc(v.id)}', this)" title="Enviar para a Groner">${ic('send')}</button>` : ''}
+          ${state.isAdmin ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); deleteVenda('${esc(v.id)}')" title="Excluir venda" style="color:#D14343">${ic('trash-2')}</button>` : ''}
+        </div></td></tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      ${kpis}
+      ${filtros}
+      ${ranking}
+      <div class="v2-card" style="padding:14px 16px">
+        <div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas</h3><small>Clique para abrir a ficha do cliente</small></div></div>
+        ${vendas.length ? `<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+          : '<div class="v2-empty">Nenhuma venda com os filtros atuais.</div>'}
+      </div>`;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   // ==================== troca de render ====================
-  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2 };
+  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2, renderVendas: renderVendasV2 };
   Object.entries(V2_SCREENS).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];

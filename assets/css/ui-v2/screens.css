@@ -288,3 +288,14 @@ html[data-ui="v2"] .v2s .v2-pcard .ft { display: flex; align-items: center; gap:
 html[data-ui="v2"] .v2s .v2-pcard .ft .price { font-size: 20px; font-weight: 800; letter-spacing: -.01em; flex: 1; min-width: 0; }
 html[data-ui="v2"] .v2s .v2-pcard .ft .price small { display: block; font-size: 11px; color: var(--v2-gray); font-weight: 600; letter-spacing: 0; }
 @media (max-width: 760px) { html[data-ui="v2"] .v2s .v2-pgrid { grid-template-columns: 1fr; } }
+
+/* ==========================================
+   VENDAS
+   ========================================== */
+html[data-ui="v2"] .v2s .v2-podium { display: flex; align-items: flex-end; justify-content: center; gap: 14px; padding: 6px 0 12px; }
+html[data-ui="v2"] .v2s .v2-podium .pod { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; max-width: 150px; }
+html[data-ui="v2"] .v2s .v2-podium .v2-ini { width: 56px; height: 56px; font-size: 16px; border: 3px solid var(--v2-card); box-shadow: var(--v2-shadow); }
+html[data-ui="v2"] .v2s .v2-podium b { font-size: 13px; font-weight: 800; text-align: center; }
+html[data-ui="v2"] .v2s .v2-podium small { font-size: 12px; color: var(--v2-gray); font-weight: 700; }
+html[data-ui="v2"] .v2s .v2-podium .step { width: 100%; border-radius: 18px 18px 8px 8px; display: grid; place-items: center; font-size: 22px; font-weight: 800; color: #fff; margin-top: 4px; }
+html[data-ui="v2"] body #main-container .v2-pill input.v2-money { width: 96px; height: 30px; border: 0 !important; background: var(--v2-bg) !important; border-radius: 10px !important; padding: 0 8px !important; font-size: 13px !important; box-shadow: none !important; color: var(--v2-ink) !important; }
