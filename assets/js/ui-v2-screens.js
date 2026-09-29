@@ -271,7 +271,7 @@
         <div class="v2-ch"><div><h3>Funil do período</h3><small>Clientes que entraram, pelo status atual</small></div><button class="v2-ghost" onclick="setTab('funil')" title="Abrir funil">${ic('arrow-up-right')}</button></div>
         <div class="v2-funnel">
           ${fs('NOVO', 'Novos', '', passou('NOVO', 'PROPOSTA ENVIADA'))}
-          ${fs('PROPOSTA ENVIADA', 'Proposta enviada', '', passou('PROPOSTA ENVIADA', 'EM NEGOCIAÇÃO'))}
+          ${fs('PROPOSTA ENVIADA', 'Enviada', '', passou('PROPOSTA ENVIADA', 'EM NEGOCIAÇÃO'))}
           ${fs('EM NEGOCIAÇÃO', 'Em negociação', '', passou('EM NEGOCIAÇÃO', 'FECHADO'))}
           ${fs('FECHADO', 'Fechado', 'o')}
         </div>
@@ -361,7 +361,7 @@
   }
 
   // ==================== CLIENTES e FUNIL (Comercial) ====================
-  const ST_CLI = { NOVO: ['Novo', 't-gray', '#808284'], 'PROPOSTA ENVIADA': ['Proposta enviada', 't-blue', '#008FD4'], 'EM NEGOCIAÇÃO': ['Em negociação', 't-orange', '#FAA519'], FECHADO: ['Fechado', 't-green', '#1FA971'], PERDIDO: ['Perdido', 't-red', '#D14343'] };
+  const ST_CLI = { NOVO: ['Novo', 't-gray', '#808284'], 'PROPOSTA ENVIADA': ['Enviada', 't-blue', '#008FD4'], 'EM NEGOCIAÇÃO': ['Em negociação', 't-orange', '#FAA519'], FECHADO: ['Fechado', 't-green', '#1FA971'], PERDIDO: ['Perdido', 't-red', '#D14343'] };
   const stCli = (s) => ST_CLI[normalizeClientStatus(s)] || ST_CLI.NOVO;
   const vendNome = (email) => (has('dashVendedorNome') ? dashVendedorNome(email) : String(email || '').split('@')[0]);
 

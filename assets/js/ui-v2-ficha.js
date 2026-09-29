@@ -14,7 +14,7 @@
   const esc = (s) => (has('escapeHTML') ? escapeHTML(String(s ?? '')) : String(s ?? ''));
   const ic = (n, extra = '') => `<i data-lucide="${n}" ${extra}></i>`;
   const cap = (s) => { const t = String(s || '').toLocaleLowerCase('pt-BR'); return t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1); };
-  const ST = { NOVO: 'Novo', 'PROPOSTA ENVIADA': 'Proposta enviada', 'EM NEGOCIAÇÃO': 'Em negociação', FECHADO: 'Fechado', PERDIDO: 'Perdido' };
+  const ST = { NOVO: 'Novo', 'PROPOSTA ENVIADA': 'Enviada', 'EM NEGOCIAÇÃO': 'Em negociação', FECHADO: 'Fechado', PERDIDO: 'Perdido' };
   const ST_CLS = { NOVO: 't-gray', 'PROPOSTA ENVIADA': 't-blue', 'EM NEGOCIAÇÃO': 't-orange', FECHADO: 't-green', PERDIDO: 't-red' };
 
   function ensureScrim() {
