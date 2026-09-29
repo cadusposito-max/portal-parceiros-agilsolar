@@ -168,6 +168,8 @@
   window.addEventListener('resize', () => { if (P.btn) fechar(); });
   window.addEventListener('scroll', () => { if (P.btn && !P.el.classList.contains('sheet')) posicionar(); }, true);
   document.addEventListener('uiv2:change', () => { fechar(); scan(document.getElementById('main-container')); });
+  // a gaveta de filtros do celular (ui-v2-filtros.js) fica fora do #main-container
+  window.uiV2Select = { scan, tituloDe };
 
   // as telas redesenham #main-container inteiro: aplica nos selects novos a cada desenho
   const main = document.getElementById('main-container');

@@ -210,12 +210,12 @@
       : null;
     const filtros = `
       <div class="v2-filters">
-        <div class="v2-seg">${seg(currMonth, 'Este mês', mesAtivo === currMonth)}${seg('last3', 'Últimos 3 meses', periodo.kind === 'last3')}${seg('all', 'Geral', geral)}</div>
-        <select class="v2-select ${outroMes ? 'on' : ''}" onchange="if (this.value) setDashPeriod(this.value)" title="Escolher mês">
+        <div class="v2-seg v2-fx" data-titulo="Período">${seg(currMonth, 'Este mês', mesAtivo === currMonth)}${seg('last3', 'Últimos 3 meses', periodo.kind === 'last3')}${seg('all', 'Geral', geral)}</div>
+        <select class="v2-select ${outroMes ? 'on' : ''}" onchange="if (this.value) setDashPeriod(this.value)" title="Escolher mês" data-titulo="Outro mês">
           <option value="" ${outroMes ? '' : 'selected'}>Outro mês</option>
           ${months.map((m) => `<option value="${m}" ${outroMes && mesAtivo === m ? 'selected' : ''}>${cap(formatMonthLabel(m))}</option>`).join('')}
         </select>
-        <div style="position:relative" id="dash-period-picker-wrap">
+        <div style="position:relative" id="dash-period-picker-wrap" class="v2-fx" data-titulo="Período personalizado">
           <button type="button" class="v2-pill ${customAtivo ? 'on' : ''}" onclick="toggleDashPeriodPicker(event)">${ic('calendar-range')}${customAtivo ? esc(periodo.label) : 'Período'}</button>
           <div id="dash-period-picker" class="v2-picker hidden">
             <label>De<input id="dash-period-from" type="date" value="${pFrom}"></label>
@@ -397,8 +397,8 @@
       ${state.adminViewAll ? sel('franquia_id', 'Todas as franquias', o.franquias.map((x) => `<option value="${esc(x.id)}" ${String(f.franquia_id) === String(x.id) ? 'selected' : ''}>${esc(x.nome)}</option>`).join(''), f.franquia_id) : ''}
       ${sel('mes', 'Qualquer mês', o.meses.map((m) => `<option value="${m}" ${f.mes === m ? 'selected' : ''}>${cap(formatMonthLabel(m))}</option>`).join(''), f.mes)}
       ${sel('cidade', 'Todas as cidades', o.cidades.map((c) => `<option value="${esc(c)}" ${f.cidade === c ? 'selected' : ''}>${esc(c)}</option>`).join(''), f.cidade)}
-      <div class="v2-seg">${ADMIN_CLIENT_PRESETS.map((p) => `<button class="${String(f.preset || 'all') === p.v ? 'on' : ''}" onclick="setAdminClientesPreset('${p.v}')">${esc(p.l)}</button>`).join('')}</div>
-      <button class="v2-pill" onclick="resetAdminClientesFilters()">${ic('filter-x')}Limpar</button>
+      <div class="v2-seg v2-fx" data-titulo="Cadastro">${ADMIN_CLIENT_PRESETS.map((p) => `<button class="${String(f.preset || 'all') === p.v ? 'on' : ''}" onclick="setAdminClientesPreset('${p.v}')">${esc(p.l)}</button>`).join('')}</div>
+      <button class="v2-pill v2-fclear" onclick="resetAdminClientesFilters()">${ic('filter-x')}Limpar</button>
     </div>`;
   }
   function scopeLabel(source) {
@@ -419,11 +419,12 @@
     const adminBtns = state.isAdmin ? `
       <button class="v2-btn2 hide-m" onclick="openCrmDuplicatas()" title="Revisar cadastros com o mesmo telefone">${ic('merge')}Duplicatas</button>
       <button class="v2-btn2 hide-m" onclick="adminEnriquecerCidades()" title="Preenche coordenadas e HSP dos clientes antigos">${ic('sun')}HSP</button>` : '';
-    const sortSeg = !state.isAdmin ? `<div class="v2-seg flat">${CLIENT_SORT_OPTIONS.map((o) => `<button class="${state.clienteSort === o.v ? 'on' : ''}" onclick="setClienteSort('${o.v}')">${o.v === 'alpha' ? 'A–Z' : 'Mais recentes'}</button>`).join('')}</div>` : '';
+    const sortSeg = !state.isAdmin ? `<div class="v2-seg flat v2-fx" data-titulo="Ordenar por">${CLIENT_SORT_OPTIONS.map((o) => `<button class="${state.clienteSort === o.v ? 'on' : ''}" onclick="setClienteSort('${o.v}')">${o.v === 'alpha' ? 'A–Z' : 'Mais recentes'}</button>`).join('')}</div>` : '';
 
     const vista = modo('clientes', 'lista', ['lista', 'kanban']);
     const vazio = `<div class="v2-card v2-empty">${source.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum cliente na carteira ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Cadastrar cliente</button></div></div>`;
 
+    container.dataset.v2total = String(filtered.length); container.dataset.v2nome = 'cliente|clientes';
     container.innerHTML = `
       <div class="v2-toolbar">
         ${searchBox(state.isAdmin ? 'Nome, telefone, cidade ou vendedor' : 'Buscar por nome, telefone ou cidade')}
@@ -526,6 +527,7 @@
     const corpo = vista === 'kanban'
       ? clientesKanbanHTML(filtered, showSeller, true)
       : (filtered.length ? clientesTabelaHTML(filtered, showSeller) : `<div class="v2-card v2-empty">${source.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum lead no funil ainda.'}</div>`);
+    container.dataset.v2total = String(filtered.length); container.dataset.v2nome = 'cliente|clientes';
     container.innerHTML = `
       <div class="v2-toolbar">
         ${searchBox('Buscar no funil por nome, telefone ou cidade')}
@@ -614,6 +616,7 @@
           <td class="hide-m" style="font-weight:800">${money(propostaPreco(p))}</td>
           <td>${acoes(p)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
 
+    container.dataset.v2total = String(filtered.length); container.dataset.v2nome = 'proposta|propostas';
     container.innerHTML = `
       <div class="v2-kpis">
         ${kpi('Valor fechado', moneyC(valorFechado), 'badge-dollar-sign', '#008FD4', 'maior proposta de cada cliente fechado', true)}
@@ -625,7 +628,7 @@
         <label class="v2-sbox">${ic('search')}<input id="v2-prop-search" type="text" value="${esc(state.propostasSearch || '')}" oninput="handlePropostasSearchInput(this.value)" placeholder="Buscar por cliente ou kit" autocomplete="off"></label>
         ${vendOpts.length ? `<select class="v2-select ${vendedor !== 'all' ? 'on' : ''}" onchange="setPropostasFiltro('vendedor', this.value)"><option value="all">Todos os vendedores</option>${vendOpts.map((o) => `<option value="${esc(o.v)}" ${o.v === vendedor ? 'selected' : ''}>${esc(o.l)}</option>`).join('')}</select>` : ''}
         <select class="v2-select ${mes !== 'all' ? 'on' : ''}" onchange="setPropostasFiltro('mes', this.value)"><option value="all">Todos os meses</option>${mesOpts.map((m) => `<option value="${m}" ${m === mes ? 'selected' : ''}>${cap(formatMonthLabel(m))}</option>`).join('')}</select>
-        ${filtrosAtivos ? `<button class="v2-pill" onclick="limparPropostasFiltros()">${ic('filter-x')}Limpar · ${filtered.length} de ${escopo.length}</button>` : ''}
+        ${filtrosAtivos ? `<button class="v2-pill v2-fclear" onclick="limparPropostasFiltros()">${ic('filter-x')}Limpar · ${filtered.length} de ${escopo.length}</button>` : ''}
         <div class="v2-grow"></div>
         ${viewSeg('propostas', vista, ['kanban', 'lista'])}
         <button class="v2-btno" style="width:auto;height:44px" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button>
@@ -679,10 +682,10 @@
         <div class="v2-filters v2-admfilters ${uiV2Screens.filtrosAbertos ? 'open' : ''}">
           <select class="v2-select ${f.vendedor_email !== 'all' ? 'on' : ''}" onchange="setAdminVendasFilter('vendedor_email', this.value)"><option value="all">Todos os vendedores</option>${o.vendedores.map((v) => `<option value="${esc(v.email)}" ${f.vendedor_email === v.email ? 'selected' : ''}>${esc(vendNome(v.email))}</option>`).join('')}</select>
           ${state.adminViewAll ? `<select class="v2-select ${f.franquia_id !== 'all' ? 'on' : ''}" onchange="setAdminVendasFilter('franquia_id', this.value)"><option value="all">Todas as franquias</option>${o.franquias.map((x) => `<option value="${esc(x.id)}" ${String(f.franquia_id) === String(x.id) ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select>` : ''}
-          <label class="v2-pill" style="cursor:text">R$ mín.<input class="v2-money" type="number" min="0" step="100" value="${esc(String(f.min_price || ''))}" onchange="setAdminVendasFilter('min_price', this.value)"></label>
-          <label class="v2-pill" style="cursor:text">R$ máx.<input class="v2-money" type="number" min="0" step="100" value="${esc(String(f.max_price || ''))}" onchange="setAdminVendasFilter('max_price', this.value)"></label>
-          <div class="v2-seg">${ADMIN_SALES_PRESETS.map((p) => `<button class="${String(f.preset || 'all') === p.v ? 'on' : ''}" onclick="setAdminVendasPreset('${p.v}')">${esc(p.l)}</button>`).join('')}</div>
-          <button class="v2-pill" onclick="resetAdminVendasFilters()">${ic('filter-x')}Limpar</button>
+          <label class="v2-pill v2-fx" data-titulo="Valor mínimo" style="cursor:text">R$ mín.<input class="v2-money" type="number" min="0" step="100" value="${esc(String(f.min_price || ''))}" onchange="setAdminVendasFilter('min_price', this.value)"></label>
+          <label class="v2-pill v2-fx" data-titulo="Valor máximo" style="cursor:text">R$ máx.<input class="v2-money" type="number" min="0" step="100" value="${esc(String(f.max_price || ''))}" onchange="setAdminVendasFilter('max_price', this.value)"></label>
+          <div class="v2-seg v2-fx" data-titulo="Período rápido">${ADMIN_SALES_PRESETS.map((p) => `<button class="${String(f.preset || 'all') === p.v ? 'on' : ''}" onclick="setAdminVendasPreset('${p.v}')">${esc(p.l)}</button>`).join('')}</div>
+          <button class="v2-pill v2-fclear" onclick="resetAdminVendasFilters()">${ic('filter-x')}Limpar</button>
         </div>`;
     } else {
       const meses = [...new Set(source.map((v) => toMonthKey(v.created_at)).filter(Boolean))].sort().reverse();
@@ -744,6 +747,7 @@
     const mais = vendas.length > limite ? `<div class="v2-more"><button class="v2-btn2" onclick="uiV2Screens.maisVendas()">${ic('chevrons-down')}Carregar mais · ${limite} de ${vendas.length}</button></div>` : '';
     const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas</h3><small>Clique para abrir a ficha do cliente</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
 
+    container.dataset.v2total = String(vendas.length); container.dataset.v2nome = 'venda|vendas';
     container.innerHTML = `
       ${kpis}
       ${filtros}
@@ -874,6 +878,7 @@
       ? `<div class="v2-card v2-empty">${ic('package-open', 'style="width:36px;height:36px;margin:0 auto 10px;display:block;opacity:.5"')}<b style="display:block;color:var(--v2-ink);font-size:15px">Nenhum kit cadastrado ainda</b>Cadastre um por um ou importe a planilha modelo.${state.isAdmin ? `<div class="v2-btnrow"><button class="v2-btnp" onclick="openModal()">${ic('package-plus')}Cadastrar o primeiro kit</button><button class="v2-btn2" onclick="triggerKitsImportPicker()">${ic('upload')}Importar planilha</button><button class="v2-btn2" onclick="downloadKitsImportTemplateXLSX()">${ic('file-down')}Baixar modelo</button></div>` : '<div style="margin-top:8px">Peça ao administrador para cadastrar os kits.</div>'}</div>`
       : `<div class="v2-card v2-empty">Nenhum kit com esses filtros.<div style="margin-top:12px"><button class="v2-btn2" onclick="uiV2Screens.limparKits()">${ic('filter-x')}Limpar filtros</button></div></div>`;
 
+    container.dataset.v2total = String(lista.length); container.dataset.v2nome = 'kit|kits';
     container.innerHTML = `
       <div class="v2-toolbar">
         ${seg}
@@ -888,7 +893,7 @@
         <select class="v2-select ${_catalogoCategoria !== 'all' ? 'on' : ''}" onchange="setCatalogoCategoria(this.value)"><option value="all">Todas as categorias</option><option value="kitsInversor" ${_catalogoCategoria === 'kitsInversor' ? 'selected' : ''}>Inversores</option><option value="kitsMicro" ${_catalogoCategoria === 'kitsMicro' ? 'selected' : ''}>Microinversores</option></select>
         <select class="v2-select ${_catalogoStatus !== 'all' ? 'on' : ''}" onchange="setCatalogoStatus(this.value)"><option value="all">Ativos e inativos</option><option value="ativos" ${_catalogoStatus === 'ativos' ? 'selected' : ''}>Só ativos</option><option value="inativos" ${_catalogoStatus === 'inativos' ? 'selected' : ''}>Fora de linha</option></select>
         ${state.isAdmin && franquias.length ? `<select class="v2-select" title="De qual unidade são os preços exibidos" onchange="setCatalogoFranquia(this.value)">${franquias.map((f) => `<option value="${esc(f.id)}" ${String(franqAtual) === String(f.id) ? 'selected' : ''}>Preços: ${esc(cap(f.nome || ''))}</option>`).join('')}</select>` : ''}
-        ${filtros ? `<button class="v2-pill" onclick="uiV2Screens.limparKits()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
+        ${filtros ? `<button class="v2-pill v2-fclear" onclick="uiV2Screens.limparKits()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
         <div class="v2-grow"></div>
         ${viewSeg('produtos_kits', vista, ['cards', 'lista'])}
       </div>
@@ -952,6 +957,7 @@
       ? `<div class="v2-card v2-empty">${ic('package-open', 'style="width:36px;height:36px;margin:0 auto 10px;display:block;opacity:.5"')}<b style="display:block;color:var(--v2-ink);font-size:15px">Nenhum equipamento cadastrado</b>Módulo, inversor, estrutura, cabos, serviço e outros, cada um com seu valor.<div class="v2-btnrow"><button class="v2-btnp" onclick="openEquipModal()">${ic('plus')}Cadastrar o primeiro</button><button class="v2-btn2" onclick="triggerEquipImportPicker()">${ic('upload')}Importar planilha</button><button class="v2-btn2" onclick="downloadEquipamentosTemplateXLSX()">${ic('file-down')}Baixar modelo</button></div></div>`
       : `<div class="v2-card v2-empty">Nenhum item com esses filtros.<div style="margin-top:12px"><button class="v2-btn2" onclick="uiV2Screens.limparEquip()">${ic('filter-x')}Limpar filtros</button></div></div>`;
 
+    container.dataset.v2total = String(lista.length); container.dataset.v2nome = 'item|itens';
     container.innerHTML = `
       <div class="v2-toolbar">
         ${seg}
@@ -964,7 +970,7 @@
       <div class="v2-toolbar">
         <label class="v2-sbox">${ic('search')}<input id="v2-equip-search" type="text" value="${esc(_equipBusca)}" oninput="handleEquipBuscaInput(this.value)" placeholder="Buscar por nome ou marca" autocomplete="off"></label>
         <select class="v2-select ${_equipStatus !== 'all' ? 'on' : ''}" onchange="setEquipStatus(this.value)"><option value="all">Ativos e inativos</option><option value="ativos" ${_equipStatus === 'ativos' ? 'selected' : ''}>Só ativos</option><option value="inativos" ${_equipStatus === 'inativos' ? 'selected' : ''}>Inativos</option></select>
-        ${filtros ? `<button class="v2-pill" onclick="uiV2Screens.limparEquip()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
+        ${filtros ? `<button class="v2-pill v2-fclear" onclick="uiV2Screens.limparEquip()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
         <div class="v2-grow"></div>
         ${viewSeg('produtos_equip', vista, ['lista', 'cards'])}
       </div>
@@ -984,7 +990,13 @@
       if (window.uiV2.isActive()) {
         // entrar numa tela recomeça as listas do 1º lote
         if (name !== lastScreen) { lastScreen = name; window.uiV2Screens.vendasLimite = 40; }
-        try { return v2(container, original); } catch (err) { console.warn('[ui-v2] ' + name + ' falhou, usando o antigo', err); }
+        try {
+          if (container) { delete container.dataset.v2total; delete container.dataset.v2nome; }
+          const r = v2(container, original);
+          // celular: filtros vão para a gaveta de baixo (ui-v2-filtros.js)
+          if (window.uiV2Filtros) window.uiV2Filtros.aplicar(container);
+          return r;
+        } catch (err) { console.warn('[ui-v2] ' + name + ' falhou, usando o antigo', err); }
       }
       window.uiV2PageMeta = null;
       return original.apply(this, arguments);
@@ -1001,7 +1013,8 @@
       window.uiV2PageMeta = null;
       delete document.body.dataset.v2screen;
       const out = _renderContent.apply(this, arguments);
-      const key = `${state.environment}:${has('getActiveTabId') ? getActiveTabId() : state.activeTab}`;
+      if (window.uiV2Filtros) window.uiV2Filtros.sync();
+      const key =`${state.environment}:${has('getActiveTabId') ? getActiveTabId() : state.activeTab}`;
       const box = document.getElementById('main-container');
       if (window.uiV2.isActive() && box && (key !== lastKey || animarProximo)) {
         box.classList.remove('v2-enter'); void box.offsetWidth; box.classList.add('v2-enter');
