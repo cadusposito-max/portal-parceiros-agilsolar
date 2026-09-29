@@ -641,14 +641,166 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
+  // ==================== PRODUTOS (Comercial) ====================
+  // Mesmos filtros/estado de produtos.js (_catalogo*, _equip*); as ações
+  // (editar, ativar, excluir, importar, exportar) são as funções de lá.
+  const KIT_FAIXAS = [['all', 'Todos'], ['a', 'Até 5 kWp'], ['b', '5 a 10 kWp'], ['c', '10 a 20 kWp'], ['d', 'Acima de 20']];
+  const kitFaixa = (kwp) => { const v = Number(kwp) || 0; return v <= 5 ? 'a' : v <= 10 ? 'b' : v <= 20 ? 'c' : 'd'; };
+  const kwpTxt = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+
+  function renderProductsListV2(container, original) {
+    if (!canManageProductCatalog()) { window.uiV2PageMeta = null; return original(container); }
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) emptyState.classList.add('hidden');
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'produtos';
+    const kits = Array.isArray(state.data) ? state.data : [];
+    const equips = Array.isArray(state.equipamentos) ? state.equipamentos : [];
+    const secao = _produtosSecao === 'equipamentos' ? 'equipamentos' : 'kits';
+    const seg = `<div class="v2-seg">
+      <button class="${secao === 'kits' ? 'on' : ''}" onclick="setProdutosSecao('kits')">${ic('package')}Kits</button>
+      <button class="${secao === 'equipamentos' ? 'on' : ''}" onclick="setProdutosSecao('equipamentos')">${ic('boxes')}Equipamentos</button></div>`;
+    if (secao === 'equipamentos') return produtosEquipV2(container, seg, equips);
+    return produtosKitsV2(container, seg, kits);
+  }
+
+  function produtosKitsV2(container, seg, todos) {
+    if (state.isGestor && !state.isAdmin && state.franquiaId) state.adminKitsFranquia = state.franquiaId;
+    const faixa = window.uiV2Screens.kitFaixa || 'all';
+    let base = [...todos];
+    if (_catalogoCategoria !== 'all') base = base.filter((k) => k.categoria === _catalogoCategoria);
+    if (_catalogoStatus === 'ativos') base = base.filter((k) => k.ativo !== false);
+    if (_catalogoStatus === 'inativos') base = base.filter((k) => k.ativo === false);
+    if (_catalogoBusca) base = base.filter((k) => `${k.name || ''} ${k.brand || ''}`.toLowerCase().includes(_catalogoBusca));
+    const count = { all: base.length };
+    base.forEach((k) => { const f = kitFaixa(k.power); count[f] = (count[f] || 0) + 1; });
+    const lista = faixa === 'all' ? base : base.filter((k) => kitFaixa(k.power) === faixa);
+    const nInativos = todos.filter((k) => k.ativo === false).length;
+
+    const franquias = (state.franquiasCatalog || []).filter((f) => f.ativo !== false);
+    const franqAtual = state.adminKitsFranquia || state.franquiaId || '';
+    const franqNome = (franquias.find((f) => String(f.id) === String(franqAtual)) || {}).nome || '';
+    setPageMeta('comercial:produtos', 'Produtos', `${todos.length} kit${todos.length === 1 ? '' : 's'}${nInativos ? ` · ${nInativos} fora de linha` : ''}${franqNome ? ` · preços de ${cap(franqNome)}` : ''}`);
+
+    const card = (k) => {
+      const inativo = k.ativo === false;
+      const desconto = Number(k.list_price) > Number(k.price);
+      const micro = k.categoria === 'kitsMicro';
+      const ger = Number(k._estGeneration) || calcularGeracaoEstimada(Number(k.power) || 0, k.categoria);
+      const id = esc(k.id);
+      return `<div class="v2-card v2-pcard v2-kit ${inativo ? 'off' : ''} ${k.tag && !inativo ? 'feat' : ''}" onclick="openModalById('${id}')">
+        <div class="tags">${k.brand ? `<span class="v2-chip t-blue">${esc(k.brand)}</span>` : ''}<span class="v2-chip t-gray">${micro ? 'Microinversor' : 'Inversor'}</span>${k.tag ? `<span class="v2-chip t-orange">${ic('flame')}${esc(cap(k.tag))}</span>` : ''}${inativo ? '<span class="v2-chip t-gray">Fora de linha</span>' : ''}</div>
+        <div><small class="muted" style="font-size:12px;font-weight:700">Kit fotovoltaico</small><div class="kp">${kwpTxt(k.power)} <small>kWp</small></div></div>
+        <div class="kit">${ic('solar-panel')}<span title="${esc(k.name)}">${esc(k.name || 'Sem nome')}</span></div>
+        <ul><li>${ic('cpu')}Categoria<b>${micro ? 'Microinversor' : 'Inversor string'}</b></li>${k.type ? `<li>${ic('home')}Tipo<b>${esc(cap(k.type))}</b></li>` : ''}<li>${ic('sun')}Geração média<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b></li></ul>
+        <div class="ft"><div class="price">${desconto ? `<s>${money(k.list_price)}</s>` : ''}${money(k.price)}<small>Preço do kit${franqNome ? ' · ' + esc(cap(franqNome)) : ''}</small></div>
+          <div class="v2-acts">
+            <button class="v2-sq" title="${state.isAdmin ? 'Editar' : 'Editar preço da unidade'}" onclick="event.stopPropagation(); openModalById('${id}')">${ic('pencil')}</button>
+            ${state.isAdmin ? `<button class="v2-sq" title="${inativo ? 'Reativar (volta ao criador de propostas)' : 'Tirar de linha (sai do criador de propostas)'}" onclick="event.stopPropagation(); toggleProdutoAtivo('${id}')">${ic(inativo ? 'eye' : 'eye-off')}</button>` : ''}
+            <button class="v2-sq del" title="${state.isAdmin && !state.adminKitsFranquia ? 'Excluir do catálogo' : 'Remover/ocultar'}" onclick="event.stopPropagation(); deleteItem('${id}')">${ic('trash-2')}</button>
+          </div></div>
+      </div>`;
+    };
+
+    const filtros = [_catalogoCategoria !== 'all', _catalogoStatus !== 'all', Boolean(_catalogoBusca), faixa !== 'all'].filter(Boolean).length;
+    const vazio = todos.length === 0
+      ? `<div class="v2-card v2-empty">${ic('package-open', 'style="width:36px;height:36px;margin:0 auto 10px;display:block;opacity:.5"')}<b style="display:block;color:var(--v2-ink);font-size:15px">Nenhum kit cadastrado ainda</b>Cadastre um por um ou importe a planilha modelo.${state.isAdmin ? `<div class="v2-btnrow"><button class="v2-btnp" onclick="openModal()">${ic('package-plus')}Cadastrar o primeiro kit</button><button class="v2-btn2" onclick="triggerKitsImportPicker()">${ic('upload')}Importar planilha</button><button class="v2-btn2" onclick="downloadKitsImportTemplateXLSX()">${ic('file-down')}Baixar modelo</button></div>` : '<div style="margin-top:8px">Peça ao administrador para cadastrar os kits.</div>'}</div>`
+      : `<div class="v2-card v2-empty">Nenhum kit com esses filtros.<div style="margin-top:12px"><button class="v2-btn2" onclick="uiV2Screens.limparKits()">${ic('filter-x')}Limpar filtros</button></div></div>`;
+
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        ${seg}
+        <div class="v2-grow"></div>
+        ${state.isAdmin ? `<button class="v2-sq" style="width:42px;height:42px;background:var(--v2-card);box-shadow:var(--v2-shadow)" title="Baixar planilha modelo" onclick="downloadKitsImportTemplateXLSX()">${ic('file-down')}</button>
+        <button class="v2-btn2" style="height:42px" onclick="triggerKitsImportPicker()">${ic('upload')}Importar</button>` : ''}
+        <button class="v2-btn2" style="height:42px" onclick="exportCurrentKitsXLSX()">${ic('download')}Exportar</button>
+        ${state.isAdmin ? `<button class="v2-btno" style="width:auto;height:42px" onclick="openModal()">${ic('package-plus')}Novo kit</button>` : ''}
+      </div>
+      <div class="v2-toolbar">
+        <label class="v2-sbox">${ic('search')}<input id="v2-kit-search" type="text" value="${esc(_catalogoBusca)}" oninput="handleCatalogoBuscaInput(this.value)" placeholder="Buscar kit por nome ou marca" autocomplete="off"></label>
+        <select class="v2-select ${_catalogoCategoria !== 'all' ? 'on' : ''}" onchange="setCatalogoCategoria(this.value)"><option value="all">Todas as categorias</option><option value="kitsInversor" ${_catalogoCategoria === 'kitsInversor' ? 'selected' : ''}>Inversores</option><option value="kitsMicro" ${_catalogoCategoria === 'kitsMicro' ? 'selected' : ''}>Microinversores</option></select>
+        <select class="v2-select ${_catalogoStatus !== 'all' ? 'on' : ''}" onchange="setCatalogoStatus(this.value)"><option value="all">Ativos e inativos</option><option value="ativos" ${_catalogoStatus === 'ativos' ? 'selected' : ''}>Só ativos</option><option value="inativos" ${_catalogoStatus === 'inativos' ? 'selected' : ''}>Fora de linha</option></select>
+        ${state.isAdmin && franquias.length ? `<select class="v2-select" title="De qual unidade são os preços exibidos" onchange="setCatalogoFranquia(this.value)">${franquias.map((f) => `<option value="${esc(f.id)}" ${String(franqAtual) === String(f.id) ? 'selected' : ''}>Preços: ${esc(cap(f.nome || ''))}</option>`).join('')}</select>` : ''}
+        ${filtros ? `<button class="v2-pill" onclick="uiV2Screens.limparKits()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
+      </div>
+      ${todos.length ? `<div class="v2-pills">${KIT_FAIXAS.map(([v, l]) => `<button class="${faixa === v ? 'on' : ''}" onclick="uiV2Screens.setKitFaixa('${v}')">${l}<em>${count[v] || 0}</em></button>`).join('')}</div>` : ''}
+      ${lista.length ? `<div class="v2-pgrid">${lista.map(card).join('')}</div>` : vazio}`;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function produtosEquipV2(container, seg, todos) {
+    if (!state.isAdmin) {
+      setPageMeta('comercial:produtos', 'Produtos', 'Equipamentos avulsos');
+      container.innerHTML = `<div class="v2-toolbar">${seg}</div><div class="v2-card v2-empty">${ic('lock', 'style="width:32px;height:32px;margin:0 auto 10px;display:block;opacity:.5"')}<b style="display:block;color:var(--v2-ink);font-size:15px">Gestão de equipamentos é do administrador</b>Os kits (na outra aba) você já gerencia; o catálogo de itens avulsos é mantido pelo administrador.</div>`;
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+    let base = [...todos];
+    if (_equipStatus === 'ativos') base = base.filter((e) => e.ativo !== false);
+    if (_equipStatus === 'inativos') base = base.filter((e) => e.ativo === false);
+    if (_equipBusca) base = base.filter((e) => `${e.nome || ''} ${e.marca || ''}`.toLowerCase().includes(_equipBusca));
+    const count = { all: base.length };
+    base.forEach((e) => { const t = e.tipo || 'outro'; count[t] = (count[t] || 0) + 1; });
+    const lista = _equipCategoria === 'all' ? base : base.filter((e) => (e.tipo || 'outro') === _equipCategoria);
+    const nInativos = todos.filter((e) => e.ativo === false).length;
+    setPageMeta('comercial:produtos', 'Produtos', `${todos.length} equipamento${todos.length === 1 ? '' : 's'} avulso${todos.length === 1 ? '' : 's'}${nInativos ? ` · ${nInativos} inativo${nInativos === 1 ? '' : 's'}` : ''}`);
+    const EQ_IC = { modulo: 'grid-3x3', inversor: 'cpu', estrutura: 'home', cabo: 'cable', servico: 'wrench', outro: 'box' };
+
+    const row = (e) => {
+      const inativo = e.ativo === false;
+      const id = esc(e.id);
+      const temCusto = e.custo !== null && e.custo !== undefined && e.custo !== '';
+      return `<tr class="${inativo ? 'off' : ''}" onclick="openEquipModalById('${id}')">
+        <td><div class="v2-eqn"><span class="v2-eqic">${ic(EQ_IC[e.tipo] || 'box')}</span><div><b>${esc(e.nome || 'Sem nome')}</b><small>${esc(equipCategoriaLabel(e.tipo))}${e.marca ? ' · ' + esc(e.marca) : ''}${inativo ? ' · inativo' : ''}</small></div></div></td>
+        <td class="hide-sm">${Number(e.potencia_wp) > 0 ? esc(String(e.potencia_wp)) + ' Wp' : '<span class="muted">—</span>'}</td>
+        <td class="hide-sm">${temCusto ? money(e.custo) : '<span class="muted">—</span>'}</td>
+        <td><b>${money(e.preco_unitario)}</b> <small class="muted">/ ${esc(e.unidade || 'un')}</small></td>
+        <td><div class="v2-acts">
+          <button class="v2-sq" title="Editar" onclick="event.stopPropagation(); openEquipModalById('${id}')">${ic('pencil')}</button>
+          <button class="v2-sq" title="${inativo ? 'Reativar' : 'Desativar'}" onclick="event.stopPropagation(); toggleEquipamentoAtivo('${id}')">${ic(inativo ? 'eye' : 'eye-off')}</button>
+          <button class="v2-sq del" title="Excluir" onclick="event.stopPropagation(); deleteEquipamento('${id}')">${ic('trash-2')}</button>
+        </div></td></tr>`;
+    };
+    const filtros = [_equipCategoria !== 'all', _equipStatus !== 'all', Boolean(_equipBusca)].filter(Boolean).length;
+    const vazio = todos.length === 0
+      ? `<div class="v2-card v2-empty">${ic('package-open', 'style="width:36px;height:36px;margin:0 auto 10px;display:block;opacity:.5"')}<b style="display:block;color:var(--v2-ink);font-size:15px">Nenhum equipamento cadastrado</b>Módulo, inversor, estrutura, cabos, serviço e outros, cada um com seu valor.<div class="v2-btnrow"><button class="v2-btnp" onclick="openEquipModal()">${ic('plus')}Cadastrar o primeiro</button><button class="v2-btn2" onclick="triggerEquipImportPicker()">${ic('upload')}Importar planilha</button><button class="v2-btn2" onclick="downloadEquipamentosTemplateXLSX()">${ic('file-down')}Baixar modelo</button></div></div>`
+      : `<div class="v2-card v2-empty">Nenhum item com esses filtros.<div style="margin-top:12px"><button class="v2-btn2" onclick="uiV2Screens.limparEquip()">${ic('filter-x')}Limpar filtros</button></div></div>`;
+
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        ${seg}
+        <div class="v2-grow"></div>
+        <button class="v2-sq" style="width:42px;height:42px;background:var(--v2-card);box-shadow:var(--v2-shadow)" title="Baixar planilha modelo" onclick="downloadEquipamentosTemplateXLSX()">${ic('file-down')}</button>
+        <button class="v2-btn2" style="height:42px" onclick="triggerEquipImportPicker()">${ic('upload')}Importar</button>
+        <button class="v2-btn2" style="height:42px" onclick="exportEquipamentosXLSX()">${ic('download')}Exportar</button>
+        <button class="v2-btno" style="width:auto;height:42px" onclick="openEquipModal()">${ic('plus')}Novo equipamento</button>
+      </div>
+      <div class="v2-toolbar">
+        <label class="v2-sbox">${ic('search')}<input id="v2-equip-search" type="text" value="${esc(_equipBusca)}" oninput="handleEquipBuscaInput(this.value)" placeholder="Buscar por nome ou marca" autocomplete="off"></label>
+        <select class="v2-select ${_equipStatus !== 'all' ? 'on' : ''}" onchange="setEquipStatus(this.value)"><option value="all">Ativos e inativos</option><option value="ativos" ${_equipStatus === 'ativos' ? 'selected' : ''}>Só ativos</option><option value="inativos" ${_equipStatus === 'inativos' ? 'selected' : ''}>Inativos</option></select>
+        ${filtros ? `<button class="v2-pill" onclick="uiV2Screens.limparEquip()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
+      </div>
+      ${todos.length ? `<div class="v2-pills"><button class="${_equipCategoria === 'all' ? 'on' : ''}" onclick="setEquipCategoria('all')">Todos<em>${count.all}</em></button>${EQUIP_CATEGORIAS.map((c) => `<button class="${_equipCategoria === c.v ? 'on' : ''}" onclick="setEquipCategoria('${c.v}')">${c.label}<em>${count[c.v] || 0}</em></button>`).join('')}</div>` : ''}
+      ${lista.length ? `<div class="v2-card" style="padding:12px 14px"><div style="overflow-x:auto"><table class="v2-table v2-eqtable"><thead><tr><th>Item</th><th class="hide-sm">Potência</th><th class="hide-sm">Custo</th><th>Preço</th><th></th></tr></thead><tbody>${lista.map(row).join('')}</tbody></table></div></div>` : vazio}`;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   // ==================== troca de render ====================
-  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2, renderVendas: renderVendasV2, renderAnalise: renderAnaliseV2 };
+  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2, renderVendas: renderVendasV2, renderAnalise: renderAnaliseV2, renderProductsList: renderProductsListV2 };
   Object.entries(V2_SCREENS).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];
     window[name] = function (container) {
       if (window.uiV2.isActive()) {
-        try { return v2(container, original); } catch (err) { console.warn('[ui-v2] ' + name + ' falhou, usando o antigo', err); }
+        // a busca fica dentro da tela: devolve o cursor ao campo depois de redesenhar
+        const a = document.activeElement;
+        const keep = a && a.id && a.tagName === 'INPUT' && container && container.contains(a) ? { id: a.id, pos: a.selectionStart } : null;
+        try {
+          const out = v2(container, original);
+          const el = keep && document.getElementById(keep.id);
+          if (el && el !== document.activeElement) { el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (_) {} }
+          return out;
+        } catch (err) { console.warn('[ui-v2] ' + name + ' falhou, usando o antigo', err); }
       }
       window.uiV2PageMeta = null;
       return original.apply(this, arguments);
@@ -672,5 +824,9 @@
       else window.prompt('Copie o link:', url);
     },
     setMeses(n) { renderDashboardV2.meses = n; if (has('renderContent')) renderContent(); },
+    kitFaixa: 'all',
+    setKitFaixa(v) { this.kitFaixa = v || 'all'; if (has('renderContent')) renderContent(); },
+    limparKits() { _catalogoBusca = ''; _catalogoCategoria = 'all'; _catalogoStatus = 'all'; this.kitFaixa = 'all'; if (has('renderContent')) renderContent(); },
+    limparEquip() { _equipBusca = ''; _equipCategoria = 'all'; _equipStatus = 'all'; if (has('renderContent')) renderContent(); },
   };
 })();

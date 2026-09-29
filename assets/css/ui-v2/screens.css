@@ -322,3 +322,31 @@ html[data-ui="v2"] .v2s .v2-podium b { font-size: 13px; font-weight: 800; text-a
 html[data-ui="v2"] .v2s .v2-podium small { font-size: 12px; color: var(--v2-gray); font-weight: 700; }
 html[data-ui="v2"] .v2s .v2-podium .step { width: 100%; border-radius: 18px 18px 8px 8px; display: grid; place-items: center; font-size: 22px; font-weight: 800; color: #fff; margin-top: 4px; }
 html[data-ui="v2"] body #main-container .v2-pill input.v2-money { width: 96px; height: 30px; border: 0 !important; background: var(--v2-bg) !important; border-radius: 10px !important; padding: 0 8px !important; font-size: 13px !important; box-shadow: none !important; color: var(--v2-ink) !important; }
+
+/* ---------- Produtos: kits em card + equipamentos em lista ---------- */
+html[data-ui="v2"] .v2s .v2-kit { position: relative; }
+html[data-ui="v2"] .v2s .v2-kit .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-ui="v2"] .v2s .v2-kit .tags svg { width: 13px !important; height: 13px !important; }
+html[data-ui="v2"] .v2s .v2-kit .kp { font-size: 34px; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--v2-ink); }
+html[data-ui="v2"] .v2s .v2-kit .kp small { font-size: 15px; color: var(--v2-gray); font-weight: 700; letter-spacing: 0; }
+html[data-ui="v2"] .v2s .v2-kit ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+html[data-ui="v2"] .v2s .v2-kit li { display: flex; gap: 10px; align-items: center; font-size: 13px; font-weight: 600; color: var(--v2-ink-2); min-width: 0; }
+html[data-ui="v2"] .v2s .v2-kit li svg { width: 16px !important; height: 16px !important; color: var(--v2-blue); flex-shrink: 0; }
+html[data-ui="v2"] .v2s .v2-kit li b { margin-left: auto; color: var(--v2-ink); text-align: right; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2s .v2-kit .ft .price s { display: block; font-size: 12px; font-weight: 600; color: var(--v2-gray); text-decoration-color: #E5484D; }
+html[data-ui="v2"] .v2s .v2-kit.feat { box-shadow: 0 0 0 2px var(--v2-orange), var(--v2-shadow); }
+html[data-ui="v2"] .v2s .v2-kit.off { opacity: .62; }
+html[data-ui="v2"] .v2s .v2-kit.off:hover { opacity: .9; }
+html[data-ui="v2"] .v2s .v2-sq.del:hover { background: rgba(229,72,77,.12); color: #D93A40; }
+html[data-ui="v2"] .v2s .v2-btnrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+html[data-ui="v2"] .v2s .v2-eqtable tr.off td { opacity: .6; }
+html[data-ui="v2"] .v2s .v2-eqn { display: flex; align-items: center; gap: 12px; min-width: 220px; }
+html[data-ui="v2"] .v2s .v2-eqn b { display: block; font-weight: 700; white-space: normal; }
+html[data-ui="v2"] .v2s .v2-eqn small { font-size: 12px; color: var(--v2-gray); font-weight: 500; }
+html[data-ui="v2"] .v2s .v2-eqic { width: 38px; height: 38px; border-radius: 12px; background: var(--v2-card); color: var(--v2-blue); display: grid; place-items: center; flex-shrink: 0; }
+html[data-ui="v2"] .v2s .v2-eqic svg { width: 18px !important; height: 18px !important; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2s .v2-eqtable .hide-sm { display: none; }
+  html[data-ui="v2"] .v2s .v2-eqn { min-width: 0; }
+  html[data-ui="v2"] .v2s .v2-kit .kp { font-size: 30px; }
+}
