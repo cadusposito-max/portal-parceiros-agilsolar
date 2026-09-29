@@ -25,6 +25,100 @@
     document.body.appendChild(s);
   }
 
+  // ---------- vistoria (controle mínimo; clientes.vistoria_*) ----------
+  const VIS = () => window.uiV2VistoriaInfo || { info: () => null, ST: {} };
+  function vistoriaResumoHTML(client) {
+    const v = VIS().info(client);
+    const txt = !v ? 'Sem vistoria' : v.st === 'agendada' && v.data
+      ? `${v.data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${v.data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+      : v.label;
+    return `<div class="v2f-sumvis ${v ? v.cls : ''} ${v && v.atrasada ? 'late' : ''}" onclick="uiV2Vistoria.focar()" title="Ver vistoria"><small>Vistoria</small><b>${esc(txt)}</b></div>`;
+  }
+  function vistoriaCardHTML(client) {
+    const cur = VIS().ST[client.vistoria_status] ? client.vistoria_status : '';
+    const opts = [['', 'Sem vistoria', 'minus']].concat(Object.entries(VIS().ST).map(([k, s]) => [k, s[0], s[1]]));
+    const quando = client.vistoria_atualizado_em ? `<small class="v2f-h3sub">atualizada ${esc(formatDate(client.vistoria_atualizado_em))}</small>` : '';
+    return `<div class="v2f-card v2f-vis" id="v2f-vistoria" data-st="${cur}">
+      <h3>${ic('clipboard-check')}Vistoria${quando}</h3>
+      <div class="v2f-visst" role="radiogroup" aria-label="Situação da vistoria">${opts.map(([v, l, i]) => `<button type="button" role="radio" aria-checked="${cur === v}" class="${cur === v ? 'on' : ''}" data-v="${v}" onclick="uiV2Vistoria.escolher(this)">${ic(i)}${l}</button>`).join('')}</div>
+      <div class="v2f-fields v2f-visfields ${cur ? '' : 'off'}">
+        ${crm360Field('Data e hora', `<input id="v2f-vis-data" type="datetime-local" value="${toLocalDatetimeInputValue(client.vistoria_data)}" class="crm360-input">`)}
+        ${crm360Field('Responsável', `<input id="v2f-vis-resp" value="${esc(client.vistoria_responsavel || '')}" class="crm360-input" placeholder="Quem vai fazer">`)}
+        ${crm360Field('Observação', `<input id="v2f-vis-obs" value="${esc(client.vistoria_obs || '')}" class="crm360-input" placeholder="Ex.: telhado de fibrocimento, levar escada">`, 'full')}
+      </div>
+      <button type="button" class="v2f-save alt" onclick="uiV2Vistoria.salvar('${esc(client.id)}')">${ic('check')}Salvar vistoria</button>
+    </div>`;
+  }
+  const fmtData = (iso) => { const d = new Date(iso); return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
+  function vistoriaDescricao(antes, depois) {
+    const st = depois.vistoria_status;
+    const resp = depois.vistoria_responsavel ? ` · responsável: ${depois.vistoria_responsavel}` : '';
+    if (st !== antes.vistoria_status) {
+      if (!st) return 'Vistoria removida';
+      if (st === 'a_agendar') return 'Vistoria solicitada (a agendar)';
+      if (st === 'agendada') return `Vistoria agendada para ${fmtData(depois.vistoria_data)}${resp}`;
+      if (st === 'realizada') return `Vistoria realizada${resp}`;
+      return `Vistoria com pendência${depois.vistoria_obs ? `: ${depois.vistoria_obs}` : ''}`;
+    }
+    if (st === 'agendada' && depois.vistoria_data !== antes.vistoria_data) return `Vistoria reagendada para ${fmtData(depois.vistoria_data)}${resp}`;
+    if (st && (depois.vistoria_obs !== antes.vistoria_obs || depois.vistoria_responsavel !== antes.vistoria_responsavel)) {
+      return `Vistoria atualizada${depois.vistoria_obs ? `: ${depois.vistoria_obs}` : ''}${resp}`;
+    }
+    return '';
+  }
+  if (typeof CRM_ATIVIDADE_META !== 'undefined') CRM_ATIVIDADE_META.vistoria = { icon: 'clipboard-check', label: 'Vistoria', color: 'text-sky-400' };
+
+  window.uiV2Vistoria = {
+    focar() {
+      const card = document.getElementById('v2f-vistoria');
+      if (!card) return;
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+    },
+    escolher(btn) {
+      const card = btn.closest('#v2f-vistoria');
+      card.querySelectorAll('.v2f-visst button').forEach((b) => { const on = b === btn; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+      card.dataset.st = btn.dataset.v;
+      card.querySelector('.v2f-visfields').classList.toggle('off', !btn.dataset.v);
+      if (btn.dataset.v === 'agendada' && !document.getElementById('v2f-vis-data').value) document.getElementById('v2f-vis-data').focus();
+    },
+    async salvar(id) {
+      const c = (state.clientes || []).find((x) => String(x.id) === String(id));
+      const card = document.getElementById('v2f-vistoria');
+      if (!c || !card) return;
+      const st = card.dataset.st || null;
+      const dataV = document.getElementById('v2f-vis-data').value;
+      if (st === 'agendada' && !dataV) { showToast('Informe a data e a hora da vistoria.'); document.getElementById('v2f-vis-data').focus(); return; }
+      const payload = st ? {
+        vistoria_status: st,
+        vistoria_data: dataV ? new Date(dataV).toISOString() : null,
+        vistoria_responsavel: document.getElementById('v2f-vis-resp').value.trim() || null,
+        vistoria_obs: document.getElementById('v2f-vis-obs').value.trim() || null,
+      } : { vistoria_status: null, vistoria_data: null, vistoria_responsavel: null, vistoria_obs: null };
+      const antes = { vistoria_status: c.vistoria_status || null, vistoria_data: c.vistoria_data ? new Date(c.vistoria_data).toISOString() : null, vistoria_responsavel: c.vistoria_responsavel || null, vistoria_obs: c.vistoria_obs || null };
+      const descricao = vistoriaDescricao(antes, payload);
+      if (!descricao) { showToast('Nada mudou na vistoria.'); return; }
+      payload.vistoria_atualizado_em = new Date().toISOString();
+      const btn = card.querySelector('.v2f-save');
+      if (btn) btn.disabled = true;
+      const { error } = await supabaseClient.from('clientes').update(payload).eq('id', c.id);
+      if (btn) btn.disabled = false;
+      if (error) { console.error('[ui-v2] vistoria', error); showToast(`Erro ao salvar a vistoria: ${error.message}`); return; }
+      Object.assign(c, payload);
+      supabaseClient.from('crm_atividades').insert([{
+        cliente_id: c.id,
+        franquia_id: c.franquia_id,
+        autor_email: state.currentUser?.email || 'sistema',
+        tipo: 'vistoria',
+        descricao,
+        meta: { status: payload.vistoria_status },
+      }]).then(({ error: e }) => { if (e) console.warn('[ui-v2] timeline vistoria', e); if (has('crmFetchAtividades')) crmFetchAtividades(c.id); });
+      showToast('VISTORIA ATUALIZADA');
+      if (has('renderCrm360')) renderCrm360();
+      if (has('renderContent')) renderContent();
+    },
+  };
+
   function renderCrm360V2() {
     const overlay = ensureCrm360Container();
     pbParkEmbeddedPanel(); // o innerHTML destruiria o construtor embutido
@@ -99,6 +193,7 @@
             <div><small>Responsável</small><b>${esc(vend)}</b></div>
             <div><small>Propostas</small><b>${propostas.length}${vendas.length ? ` · ${vendas.length} venda${vendas.length > 1 ? 's' : ''}` : ''}</b></div>
             <div class="${proxAtrasada ? 'late' : ''}"><small>Próxima ação</small><b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + prox.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })) : 'Nenhuma'}</b></div>
+            ${vistoriaResumoHTML(client)}
           </div>
           <div class="v2f-tabs">${tabs.map((t) => `<button class="${t[4] || ''} ${_crm360Tab === t[0] ? 'on' : ''}" onclick="crmSet360Tab('${t[0]}')">${ic(t[1])}${t[2]}${t[3] != null ? `<em>${t[3]}</em>` : ''}</button>`).join('')}</div>
         </div>
@@ -106,6 +201,7 @@
         <div id="crm360-scroll" class="v2f-body">
           <div class="v2f-grid ${larga ? 'larga' : ''}">
             <div class="v2f-dados ${larga ? 'hidden' : ''}">
+              ${vistoriaCardHTML(client)}
               <div class="v2f-card">
                 <h3>${ic('user-cog')}Dados do cliente</h3>
                 <div class="v2f-fields">

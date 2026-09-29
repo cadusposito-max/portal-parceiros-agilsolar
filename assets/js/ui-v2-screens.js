@@ -40,6 +40,34 @@
   const avFranquia = () => `<i class="v2-ini">${ic('store')}</i>`;
   window.uiV2TipoCliente = tipoCliente;
 
+  // ---- vistoria (controle mínimo na ficha; clientes.vistoria_*) ----
+  // [rótulo na ficha, ícone, cor da etiqueta]
+  const VIS_ST = {
+    a_agendar: ['A agendar', 'calendar-clock', 't-gray'],
+    agendada: ['Agendada', 'calendar-check', 't-blue'],
+    realizada: ['Realizada', 'clipboard-check', 't-green'],
+    pendencia: ['Com pendência', 'triangle-alert', 't-orange'],
+  };
+  const dm = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  function vistoriaInfo(c) {
+    const st = c && VIS_ST[c.vistoria_status] ? c.vistoria_status : '';
+    if (!st) return null;
+    const data = c.vistoria_data ? new Date(c.vistoria_data) : null;
+    const valida = data && !Number.isNaN(data.getTime());
+    const atrasada = st === 'agendada' && valida && data < new Date();
+    const [label, icon, cls] = VIS_ST[st];
+    const curto = st === 'agendada' ? (valida ? `${atrasada ? 'Vistoria atrasada · ' : 'Vistoria '}${dm(data)}` : 'Vistoria agendada')
+      : st === 'a_agendar' ? 'Vistoria a agendar' : st === 'realizada' ? 'Vistoria feita' : 'Vistoria c/ pendência';
+    return { st, label, icon, cls: atrasada ? 't-red' : cls, curto, data: valida ? data : null, atrasada };
+  }
+  const vistoriaChip = (c) => {
+    const v = vistoriaInfo(c);
+    if (!v) return '';
+    const dica = [v.label, c.vistoria_responsavel, c.vistoria_obs].filter(Boolean).join(' · ');
+    return `<span class="v2-chip v2-vischip ${v.cls}" title="${esc(dica)}">${ic(v.icon)}${esc(v.curto)}</span>`;
+  };
+  window.uiV2VistoriaInfo = { info: vistoriaInfo, chip: vistoriaChip, ST: VIS_ST };
+
   // Título/subtítulo da barra de cima (lido pelo ui-v2-shell.js)
   function setPageMeta(key, title, sub) {
     window.uiV2PageMeta = { key, title, sub };
@@ -373,7 +401,7 @@
       const valor = has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0;
       const wa = waLink(c);
       return `<tr onclick="openCrm360('${esc(c.id)}')">
-        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small><span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${st[1]}">${st[0]}</span></span></div></div></td>
+        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}</span>` : ''}<span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${st[1]}">${st[0]}</span></span></div></div></td>
         <td class="hide-m">${esc(c.cidade || '—')}${Number(c.hsp) > 0 ? `<small class="muted" style="display:block;font-size:12px">HSP ${esc(String(c.hsp).replace('.', ','))}</small>` : ''}</td>
         <td class="hide-m"><button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Alterar status">${st[0]}</button></td>
         <td class="hide-m">${nProp ? `${nProp} proposta${nProp > 1 ? 's' : ''}` : '<span class="muted">—</span>'}${nVend ? `<small style="display:block;font-size:12px;color:#1FA971;font-weight:700">${nVend} venda${nVend > 1 ? 's' : ''}</small>` : ''}</td>
@@ -409,6 +437,7 @@
         <div class="t"><div><b>${esc(c.nome || 'Cliente')}${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado">${ic('alarm-clock')}</span>` : ''}</b><small>${esc([c.cidade, c.telefone].filter(Boolean).join(' · ') || '—')}</small></div>
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}</div>
         <div class="meta">${meta.join('')}</div>
+        ${vistoriaChip(c) ? `<div class="v2-visline">${vistoriaChip(c)}</div>` : ''}
         <div class="f">${valor ? `<b>${moneyC(valor)}</b>` : '<span class="none">Sem proposta</span>'}
           ${editavel ? `<button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Mudar etapa">${st[0]}</button>` : `<span class="v2-chip dot ${st[1]}">${st[0]}</span>`}</div>
       </article>`;

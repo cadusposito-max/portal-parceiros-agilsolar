@@ -382,3 +382,9 @@ html[data-ui="v2"] .v2s .v2-podium .v2-ini svg { width: 24px !important; height:
 html[data-ui="v2"] body #main-container.v2s :is(.v2-seg button, .v2-pills button, button.v2-pill, button.v2-chip),
 html[data-ui="v2"] body #crm360-overlay :is(.v2-seg button, .v2-pills button, button.v2-pill, button.v2-chip) { border-radius: 999px !important; }
 html[data-ui="v2"] body #admin-overlay-content .v2a-nav button { border-radius: 14px !important; }
+
+/* ---------- etiqueta de vistoria (card do funil e lista de clientes) ---------- */
+html[data-ui="v2"] .v2s .v2-visline { display: block; margin-top: 6px; }
+html[data-ui="v2"] .v2s .v2-kcard .v2-visline { margin-top: 0; }
+html[data-ui="v2"] .v2s .v2-vischip { font-size: 11.5px; padding: 3px 9px; gap: 5px; }
+html[data-ui="v2"] .v2s .v2-vischip svg { width: 13px !important; height: 13px !important; }

@@ -518,7 +518,11 @@ async function finRefreshAccess() {
 // Lê se o usuário corrente pode ver o ambiente Vistoria.
 // Fase atual (sem Supabase): admin sempre pode; demais ficam sem acesso até a
 // flag por perfil (vis_enabled) ser criada na fase de banco. (Espelha finRefreshAccess.)
+// 29/09/2026: ambiente fora do ar para todos (inclusive admin) — o controle mínimo
+// de vistoria passou para a ficha do cliente no Comercial. Para religar: true.
+const VISTORIA_AMBIENTE_NO_AR = false;
 async function visRefreshAccess() {
+  if (!VISTORIA_AMBIENTE_NO_AR) { state.canVis = false; return; }
   if (state.isAdmin) { state.canVis = true; return; }
   try {
     const { data, error } = await supabaseClient.rpc('vis_can_use_current_user');
