@@ -63,7 +63,11 @@
     const url = raw && has('safeImageUrl') ? safeImageUrl(raw, '') : '';
     const inicial = (nome || email || '?').trim().charAt(0).toUpperCase();
     const avatar = url ? `<img src="${esc(url)}" alt="">` : esc(inicial);
-    return { nome, email, role, avatar, unidade: state.franquiaNome || '' };
+    const unidade = state.franquiaNome || '';
+    // versão curta para o botão do menu lateral (o menu que abre mostra completo)
+    const roleCurto = state.isAdmin ? 'Admin' : role;
+    const unidadeCurta = unidade.replace(/^\s*[áa]gil\s*solar\s*[-–·]?\s*/i, '') || unidade;
+    return { nome, email, role, roleCurto, avatar, unidade, unidadeCurta };
   }
 
   // ---------- montagem ----------
@@ -164,7 +168,7 @@
         <div class="v2-pop" id="v2-pop-env"><h6>Trocar de ambiente</h6>${envListHTML()}</div></div>` : ''}
       ${cta ? `<button class="v2-cta" data-v2="cta" title="${cta[0]}">${ic('plus')}<span>${cta[0]}</span></button>` : ''}
       <nav class="v2-nav has-ind"><span class="v2-navind" aria-hidden="true"></span><div class="lbl">Menu</div>${T.map((t) => `<button class="${t.id === cur ? 'on' : ''}" data-v2="tab" data-tab="${t.id}" title="${esc(sentence(t.label))}">${ic(t.icon || 'circle')}<span class="t">${esc(sentence(t.label))}</span></button>`).join('')}</nav>
-      <div class="v2-foot v2-rel"><button class="v2-userbtn" data-v2="open" data-target="v2-pop-user" title="${esc(u.nome)}"><span class="v2-av">${u.avatar}</span><span class="tx"><b>${esc(u.nome)}</b><small>${u.role}${u.unidade ? ' · ' + esc(u.unidade) : ''}</small></span>${ic('chevrons-up-down', 'class="chev"')}</button>
+      <div class="v2-foot v2-rel"><button class="v2-userbtn" data-v2="open" data-target="v2-pop-user" title="${esc(u.nome)}"><span class="v2-av">${u.avatar}</span><span class="tx"><b>${esc(u.nome)}</b><small title="${esc(u.role + (u.unidade ? ' · ' + u.unidade : ''))}">${u.roleCurto}${u.unidadeCurta ? ' · ' + esc(u.unidadeCurta) : ''}</small></span>${ic('chevrons-up-down', 'class="chev"')}</button>
         <div class="v2-pop" id="v2-pop-user">${userMenuHTML()}</div></div>`;
 
     $('#v2-mtop').innerHTML = `${LOGO}
