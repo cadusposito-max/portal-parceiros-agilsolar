@@ -290,6 +290,29 @@ html[data-ui="v2"] .v2s .v2-pcard .ft .price small { display: block; font-size: 
 @media (max-width: 760px) { html[data-ui="v2"] .v2s .v2-pgrid { grid-template-columns: 1fr; } }
 
 /* ==========================================
+   ANÁLISE (conteúdo de analise.js com blocos novos)
+   ========================================== */
+html[data-ui="v2"] .v2s .v2-mini { padding: 18px; display: flex; flex-direction: column; gap: 2px; }
+html[data-ui="v2"] .v2s .v2-mini span { font-size: 13px; color: var(--v2-gray); font-weight: 600; }
+html[data-ui="v2"] .v2s .v2-mini b { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+html[data-ui="v2"] .v2s .v2-mini small { font-size: 12px; color: var(--v2-gray); font-weight: 600; }
+html[data-ui="v2"] .v2-analise > div > .grid, html[data-ui="v2"] .v2-analise .grid { gap: 16px !important; }
+html[data-ui="v2"] .v2-analise :is([class*="text-[8px]"], [class*="text-[9px]"], [class*="text-[10px]"], [class*="text-[11px]"]) { font-size: 13px !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] .v2-analise p[class*="text-[9px]"], html[data-ui="v2"] .v2-analise p[class*="text-[10px]"] { font-size: 12.5px !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] .v2-analise :is(.h-2, [class*="h-1.5"])[class*="bg-neutral-900"] { height: 10px !important; border: 0 !important; border-radius: 999px !important; background: var(--v2-bg) !important; }
+html[data-ui="v2"] .v2-analise :is(.h-2, [class*="h-1.5"])[class*="bg-neutral-900"] > div { border-radius: 999px; }
+html[data-ui="v2"] .v2-analise .flex.items-center.justify-between.border { border: 0 !important; background: var(--v2-soft); border-radius: 14px !important; padding: 12px 14px !important; }
+html[data-ui="v2"] .v2-analise table { border-collapse: separate; border-spacing: 0 6px; }
+html[data-ui="v2"] .v2-analise table thead tr { border: 0 !important; }
+html[data-ui="v2"] .v2-analise table th { background: none !important; border: 0 !important; font-size: 12px !important; color: var(--v2-gray) !important; text-transform: none !important; letter-spacing: 0 !important; font-weight: 600 !important; }
+html[data-ui="v2"] .v2-analise table tbody tr { border: 0 !important; }
+html[data-ui="v2"] .v2-analise table td { background: var(--v2-soft) !important; font-size: 14px !important; padding: 12px 10px !important; border: 0 !important; }
+html[data-ui="v2"] .v2-analise table td:first-child { border-radius: 14px 0 0 14px; }
+html[data-ui="v2"] .v2-analise table td:last-child { border-radius: 0 14px 14px 0; }
+html[data-ui="v2"] .v2-analise .crm-chart-tip { border-radius: 14px !important; }
+html[data-ui="v2"] .v2-analise [class*="border-red-900"] { border: 0 !important; border-radius: 16px !important; }
+
+/* ==========================================
    VENDAS
    ========================================== */
 html[data-ui="v2"] .v2s .v2-podium { display: flex; align-items: flex-end; justify-content: center; gap: 14px; padding: 6px 0 12px; }

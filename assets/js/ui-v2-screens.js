@@ -606,14 +606,49 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
+  // ==================== ANÁLISE (Comercial) ====================
+  // Os cálculos são os de analise.js. Durante o desenho, os blocos visuais dele
+  // (_anCard, _anPainel, _anBarra, _anVazio e o gráfico) são trocados pela
+  // versão nova e restaurados logo depois.
+  const COR_TXT = (cls) => /green/.test(cls) ? '#1FA971' : /red/.test(cls) ? '#D14343' : /orange|yellow|amber/.test(cls) ? 'var(--v2-orange-text)' : /blue|sky|cyan/.test(cls) ? 'var(--v2-blue-text)' : 'var(--v2-ink)';
+  const COR_BG = (cls) => /green/.test(cls) ? '#1FA971' : /red/.test(cls) ? '#D14343' : /orange|yellow|amber/.test(cls) ? '#FAA519' : '#008FD4';
+  const SERIE_COR = { '#a3a3a3': '#008FD4', '#f97316': '#FAA519', '#22c55e': '#1FA971' };
+  function renderAnaliseV2(container, original) {
+    const g = window;
+    const saved = { _anCard: g._anCard, _anPainel: g._anPainel, _anBarra: g._anBarra, _anVazio: g._anVazio, _analiseGraficoLinhas: g._analiseGraficoLinhas };
+    g._anCard = (titulo, valor, sub, cor = '') => `<article class="v2-card v2-mini"><span>${esc(titulo)}</span><b style="color:${COR_TXT(cor)}">${valor}</b><small>${sub}</small></article>`;
+    g._anPainel = (titulo, corpo, extra = '') => `<section class="v2-card"><div class="v2-ch"><div><h3>${esc(titulo)}</h3></div>${extra}</div>${corpo}</section>`;
+    g._anBarra = (label, valor, max, cor, sufixo = '') => {
+      const pct = max > 0 ? Math.round((valor / max) * 100) : 0;
+      return `<div class="v2-fs"><div class="t"><span>${esc(cap(label))}</span><b>${valor}${sufixo}</b></div><div class="v2-track"><div style="width:${Math.max(pct, valor > 0 ? 3 : 0)}%;background:${COR_BG(cor)}"></div></div></div>`;
+    };
+    g._anVazio = (msg) => `<div class="v2-empty">${esc(msg)}</div>`;
+    if (saved._analiseGraficoLinhas) g._analiseGraficoLinhas = (labels, series) => saved._analiseGraficoLinhas(labels, series.map((s) => ({ ...s, cor: SERIE_COR[s.cor] || s.cor })));
+    try { original(container); } finally { Object.assign(g, saved); }
+
+    container.className = 'v2s v2-analise';
+    document.body.dataset.v2screen = 'analise';
+    const nClientes = getDashboardScopedRows(state.clientes || []).length;
+    setPageMeta('comercial:analise', 'Análise', `${nClientes} clientes no recorte atual`);
+    // cabeçalho antigo → só o seletor de escopo; sub-abas → pílulas
+    const head = container.firstElementChild;
+    const subs = head && head.nextElementSibling;
+    if (head) {
+      const sel = head.querySelector('select');
+      head.outerHTML = `<div class="v2-toolbar"><div class="v2-seg">${ANALISE_SUBS.map((s) => `<button class="${s.id === _analiseSub ? 'on' : ''}" onclick="setAnaliseSub('${s.id}')">${ic(s.icon)}${esc(s.label.replace('&', 'e'))}</button>`).join('')}</div><div class="v2-grow"></div>${sel ? `<select class="v2-select" onchange="setAdminScopeFranquia(this.value)">${sel.innerHTML}</select>` : ''}</div>`;
+    }
+    if (subs) subs.remove();
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   // ==================== troca de render ====================
-  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2, renderVendas: renderVendasV2 };
+  const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2, renderVendas: renderVendasV2, renderAnalise: renderAnaliseV2 };
   Object.entries(V2_SCREENS).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];
     window[name] = function (container) {
       if (window.uiV2.isActive()) {
-        try { return v2(container); } catch (err) { console.warn('[ui-v2] ' + name + ' falhou, usando o antigo', err); }
+        try { return v2(container, original); } catch (err) { console.warn('[ui-v2] ' + name + ' falhou, usando o antigo', err); }
       }
       window.uiV2PageMeta = null;
       return original.apply(this, arguments);
