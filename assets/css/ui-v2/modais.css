@@ -134,3 +134,70 @@ html[data-ui="v2"] body #doc-corpo .btn-icon:hover { color: #D14343 !important; 
   html[data-ui="v2"] body #doc-corpo { padding: 12px !important; }
   html[data-ui="v2"] body #doc-corpo > section { padding: 14px; border-radius: 18px; }
 }
+
+/* ---------- Meu perfil (profile.js #profile-modal): só aparência ---------- */
+html[data-ui="v2"] body #profile-modal { background: var(--v2-scrim) !important; backdrop-filter: none !important; }
+html[data-ui="v2"] body #profile-modal > div { background: var(--v2-card) !important; border: 0 !important; border-radius: 28px !important; box-shadow: var(--v2-shadow-pop) !important; max-width: 520px !important; color: var(--v2-ink); overflow: hidden; }
+html[data-ui="v2"] body #profile-modal > div > div:first-child { border-bottom: 0 !important; padding: 22px 20px 8px 24px !important; }
+html[data-ui="v2"] body #profile-modal-avatar { width: 52px !important; height: 52px !important; background: var(--v2-orange) !important; background-image: none !important; color: var(--v2-orange-ink) !important; font-size: 18px !important; font-weight: 800 !important; }
+html[data-ui="v2"] body #profile-modal > div > div:first-child p:first-child { font-size: 19px !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: -.01em !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #profile-modal > div > div:first-child p + p { font-size: 13px !important; font-weight: 500 !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--v2-gray) !important; margin-top: 2px; }
+html[data-ui="v2"] body #profile-modal > div > div:first-child > button { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; padding: 0 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #profile-modal > div > div:first-child > button:hover { background: var(--v2-bg); color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #profile-modal-tabs { margin: 8px 20px 0; padding: 4px !important; gap: 2px !important; background: var(--v2-bg); border-radius: 999px; overflow-x: auto; scrollbar-width: none; }
+html[data-ui="v2"] body #profile-modal-tabs button {
+  flex: 1; justify-content: center; white-space: nowrap; border: 0 !important; border-radius: 999px !important; padding: 8px 12px !important; box-shadow: none !important;
+  background: transparent !important; color: var(--v2-gray) !important; font-size: 13px !important; font-weight: 700 !important; text-transform: none !important; letter-spacing: 0 !important;
+}
+html[data-ui="v2"] body #profile-modal-tabs button:hover { color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #profile-modal-tabs button.bg-orange-600 { background: var(--v2-card) !important; color: var(--v2-ink) !important; box-shadow: 0 1px 3px rgba(0,0,0,.1) !important; }
+html[data-ui="v2"] body #profile-modal-tabs button svg { width: 15px !important; height: 15px !important; }
+html[data-ui="v2"] body #profile-modal-body { padding: 20px 24px 24px !important; }
+html[data-ui="v2"] body #profile-modal-body :is(label, p, span, button, div) { text-transform: none !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] body #profile-modal-body label.block { font-size: 12px !important; font-weight: 700 !important; color: var(--v2-ink-2) !important; margin-bottom: 6px !important; }
+html[data-ui="v2"] body #profile-modal-body label.block span { color: var(--v2-gray) !important; font-weight: 500; }
+html[data-ui="v2"] body #profile-modal-body p.text-\[9px\], html[data-ui="v2"] body #profile-modal-body p.text-\[10px\] { font-size: 12px !important; font-weight: 500 !important; color: var(--v2-gray) !important; line-height: 1.45; }
+html[data-ui="v2"] body #profile-modal-body .rounded-full { width: 72px !important; height: 72px !important; background: var(--v2-orange) !important; background-image: none !important; color: var(--v2-orange-ink) !important; font-size: 26px !important; font-weight: 800 !important; --tw-ring-color: var(--v2-line) !important; }
+html[data-ui="v2"] body #profile-modal-body label[for="avatar-upload"], html[data-ui="v2"] body #profile-modal-body button[onclick^="_removeAvatar"] {
+  height: 38px; border-radius: 12px !important; padding: 0 14px !important; font-size: 13px !important; font-weight: 700 !important; display: inline-flex; align-items: center; gap: 6px;
+}
+html[data-ui="v2"] body #profile-modal-body label[for="avatar-upload"] { border: 1.5px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #profile-modal-body label[for="avatar-upload"]:hover { border-color: var(--v2-blue) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #profile-modal-body button[onclick^="_removeAvatar"] { color: #D14343 !important; }
+html[data-ui="v2"] body #profile-modal-body button[onclick^="_removeAvatar"]:hover { background: rgba(229,72,77,.1); }
+html[data-ui="v2"] body #profile-modal :is(label, button) svg { width: 16px !important; height: 16px !important; }
+html[data-ui="v2"] body #profile-modal input:not([type="file"]) {
+  height: 48px; border-radius: 14px !important; font-size: 14px !important; font-weight: 600 !important; padding: 0 14px !important; border-width: 1.5px !important; font-family: inherit !important;
+}
+html[data-ui="v2"] body #profile-modal input:disabled { opacity: .6; }
+html[data-ui="v2"] body #profile-modal #mfa-code-input { font-size: 22px !important; font-weight: 800 !important; letter-spacing: .4em !important; font-variant-numeric: tabular-nums; }
+html[data-ui="v2"] body #profile-modal-body button[onclick^="_setThemeFromProfile"] {
+  border: 1.5px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink-2) !important; box-shadow: none !important;
+  border-radius: 999px !important; height: 40px; padding: 0 16px !important; font-size: 13px !important; font-weight: 700 !important;
+}
+html[data-ui="v2"] body #profile-modal-body button[onclick^="_setThemeFromProfile"].bg-orange-600 { border-color: var(--v2-blue) !important; background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #profile-modal-body button.bg-gradient-to-r {
+  height: 50px; border: 0 !important; border-radius: 14px !important; background: var(--v2-blue) !important; background-image: none !important; color: #fff !important;
+  font-size: 15px !important; font-weight: 800 !important; box-shadow: 0 8px 20px rgba(0,143,212,.25) !important; padding: 0 !important;
+}
+html[data-ui="v2"] body #profile-modal-body button.bg-gradient-to-r:hover { background: var(--v2-blue-hover) !important; }
+html[data-ui="v2"] body #profile-modal-body button.bg-transparent.border { height: 46px; border-radius: 14px !important; border: 1.5px solid var(--v2-line-strong) !important; color: var(--v2-ink-2) !important; font-size: 14px !important; font-weight: 700 !important; }
+html[data-ui="v2"] body #profile-modal-body button.bg-transparent.border:hover { border-color: #D14343 !important; color: #D14343 !important; }
+html[data-ui="v2"] body #profile-modal-body button[onclick="_load2FAStatus()"] { font-size: 13px !important; font-weight: 700 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #profile-modal-body :is(.border.p-4, .border.p-3) { border: 0 !important; background: var(--v2-soft) !important; border-radius: 18px; }
+html[data-ui="v2"] body #profile-modal-body .border.p-4 > svg:first-child { box-sizing: content-box; width: 20px !important; height: 20px !important; padding: 11px; border-radius: 14px; background: var(--v2-blue-50); color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #profile-modal-body .border.p-4 p.font-black { font-size: 15px !important; font-weight: 800 !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #profile-modal-body .bg-green-950\/10 { background: rgba(31,169,113,.12) !important; }
+html[data-ui="v2"] body #profile-modal-body .bg-green-950\/10 > svg:first-child { background: rgba(31,169,113,.18); color: #12764E !important; }
+html[data-ui="v2"] body #profile-modal-body .bg-green-950\/10 p.font-black { color: #12764E !important; }
+html[data-ui="v2"][data-theme="dark"] body #profile-modal-body .bg-green-950\/10 :is(p.font-black, svg) { color: #4FD49A !important; }
+html[data-ui="v2"] body #profile-modal-body .bg-white.p-4 { border-radius: 18px !important; }
+html[data-ui="v2"] body #profile-modal-body :is(#mfa-status-area, #passkey-status-area) { font-size: 13px !important; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] body #profile-modal { align-items: flex-end !important; padding: 0 !important; }
+  html[data-ui="v2"] body #profile-modal > div { max-width: none !important; border-radius: 28px 28px 0 0 !important; max-height: 94vh !important; }
+  html[data-ui="v2"] body #profile-modal-tabs { margin: 8px 16px 0; }
+  html[data-ui="v2"] body #profile-modal-tabs button { padding: 8px 6px !important; }
+  html[data-ui="v2"] body #profile-modal-tabs button svg { display: none; }
+  html[data-ui="v2"] body #profile-modal-body { padding: 18px 16px 22px !important; }
+}
