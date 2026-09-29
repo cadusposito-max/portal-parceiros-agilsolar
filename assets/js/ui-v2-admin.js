@@ -30,6 +30,12 @@
   const CATALOGO = [['produtos', 'zap', 'Kits'], ['componentes', 'boxes', 'Equipamentos']];
   const RENDER = { usuarios: 'renderAdminUsuarios', vendedores: 'renderAdminVendedores', comunicados: 'renderAdminComunicados', financiadoras: 'renderAdminFinanciadoras', custos: 'renderAdminCustos' };
 
+  // celular: o menu vira gaveta de baixo, aberta pelo botão com a seção atual
+  window.uiV2Admin = {
+    menu(on) { const c = document.getElementById('admin-overlay-content'); if (c) c.classList.toggle('menu', !!on); },
+  };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.querySelector('#admin-overlay-content.menu')) { e.stopPropagation(); window.uiV2Admin.menu(false); } }, true);
+
   const _renderAdminPanel = renderAdminPanel;
   renderAdminPanel = function (container) {
     const noOverlay = container && container.id === 'admin-overlay-content' && state.adminOpen;
@@ -42,7 +48,10 @@
 
     container.className = 'v2a';
     container.innerHTML = `
+      <button type="button" class="v2a-msel" onclick="uiV2Admin.menu(true)" aria-haspopup="true"><span class="i">${ic(atual[1])}</span><span class="tx"><b>${atual[2]}</b><small>${atual[3]}</small></span><span class="t">Trocar${ic('chevron-down')}</span></button>
+      <div class="v2a-scrim" onclick="uiV2Admin.menu(false)"></div>
       <nav class="v2a-nav" aria-label="Seções do painel">
+        <div class="grab"></div>
         ${grupos.map(([g, itens]) => `<div class="lbl">${g}</div>${itens.map((s) => `<button class="${s[0] === atual[0] ? 'on' : ''}" onclick="setAdminSection('${s[0]}')">${ic(s[1])}<span class="tx"><b>${s[2]}</b><small>${s[3]}</small></span></button>`).join('')}`).join('')}
         <div class="lbl">Catálogo · abre em Produtos</div>
         ${CATALOGO.map(([id, i, l]) => `<button class="ext" onclick="setAdminSection('${id}')" title="Abre em Comercial › Produtos">${ic(i)}<span class="tx"><b>${l}</b></span>${ic('arrow-up-right', 'class="go"')}</button>`).join('')}
