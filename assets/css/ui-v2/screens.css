@@ -368,3 +368,12 @@ html[data-ui="v2"] .v2s .v2-pcard .hd .v2-eqic { color: var(--v2-blue-text); }
   html[data-ui="v2"] .v2s .v2-viewseg button span { display: none; }
   html[data-ui="v2"] .v2s .v2-viewseg button { padding: 7px 10px; }
 }
+
+/* ---------- ícone no lugar das iniciais: pessoa x empresa ---------- */
+html[data-ui="v2"] .v2s .v2-ini svg { width: 17px !important; height: 17px !important; }
+html[data-ui="v2"] .v2s .v2-ini.pf { background: var(--v2-bg); color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .v2-ini.pj { background: rgba(124,92,230,.13); color: #5B3FC4; }
+html[data-ui="v2"][data-theme="dark"] .v2s .v2-ini.pj { color: #B9A8FF; }
+html[data-ui="v2"] .v2s .v2-ini.sm { width: 26px; height: 26px; border-radius: 50%; }
+html[data-ui="v2"] .v2s .v2-ini.sm svg { width: 14px !important; height: 14px !important; }
+html[data-ui="v2"] .v2s .v2-podium .v2-ini svg { width: 24px !important; height: 24px !important; }

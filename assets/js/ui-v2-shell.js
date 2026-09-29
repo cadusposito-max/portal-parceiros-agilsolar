@@ -256,7 +256,7 @@
     const items = [];
     (state.clientes || []).forEach((c) => {
       if (!c || !c.nome) return;
-      items.push({ g: 'cli', t: c.nome, s: [c.cidade, sentence(c.status || ''), c.telefone].filter(Boolean).join(' · '), k: String(c.telefone || '').replace(/\D/g, '') + ' ' + (c.email || ''), av: c.nome, run: () => has('openCrm360') && openCrm360(c.id) });
+      items.push({ g: 'cli', t: c.nome, s: [c.cidade, sentence(c.status || ''), c.telefone].filter(Boolean).join(' · '), k: String(c.telefone || '').replace(/\D/g, '') + ' ' + (c.email || ''), cli: c, run: () => has('openCrm360') && openCrm360(c.id) });
     });
     (state.propostas || []).forEach((p) => {
       if (!p) return;
@@ -288,7 +288,6 @@
     const i = norm(text).indexOf(tok); if (i < 0) return safe;
     return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + tok.length)) + '</mark>' + esc(text.slice(i + tok.length));
   }
-  function initials(n) { return String(n || '?').split(/\s+/).filter((w) => w.length > 2).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || String(n || '?')[0].toUpperCase(); }
   function paintPalette() {
     const all = buildIndex(), toks = norm(P.q.trim()).split(/\s+/).filter(Boolean);
     const counts = {}; let groups = {};
@@ -312,7 +311,8 @@
       html += `<h6>${!toks.length ? 'Atalhos' : GNAME[g]}</h6>`;
       list.forEach((x) => {
         const i = P.flat.push(x) - 1;
-        const icon = x.av ? `<span class="ri p">${esc(initials(x.av))}</span>` : `<span class="ri">${ic(x.i)}</span>`;
+        const pj = x.cli && window.uiV2TipoCliente && window.uiV2TipoCliente(x.cli) === 'PJ';
+        const icon = x.cli ? `<span class="ri p ${pj ? 'pj' : ''}">${ic(pj ? 'building-2' : 'user')}</span>` : `<span class="ri">${ic(x.i)}</span>`;
         html += `<div class="v2-res ${i === P.idx ? 'on' : ''}" data-v2="res" data-ri="${i}">${icon}<div class="tx"><b>${hl(x.t, P.q)}</b><small>${hl(x.s, P.q)}</small></div><span class="go">${x.g === 'nav' ? 'Ir' : 'Abrir'}${ic('corner-down-left')}</span></div>`;
       });
     });

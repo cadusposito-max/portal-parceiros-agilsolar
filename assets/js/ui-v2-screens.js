@@ -15,8 +15,30 @@
   const ic = (name, extra = '') => `<i data-lucide="${name}" ${extra}></i>`;
   const money = (v) => (has('formatCurrency') ? formatCurrency(Number(v) || 0) : 'R$ ' + (Number(v) || 0).toFixed(2));
   const moneyC = (v) => (has('formatCurrencyCompact') ? formatCurrencyCompact(Number(v) || 0) : money(v));
-  const initials = (n) => String(n || '?').split(/\s+/).filter((w) => w.length > 2).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || String(n || '?').charAt(0).toUpperCase();
   const cap = (s) => { const t = String(s || '').toLocaleLowerCase('pt-BR'); return t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1); };
+
+  // ---- ícone no lugar das iniciais: pessoa física x empresa ----
+  // Mesma regra de documentos.js (tipo salvo no contrato; senão CPF/CNPJ pelos
+  // dígitos); sem documento, nomes típicos de empresa também contam como PJ.
+  const PJ_NOME = /\b(LTDA|EIRELI|S\/?A|EPP|MEI|ME|CONDOM[IÍ]NIO|IGREJA|ASSOCIA[CÇ][AÃ]O|COOPERATIVA|EMPRESA|COM[EÉ]RCIO|IND[UÚ]STRIA|FAZENDA|AGROPECU[AÁ]RIA|SUPERMERCADO|MERCADO|POSTO|HOTEL|POUSADA|CL[IÍ]NICA|HOSPITAL|FARM[AÁ]CIA|PREFEITURA|ESCOLA|COL[EÉ]GIO|INSTITUTO|FUNDA[CÇ][AÃ]O|SINDICATO|CONSTRUTORA|TRANSPORTADORA|LOJA|RESTAURANTE|PANIFICADORA|PADARIA)\b/i;
+  let cliMap = null, cliSrc = null;
+  function tipoCliente(cliente, nome) {
+    let c = cliente;
+    if (c && typeof c !== 'object') {
+      if (cliSrc !== state.clientes) { cliSrc = state.clientes; cliMap = new Map((state.clientes || []).map((x) => [String(x.id), x])); }
+      c = cliMap.get(String(c));
+    }
+    const salvo = c && c.documentos_dados && c.documentos_dados.tipo_pessoa;
+    if (salvo === 'PJ' || salvo === 'PF') return salvo;
+    const dig = String((c && c.documento) || '').replace(/\D/g, '').length;
+    if (dig === 14) return 'PJ';
+    if (dig === 11) return 'PF';
+    return PJ_NOME.test(String((c && c.nome) || nome || '')) ? 'PJ' : 'PF';
+  }
+  const avCliente = (cliente, nome, extra = '') => { const pj = tipoCliente(cliente, nome) === 'PJ'; return `<i class="v2-ini ${pj ? 'pj' : 'pf'} ${extra}" title="${pj ? 'Empresa' : 'Pessoa física'}">${ic(pj ? 'building-2' : 'user')}</i>`; };
+  const avPessoa = (cls = '', style = '') => `<i class="v2-ini ${cls}" ${style ? `style="${style}"` : ''}>${ic('user')}</i>`;
+  const avFranquia = () => `<i class="v2-ini">${ic('store')}</i>`;
+  window.uiV2TipoCliente = tipoCliente;
 
   // Título/subtítulo da barra de cima (lido pelo ui-v2-shell.js)
   function setPageMeta(key, title, sub) {
@@ -185,7 +207,7 @@
             const valor = has('propostaPreco') ? propostaPreco(p) : p.kit_price;
             const vistas = Number(p.vista_count) || 0;
             const open = p.cliente_id ? `openCrm360('${esc(p.cliente_id)}','propostas')` : "setTab('propostas')";
-            return `<tr onclick="${open}"><td><div class="v2-who"><i class="v2-ini">${esc(initials(p.cliente_nome))}</i><div>${esc(p.cliente_nome || 'Cliente')}<small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(formatDate(p.created_at))}${vistas ? ` · aberta ${vistas}×` : ''}</small></div></div></td>
+            return `<tr onclick="${open}"><td><div class="v2-who">${avCliente(p.cliente_id, p.cliente_nome)}<div>${esc(p.cliente_nome || 'Cliente')}<small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(formatDate(p.created_at))}${vistas ? ` · aberta ${vistas}×` : ''}</small></div></div></td>
               <td class="hide-m muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(p.kit_nome || '—')}</td>
               <td style="font-weight:800">${valor ? money(valor) : '—'}</td>
               <td class="hide-m"><span class="v2-chip dot ${st[1]}">${st[0]}</span></td></tr>`;
@@ -218,9 +240,9 @@
       const topFr = state.isAdmin && state.adminViewAll && String(state.adminScopeFranquiaId || 'all') === 'all';
       const vendedores = m.topSellers.length ? m.topSellers.map((s, i) => {
         const sel = vendSel === s.email;
-        return `<div class="v2-lst click ${sel ? 'sel' : ''}" onclick="setDashVendedor(decodeURIComponent('${sel ? 'all' : encodeURIComponent(s.email)}'))"><span class="pos">${i + 1}</span><i class="v2-ini round ${i === 0 ? 'o' : 'g'}">${esc(initials(s.nome))}</i><div class="tx"><b>${esc(s.nome)}</b><small>${s.qtd} venda${s.qtd > 1 ? 's' : ''} · ticket ${moneyC(s.ticket)}${sel ? ' · filtrando' : ''}</small></div><div class="val">${moneyC(s.total)}</div></div>`;
+        return `<div class="v2-lst click ${sel ? 'sel' : ''}" onclick="setDashVendedor(decodeURIComponent('${sel ? 'all' : encodeURIComponent(s.email)}'))"><span class="pos">${i + 1}</span>${avPessoa('round ' + (i === 0 ? 'o' : 'g'))}<div class="tx"><b>${esc(s.nome)}</b><small>${s.qtd} venda${s.qtd > 1 ? 's' : ''} · ticket ${moneyC(s.ticket)}${sel ? ' · filtrando' : ''}</small></div><div class="val">${moneyC(s.total)}</div></div>`;
       }).join('') : '<div class="v2-empty">Sem vendas no recorte.</div>';
-      const franquias = m.topFranchises.length ? m.topFranchises.map((f, i) => `<div class="v2-lst"><span class="pos">${i + 1}</span><i class="v2-ini">${esc(initials(f.nome))}</i><div class="tx"><b>${esc(f.nome)}</b><small>${f.qtd} venda${f.qtd > 1 ? 's' : ''}</small></div><div class="val">${moneyC(f.total)}</div></div>`).join('') : '<div class="v2-empty">Sem vendas no recorte.</div>';
+      const franquias = m.topFranchises.length ? m.topFranchises.map((f, i) => `<div class="v2-lst"><span class="pos">${i + 1}</span>${avFranquia()}<div class="tx"><b>${esc(f.nome)}</b><small>${f.qtd} venda${f.qtd > 1 ? 's' : ''}</small></div><div class="val">${moneyC(f.total)}</div></div>`).join('') : '<div class="v2-empty">Sem vendas no recorte.</div>';
       const parados = m.aging.map((a) => `<div class="v2-lst"><i class="v2-ini ${a.qty ? 'o' : 'g'}">${ic(a.qty ? 'alarm-clock' : 'check', 'style="width:16px;height:16px"')}</i><div class="tx"><b>${esc(cap(a.status))}</b><small>parados há mais de ${a.limit} dias</small></div><span class="v2-chip ${a.qty ? 't-red' : 't-green'}">${a.qty}</span></div>`).join('');
       analise = `<div class="v2-row ${topFr ? 'r3' : 'r2'}">
         <div class="v2-card"><div class="v2-ch"><div><h3>Vendedores no recorte</h3><small>Clique para filtrar o painel</small></div></div>${vendedores}</div>
@@ -351,12 +373,12 @@
       const valor = has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0;
       const wa = waLink(c);
       return `<tr onclick="openCrm360('${esc(c.id)}')">
-        <td><div class="v2-who"><i class="v2-ini">${esc(initials(c.nome))}</i><div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small><span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${st[1]}">${st[0]}</span></span></div></div></td>
+        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small><span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${st[1]}">${st[0]}</span></span></div></div></td>
         <td class="hide-m">${esc(c.cidade || '—')}${Number(c.hsp) > 0 ? `<small class="muted" style="display:block;font-size:12px">HSP ${esc(String(c.hsp).replace('.', ','))}</small>` : ''}</td>
         <td class="hide-m"><button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Alterar status">${st[0]}</button></td>
         <td class="hide-m">${nProp ? `${nProp} proposta${nProp > 1 ? 's' : ''}` : '<span class="muted">—</span>'}${nVend ? `<small style="display:block;font-size:12px;color:#1FA971;font-weight:700">${nVend} venda${nVend > 1 ? 's' : ''}</small>` : ''}</td>
         <td class="hide-m" style="font-weight:800">${valor ? moneyC(valor) : '<span class="muted" style="font-weight:500">—</span>'}</td>
-        ${showSeller ? `<td class="hide-m"><span class="v2-who" style="font-weight:600;font-size:13px"><i class="v2-ini round o" style="width:26px;height:26px;font-size:10px">${esc(initials(vendNome(c.vendedor_email)))}</i>${esc(vendNome(c.vendedor_email))}</span></td>` : ''}
+        ${showSeller ? `<td class="hide-m"><span class="v2-who" style="font-weight:600;font-size:13px">${avPessoa('round o sm')}${esc(vendNome(c.vendedor_email))}</span></td>` : ''}
         <td class="hide-m muted">${esc(formatDate(c.created_at))}</td>
         <td><div class="v2-acts">
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
@@ -506,7 +528,7 @@
     const lista = () => `<div class="v2-card" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
         <thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Status</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Criada</th><th>Valor</th><th></th></tr></thead>
         <tbody>${visible.map((p) => { const [stl, stc] = PROP_ST[propostaStatus(p)] || PROP_ST.GERADA; return `<tr ${abrir(p)}>
-          <td><div class="v2-who"><i class="v2-ini">${esc(initials(p.cliente_nome))}</i><div>${esc(p.cliente_nome || 'Sem cliente')}<small style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small><span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${stc}">${stl}</span></span></div></div></td>
+          <td><div class="v2-who">${avCliente(p.cliente_id, p.cliente_nome)}<div>${esc(p.cliente_nome || 'Sem cliente')}<small style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small><span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${stc}">${stl}</span></span></div></div></td>
           <td class="hide-m">${kwpTx(p)}</td>
           <td class="hide-m"><span class="v2-chip dot ${stc}" title="${esc(infoTx(p))}">${stl}</span></td>
           ${showSeller ? `<td class="hide-m">${esc(vendNome(p.vendedor_email))}</td>` : ''}
@@ -541,8 +563,8 @@
     if (!list.length) return '<div class="v2-empty">Sem vendas no recorte.</div>';
     const ord = [1, 0, 2].filter((i) => list[i]);
     const H = [118, 88, 66], COL = ['#FAA519', '#008FD4', '#9FA2A5'];
-    return `<div class="v2-podium">${ord.map((i) => { const s = list[i]; return `<div class="pod"><i class="v2-ini round ${i === 0 ? 'o' : i === 1 ? '' : 'g'}">${esc(initials(s.nome))}</i><b>${esc(String(s.nome).split(' ')[0])}</b><small>${moneyC(s.total)}</small><div class="step" style="height:${H[i]}px;background:${COL[i]}">${i + 1}º</div></div>`; }).join('')}</div>`
-      + list.slice(3).map((s, k) => `<div class="v2-lst"><span class="pos">${k + 4}</span><i class="v2-ini round g">${esc(initials(s.nome))}</i><div class="tx"><b>${esc(s.nome)}</b><small>${s.qtd} venda${s.qtd > 1 ? 's' : ''} · ticket ${moneyC(s.ticket)}</small></div><div class="val">${moneyC(s.total)}</div></div>`).join('');
+    return `<div class="v2-podium">${ord.map((i) => { const s = list[i]; return `<div class="pod">${avPessoa('round ' + (i === 0 ? 'o' : i === 1 ? '' : 'g'))}<b>${esc(String(s.nome).split(' ')[0])}</b><small>${moneyC(s.total)}</small><div class="step" style="height:${H[i]}px;background:${COL[i]}">${i + 1}º</div></div>`; }).join('')}</div>`
+      + list.slice(3).map((s, k) => `<div class="v2-lst"><span class="pos">${k + 4}</span>${avPessoa('round g')}<div class="tx"><b>${esc(s.nome)}</b><small>${s.qtd} venda${s.qtd > 1 ? 's' : ''} · ticket ${moneyC(s.ticket)}</small></div><div class="val">${moneyC(s.total)}</div></div>`).join('');
   }
 
   function renderVendasV2(container) {
@@ -610,7 +632,7 @@
       const fr = state.isAdmin && state.adminViewAll ? buildFranquiaRanking(vendas) : [];
       ranking = `<div class="v2-row ${fr.length ? 'r2' : ''}" ${fr.length ? '' : 'style="grid-template-columns:1fr"'}>
         <div class="v2-card"><div class="v2-ch"><div><h3>Ranking da equipe</h3><small>Valor fechado no recorte</small></div></div>${podium(sellers)}</div>
-        ${fr.length ? `<div class="v2-card"><div class="v2-ch"><div><h3>Franquias</h3><small>Valor fechado no recorte</small></div></div>${fr.map((x, i) => `<div class="v2-lst"><span class="pos">${i + 1}</span><i class="v2-ini">${esc(initials(x.nome))}</i><div class="tx"><b>${esc(x.nome)}</b><small>${x.qtd} venda${x.qtd > 1 ? 's' : ''}</small></div><div class="val">${moneyC(x.total)}</div></div>`).join('')}</div>` : ''}
+        ${fr.length ? `<div class="v2-card"><div class="v2-ch"><div><h3>Franquias</h3><small>Valor fechado no recorte</small></div></div>${fr.map((x, i) => `<div class="v2-lst"><span class="pos">${i + 1}</span>${avFranquia()}<div class="tx"><b>${esc(x.nome)}</b><small>${x.qtd} venda${x.qtd > 1 ? 's' : ''}</small></div><div class="val">${moneyC(x.total)}</div></div>`).join('')}</div>` : ''}
       </div>`;
     }
 

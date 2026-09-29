@@ -127,6 +127,31 @@
   document.addEventListener('uiv2:change', () => ['#modal-overlay', '#equip-modal-overlay'].forEach((s) => normalizarTextos(document.querySelector(s), 'label, h2')));
   window.uiV2Textos = { normalizarTextos };
 
+  // ---------- lista de cidades (cidades.js): nomes em caixa normal só na exibição ----------
+  // O valor que vai para o campo continua "CAARAPÓ/MS" (é o formato gravado).
+  const MINUSC = ['de', 'da', 'do', 'das', 'dos', 'e'];
+  const cidadeFrase = (t) => t.toLocaleLowerCase('pt-BR').replace(/[\p{L}]+/gu, (w, i) => (i > 0 && MINUSC.includes(w) ? w : w.charAt(0).toLocaleUpperCase('pt-BR') + w.slice(1)));
+  if (typeof attachCidadeAutocomplete === 'function') {
+    const _attach = attachCidadeAutocomplete;
+    attachCidadeAutocomplete = function (inputEl) {
+      const out = _attach.apply(this, arguments);
+      const dd = inputEl && inputEl.parentElement && [...inputEl.parentElement.querySelectorAll(':scope > .cidade-autocomplete-dropdown')].pop();
+      if (dd && !dd._v2obs) {
+        dd._v2obs = new MutationObserver(() => {
+          if (!window.uiV2.isActive()) return;
+          dd.querySelectorAll('.cidade-ac-item').forEach((b) => {
+            const n = b.firstChild;
+            if (n && n.nodeType === 3 && /\p{Lu}{2}/u.test(n.nodeValue)) n.nodeValue = cidadeFrase(n.nodeValue);
+            const uf = b.querySelector('span');
+            if (uf && uf.textContent.startsWith('/')) uf.textContent = uf.textContent.slice(1);
+          });
+        });
+        dd._v2obs.observe(dd, { childList: true });
+      }
+      return out;
+    };
+  }
+
   const _open = openClientModal;
   openClientModal = function () {
     const out = _open.apply(this, arguments);

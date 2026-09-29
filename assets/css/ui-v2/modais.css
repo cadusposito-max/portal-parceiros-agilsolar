@@ -247,3 +247,24 @@ html[data-ui="v2"] body :is(#btn-save-modal, #equip-save-btn):hover { background
   html[data-ui="v2"] body :is(#product-form, #equip-form) .grid { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
   html[data-ui="v2"] body #product-form > .grid:first-of-type { grid-template-columns: 1fr !important; }
 }
+
+/* ---------- lista de cidades (cidades.js .cidade-autocomplete-dropdown) ---------- */
+html[data-ui="v2"] body .cidade-autocomplete-dropdown {
+  top: calc(100% + 6px) !important; background: var(--v2-card) !important; border: 0 !important; border-radius: 16px !important;
+  box-shadow: var(--v2-shadow-pop) !important; padding: 6px !important; max-height: 280px !important;
+}
+html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item {
+  display: flex !important; align-items: center; gap: 6px; border: 0 !important; border-radius: 11px !important; padding: 10px 12px !important;
+  font-size: 14px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: 0 !important;
+  color: var(--v2-ink) !important; background: transparent !important;
+}
+html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item::before {
+  content: ""; width: 16px; height: 16px; flex-shrink: 0; background: currentColor; opacity: .45;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item span { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--v2-gray) !important; background: var(--v2-bg); border-radius: 999px; padding: 2px 8px; }
+html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item:hover { background: var(--v2-bg) !important; }
+html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item[class*="bg-orange"] { background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item[class*="bg-orange"]::before { opacity: 1; }
+html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item[class*="bg-orange"] span { background: var(--v2-card); color: var(--v2-blue-text) !important; }

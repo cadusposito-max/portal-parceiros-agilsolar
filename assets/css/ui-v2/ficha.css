@@ -112,3 +112,6 @@ html[data-ui="v2"] .v2f-tabbody { min-height: 320px; }
   html[data-ui="v2"] .v2f-body { padding: 12px 12px 24px; }
   html[data-ui="v2"] .v2f-fields { grid-template-columns: 1fr; }
 }
+html[data-ui="v2"] .v2f-av svg { width: 26px; height: 26px; }
+html[data-ui="v2"] .v2f-av.pj { background: rgba(124,92,230,.13); color: #5B3FC4; }
+html[data-ui="v2"][data-theme="dark"] .v2f-av.pj { color: #B9A8FF; }

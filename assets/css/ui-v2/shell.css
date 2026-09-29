@@ -326,3 +326,5 @@ html[data-ui="v2"] #main-container.v2-enter > :nth-child(n+6) { animation-delay:
   html[data-ui="v2"] #main-container.v2-enter > * { animation: none; }
   html[data-ui="v2"] .v2-navind { transition: none; }
 }
+html[data-ui="v2"] .v2-res .ri.p.pj { background: rgba(124,92,230,.13); color: #5B3FC4; }
+html[data-ui="v2"][data-theme="dark"] .v2-res .ri.p.pj { color: #B9A8FF; }

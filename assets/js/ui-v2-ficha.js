@@ -13,7 +13,6 @@
   const has = (fn) => typeof window[fn] === 'function';
   const esc = (s) => (has('escapeHTML') ? escapeHTML(String(s ?? '')) : String(s ?? ''));
   const ic = (n, extra = '') => `<i data-lucide="${n}" ${extra}></i>`;
-  const initials = (n) => String(n || '?').split(/\s+/).filter((w) => w.length > 2).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || String(n || '?').charAt(0).toUpperCase();
   const cap = (s) => { const t = String(s || '').toLocaleLowerCase('pt-BR'); return t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1); };
   const ST = { NOVO: 'Novo', 'PROPOSTA ENVIADA': 'Proposta enviada', 'EM NEGOCIAÇÃO': 'Em negociação', FECHADO: 'Fechado', PERDIDO: 'Perdido' };
   const ST_CLS = { NOVO: 't-gray', 'PROPOSTA ENVIADA': 't-blue', 'EM NEGOCIAÇÃO': 't-orange', FECHADO: 't-green', PERDIDO: 't-red' };
@@ -74,7 +73,7 @@
       <div class="v2f">
         <div class="v2f-head">
           <div class="v2f-top">
-            <i class="v2f-av">${esc(initials(client.nome))}</i>
+            ${(() => { const pj = window.uiV2TipoCliente && window.uiV2TipoCliente(client) === 'PJ'; return `<i class="v2f-av ${pj ? 'pj' : ''}" title="${pj ? 'Empresa' : 'Pessoa física'}">${ic(pj ? 'building-2' : 'user')}</i>`; })()}
             <div class="tx">
               <h2>${esc(client.nome || 'Cliente')}
                 <button class="v2-chip dot ${ST_CLS[status] || 't-gray'} v2f-stchip" onclick="openClientStatusMenu(event, '${esc(client.id)}')" title="Alterar status">${ST[status] || status}${ic('chevron-down')}</button>
