@@ -688,7 +688,7 @@
       const micro = k.categoria === 'kitsMicro';
       const ger = Number(k._estGeneration) || calcularGeracaoEstimada(Number(k.power) || 0, k.categoria);
       const id = esc(k.id);
-      return `<div class="v2-card v2-pcard v2-kit ${inativo ? 'off' : ''} ${k.tag && !inativo ? 'feat' : ''}" onclick="openModalById('${id}')">
+      return `<div class="v2-card v2-pcard v2-kit ${inativo ? 'off' : ''}" onclick="openModalById('${id}')">
         <div class="tags">${k.brand ? `<span class="v2-chip t-blue">${esc(k.brand)}</span>` : ''}<span class="v2-chip t-gray">${micro ? 'Microinversor' : 'Inversor'}</span>${k.tag ? `<span class="v2-chip t-orange">${ic('flame')}${esc(cap(k.tag))}</span>` : ''}${inativo ? '<span class="v2-chip t-gray">Fora de linha</span>' : ''}</div>
         <div><small class="muted" style="font-size:12px;font-weight:700">Kit fotovoltaico</small><div class="kp">${kwpTxt(k.power)} <small>kWp</small></div></div>
         <div class="kit">${ic('solar-panel')}<span title="${esc(k.name)}">${esc(k.name || 'Sem nome')}</span></div>
