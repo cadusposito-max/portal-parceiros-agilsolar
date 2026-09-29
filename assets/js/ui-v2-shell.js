@@ -68,6 +68,7 @@
 
   // ---------- montagem ----------
   let mounted = false;
+  let lastSig = ''; // assinatura da última pintura completa (ver paint)
   function mount() {
     const app = $('#app-content');
     const main = app && $('main', app);
@@ -100,6 +101,7 @@
     ['#v2-side', '#v2-mtop', '#v2-top', '#v2-mnav', '#v2-scrim', '#v2-sheet-env', '#v2-sheet-more', '#v2-sheet-user', '#v2-palscrim', '#v2-pal'].forEach((s) => { const el = $(s); if (el) el.remove(); });
     const app = $('#app-content'); if (app) app.classList.remove('v2-rail', 'v2-open');
     mounted = false;
+    lastSig = '';
   }
 
   // ---------- pintura ----------
@@ -146,6 +148,15 @@
     const multiEnv = Object.keys(ENVS).filter(envAllowed).length > 1;
     const meta = window.uiV2PageMeta;
     const metaOk = !!(meta && meta.key === k + ':' + cur);
+    const title = metaOk ? meta.title : sentence(curTab.label);
+    const sub = metaOk ? meta.sub || '' : '';
+
+    // Troca de aba, título e contador do chat não mudam a estrutura: só
+    // atualiza esses pontos, sem recriar menu e ícones (era ~40ms por vez).
+    const sig = JSON.stringify([k, T.map((t) => [t.id, t.label, t.icon]), u.nome, u.email, u.role, u.avatar, u.unidade, cta && cta[0], chatOn, canAdmin, multiEnv,
+      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '']);
+    if (sig === lastSig && $('#v2-side').firstChild) { paintLight(cur, title, sub, unread); return; }
+    lastSig = sig;
 
     $('#v2-side').innerHTML = `
       <div class="v2-brand">${LOGO}<button class="v2-collapse" data-v2="rail" title="Recolher menu">${ic('chevrons-left')}</button></div>
@@ -161,7 +172,7 @@
       <button class="v2-av" data-v2="sheet" data-target="v2-sheet-user">${u.avatar}</button>`;
 
     $('#v2-top').innerHTML = `
-      <div><div class="v2-crumb">${ic(E.i)}${E.n}</div><h1>${metaOk ? esc(meta.title) : esc(sentence(curTab.label))}</h1>${metaOk && meta.sub ? `<p class="v2-sub">${esc(meta.sub)}</p>` : ''}</div>
+      <div><div class="v2-crumb">${ic(E.i)}${E.n}</div><h1>${esc(title)}</h1>${sub ? `<p class="v2-sub">${esc(sub)}</p>` : ''}</div>
       <div class="v2-grow"></div>
       <button class="v2-icb v2-msearch" data-v2="palette" title="Buscar">${ic('search')}</button>
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>
@@ -183,6 +194,20 @@
     $$('[data-v2-envlist]').forEach((el) => { el.innerHTML = envListHTML(); });
     $$('[data-v2-usermenu]').forEach((el) => { el.innerHTML = userMenuHTML(); });
     icons();
+  }
+  function paintLight(cur, title, sub, unread) {
+    $$('[data-v2="tab"]').forEach((b) => b.classList.toggle('on', b.dataset.tab === cur));
+    const more = $('#v2-mnav [data-target="v2-sheet-more"]');
+    if (more) more.classList.toggle('on', !$(`#v2-mnav [data-v2="tab"][data-tab="${CSS.escape(String(cur))}"]`));
+    const h1 = $('#v2-top h1');
+    if (h1 && h1.textContent !== title) h1.textContent = title;
+    let p = $('#v2-top .v2-sub');
+    if (sub && h1) { if (!p) { p = document.createElement('p'); p.className = 'v2-sub'; h1.after(p); } if (p.textContent !== sub) p.textContent = sub; } else if (p) p.remove();
+    const chat = $('#v2-top [data-v2="chat"]');
+    if (chat) {
+      let c = chat.querySelector('.cnt');
+      if (unread) { if (!c) { c = document.createElement('span'); c.className = 'cnt'; chat.appendChild(c); } c.textContent = unread > 99 ? '99+' : String(unread); } else if (c) c.remove();
+    }
   }
   function shortLabel(label) { const s = sentence(label); return s.length > 10 ? s.split(' ')[0] : s; }
 

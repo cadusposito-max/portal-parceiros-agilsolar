@@ -146,6 +146,22 @@
     };
   }
 
+  // Ícones: lucide.createIcons() recria TODOS os ícones da página a cada chamada,
+  // até os já desenhados (centenas por troca de aba). No v2 desenha só os novos
+  // (<i data-lucide>) e os <svg> cujo nome foi trocado depois (ex.: menu ↔ x).
+  if (window.lucide && typeof window.lucide.createIcons === 'function' && window.lucide.icons) {
+    const _createIcons = window.lucide.createIcons.bind(window.lucide);
+    window.lucide.createIcons = function (opts) {
+      if (!isActive() || (opts && (opts.nameAttr || opts.root))) return _createIcons(opts);
+      const pend = [...document.querySelectorAll('[data-lucide]')].filter((el) => el.tagName.toLowerCase() !== 'svg' || !el.classList.contains('lucide-' + el.getAttribute('data-lucide')));
+      if (!pend.length) return undefined;
+      pend.forEach((el) => el.setAttribute('data-lucide-new', el.getAttribute('data-lucide')));
+      const out = _createIcons({ icons: window.lucide.icons, ...(opts || {}), nameAttr: 'data-lucide-new' });
+      document.querySelectorAll('[data-lucide-new]').forEach((el) => el.removeAttribute('data-lucide-new'));
+      return out;
+    };
+  }
+
   // O <head> pode ter ligado o v2 cedo (sem piscar); habilita os CSS já.
   // O sync() pós-login confirma ou desfaz.
   if (isActive()) {

@@ -577,7 +577,8 @@
       </div>`;
     }
 
-    const rows = vendas.map((v) => {
+    const limite = window.uiV2Screens.vendasLimite || 40;
+    const rows = vendas.slice(0, limite).map((v) => {
       const tel = digitsOnly(v.cliente_telefone);
       const first = String(v.cliente_nome || '').split(' ')[0] || 'cliente';
       const wa = tel ? `https://wa.me/55${tel}?text=${encodeURIComponent(`Olá ${first}, parabéns pela aquisição do seu sistema solar!`)}` : '';
@@ -600,7 +601,7 @@
       ${ranking}
       <div class="v2-card" style="padding:14px 16px">
         <div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas</h3><small>Clique para abrir a ficha do cliente</small></div></div>
-        ${vendas.length ? `<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+        ${vendas.length ? `<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>${vendas.length > limite ? `<div class="v2-more"><button class="v2-btn2" onclick="uiV2Screens.maisVendas()">${ic('chevrons-down')}Carregar mais · ${limite} de ${vendas.length}</button></div>` : ''}`
           : '<div class="v2-empty">Nenhuma venda com os filtros atuais.</div>'}
       </div>`;
     if (window.lucide) window.lucide.createIcons();
@@ -787,20 +788,15 @@
 
   // ==================== troca de render ====================
   const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2, renderVendas: renderVendasV2, renderAnalise: renderAnaliseV2, renderProductsList: renderProductsListV2 };
+  let lastScreen = '';
   Object.entries(V2_SCREENS).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];
     window[name] = function (container) {
       if (window.uiV2.isActive()) {
-        // a busca fica dentro da tela: devolve o cursor ao campo depois de redesenhar
-        const a = document.activeElement;
-        const keep = a && a.id && a.tagName === 'INPUT' && container && container.contains(a) ? { id: a.id, pos: a.selectionStart } : null;
-        try {
-          const out = v2(container, original);
-          const el = keep && document.getElementById(keep.id);
-          if (el && el !== document.activeElement) { el.focus(); try { el.setSelectionRange(keep.pos, keep.pos); } catch (_) {} }
-          return out;
-        } catch (err) { console.warn('[ui-v2] ' + name + ' falhou, usando o antigo', err); }
+        // entrar numa tela recomeça as listas do 1º lote
+        if (name !== lastScreen) { lastScreen = name; window.uiV2Screens.vendasLimite = 40; }
+        try { return v2(container, original); } catch (err) { console.warn('[ui-v2] ' + name + ' falhou, usando o antigo', err); }
       }
       window.uiV2PageMeta = null;
       return original.apply(this, arguments);
@@ -817,6 +813,8 @@
     filtrosAbertos: false,
     toggleFiltros() { this.filtrosAbertos = !this.filtrosAbertos; document.querySelectorAll('.v2-admfilters').forEach((el) => el.classList.toggle('open', this.filtrosAbertos)); },
     maisPropostas() { _propostasRenderLimit += 12; if (has('renderContent')) renderContent(); },
+    vendasLimite: 40,
+    maisVendas() { this.vendasLimite += 40; if (has('renderContent')) renderContent(); },
     copiarLink(id) {
       const url = new URL('proposta.html?id=' + encodeURIComponent(id), window.location.href).href;
       const ok = () => has('showToast') && showToast('LINK DA PROPOSTA COPIADO');
