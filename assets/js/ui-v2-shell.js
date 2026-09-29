@@ -218,6 +218,7 @@
   // destaque azul que desliza até a aba ativa (animação só na troca de aba)
   const reduzMovimento = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let navRO = null;
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeInd(false));
   function placeInd(anim) {
     const nav = $('#v2-side .v2-nav');
     const ind = nav && nav.querySelector('.v2-navind');
@@ -230,8 +231,15 @@
     ind.style.height = on.offsetHeight + 'px';
     ind.style.transform = 'translateY(' + on.offsetTop + 'px)';
     if (semAnim) { void ind.offsetWidth; ind.style.transition = ''; }
-    if (!navRO && window.ResizeObserver) { navRO = new ResizeObserver(() => placeInd(false)); }
-    if (navRO && nav !== navRO._alvo) { navRO.disconnect(); navRO.observe(nav); navRO._alvo = nav; }
+    // recalcula se o menu OU algum botão mudar de tamanho (fonte que termina de
+    // carregar, menu recolhido, zoom) — senão o destaque fica com a medida antiga
+    if (!navRO && window.ResizeObserver) { navRO = new ResizeObserver(() => requestAnimationFrame(() => placeInd(false))); }
+    if (navRO && nav !== navRO._alvo) {
+      navRO.disconnect();
+      navRO.observe(nav);
+      nav.querySelectorAll(':scope > button').forEach((b) => navRO.observe(b, { box: 'border-box' }));
+      navRO._alvo = nav;
+    }
   }
   function shortLabel(label) { const s = sentence(label); return s.length > 10 ? s.split(' ')[0] : s; }
 

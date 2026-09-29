@@ -311,7 +311,7 @@ html[data-ui="v2"] .v2-nav.has-ind > button { position: relative; z-index: 1; }
 html[data-ui="v2"] .v2-nav.has-ind > button.on { background: transparent; box-shadow: none; }
 html[data-ui="v2"] .v2-navind {
   position: absolute; left: 4px; right: 4px; top: 0; z-index: 0; opacity: 0; pointer-events: none;
-  border-radius: 14px; background: var(--v2-blue); box-shadow: 0 6px 16px rgba(0,143,212,.3);
+  border-radius: 14px; background: var(--v2-blue); box-shadow: 0 3px 8px rgba(0,143,212,.22);
   transition: transform .28s cubic-bezier(.2,.8,.2,1), height .28s cubic-bezier(.2,.8,.2,1);
 }
 /* ---------- troca de aba: conteúdo entra subindo de leve, em cascata ---------- */
