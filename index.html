@@ -116,19 +116,20 @@
   <link rel="stylesheet" href="assets/css/ui-v2/admin.css?v=20260929-p31" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
   <script>
-    /* Visual novo (v2) é o padrão para todos desde 29/09/2026; o antigo fica de
-       reserva (?ui=v1 na URL abre o antigo). EMERGÊNCIA: trocar para false volta TODO MUNDO ao
-       visual antigo (o novo vira de novo beta só de admin). */
+    /* Visual novo (v2) é o ÚNICO visual para todos desde 29/09/2026: sempre liga,
+       sem preferência nem ?ui=v1. Só em emergência (desenvolvedor): trocar para
+       false faz o novo voltar a ser beta de admin e todos veem o antigo. */
     window.UI_V2_PADRAO = true;
-    /* Aplica antes de pintar (sem piscar); o ui-v2.js confirma após o login. */
-    try {
-      var uiPref = localStorage.getItem('ui_v2');
-      var uiLiga = window.UI_V2_PADRAO ? uiPref !== '0' : uiPref === '1';
-      if (uiLiga && new URLSearchParams(location.search).get('ui') !== 'v1') {
+    (function () {
+      var liga = window.UI_V2_PADRAO;
+      if (!liga) {
+        try { liga = localStorage.getItem('ui_v2') === '1' && new URLSearchParams(location.search).get('ui') !== 'v1'; } catch (_) { liga = false; }
+      }
+      if (liga) {
         document.documentElement.setAttribute('data-ui', 'v2');
         document.querySelectorAll('link[data-ui-v2]').forEach(function (l) { l.media = 'all'; });
       }
-    } catch (_) { /* sem storage: visual de sempre */ }
+    })();
   </script>
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -1331,7 +1332,7 @@
   local('vistoria-os.js',      '20260626-vistoria-os');
   local('engenharia.js',       '20260925-layout-c');
   local('app.js',              '20260929-vis');
-  local('ui-v2.js',            '20260929-rel2');
+  local('ui-v2.js',            '20260929-rel6');
   local('ui-v2-shell.js',      '20260929-rel2');
   local('ui-v2-screens.js',    '20260929-rel5');
   local('ui-v2-select.js',     '20260929-p28');

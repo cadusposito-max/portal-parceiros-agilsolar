@@ -1,28 +1,26 @@
 // ==========================================
-// VISUAL NOVO (v2 · "Clara") — PADRÃO PARA TODOS (o antigo fica de reserva)
+// VISUAL NOVO (v2 · "Clara") — ÚNICO VISUAL PARA TODOS
 // ------------------------------------------
 // Não destrutivo: todo o CSS novo fica sob html[data-ui="v2"] e este arquivo
 // só EMBRULHA funções globais existentes (renderHeaderUser, applyThemeMode);
 // nenhum módulo antigo é editado. Sem o atributo, o portal é o de sempre.
 //
-// Padrão: window.UI_V2_PADRAO (definido no <head> do index.html). Com true,
-// todo mundo entra no visual novo; com false, volta a ser beta só de admin.
-// Reserva: ?ui=v1 na URL abre o visual antigo nesta carga (não há mais botão
-// para voltar no menu). Quem estiver no antigo tem o botão "Visual novo".
-// Escape: ?ui=v1 na URL força o visual antigo nesta carga.
+// window.UI_V2_PADRAO (no <head> do index.html) = true: todo mundo SEMPRE no
+// visual novo; não há botão, preferência nem ?ui=v1 que volte ao antigo.
+// Só um desenvolvedor, trocando para false, faz o novo voltar a ser beta de
+// admin (aí sim valem o botão no header, ui_v2='1' e ?ui=v1).
 // ==========================================
 
 (function () {
   const KEY = 'ui_v2';
   const root = document.documentElement;
-  const forceV1 = new URLSearchParams(window.location.search).get('ui') === 'v1';
-
   const PADRAO = window.UI_V2_PADRAO !== false;
+  const forceV1 = !PADRAO && new URLSearchParams(window.location.search).get('ui') === 'v1';
   const pref = () => { try { return localStorage.getItem(KEY); } catch (_) { return null; } }; // '1' | '0' | null
   const setFlag = (on) => { try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (_) {} };
   // quem pode usar o visual novo e se ele liga sozinho
   const podeUsar = () => PADRAO || isAdmin();
-  const querV2 = () => (PADRAO ? pref() !== '0' : pref() === '1');
+  const querV2 = () => PADRAO || pref() === '1';
   const isActive = () => root.getAttribute('data-ui') === 'v2';
   const isLoggedIn = () => typeof state !== 'undefined' && state && state.currentUser;
   const isAdmin = () => typeof state !== 'undefined' && state && state.isAdmin === true;
@@ -73,10 +71,11 @@
   // Chamado depois que os papéis do usuário são conhecidos (via renderHeaderUser).
   function sync() {
     if (!isLoggedIn()) return;
-    if (!podeUsar() && pref() === '1') { try { localStorage.removeItem(KEY); } catch (_) {} }
+    // preferências antigas ('0' de quem voltou ao antigo, '1' de não admin) não valem mais
+    if (PADRAO ? pref() !== null : (!isAdmin() && pref() === '1')) { try { localStorage.removeItem(KEY); } catch (_) {} }
     const want = podeUsar() && querV2() && !forceV1;
     if (want !== isActive()) apply(want);
-    renderToggle(podeUsar());
+    renderToggle(!PADRAO && isAdmin());
   }
 
   function renderToggle(mostrar) {
@@ -103,7 +102,7 @@
   }
 
   function toggle() {
-    if (!podeUsar()) return;
+    if (PADRAO || !isAdmin()) return; // visual novo fixo: não há volta ao antigo
     const next = !isActive();
     setFlag(next);
     if (forceV1 && next) {
