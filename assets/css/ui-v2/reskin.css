@@ -213,6 +213,13 @@ html[data-ui="v2"] body :is([id$="modal-overlay"], #fecha-venda-modal, #confirm-
   border-color: var(--v2-line) !important;
   box-shadow: var(--v2-shadow-pop) !important;
 }
+/* caixas que rolam por dentro (overflow-y-auto): o hidden acima travava a rolagem
+   (ex.: "Novo usuário" no admin não deixava chegar no botão Salvar) */
+html[data-ui="v2"] body :is([id$="modal-overlay"], #fecha-venda-modal, #confirm-modal-overlay) > div[class*="overflow-y-auto"] {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
 html[data-ui="v2"] body :is([id$="modal-overlay"], #confirm-modal-overlay, #chat-shell-backdrop) { background-color: var(--v2-scrim) !important; }
 /* toast: pílula escura (claro) / clara (escuro), sem brilho laranja */
 html[data-ui="v2"] body #toast {
