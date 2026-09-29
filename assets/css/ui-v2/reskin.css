@@ -47,7 +47,7 @@ html[data-ui="v2"] body #app-content > header img[data-theme-logo],
 html[data-ui="v2"] body #app-content > header img[src*="logo-icon"] { display: none !important; }
 html[data-ui="v2"] body #app-content > header .border-l.pl-3 { display: none !important; }
 .ui-v2-logo { display: none; }
-html[data-ui="v2"] .ui-v2-logo { display: flex; align-items: center; gap: 5px; }
+html[data-ui="v2"] .ui-v2-logo { display: flex; align-items: center; gap: 2px; }
 html[data-ui="v2"] .ui-v2-logo svg { height: 30px; width: auto; flex-shrink: 0; }
 html[data-ui="v2"] .ui-v2-logo .wm { display: flex; flex-direction: column; line-height: 1; white-space: nowrap; }
 html[data-ui="v2"] .ui-v2-logo .wm b { font-family: Inter, sans-serif; font-weight: 900; font-size: 21px; letter-spacing: -.03em; }
