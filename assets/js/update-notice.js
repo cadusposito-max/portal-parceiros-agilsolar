@@ -43,7 +43,7 @@
           '</div>' +
           '<div class="min-w-0">' +
             '<div class="text-white font-black text-sm uppercase tracking-wide">Atualização disponível</div>' +
-            '<div class="text-neutral-400 text-[11px] mt-1 leading-relaxed">Uma nova versão do portal foi publicada. Recarregue para usar a mais recente.</div>' +
+            '<div class="text-neutral-400 text-[11px] mt-1 leading-relaxed">Uma nova versão da plataforma foi publicada. Recarregue para usar a mais recente.</div>' +
             '<div class="text-neutral-600 text-[9px] font-bold uppercase tracking-widest mt-1.5">' + escapeText(build.version || '') + '</div>' +
           '</div>' +
         '</div>' +

@@ -1,5 +1,5 @@
 // ============================================================================
-// Service Worker — Ágil Solar Portal Parceiros
+// Service Worker — Plataforma Ágil Solar
 // Responsável por receber Web Push notifications e abrir o app na conversa
 // certa quando o usuário clica na notificação.
 //

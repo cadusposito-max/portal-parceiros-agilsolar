@@ -662,7 +662,7 @@ function montarPayloadGroner(sale) {
     .join('\n');
 
   const nota = [
-    'Venda fechada no Portal de Parceiros AgilSolar.',
+    'Venda fechada na Plataforma Ágil Solar.',
     `Kit: ${sale.kit_nome || '-'}${sale.kit_brand ? ` (${sale.kit_brand})` : ''}`,
     `Potência: ${sale.kit_power ? `${sale.kit_power} kWp` : '-'}`,
     `Valor: ${formatCurrency(getSaleValue(sale))}`,

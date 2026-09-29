@@ -130,7 +130,7 @@
       <div class="v2-sep"></div>
       <button class="v2-mi" data-v2="oldui">${ic('undo-2')}Voltar ao visual antigo</button>
       <div class="v2-sep"></div>
-      <button class="v2-mi danger" data-v2="logout">${ic('log-out')}Sair do portal</button>`;
+      <button class="v2-mi danger" data-v2="logout">${ic('log-out')}Sair da plataforma</button>`;
   }
   function scopeButton() {
     if (state.isAdmin && has('toggleAdminViewMode')) {

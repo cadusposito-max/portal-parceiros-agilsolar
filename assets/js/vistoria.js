@@ -756,7 +756,7 @@
       <h2>Encaminhamento</h2>
       <p style="font-size:12px"><b>Financeiro:</b> ${esc(h.fin)}<br><b>Engenharia:</b> ${esc(h.eng)}</p>
       <div class="sign"><div>Assinatura do vistoriador</div><div>Assinatura do cliente</div></div>
-      <div class="foot">Documento gerado pelo Portal Parceiro Ágil Solar — módulo Vistoria. Versão preliminar (dados de demonstração).</div>
+      <div class="foot">Documento gerado pela Plataforma Ágil Solar — módulo Vistoria. Versão preliminar (dados de demonstração).</div>
       <script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>
       </body></html>`);
     win.document.close();

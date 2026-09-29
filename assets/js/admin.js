@@ -1000,14 +1000,14 @@ async function openAdminUsuarioForm(userId) {
         <span class="text-white font-bold text-sm uppercase">Permitir acesso ao O&amp;M (om_enabled)</span>
       </label>
       <div class="col-span-2 bg-orange-950/20 border border-orange-700/30 p-3">
-        <p class="text-orange-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente O&amp;M no portal (so Comercial). Admin sempre ve, independente desta opcao.</p>
+        <p class="text-orange-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente O&amp;M na plataforma (so Comercial). Admin sempre ve, independente desta opcao.</p>
       </div>
       <label class="col-span-2 flex items-center gap-3 cursor-pointer">
         <input type="checkbox" id="au-fin-enabled" ${defaultFinEnabled ? 'checked' : ''} class="w-4 h-4 accent-teal-500">
         <span class="text-white font-bold text-sm uppercase">Permitir acesso ao Financeiro (fin_enabled)</span>
       </label>
       <div class="col-span-2 bg-teal-950/20 border border-teal-700/30 p-3">
-        <p class="text-teal-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente Financeiro no portal. Admin sempre ve, independente desta opcao.</p>
+        <p class="text-teal-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente Financeiro na plataforma. Admin sempre ve, independente desta opcao.</p>
       </div>
       <div id="au-gestor-wrap" class="col-span-2 ${defaultRole === 'vendedor' ? '' : 'hidden'}">
         <label class="${_labelCls}">Gestor vinculado (apenas vendedor)</label>

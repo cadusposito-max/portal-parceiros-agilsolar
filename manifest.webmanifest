@@ -1,7 +1,7 @@
 {
-  "name": "Agil Solar - Portal Parceiros",
-  "short_name": "Agil Solar",
-  "description": "Portal de parceiros Agil Solar",
+  "name": "Plataforma Ágil Solar",
+  "short_name": "Ágil Solar",
+  "description": "Plataforma Ágil Solar",
   "lang": "pt-BR",
   "start_url": "./index.html",
   "scope": "./",

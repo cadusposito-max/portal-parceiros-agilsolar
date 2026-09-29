@@ -2734,7 +2734,7 @@ async function renderOMRelatorioDetail(container, id) {
       </div>
 
       <div class="flex flex-wrap items-center gap-x-6 gap-y-1 mt-4 pt-4 border-t border-neutral-800 text-[11px] text-neutral-500">
-        <span>Relatório gerado pelo portal AgilSolar O&amp;M</span>
+        <span>Relatório gerado pela Plataforma Ágil Solar · O&amp;M</span>
         <span class="ml-auto">Finalizado em ${dataFin}</span>
       </div>
     </div>
@@ -2877,7 +2877,7 @@ function omRelBaixarPdf() {
   <section><h2>Observação final / recomendações</h2>
     <div class="obs">${os.observacao_final ? esc(os.observacao_final) : '<span class="muted">Sem observações.</span>'}</div></section>
 
-  <div class="ph-foot"><span>Relatório gerado pelo portal AgilSolar O&amp;M</span><span class="right">Finalizado em ${dataFin}</span></div>
+  <div class="ph-foot"><span>Relatório gerado pela Plataforma Ágil Solar · O&amp;M</span><span class="right">Finalizado em ${dataFin}</span></div>
 
   <script>
     (function () {
