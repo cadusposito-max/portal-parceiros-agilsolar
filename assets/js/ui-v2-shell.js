@@ -163,7 +163,7 @@
       ${multiEnv ? `<div class="v2-rel"><button class="v2-envbtn" data-v2="open" data-target="v2-pop-env" title="Trocar de ambiente"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${ic('chevrons-up-down', 'class="chev"')}</button>
         <div class="v2-pop" id="v2-pop-env"><h6>Trocar de ambiente</h6>${envListHTML()}</div></div>` : ''}
       ${cta ? `<button class="v2-cta" data-v2="cta" title="${cta[0]}">${ic('plus')}<span>${cta[0]}</span></button>` : ''}
-      <nav class="v2-nav"><div class="lbl">Menu</div>${T.map((t) => `<button class="${t.id === cur ? 'on' : ''}" data-v2="tab" data-tab="${t.id}" title="${esc(sentence(t.label))}">${ic(t.icon || 'circle')}<span class="t">${esc(sentence(t.label))}</span></button>`).join('')}</nav>
+      <nav class="v2-nav has-ind"><span class="v2-navind" aria-hidden="true"></span><div class="lbl">Menu</div>${T.map((t) => `<button class="${t.id === cur ? 'on' : ''}" data-v2="tab" data-tab="${t.id}" title="${esc(sentence(t.label))}">${ic(t.icon || 'circle')}<span class="t">${esc(sentence(t.label))}</span></button>`).join('')}</nav>
       <div class="v2-foot v2-rel"><button class="v2-userbtn" data-v2="open" data-target="v2-pop-user" title="${esc(u.nome)}"><span class="v2-av">${u.avatar}</span><span class="tx"><b>${esc(u.nome)}</b><small>${u.role}${u.unidade ? ' · ' + esc(u.unidade) : ''}</small></span>${ic('chevrons-up-down', 'class="chev"')}</button>
         <div class="v2-pop" id="v2-pop-user">${userMenuHTML()}</div></div>`;
 
@@ -194,9 +194,11 @@
     $$('[data-v2-envlist]').forEach((el) => { el.innerHTML = envListHTML(); });
     $$('[data-v2-usermenu]').forEach((el) => { el.innerHTML = userMenuHTML(); });
     icons();
+    placeInd(false);
   }
   function paintLight(cur, title, sub, unread) {
     $$('[data-v2="tab"]').forEach((b) => b.classList.toggle('on', b.dataset.tab === cur));
+    placeInd(true);
     const more = $('#v2-mnav [data-target="v2-sheet-more"]');
     if (more) more.classList.toggle('on', !$(`#v2-mnav [data-v2="tab"][data-tab="${CSS.escape(String(cur))}"]`));
     const h1 = $('#v2-top h1');
@@ -208,6 +210,24 @@
       let c = chat.querySelector('.cnt');
       if (unread) { if (!c) { c = document.createElement('span'); c.className = 'cnt'; chat.appendChild(c); } c.textContent = unread > 99 ? '99+' : String(unread); } else if (c) c.remove();
     }
+  }
+  // destaque azul que desliza até a aba ativa (animação só na troca de aba)
+  const reduzMovimento = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let navRO = null;
+  function placeInd(anim) {
+    const nav = $('#v2-side .v2-nav');
+    const ind = nav && nav.querySelector('.v2-navind');
+    if (!ind) return;
+    const on = nav.querySelector('button.on');
+    if (!on) { ind.style.opacity = '0'; return; }
+    const semAnim = !anim || reduzMovimento();
+    if (semAnim) ind.style.transition = 'none';
+    ind.style.opacity = '1';
+    ind.style.height = on.offsetHeight + 'px';
+    ind.style.transform = 'translateY(' + on.offsetTop + 'px)';
+    if (semAnim) { void ind.offsetWidth; ind.style.transition = ''; }
+    if (!navRO && window.ResizeObserver) { navRO = new ResizeObserver(() => placeInd(false)); }
+    if (navRO && nav !== navRO._alvo) { navRO.disconnect(); navRO.observe(nav); navRO._alvo = nav; }
   }
   function shortLabel(label) { const s = sentence(label); return s.length > 10 ? s.split(' ')[0] : s; }
 

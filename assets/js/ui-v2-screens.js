@@ -249,6 +249,18 @@
     });
   }
 
+  // ==================== modo de visualização (kanban / cards / lista) ====================
+  // Cada tela lembra o último modo usado neste navegador (localStorage, por tela).
+  const VIEW_OPTS = { kanban: ['square-kanban', 'Kanban'], cards: ['layout-grid', 'Cards'], lista: ['list', 'Lista'] };
+  function modo(tela, padrao, validos) {
+    let v = null;
+    try { v = localStorage.getItem('ui_v2_view_' + tela); } catch (_) {}
+    return validos.includes(v) ? v : padrao;
+  }
+  function viewSeg(tela, atual, opcoes) {
+    return `<div class="v2-seg v2-viewseg" role="group" aria-label="Visualização">${opcoes.map((o) => `<button class="${o === atual ? 'on' : ''}" onclick="uiV2Screens.setModo('${tela}','${o}')" title="Ver em ${VIEW_OPTS[o][1].toLowerCase()}">${ic(VIEW_OPTS[o][0])}<span>${VIEW_OPTS[o][1]}</span></button>`).join('')}</div>`;
+  }
+
   // ==================== CLIENTES e FUNIL (Comercial) ====================
   const ST_CLI = { NOVO: ['Novo', 't-gray', '#808284'], 'PROPOSTA ENVIADA': ['Proposta enviada', 't-blue', '#008FD4'], 'EM NEGOCIAÇÃO': ['Em negociação', 't-orange', '#FAA519'], FECHADO: ['Fechado', 't-green', '#1FA971'], PERDIDO: ['Perdido', 't-red', '#D14343'] };
   const stCli = (s) => ST_CLI[normalizeClientStatus(s)] || ST_CLI.NOVO;
@@ -310,6 +322,27 @@
       <button class="v2-btn2 hide-m" onclick="adminEnriquecerCidades()" title="Preenche coordenadas e HSP dos clientes antigos">${ic('sun')}HSP</button>` : '';
     const sortSeg = !state.isAdmin ? `<div class="v2-seg flat">${CLIENT_SORT_OPTIONS.map((o) => `<button class="${state.clienteSort === o.v ? 'on' : ''}" onclick="setClienteSort('${o.v}')">${o.v === 'alpha' ? 'A–Z' : 'Mais recentes'}</button>`).join('')}</div>` : '';
 
+    const vista = modo('clientes', 'lista', ['lista', 'kanban']);
+    const vazio = `<div class="v2-card v2-empty">${source.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum cliente na carteira ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Cadastrar cliente</button></div></div>`;
+
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        ${searchBox(state.isAdmin ? 'Nome, telefone, cidade ou vendedor' : 'Buscar por nome, telefone ou cidade')}
+        ${sortSeg}
+        <div class="v2-grow"></div>
+        ${viewSeg('clientes', vista, ['lista', 'kanban'])}
+        ${adminBtns}
+        <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
+        <button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Novo cliente</button>
+      </div>
+      ${statusPills(source, cur)}
+      ${adminFiltersRow(source)}
+      ${!filtered.length ? vazio : vista === 'kanban' ? clientesKanbanHTML(filtered, showSeller, false) : clientesTabelaHTML(filtered, showSeller)}`;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  // Lista de clientes (aba Clientes, e Funil no modo lista)
+  function clientesTabelaHTML(filtered, showSeller) {
     const visiveis = filtered.slice(0, _clientesRenderLimit);
     const rows = visiveis.map((c) => {
       const st = stCli(c.status);
@@ -331,43 +364,15 @@
           <button class="v2-sq" onclick="event.stopPropagation(); openCrm360('${esc(c.id)}')" title="Abrir ficha">${ic('chevron-right')}</button>
         </div></td></tr>`;
     }).join('');
-
-    container.innerHTML = `
-      <div class="v2-toolbar">
-        ${searchBox(state.isAdmin ? 'Nome, telefone, cidade ou vendedor' : 'Buscar por nome, telefone ou cidade')}
-        ${sortSeg}
-        <div class="v2-grow"></div>
-        ${adminBtns}
-        <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
-        <button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Novo cliente</button>
-      </div>
-      ${statusPills(source, cur)}
-      ${adminFiltersRow(source)}
-      <div class="v2-card" style="padding:14px 16px">
-        ${filtered.length ? `<div class="v2-tscroll"><table class="v2-table">
-          <thead><tr><th>Cliente</th><th class="hide-m">Cidade</th><th class="hide-m">Status</th><th class="hide-m">Propostas</th><th class="hide-m">Em aberto</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Cadastro</th><th></th></tr></thead>
-          <tbody>${rows}</tbody></table></div>`
-        : `<div class="v2-empty">${source.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum cliente na carteira ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Cadastrar cliente</button></div></div>`}
-      </div>
+    return `<div class="v2-card" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+        <thead><tr><th>Cliente</th><th class="hide-m">Cidade</th><th class="hide-m">Status</th><th class="hide-m">Propostas</th><th class="hide-m">Em aberto</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Cadastro</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div></div>
       ${filtered.length > visiveis.length ? `<div class="v2-more"><button class="v2-btn2" onclick="clientesMostrarMais()">${ic('chevrons-down')}Carregar mais · ${visiveis.length} de ${filtered.length}</button></div>` : ''}`;
-    if (window.lucide) window.lucide.createIcons();
   }
 
-  function renderFunilV2(container) {
-    container.className = 'v2s';
-    document.body.dataset.v2screen = 'funil';
-    const { source, filtered, showSeller } = clientesRows();
-    setPageMeta('comercial:funil', 'Funil', `${filtered.length} clientes · arraste os cards entre as etapas`);
-    const filtrosAtivos = has('funilActiveFilterCount') ? funilActiveFilterCount() : 0;
-
-    let vendSelect = '';
-    if (state.isAdmin) {
-      const vendSel = String(state.adminClientesFilters?.vendedor_email || 'all');
-      const opts = getAdminClienteFilterOptions(source).vendedores;
-      if (vendSel !== 'all' && !opts.some((v) => v.email === vendSel)) opts.unshift({ email: vendSel, nome: vendNome(vendSel) });
-      vendSelect = `<select class="v2-select ${vendSel !== 'all' ? 'on' : ''}" onchange="setAdminClientesFilter('vendedor_email', this.value)"><option value="all">Todos os vendedores</option>${opts.map((v) => `<option value="${esc(v.email)}" ${vendSel === v.email ? 'selected' : ''}>${esc(v.nome)}</option>`).join('')}</select>`;
-    }
-
+  // Kanban por etapa. editavel=true no Funil (arrasta e muda etapa);
+  // na aba Clientes é só visualização.
+  function clientesKanbanHTML(filtered, showSeller, editavel) {
     const card = (c) => {
       const nProp = (_crmAgg.propostasByCliente || {})[c.id] || 0;
       const nVend = (_crmAgg.vendasByCliente || {})[c.id] || 0;
@@ -378,40 +383,61 @@
       meta.push(`<span>${ic('file-text')}${nProp} proposta${nProp === 1 ? '' : 's'}</span>`);
       if (nVend) meta.push(`<span style="color:#1FA971">${ic('trophy')}${nVend}</span>`);
       if (showSeller && c.vendedor_email) meta.push(`<span>${ic('user')}${esc(vendNome(c.vendedor_email).split(' ')[0])}</span>`);
-      return `<article class="v2-kcard" draggable="true" ondragstart="crmDragStart(event, '${esc(c.id)}')" onclick="openCrm360('${esc(c.id)}')">
+      return `<article class="v2-kcard ${editavel ? '' : 'ro'}" ${editavel ? `draggable="true" ondragstart="crmDragStart(event, '${esc(c.id)}')"` : ''} onclick="openCrm360('${esc(c.id)}')">
         <div class="t"><div><b>${esc(c.nome || 'Cliente')}${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado">${ic('alarm-clock')}</span>` : ''}</b><small>${esc([c.cidade, c.telefone].filter(Boolean).join(' · ') || '—')}</small></div>
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}</div>
         <div class="meta">${meta.join('')}</div>
         <div class="f">${valor ? `<b>${moneyC(valor)}</b>` : '<span class="none">Sem proposta</span>'}
-          <button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Mudar etapa">${st[0]}</button></div>
+          ${editavel ? `<button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Mudar etapa">${st[0]}</button>` : `<span class="v2-chip dot ${st[1]}">${st[0]}</span>`}</div>
       </article>`;
     };
-
     const cols = CLIENT_STATUS_ALL.map((s) => {
       const items = filtered.filter((c) => normalizeClientStatus(c.status) === s);
       const limite = _funilColLimit[s] || CLIENTES_RENDER_LOTE;
       const vis = items.slice(0, limite);
       const soma = items.reduce((acc, c) => acc + (has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0), 0);
-      return `<div class="v2-col" ondragover="crmDragOver(event)" ondragleave="crmDragLeave(event)" ondrop="crmDropStatus(event, '${s}')">
+      const drop = editavel ? `ondragover="crmDragOver(event)" ondragleave="crmDragLeave(event)" ondrop="crmDropStatus(event, '${s}')"` : '';
+      return `<div class="v2-col" ${drop}>
         <div class="v2-colh"><i class="dot" style="background:${ST_CLI[s][2]}"></i><b>${ST_CLI[s][0]}</b><em>${items.length}</em><small>${soma ? moneyC(soma) : ''}</small></div>
-        ${vis.length ? vis.map(card).join('') : '<div class="v2-drop">Arraste um cliente para cá</div>'}
+        ${vis.length ? vis.map(card).join('') : `<div class="v2-drop">${editavel ? 'Arraste um cliente para cá' : 'Nenhum cliente'}</div>`}
         ${items.length > vis.length ? `<button class="v2-colmore" onclick="funilMostrarMaisColuna('${s}')">${ic('chevrons-down')}Ver mais ${items.length - vis.length}</button>` : ''}
       </div>`;
     }).join('');
+    return `<div class="v2-kanban">${cols}</div>`;
+  }
+
+  function renderFunilV2(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'funil';
+    const { source, filtered, showSeller } = clientesRows();
+    const vista = modo('funil', 'kanban', ['kanban', 'lista']);
+    setPageMeta('comercial:funil', 'Funil', `${filtered.length} clientes · ${vista === 'kanban' ? 'arraste os cards entre as etapas' : 'toque na etapa para mudar'}`);
+    const filtrosAtivos = has('funilActiveFilterCount') ? funilActiveFilterCount() : 0;
+
+    let vendSelect = '';
+    if (state.isAdmin) {
+      const vendSel = String(state.adminClientesFilters?.vendedor_email || 'all');
+      const opts = getAdminClienteFilterOptions(source).vendedores;
+      if (vendSel !== 'all' && !opts.some((v) => v.email === vendSel)) opts.unshift({ email: vendSel, nome: vendNome(vendSel) });
+      vendSelect = `<select class="v2-select ${vendSel !== 'all' ? 'on' : ''}" onchange="setAdminClientesFilter('vendedor_email', this.value)"><option value="all">Todos os vendedores</option>${opts.map((v) => `<option value="${esc(v.email)}" ${vendSel === v.email ? 'selected' : ''}>${esc(v.nome)}</option>`).join('')}</select>`;
+    }
 
     const higiene = has('renderHigieneBanner') ? renderHigieneBanner() : '';
+    const corpo = vista === 'kanban'
+      ? clientesKanbanHTML(filtered, showSeller, true)
+      : (filtered.length ? clientesTabelaHTML(filtered, showSeller) : `<div class="v2-card v2-empty">${source.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum lead no funil ainda.'}</div>`);
     container.innerHTML = `
       <div class="v2-toolbar">
         ${searchBox('Buscar no funil por nome, telefone ou cidade')}
         ${vendSelect}
         ${filtrosAtivos ? `<div class="v2-pills"><button class="warn" onclick="funilLimparFiltros()">${ic('filter-x')}${filtrosAtivos} filtro${filtrosAtivos > 1 ? 's' : ''} da aba Clientes · limpar</button></div>` : ''}
         <div class="v2-grow"></div>
-        <button class="v2-btn2" onclick="setTab('clientes')">${ic('list')}Ver em lista</button>
+        ${viewSeg('funil', vista, ['kanban', 'lista'])}
         <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
         <button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Novo lead</button>
       </div>
       ${higiene ? `<div class="v2-legacy">${higiene}</div>` : ''}
-      <div class="v2-kanban">${cols}</div>`;
+      ${corpo}`;
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -453,30 +479,40 @@
     const showSeller = canUseDashVendedorFilter();
 
     const kpi = (label, value, icon, color, sub, hero) => `<div class="v2-card v2-kpi ${hero ? 'hero' : ''}" style="cursor:default"><div class="h"><span>${label}</span><div class="ic" style="background:${color}1F;color:${color}">${ic(icon)}</div></div><div class="v">${value}</div><div class="foot"><span>${sub}</span></div></div>`;
-    const card = (p) => {
-      const st = propostaStatus(p);
-      const [stl, stc] = PROP_ST[st] || PROP_ST.GERADA;
-      const inf = PROP_INFO[st] || PROP_INFO.GERADA;
-      const kwp = propostaPotencia(p);
-      const ger = Number(p.geracao_estimada) || 0;
-      const vistas = Number(p.vista_count) || 0;
-      const infoTxt = st === 'VISTA' ? `Aberta ${vistas > 1 ? vistas + '× · última ' : ''}${esc(timeAgo(p.vista_em || p.created_at))}` : inf[1];
-      const open = p.cliente_id ? `openCrm360('${esc(p.cliente_id)}','propostas')` : '';
-      return `<div class="v2-card v2-pcard" ${open ? `onclick="${open}"` : ''}>
-        <div class="hd"><i class="v2-ini ${st === 'ACEITA' ? 'gr' : st === 'VISTA' ? 'o' : ''}">${esc(initials(p.cliente_nome))}</i><div class="tx"><b>${esc(p.cliente_nome || 'Sem cliente')}</b><small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(formatDate(p.created_at))}</small></div><span class="v2-chip dot ${stc}">${stl}</span></div>
-        <div class="kit">${ic('solar-panel')}<span>${esc(p.kit_nome || 'Proposta personalizada')}</span></div>
-        <div class="specs"><div><small>Potência</small><b>${kwp ? esc(String(kwp).replace('.', ',')) + ' kWp' : '—'}</b></div><div><small>Geração</small><b>${ger ? Math.round(ger).toLocaleString('pt-BR') + ' kWh' : '—'}</b></div><div><small>${showSeller ? 'Vendedor' : 'Criada'}</small><b>${showSeller ? esc(vendNome(p.vendedor_email).split(' ')[0] || '—') : esc(timeAgo(p.created_at))}</b></div></div>
-        <div class="info ${inf[2]}">${ic(inf[0])}<span>${infoTxt}</span></div>
-        <div class="ft"><div class="price">${money(propostaPreco(p))}<small>${ticket && propostaPreco(p) > ticket ? 'acima do ticket médio' : 'valor da proposta'}</small></div>
-          <div class="v2-acts">
+    const vista = modo('propostas', 'kanban', ['kanban', 'lista']);
+    // kanban mostra mais de uma vez (várias colunas); lista segue o lote de 12
+    const visible = filtered.slice(0, vista === 'kanban' ? _propostasRenderLimit * 3 : _propostasRenderLimit);
+    const pill = (v, label) => `<button class="${status === v ? 'on' : ''}" onclick="setPropostasFiltro('status','${v}')">${label}<em>${count[v] || 0}</em></button>`;
+    const acoes = (p) => `<div class="v2-acts">
             <button class="v2-sq" title="Copiar link da proposta" onclick="event.stopPropagation(); uiV2Screens.copiarLink('${esc(p.id)}')">${ic('link')}</button>
             <a class="v2-sq" title="Baixar PDF" href="proposta-pdf.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('file-down')}</a>
             <a class="v2-sq" title="Abrir a proposta como o cliente vê" href="proposta.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('external-link')}</a>
-          </div></div>
-      </div>`;
-    };
-    const visible = filtered.slice(0, _propostasRenderLimit);
-    const pill = (v, label) => `<button class="${status === v ? 'on' : ''}" onclick="setPropostasFiltro('status','${v}')">${label}<em>${count[v] || 0}</em></button>`;
+          </div>`;
+    const abrir = (p) => (p.cliente_id ? `onclick="openCrm360('${esc(p.cliente_id)}','propostas')"` : '');
+    const kwpTx = (p) => { const k = propostaPotencia(p); return k ? esc(String(k).replace('.', ',')) + ' kWp' : '—'; };
+    const infoTx = (p) => { const st = propostaStatus(p); const v = Number(p.vista_count) || 0; return st === 'VISTA' ? `Aberta ${v > 1 ? v + '× · última ' : ''}${esc(timeAgo(p.vista_em || p.created_at))}` : (PROP_INFO[st] || PROP_INFO.GERADA)[1]; };
+    const kcard = (p) => `<article class="v2-kcard" ${abrir(p)}>
+        <div class="t"><div><b>${esc(p.cliente_nome || 'Sem cliente')}</b><small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small></div></div>
+        <div class="meta"><span>${ic('zap')}${kwpTx(p)}</span><span>${ic('clock')}${esc(timeAgo(p.created_at))}</span>${showSeller ? `<span>${ic('user')}${esc(vendNome(p.vendedor_email).split(' ')[0] || '—')}</span>` : ''}</div>
+        ${propostaStatus(p) === 'VISTA' ? `<div class="v2-kinfo">${ic('eye')}${infoTx(p)}</div>` : ''}
+        <div class="f"><b>${moneyC(propostaPreco(p))}</b>${acoes(p)}</div>
+      </article>`;
+    const kanban = () => `<div class="v2-kanban v2-kanban4">${Object.keys(PROP_ST).map((s) => {
+      const items = visible.filter((p) => propostaStatus(p) === s);
+      const soma = items.reduce((a, p) => a + propostaPreco(p), 0);
+      return `<div class="v2-col"><div class="v2-colh"><i class="dot" style="background:${{ GERADA: '#808284', ENVIADA: '#008FD4', VISTA: '#FAA519', ACEITA: '#1FA971' }[s]}"></i><b>${PROP_ST[s][0]}s</b><em>${count[s] || 0}</em><small>${soma ? moneyC(soma) : ''}</small></div>
+        ${items.length ? items.map(kcard).join('') : '<div class="v2-drop">Nenhuma proposta</div>'}</div>`;
+    }).join('')}</div>`;
+    const lista = () => `<div class="v2-card" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+        <thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Status</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Criada</th><th>Valor</th><th></th></tr></thead>
+        <tbody>${visible.map((p) => { const [stl, stc] = PROP_ST[propostaStatus(p)] || PROP_ST.GERADA; return `<tr ${abrir(p)}>
+          <td><div class="v2-who"><i class="v2-ini">${esc(initials(p.cliente_nome))}</i><div>${esc(p.cliente_nome || 'Sem cliente')}<small style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small><span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${stc}">${stl}</span></span></div></div></td>
+          <td class="hide-m">${kwpTx(p)}</td>
+          <td class="hide-m"><span class="v2-chip dot ${stc}" title="${esc(infoTx(p))}">${stl}</span></td>
+          ${showSeller ? `<td class="hide-m">${esc(vendNome(p.vendedor_email))}</td>` : ''}
+          <td class="hide-m muted">${esc(formatDate(p.created_at))}</td>
+          <td style="font-weight:800">${money(propostaPreco(p))}</td>
+          <td>${acoes(p)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
 
     container.innerHTML = `
       <div class="v2-kpis">
@@ -491,10 +527,11 @@
         <select class="v2-select ${mes !== 'all' ? 'on' : ''}" onchange="setPropostasFiltro('mes', this.value)"><option value="all">Todos os meses</option>${mesOpts.map((m) => `<option value="${m}" ${m === mes ? 'selected' : ''}>${cap(formatMonthLabel(m))}</option>`).join('')}</select>
         ${filtrosAtivos ? `<button class="v2-pill" onclick="limparPropostasFiltros()">${ic('filter-x')}Limpar · ${filtered.length} de ${escopo.length}</button>` : ''}
         <div class="v2-grow"></div>
+        ${viewSeg('propostas', vista, ['kanban', 'lista'])}
         <button class="v2-btno" style="width:auto;height:44px" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button>
       </div>
       <div class="v2-pills">${pill('ALL', 'Todas')}${pill('GERADA', 'Geradas')}${pill('ENVIADA', 'Enviadas')}${pill('VISTA', 'Vistas')}${pill('ACEITA', 'Aceitas')}</div>
-      ${visible.length ? `<div class="v2-pgrid">${visible.map(card).join('')}</div>` : `<div class="v2-card v2-empty">${filtrosAtivos ? 'Nenhuma proposta com esses filtros.' : 'Nenhuma proposta gerada ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button></div></div>`}
+      ${visible.length ? (vista === 'kanban' ? kanban() : lista()) : `<div class="v2-card v2-empty">${filtrosAtivos ? 'Nenhuma proposta com esses filtros.' : 'Nenhuma proposta gerada ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button></div></div>`}
       ${filtered.length > visible.length ? `<div class="v2-more"><button class="v2-btn2" onclick="uiV2Screens.maisPropostas()">${ic('chevrons-down')}Carregar mais · ${visible.length} de ${filtered.length}</button></div>` : ''}`;
     if (window.lucide) window.lucide.createIcons();
   }
@@ -578,32 +615,42 @@
     }
 
     const limite = window.uiV2Screens.vendasLimite || 40;
-    const rows = vendas.slice(0, limite).map((v) => {
+    const vista = modo('vendas', 'lista', ['lista', 'cards']);
+    const waVenda = (v) => {
       const tel = digitsOnly(v.cliente_telefone);
       const first = String(v.cliente_nome || '').split(' ')[0] || 'cliente';
-      const wa = tel ? `https://wa.me/55${tel}?text=${encodeURIComponent(`Olá ${first}, parabéns pela aquisição do seu sistema solar!`)}` : '';
-      return `<tr onclick="openVendaClienteFicha('${esc(v.id)}')">
-        <td><div class="v2-who"><i class="v2-ini" style="background:rgba(31,169,113,.14);color:#1FA971">${ic('trophy', 'style="width:16px;height:16px"')}</i><div>${esc(v.cliente_nome || '—')}<small style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${esc(v.kit_nome || '—')}</small></div></div></td>
-        <td class="hide-m">${v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—'}</td>
-        <td class="hide-m muted">${esc(formatDate(v.created_at))}</td>
-        ${showSeller ? `<td class="hide-m">${esc(vendNome(v.vendedor_email))}${state.isAdmin && state.adminViewAll && v.franquia_id ? `<small class="muted" style="display:block;font-size:12px">${esc(getFranquiaNameById(v.franquia_id))}</small>` : ''}</td>` : ''}
-        <td style="font-weight:800">${money(getSaleValue(v))}</td>
-        <td><div class="v2-acts">
+      return tel ? `https://wa.me/55${tel}?text=${encodeURIComponent(`Olá ${first}, parabéns pela aquisição do seu sistema solar!`)}` : '';
+    };
+    const acoesVenda = (v) => { const wa = waVenda(v); return `<div class="v2-acts">
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); enviarVendaGroner('${esc(v.id)}', this)" title="Enviar para a Groner">${ic('send')}</button>` : ''}
           ${state.isAdmin ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); deleteVenda('${esc(v.id)}')" title="Excluir venda" style="color:#D14343">${ic('trash-2')}</button>` : ''}
-        </div></td></tr>`;
-    }).join('');
+        </div>`; };
+    const kwpVenda = (v) => (v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—');
+    const visiveis = vendas.slice(0, limite);
+    const rows = visiveis.map((v) => `<tr onclick="openVendaClienteFicha('${esc(v.id)}')">
+        <td><div class="v2-who"><i class="v2-ini" style="background:rgba(31,169,113,.14);color:#1FA971">${ic('trophy', 'style="width:16px;height:16px"')}</i><div>${esc(v.cliente_nome || '—')}<small style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${esc(v.kit_nome || '—')}</small></div></div></td>
+        <td class="hide-m">${kwpVenda(v)}</td>
+        <td class="hide-m muted">${esc(formatDate(v.created_at))}</td>
+        ${showSeller ? `<td class="hide-m">${esc(vendNome(v.vendedor_email))}${state.isAdmin && state.adminViewAll && v.franquia_id ? `<small class="muted" style="display:block;font-size:12px">${esc(getFranquiaNameById(v.franquia_id))}</small>` : ''}</td>` : ''}
+        <td style="font-weight:800">${money(getSaleValue(v))}</td>
+        <td>${acoesVenda(v)}</td></tr>`).join('');
+    const cards = visiveis.map((v) => `<div class="v2-card v2-pcard" onclick="openVendaClienteFicha('${esc(v.id)}')">
+        <div class="hd"><i class="v2-ini gr">${ic('trophy', 'style="width:16px;height:16px"')}</i><div class="tx"><b>${esc(v.cliente_nome || '—')}</b><small>${esc(formatDate(v.created_at))}</small></div></div>
+        <div class="kit">${ic('solar-panel')}<span>${esc(v.kit_nome || '—')}</span></div>
+        <div class="specs"><div><small>Potência</small><b>${kwpVenda(v)}</b></div><div><small>${showSeller ? 'Vendedor' : 'Venda'}</small><b>${showSeller ? esc(vendNome(v.vendedor_email).split(' ')[0] || '—') : esc(timeAgo(v.created_at))}</b></div><div><small>${state.isAdmin && state.adminViewAll ? 'Franquia' : 'Data'}</small><b>${state.isAdmin && state.adminViewAll && v.franquia_id ? esc(getFranquiaNameById(v.franquia_id)) : esc(formatDate(v.created_at))}</b></div></div>
+        <div class="ft"><div class="price">${money(getSaleValue(v))}<small>valor da venda</small></div>${acoesVenda(v)}</div>
+      </div>`).join('');
+    const mais = vendas.length > limite ? `<div class="v2-more"><button class="v2-btn2" onclick="uiV2Screens.maisVendas()">${ic('chevrons-down')}Carregar mais · ${limite} de ${vendas.length}</button></div>` : '';
+    const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas</h3><small>Clique para abrir a ficha do cliente</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
 
     container.innerHTML = `
       ${kpis}
       ${filtros}
       ${ranking}
-      <div class="v2-card" style="padding:14px 16px">
-        <div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas</h3><small>Clique para abrir a ficha do cliente</small></div></div>
-        ${vendas.length ? `<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>${vendas.length > limite ? `<div class="v2-more"><button class="v2-btn2" onclick="uiV2Screens.maisVendas()">${ic('chevrons-down')}Carregar mais · ${limite} de ${vendas.length}</button></div>` : ''}`
-          : '<div class="v2-empty">Nenhuma venda com os filtros atuais.</div>'}
-      </div>`;
+      ${!vendas.length ? `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-empty">Nenhuma venda com os filtros atuais.</div></div>`
+        : vista === 'cards' ? `<div>${cab}<div class="v2-pgrid">${cards}</div>${mais}</div>`
+        : `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>${mais}</div>`}`;
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -695,12 +742,31 @@
         <div class="kit">${ic('solar-panel')}<span title="${esc(k.name)}">${esc(k.name || 'Sem nome')}</span></div>
         <ul><li>${ic('cpu')}Categoria<b>${micro ? 'Microinversor' : 'Inversor string'}</b></li>${k.type ? `<li>${ic('home')}Tipo<b>${esc(cap(k.type))}</b></li>` : ''}<li>${ic('sun')}Geração média<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b></li></ul>
         <div class="ft"><div class="price">${desconto ? `<s>${money(k.list_price)}</s>` : ''}${money(k.price)}<small>Preço do kit${franqNome ? ' · ' + esc(cap(franqNome)) : ''}</small></div>
-          <div class="v2-acts">
+          ${kitAcoes(k)}</div>
+      </div>`;
+    };
+    const kitAcoes = (k) => {
+      const inativo = k.ativo === false;
+      const id = esc(k.id);
+      return `<div class="v2-acts">
             <button class="v2-sq" title="${state.isAdmin ? 'Editar' : 'Editar preço da unidade'}" onclick="event.stopPropagation(); openModalById('${id}')">${ic('pencil')}</button>
             ${state.isAdmin ? `<button class="v2-sq" title="${inativo ? 'Reativar (volta ao criador de propostas)' : 'Tirar de linha (sai do criador de propostas)'}" onclick="event.stopPropagation(); toggleProdutoAtivo('${id}')">${ic(inativo ? 'eye' : 'eye-off')}</button>` : ''}
             <button class="v2-sq del" title="${state.isAdmin && !state.adminKitsFranquia ? 'Excluir do catálogo' : 'Remover/ocultar'}" onclick="event.stopPropagation(); deleteItem('${id}')">${ic('trash-2')}</button>
-          </div></div>
-      </div>`;
+          </div>`;
+    };
+    const vista = modo('produtos_kits', 'cards', ['cards', 'lista']);
+    const kitRow = (k) => {
+      const inativo = k.ativo === false;
+      const micro = k.categoria === 'kitsMicro';
+      const ger = Number(k._estGeneration) || calcularGeracaoEstimada(Number(k.power) || 0, k.categoria);
+      const desconto = Number(k.list_price) > Number(k.price);
+      return `<tr class="${inativo ? 'off' : ''}" onclick="openModalById('${esc(k.id)}')">
+        <td><div class="v2-eqn"><span class="v2-eqic">${ic('solar-panel')}</span><div><b>${esc(k.name || 'Sem nome')}</b><small>${esc(k.brand || '')}${k.tag ? ' · ' + esc(cap(k.tag)) : ''}${inativo ? ' · fora de linha' : ''}</small></div></div></td>
+        <td style="font-weight:800">${kwpTxt(k.power)} kWp</td>
+        <td class="hide-sm">${micro ? 'Microinversor' : 'Inversor'}${k.type ? `<small class="muted" style="display:block;font-size:12px">${esc(cap(k.type))}</small>` : ''}</td>
+        <td class="hide-sm">${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</td>
+        <td><b>${money(k.price)}</b>${desconto ? `<small class="muted" style="display:block;font-size:12px;text-decoration:line-through">${money(k.list_price)}</small>` : ''}</td>
+        <td>${kitAcoes(k)}</td></tr>`;
     };
 
     const filtros = [_catalogoCategoria !== 'all', _catalogoStatus !== 'all', Boolean(_catalogoBusca), faixa !== 'all'].filter(Boolean).length;
@@ -723,9 +789,13 @@
         <select class="v2-select ${_catalogoStatus !== 'all' ? 'on' : ''}" onchange="setCatalogoStatus(this.value)"><option value="all">Ativos e inativos</option><option value="ativos" ${_catalogoStatus === 'ativos' ? 'selected' : ''}>Só ativos</option><option value="inativos" ${_catalogoStatus === 'inativos' ? 'selected' : ''}>Fora de linha</option></select>
         ${state.isAdmin && franquias.length ? `<select class="v2-select" title="De qual unidade são os preços exibidos" onchange="setCatalogoFranquia(this.value)">${franquias.map((f) => `<option value="${esc(f.id)}" ${String(franqAtual) === String(f.id) ? 'selected' : ''}>Preços: ${esc(cap(f.nome || ''))}</option>`).join('')}</select>` : ''}
         ${filtros ? `<button class="v2-pill" onclick="uiV2Screens.limparKits()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
+        <div class="v2-grow"></div>
+        ${viewSeg('produtos_kits', vista, ['cards', 'lista'])}
       </div>
       ${todos.length ? `<div class="v2-pills">${KIT_FAIXAS.map(([v, l]) => `<button class="${faixa === v ? 'on' : ''}" onclick="uiV2Screens.setKitFaixa('${v}')">${l}<em>${count[v] || 0}</em></button>`).join('')}</div>` : ''}
-      ${lista.length ? `<div class="v2-pgrid">${lista.map(card).join('')}</div>` : vazio}`;
+      ${!lista.length ? vazio : vista === 'lista'
+        ? `<div class="v2-card" style="padding:12px 14px"><div style="overflow-x:auto"><table class="v2-table v2-eqtable"><thead><tr><th>Kit</th><th>Potência</th><th class="hide-sm">Categoria</th><th class="hide-sm">Geração</th><th>Preço</th><th></th></tr></thead><tbody>${lista.map(kitRow).join('')}</tbody></table></div></div>`
+        : `<div class="v2-pgrid">${lista.map(card).join('')}</div>`}`;
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -756,11 +826,26 @@
         <td class="hide-sm">${Number(e.potencia_wp) > 0 ? esc(String(e.potencia_wp)) + ' Wp' : '<span class="muted">—</span>'}</td>
         <td class="hide-sm">${temCusto ? money(e.custo) : '<span class="muted">—</span>'}</td>
         <td><b>${money(e.preco_unitario)}</b> <small class="muted">/ ${esc(e.unidade || 'un')}</small></td>
-        <td><div class="v2-acts">
+        <td>${eqAcoes(e)}</td></tr>`;
+    };
+    const eqAcoes = (e) => {
+      const inativo = e.ativo === false;
+      const id = esc(e.id);
+      return `<div class="v2-acts">
           <button class="v2-sq" title="Editar" onclick="event.stopPropagation(); openEquipModalById('${id}')">${ic('pencil')}</button>
           <button class="v2-sq" title="${inativo ? 'Reativar' : 'Desativar'}" onclick="event.stopPropagation(); toggleEquipamentoAtivo('${id}')">${ic(inativo ? 'eye' : 'eye-off')}</button>
           <button class="v2-sq del" title="Excluir" onclick="event.stopPropagation(); deleteEquipamento('${id}')">${ic('trash-2')}</button>
-        </div></td></tr>`;
+        </div>`;
+    };
+    const vista = modo('produtos_equip', 'lista', ['lista', 'cards']);
+    const eqCard = (e) => {
+      const inativo = e.ativo === false;
+      const temCusto = e.custo !== null && e.custo !== undefined && e.custo !== '';
+      return `<div class="v2-card v2-pcard v2-kit ${inativo ? 'off' : ''}" onclick="openEquipModalById('${esc(e.id)}')">
+        <div class="hd"><span class="v2-eqic" style="background:var(--v2-blue-50)">${ic(EQ_IC[e.tipo] || 'box')}</span><div class="tx"><b title="${esc(e.nome)}">${esc(e.nome || 'Sem nome')}</b><small>${esc(equipCategoriaLabel(e.tipo))}${e.marca ? ' · ' + esc(e.marca) : ''}</small></div>${inativo ? '<span class="v2-chip t-gray">Inativo</span>' : ''}</div>
+        <div class="specs"><div><small>Potência</small><b>${Number(e.potencia_wp) > 0 ? esc(String(e.potencia_wp)) + ' Wp' : '—'}</b></div><div><small>Custo</small><b>${temCusto ? money(e.custo) : '—'}</b></div><div><small>Unidade</small><b>${esc(e.unidade || 'un')}</b></div></div>
+        <div class="ft"><div class="price">${money(e.preco_unitario)}<small>preço por ${esc(e.unidade || 'un')}</small></div>${eqAcoes(e)}</div>
+      </div>`;
     };
     const filtros = [_equipCategoria !== 'all', _equipStatus !== 'all', Boolean(_equipBusca)].filter(Boolean).length;
     const vazio = todos.length === 0
@@ -780,15 +865,18 @@
         <label class="v2-sbox">${ic('search')}<input id="v2-equip-search" type="text" value="${esc(_equipBusca)}" oninput="handleEquipBuscaInput(this.value)" placeholder="Buscar por nome ou marca" autocomplete="off"></label>
         <select class="v2-select ${_equipStatus !== 'all' ? 'on' : ''}" onchange="setEquipStatus(this.value)"><option value="all">Ativos e inativos</option><option value="ativos" ${_equipStatus === 'ativos' ? 'selected' : ''}>Só ativos</option><option value="inativos" ${_equipStatus === 'inativos' ? 'selected' : ''}>Inativos</option></select>
         ${filtros ? `<button class="v2-pill" onclick="uiV2Screens.limparEquip()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
+        <div class="v2-grow"></div>
+        ${viewSeg('produtos_equip', vista, ['lista', 'cards'])}
       </div>
       ${todos.length ? `<div class="v2-pills"><button class="${_equipCategoria === 'all' ? 'on' : ''}" onclick="setEquipCategoria('all')">Todos<em>${count.all}</em></button>${EQUIP_CATEGORIAS.map((c) => `<button class="${_equipCategoria === c.v ? 'on' : ''}" onclick="setEquipCategoria('${c.v}')">${c.label}<em>${count[c.v] || 0}</em></button>`).join('')}</div>` : ''}
-      ${lista.length ? `<div class="v2-card" style="padding:12px 14px"><div style="overflow-x:auto"><table class="v2-table v2-eqtable"><thead><tr><th>Item</th><th class="hide-sm">Potência</th><th class="hide-sm">Custo</th><th>Preço</th><th></th></tr></thead><tbody>${lista.map(row).join('')}</tbody></table></div></div>` : vazio}`;
+      ${lista.length && vista === 'cards' ? `<div class="v2-pgrid">${lista.map(eqCard).join('')}</div>` : lista.length ? `<div class="v2-card" style="padding:12px 14px"><div style="overflow-x:auto"><table class="v2-table v2-eqtable"><thead><tr><th>Item</th><th class="hide-sm">Potência</th><th class="hide-sm">Custo</th><th>Preço</th><th></th></tr></thead><tbody>${lista.map(row).join('')}</tbody></table></div></div>` : vazio}`;
     if (window.lucide) window.lucide.createIcons();
   }
 
   // ==================== troca de render ====================
   const V2_SCREENS = { renderDashboard: renderDashboardV2, renderClientesList: renderClientesListV2, renderFunil: renderFunilV2, renderPropostasList: renderPropostasListV2, renderVendas: renderVendasV2, renderAnalise: renderAnaliseV2, renderProductsList: renderProductsListV2 };
   let lastScreen = '';
+  let animarProximo = false; // troca de modo (kanban/lista) também anima
   Object.entries(V2_SCREENS).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];
@@ -806,7 +894,22 @@
   // Telas não reconstruídas não têm título próprio: limpa o do anterior.
   if (has('renderContent')) {
     const _renderContent = renderContent;
-    renderContent = function () { window.uiV2PageMeta = null; delete document.body.dataset.v2screen; return _renderContent.apply(this, arguments); };
+    // Entrada suave do conteúdo, só quando muda a tela (ou o modo de visualização);
+    // filtros e busca redesenham sem animar.
+    let lastKey = '';
+    renderContent = function () {
+      window.uiV2PageMeta = null;
+      delete document.body.dataset.v2screen;
+      const out = _renderContent.apply(this, arguments);
+      const key = `${state.environment}:${has('getActiveTabId') ? getActiveTabId() : state.activeTab}`;
+      const box = document.getElementById('main-container');
+      if (window.uiV2.isActive() && box && (key !== lastKey || animarProximo)) {
+        box.classList.remove('v2-enter'); void box.offsetWidth; box.classList.add('v2-enter');
+        clearTimeout(box._v2EnterT); box._v2EnterT = setTimeout(() => box.classList.remove('v2-enter'), 700);
+      }
+      lastKey = key; animarProximo = false;
+      return out;
+    };
   }
 
   window.uiV2Screens = {
@@ -822,6 +925,11 @@
       else window.prompt('Copie o link:', url);
     },
     setMeses(n) { renderDashboardV2.meses = n; if (has('renderContent')) renderContent(); },
+    setModo(tela, m) {
+      try { localStorage.setItem('ui_v2_view_' + tela, m); } catch (_) {}
+      animarProximo = true;
+      if (has('renderContent')) renderContent();
+    },
     kitFaixa: 'all',
     setKitFaixa(v) { this.kitFaixa = v || 'all'; if (has('renderContent')) renderContent(); },
     limparKits() { _catalogoBusca = ''; _catalogoCategoria = 'all'; _catalogoStatus = 'all'; this.kitFaixa = 'all'; if (has('renderContent')) renderContent(); },

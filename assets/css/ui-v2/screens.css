@@ -349,3 +349,22 @@ html[data-ui="v2"] .v2s .v2-eqic svg { width: 18px !important; height: 18px !imp
   html[data-ui="v2"] .v2s .v2-eqn { min-width: 0; }
   html[data-ui="v2"] .v2s .v2-kit .kp { font-size: 30px; }
 }
+
+/* ---------- seletor de visualização (kanban / cards / lista) ---------- */
+html[data-ui="v2"] .v2s .v2-viewseg { padding: 3px; }
+html[data-ui="v2"] .v2s .v2-viewseg button { padding: 7px 12px; font-size: 13px; }
+html[data-ui="v2"] .v2s .v2-ch .v2-viewseg { margin-left: auto; box-shadow: none; background: var(--v2-bg); }
+html[data-ui="v2"] .v2s .v2-kcard.ro { cursor: pointer; }
+html[data-ui="v2"] .v2s .v2-kcard.ro:active { cursor: pointer; }
+html[data-ui="v2"] .v2s .v2-kcard .f .v2-acts { gap: 4px; }
+html[data-ui="v2"] .v2s .v2-kcard .f .v2-sq { width: 30px; height: 30px; border-radius: 10px; }
+html[data-ui="v2"] .v2s .v2-kcard .f .v2-sq svg { width: 14px !important; height: 14px !important; }
+html[data-ui="v2"] .v2s .v2-kinfo { font-size: 12px; font-weight: 700; color: var(--v2-orange-text); background: var(--v2-orange-50); border-radius: 10px; padding: 5px 8px; display: flex; gap: 6px; align-items: center; }
+html[data-ui="v2"] .v2s .v2-kinfo svg { width: 13px !important; height: 13px !important; }
+html[data-ui="v2"] .v2s .v2-kanban4 { grid-auto-columns: minmax(220px, 1fr); }
+html[data-ui="v2"] .v2s .v2-kanban4 .v2-kcard { cursor: pointer; }
+html[data-ui="v2"] .v2s .v2-pcard .hd .v2-eqic { color: var(--v2-blue-text); }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2s .v2-viewseg button span { display: none; }
+  html[data-ui="v2"] .v2s .v2-viewseg button { padding: 7px 10px; }
+}

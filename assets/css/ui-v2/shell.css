@@ -304,3 +304,25 @@ html[data-ui="v2"] .v2-pal-foot span { display: flex; gap: 6px; align-items: cen
   html[data-ui="v2"] .v2-pal-in .x { display: grid; }
   html[data-ui="v2"] .v2-pal-in kbd, html[data-ui="v2"] .v2-pal-foot { display: none; }
 }
+
+/* ---------- troca de aba: destaque deslizante no menu ---------- */
+html[data-ui="v2"] .v2-nav.has-ind { position: relative; }
+html[data-ui="v2"] .v2-nav.has-ind > button { position: relative; z-index: 1; }
+html[data-ui="v2"] .v2-nav.has-ind > button.on { background: transparent; box-shadow: none; }
+html[data-ui="v2"] .v2-navind {
+  position: absolute; left: 4px; right: 4px; top: 0; z-index: 0; opacity: 0; pointer-events: none;
+  border-radius: 14px; background: var(--v2-blue); box-shadow: 0 6px 16px rgba(0,143,212,.3);
+  transition: transform .28s cubic-bezier(.2,.8,.2,1), height .28s cubic-bezier(.2,.8,.2,1);
+}
+/* ---------- troca de aba: conteúdo entra subindo de leve, em cascata ---------- */
+@keyframes v2-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+html[data-ui="v2"] #main-container.v2-enter > * { animation: v2-enter .26s cubic-bezier(.2,.8,.2,1) backwards; }
+html[data-ui="v2"] #main-container.v2-enter > :nth-child(2) { animation-delay: .03s; }
+html[data-ui="v2"] #main-container.v2-enter > :nth-child(3) { animation-delay: .06s; }
+html[data-ui="v2"] #main-container.v2-enter > :nth-child(4) { animation-delay: .09s; }
+html[data-ui="v2"] #main-container.v2-enter > :nth-child(5) { animation-delay: .12s; }
+html[data-ui="v2"] #main-container.v2-enter > :nth-child(n+6) { animation-delay: .15s; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-ui="v2"] #main-container.v2-enter > * { animation: none; }
+  html[data-ui="v2"] .v2-navind { transition: none; }
+}
