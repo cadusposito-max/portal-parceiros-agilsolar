@@ -116,6 +116,95 @@
     run();
   }).observe(document.body, { childList: true });
 
+  // ---------- Meu perfil: movimento (entrada, pílula das abas, troca de conteúdo, saída) ----------
+  // A entrada é CSS (o modal nasce a cada abertura). Aqui: a pílula que desliza, o conteúdo que
+  // entra do lado da aba escolhida, a altura que acompanha e a saída antes de remover.
+  const semMovimento = () => !window.uiV2.isActive() || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const ABAS_PERFIL = ['dados', 'senha', '2fa', 'passkey'];
+  let pindAntes = null; // posição da pílula antes de redesenhar as abas
+
+  function pilulaPerfil(animar) {
+    const tabs = document.getElementById('profile-modal-tabs');
+    if (!tabs || !window.uiV2.isActive()) return;
+    const on = tabs.querySelector('button.bg-orange-600');
+    if (!on) return;
+    let ind = tabs.querySelector(':scope > .v2-pind');
+    if (!ind) { ind = document.createElement('span'); ind.className = 'v2-pind'; tabs.prepend(ind); }
+    const de = animar && !semMovimento() ? pindAntes : null;
+    ind.style.transition = 'none';
+    if (de) { ind.style.left = de.left + 'px'; ind.style.width = de.width + 'px'; void ind.offsetWidth; ind.style.transition = ''; }
+    ind.style.left = on.offsetLeft + 'px';
+    ind.style.width = on.offsetWidth + 'px';
+    if (!de) { void ind.offsetWidth; ind.style.transition = ''; }
+    tabs.classList.add('has-pind');
+  }
+
+  if (typeof _renderProfileTabs === 'function') {
+    const _tabs = _renderProfileTabs;
+    _renderProfileTabs = function () {
+      const r = _tabs.apply(this, arguments);
+      pilulaPerfil(false);
+      return r;
+    };
+  }
+
+  if (typeof _setProfileTab === 'function') {
+    const _set = _setProfileTab;
+    _setProfileTab = function (tab) {
+      const card = document.querySelector('#profile-modal > div');
+      const ind = document.querySelector('#profile-modal-tabs > .v2-pind');
+      if (!card || semMovimento() || tab === _profileTab) return _set.apply(this, arguments);
+      const de = ABAS_PERFIL.indexOf(_profileTab), para = ABAS_PERFIL.indexOf(tab);
+      pindAntes = ind ? { left: ind.offsetLeft, width: ind.offsetWidth } : null;
+      const h0 = card.offsetHeight;
+      const r = _set.apply(this, arguments);
+      pilulaPerfil(true);
+      pindAntes = null;
+      const body = document.getElementById('profile-modal-body');
+      if (body) {
+        body.classList.remove('v2-pin-r', 'v2-pin-l');
+        void body.offsetWidth;
+        body.classList.add(para < de ? 'v2-pin-l' : 'v2-pin-r');
+      }
+      // altura: do tamanho antigo para o novo, depois volta a ser automática
+      card.style.height = '';
+      const h1 = card.offsetHeight;
+      if (Math.abs(h1 - h0) > 2) {
+        clearTimeout(card._v2h);
+        card.style.height = h0 + 'px';
+        void card.offsetHeight;
+        card.classList.add('v2-hanim');
+        card.style.height = h1 + 'px';
+        card._v2h = setTimeout(() => { card.classList.remove('v2-hanim'); card.style.height = ''; }, 300);
+      }
+      return r;
+    };
+  }
+
+  // remover a foto redesenha o modal inteiro: não repete a entrada
+  if (typeof _renderProfileModal === 'function') {
+    const _modal = _renderProfileModal;
+    _renderProfileModal = function () {
+      const antes = document.getElementById('profile-modal');
+      const reabrindo = antes && !antes.classList.contains('v2-saindo');
+      const r = _modal.apply(this, arguments);
+      if (reabrindo) { const m = document.getElementById('profile-modal'); if (m) m.classList.add('v2-sem-entrada'); }
+      return r;
+    };
+  }
+
+  if (typeof closeProfileModal === 'function') {
+    const _fechar = closeProfileModal;
+    closeProfileModal = function () {
+      const m = document.getElementById('profile-modal');
+      if (!m || semMovimento()) return _fechar.apply(this, arguments);
+      if (m.classList.contains('v2-saindo')) return undefined;
+      m.classList.add('v2-saindo');
+      setTimeout(() => m.remove(), 190); // se reabrir durante a saída, o modal novo substitui este
+      return undefined;
+    };
+  }
+
   // modais fixos do index.html: kit/oferta e equipamento (título e botão mudam ao abrir)
   ['#modal-overlay', '#equip-modal-overlay'].forEach((sel) => {
     const ov = document.querySelector(sel);

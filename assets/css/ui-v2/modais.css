@@ -268,3 +268,35 @@ html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item:hover { ba
 html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item[class*="bg-orange"] { background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
 html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item[class*="bg-orange"]::before { opacity: 1; }
 html[data-ui="v2"] body .cidade-autocomplete-dropdown .cidade-ac-item[class*="bg-orange"] span { background: var(--v2-card); color: var(--v2-blue-text) !important; }
+
+/* ---------- Meu perfil: movimento (ui-v2-modais.js) ---------- */
+html[data-ui="v2"] body #profile-modal-tabs { position: relative; }
+html[data-ui="v2"] body #profile-modal-tabs > .v2-pind {
+  position: absolute; top: 4px; bottom: 4px; left: 0; width: 0; border-radius: 999px; background: var(--v2-card); box-shadow: 0 1px 3px rgba(0,0,0,.1);
+  pointer-events: none; transition: left .32s cubic-bezier(.2,.8,.2,1), width .32s cubic-bezier(.2,.8,.2,1);
+}
+html[data-ui="v2"] body #profile-modal-tabs.has-pind button { position: relative; z-index: 1; transition: color .2s !important; }
+html[data-ui="v2"] body #profile-modal-tabs.has-pind button.bg-orange-600 { background: transparent !important; box-shadow: none !important; }
+html[data-ui="v2"] body #profile-modal > div.v2-hanim { transition: height .28s cubic-bezier(.2,.8,.2,1); }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ui="v2"] body #profile-modal { animation: v2-pfade .22s ease-out; }
+  html[data-ui="v2"] body #profile-modal > div { animation: v2-pup .3s cubic-bezier(.2,.8,.2,1); }
+  html[data-ui="v2"] body #profile-modal:not(.v2-sem-entrada) #profile-modal-body > * > * { animation: v2-pitem .3s both; }
+  html[data-ui="v2"] body #profile-modal:not(.v2-sem-entrada) #profile-modal-body > * > :nth-child(2) { animation-delay: 40ms; }
+  html[data-ui="v2"] body #profile-modal:not(.v2-sem-entrada) #profile-modal-body > * > :nth-child(3) { animation-delay: 80ms; }
+  html[data-ui="v2"] body #profile-modal:not(.v2-sem-entrada) #profile-modal-body > * > :nth-child(4) { animation-delay: 120ms; }
+  html[data-ui="v2"] body #profile-modal:not(.v2-sem-entrada) #profile-modal-body > * > :nth-child(n+5) { animation-delay: 160ms; }
+  html[data-ui="v2"] body #profile-modal.v2-sem-entrada,
+  html[data-ui="v2"] body #profile-modal.v2-sem-entrada > div { animation: none; }
+  html[data-ui="v2"] body #profile-modal-body.v2-pin-r { animation: v2-pinr .26s cubic-bezier(.2,.8,.2,1); }
+  html[data-ui="v2"] body #profile-modal-body.v2-pin-l { animation: v2-pinl .26s cubic-bezier(.2,.8,.2,1); }
+  html[data-ui="v2"] body #profile-modal.v2-saindo { animation: v2-pfadeout .19s ease-in forwards; pointer-events: none; }
+  html[data-ui="v2"] body #profile-modal.v2-saindo > div { animation: v2-pdown .19s ease-in forwards; }
+}
+@keyframes v2-pfade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes v2-pfadeout { from { opacity: 1; } to { opacity: 0; } }
+@keyframes v2-pup { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes v2-pdown { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes v2-pitem { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes v2-pinr { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes v2-pinl { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
