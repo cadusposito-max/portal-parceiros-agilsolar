@@ -68,3 +68,69 @@ html[data-ui="v2"] body #np-picker-list button { border-radius: 14px; margin: 2p
 html[data-ui="v2"] body #np-picker-list button:hover { background: var(--v2-blue-50) !important; }
 html[data-ui="v2"] body #np-picker-list button span span:first-child { text-transform: none !important; font-size: 14px !important; font-weight: 700 !important; }
 html[data-ui="v2"] body #crm-motivo-confirm { border-radius: 14px; background: #D14343 !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 14px !important; }
+
+/* ---------- Contrato e procuração (documentos.js #doc-overlay): só aparência ---------- */
+html[data-ui="v2"] body #doc-overlay { background: var(--v2-scrim) !important; backdrop-filter: none !important; }
+html[data-ui="v2"] body #doc-overlay > div {
+  background: var(--v2-card) !important; border: 0 !important; border-radius: 28px !important; box-shadow: var(--v2-shadow-pop) !important;
+  max-width: 820px !important; color: var(--v2-ink); overflow: hidden;
+}
+html[data-ui="v2"] body #doc-overlay > div > div:first-child { background: transparent !important; border-bottom: 1px solid var(--v2-line) !important; padding: 20px 20px 16px 24px !important; }
+html[data-ui="v2"] body #doc-overlay > div > div:first-child > div:first-child { position: relative; padding-left: 62px; min-height: 48px; display: flex; flex-direction: column; justify-content: center; }
+html[data-ui="v2"] body #doc-overlay > div > div:first-child p:first-child { font-size: 20px !important; font-weight: 800 !important; letter-spacing: -.01em !important; text-transform: none !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #doc-overlay > div > div:first-child p:first-child svg {
+  position: absolute; left: 0; top: 50%; margin-top: -24px; box-sizing: content-box; width: 22px !important; height: 22px !important; padding: 13px; border-radius: 16px; background: var(--v2-blue); color: #fff;
+}
+html[data-ui="v2"] body #doc-overlay > div > div:first-child p.font-mono { font-family: inherit !important; font-size: 13px !important; font-weight: 500; color: var(--v2-gray) !important; margin-top: 2px !important; }
+html[data-ui="v2"] body #doc-overlay > div > div:first-child > button { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #doc-overlay > div > div:first-child > button:hover { background: var(--v2-bg); color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #doc-corpo { padding: 18px 20px !important; display: flex; flex-direction: column; gap: 14px; }
+html[data-ui="v2"] body #doc-corpo > * { margin: 0 !important; }
+html[data-ui="v2"] body #doc-corpo > section { background: var(--v2-soft); border-radius: 22px; padding: 18px; }
+html[data-ui="v2"] body #doc-corpo > section > p:first-child {
+  font-size: 15px !important; font-weight: 800 !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--v2-ink) !important; gap: 10px !important;
+}
+html[data-ui="v2"] body #doc-corpo > section > p:first-child svg {
+  box-sizing: content-box; width: 16px !important; height: 16px !important; padding: 8px; border-radius: 11px; background: var(--v2-blue-50); color: var(--v2-blue-text);
+}
+html[data-ui="v2"] body #doc-overlay label { text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; font-weight: 700 !important; color: var(--v2-ink-2) !important; }
+html[data-ui="v2"] body #doc-overlay label.flex { font-size: 13px !important; font-weight: 600 !important; gap: 10px !important; }
+html[data-ui="v2"] body #doc-overlay input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--v2-blue); flex-shrink: 0; }
+html[data-ui="v2"] body #doc-overlay .crm360-input {
+  height: 44px; border-radius: 12px !important; font-size: 14px !important; font-weight: 600 !important; padding: 0 12px !important;
+  font-family: inherit !important; letter-spacing: 0 !important; font-variant-numeric: tabular-nums;
+}
+html[data-ui="v2"] body #doc-overlay .crm360-input:not(.uppercase) { text-transform: none !important; }
+html[data-ui="v2"] body #doc-overlay textarea.crm360-input { height: auto; padding: 10px 12px !important; }
+html[data-ui="v2"] body #doc-corpo p.text-neutral-400 { font-size: 13px !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #doc-corpo p.text-neutral-500 { font-size: 12px !important; font-weight: 500; color: var(--v2-gray) !important; margin-left: 28px !important; }
+html[data-ui="v2"] body #doc-corpo div.text-\[9px\] { font-size: 12px !important; font-weight: 700 !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #doc-corpo .border.p-3 { border: 0 !important; background: var(--v2-card); border-radius: 16px; padding: 12px !important; }
+html[data-ui="v2"] body #doc-corpo .border.p-3 > div > span:first-child { color: var(--v2-blue-text) !important; font-size: 14px !important; }
+html[data-ui="v2"] body #doc-corpo .border-l-2 { border: 0 !important; background: var(--v2-card); border-radius: 18px; padding: 16px !important; box-shadow: inset 0 0 0 1.5px var(--v2-orange); }
+html[data-ui="v2"] body #doc-soma { font-family: inherit !important; font-size: 12.5px !important; font-weight: 700; }
+html[data-ui="v2"] body #doc-overlay > div > div:last-child { background: transparent !important; border-top: 1px solid var(--v2-line) !important; padding: 14px 20px 18px !important; }
+html[data-ui="v2"] body #doc-overlay > div > div:last-child > p {
+  border: 0 !important; border-radius: 14px; background: var(--v2-orange-50) !important; color: var(--v2-orange-text) !important;
+  font-size: 13px !important; font-weight: 600; line-height: 1.45; padding: 10px 12px !important;
+}
+html[data-ui="v2"] body :is(#doc-btn-contrato, #doc-btn-procuracao) {
+  height: 50px; border-radius: 14px !important; font-size: 15px !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: 0 !important;
+  display: flex; align-items: center; justify-content: center; gap: 8px; background-image: none !important; transform: none !important;
+}
+html[data-ui="v2"] body #doc-btn-contrato { border: 0 !important; background: var(--v2-blue) !important; color: #fff !important; box-shadow: 0 8px 20px rgba(0,143,212,.25) !important; }
+html[data-ui="v2"] body #doc-btn-contrato:hover { background: var(--v2-blue-hover) !important; }
+html[data-ui="v2"] body #doc-btn-procuracao { border: 1.5px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink) !important; box-shadow: none !important; }
+html[data-ui="v2"] body #doc-btn-procuracao:hover { border-color: var(--v2-blue) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body :is(#doc-btn-contrato, #doc-btn-procuracao) svg { width: 18px !important; height: 18px !important; }
+html[data-ui="v2"] body #doc-corpo .btn { height: 40px; border-radius: 12px !important; font-size: 13px !important; font-weight: 700 !important; text-transform: none !important; letter-spacing: 0 !important; gap: 6px; }
+html[data-ui="v2"] body #doc-corpo .btn.btn-icon { width: 40px; padding: 0 !important; justify-content: center; flex-shrink: 0; }
+html[data-ui="v2"] body #doc-corpo .btn svg { width: 16px !important; height: 16px !important; }
+html[data-ui="v2"] body #doc-corpo .btn-icon:hover { color: #D14343 !important; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] body #doc-corpo input[id^="doc-pag-valor"] { width: 104px !important; }
+  html[data-ui="v2"] body #doc-overlay { align-items: flex-end !important; padding: 0 !important; }
+  html[data-ui="v2"] body #doc-overlay > div { border-radius: 28px 28px 0 0 !important; max-height: 96vh !important; }
+  html[data-ui="v2"] body #doc-corpo { padding: 12px !important; }
+  html[data-ui="v2"] body #doc-corpo > section { padding: 14px; border-radius: 18px; }
+}
