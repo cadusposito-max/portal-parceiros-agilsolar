@@ -1299,6 +1299,15 @@
 (function () {
   var appV = new URLSearchParams(window.location.search).get('app_v');
   var bust = appV ? '&app_v=' + encodeURIComponent(appV) : '';
+  // O token já foi lido acima; tira da barra de endereço (sem recarregar) para
+  // o link ficar limpo — ele só serve para este carregamento.
+  if (appV && window.history && history.replaceState) {
+    try {
+      var limpa = new URL(window.location.href);
+      limpa.searchParams.delete('app_v');
+      history.replaceState(history.state, '', limpa.pathname + limpa.search + limpa.hash);
+    } catch (_) { /* navegador antigo: fica como está */ }
+  }
   function w(src)            { document.write('<script src="' + src + '"><\/script>'); }
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
 
