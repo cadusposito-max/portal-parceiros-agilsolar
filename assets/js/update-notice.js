@@ -35,7 +35,23 @@
     ].join(';');
     wrap.className = 'animate-fade-in-up';
 
-    wrap.innerHTML =
+    // Visual novo (html[data-ui="v2"]): cartão da plataforma, estilo em ui-v2/modais.css.
+    var v2 = document.documentElement.getAttribute('data-ui') === 'v2';
+    if (v2) {
+      wrap.style.cssText = '';
+      wrap.className = 'v2-upd';
+      wrap.setAttribute('role', 'status');
+      wrap.innerHTML =
+        '<div class="h">' +
+          '<span class="ic"><i data-lucide="refresh-cw"></i></span>' +
+          '<div class="tx"><b>Nova versão disponível</b><p>Atualize para ver as últimas melhorias da plataforma.</p></div>' +
+          '<button type="button" class="x" id="update-notice-close" aria-label="Fechar">' + '<i data-lucide="x"></i></button>' +
+        '</div>' +
+        '<div class="a">' +
+          '<button type="button" id="update-notice-later" class="l">Depois</button>' +
+          '<button type="button" id="update-notice-reload" class="r">Atualizar agora</button>' +
+        '</div>';
+    } else wrap.innerHTML =
       '<div class="bg-neutral-900 border border-orange-500/40 shadow-[0_0_24px_rgba(234,88,12,0.25)] p-4">' +
         '<div class="flex items-start gap-3">' +
           '<div class="w-8 h-8 shrink-0 bg-orange-500/15 text-orange-400 grid place-items-center">' +
@@ -60,7 +76,9 @@
 
     var laterBtn  = document.getElementById('update-notice-later');
     var reloadBtn = document.getElementById('update-notice-reload');
+    var closeBtn  = document.getElementById('update-notice-close');
     if (laterBtn) laterBtn.addEventListener('click', function () { dismiss(build.version); });
+    if (closeBtn) closeBtn.addEventListener('click', function () { dismiss(build.version); });
     if (reloadBtn) reloadBtn.addEventListener('click', function () {
       // Marca como vista antes de recarregar para não reaparecer nesta versão.
       lsSet(SEEN_KEY, build.version);
