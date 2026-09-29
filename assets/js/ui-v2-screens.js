@@ -586,7 +586,7 @@
     const acoes = (p) => `<div class="v2-acts">
             <button class="v2-sq" title="Copiar link da proposta" onclick="event.stopPropagation(); uiV2Screens.copiarLink('${esc(p.id)}')">${ic('link')}</button>
             <a class="v2-sq" title="Baixar PDF" href="proposta-pdf.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('file-down')}</a>
-            <a class="v2-sq" title="Abrir a proposta como o cliente vê" href="proposta.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('external-link')}</a>
+            <a class="v2-sq hide-m" title="Abrir a proposta como o cliente vê" href="proposta.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('external-link')}</a>
           </div>`;
     const abrir = (p) => (p.cliente_id ? `onclick="openCrm360('${esc(p.cliente_id)}','propostas')"` : '');
     const kwpTx = (p) => { const k = propostaPotencia(p); return k ? esc(String(k).replace('.', ',')) + ' kWp' : '—'; };
@@ -604,14 +604,14 @@
         ${items.length ? items.map(kcard).join('') : '<div class="v2-drop">Nenhuma proposta</div>'}</div>`;
     }).join('')}</div>`;
     const lista = () => `<div class="v2-card" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
-        <thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Status</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Criada</th><th>Valor</th><th></th></tr></thead>
+        <thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Status</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Criada</th><th class="hide-m">Valor</th><th></th></tr></thead>
         <tbody>${visible.map((p) => { const [stl, stc] = PROP_ST[propostaStatus(p)] || PROP_ST.GERADA; return `<tr ${abrir(p)}>
-          <td><div class="v2-who">${avCliente(p.cliente_id, p.cliente_nome)}<div>${esc(p.cliente_nome || 'Sem cliente')}<small style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small><span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${stc}">${stl}</span></span></div></div></td>
+          <td><div class="v2-who">${avCliente(p.cliente_id, p.cliente_nome)}<div>${esc(p.cliente_nome || 'Sem cliente')}<small style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small><span class="show-m v2-mline"><span class="v2-chip dot ${stc}">${stl}</span><b>${moneyC(propostaPreco(p))}</b></span></div></div></td>
           <td class="hide-m">${kwpTx(p)}</td>
           <td class="hide-m"><span class="v2-chip dot ${stc}" title="${esc(infoTx(p))}">${stl}</span></td>
           ${showSeller ? `<td class="hide-m">${esc(vendNome(p.vendedor_email))}</td>` : ''}
           <td class="hide-m muted">${esc(formatDate(p.created_at))}</td>
-          <td style="font-weight:800">${money(propostaPreco(p))}</td>
+          <td class="hide-m" style="font-weight:800">${money(propostaPreco(p))}</td>
           <td>${acoes(p)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
 
     container.innerHTML = `
