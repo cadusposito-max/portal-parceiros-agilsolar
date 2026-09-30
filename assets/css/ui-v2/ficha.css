@@ -204,7 +204,10 @@ html[data-ui="v2"] .v2-resp .v2-sq svg { width: 18px; height: 18px; }
 html[data-ui="v2"] .v2-resp-busca { display: flex; align-items: center; gap: 8px; background: var(--v2-soft); border-radius: 14px; padding: 0 14px; height: 44px; color: var(--v2-gray); box-shadow: inset 0 0 0 1px var(--v2-line); }
 html[data-ui="v2"] .v2-resp-busca:focus-within { box-shadow: inset 0 0 0 2px var(--v2-blue); }
 html[data-ui="v2"] .v2-resp-busca svg { width: 17px; height: 17px; flex: none; }
-html[data-ui="v2"] body .v2-resp-busca input { border: 0 !important; outline: 0; background: none !important; box-shadow: none !important; flex: 1; min-width: 0; padding: 0 !important; font: inherit; font-size: 14px; font-weight: 500; color: var(--v2-ink) !important; text-transform: none !important; letter-spacing: 0 !important; }
+/* por ID: as regras gerais de input do reskin (bordas, fundo, anel de foco) são mais específicas que classe */
+html[data-ui="v2"] body #v2-resp-q, html[data-ui="v2"] body #v2-resp-q:focus { border: 0 !important; outline: 0 !important; background: transparent !important; background-color: transparent !important; box-shadow: none !important; border-radius: 0 !important; height: 100% !important; min-height: 0 !important; margin: 0 !important; flex: 1; min-width: 0; padding: 0 !important; font: inherit; font-size: 14px !important; font-weight: 500; color: var(--v2-ink) !important; text-transform: none !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] .v2-resp-busca { flex: none; box-sizing: border-box; }
+html[data-ui="v2"] .v2-resp, html[data-ui="v2"] .v2-resp * { box-sizing: border-box; }
 html[data-ui="v2"] .v2-resp .v2-btn2 { height: 40px; border: 1.5px solid var(--v2-line-strong); border-radius: 12px; background: var(--v2-card); font: inherit; font-weight: 700; font-size: 13px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--v2-ink); }
 html[data-ui="v2"] .v2-resp .v2-btnp { height: 40px; border: 0; border-radius: 12px; background: var(--v2-blue); color: #fff; font: inherit; font-weight: 800; font-size: 13px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 html[data-ui="v2"] .v2-resp .v2-btnp:hover { background: var(--v2-blue-hover); }
