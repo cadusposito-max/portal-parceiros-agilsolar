@@ -216,18 +216,6 @@ html[data-ui="v2"] .v2-resp :is(.v2-btn2, .v2-btnp) svg { width: 16px; height: 1
 
 /* ---------- tela cheia (botão ⤢ no topo da ficha; escolha salva no navegador) ---------- */
 html[data-ui="v2"] body #crm360-overlay.crm360-aba.v2f-cheia { inset: 0; width: auto; border-radius: 0; box-shadow: none; }
-html[data-ui="v2"] .v2f-grid3 { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr) minmax(260px, 320px); grid-template-areas: "a b c"; }
-html[data-ui="v2"] .v2f-grid3 > .v2f-colA { grid-area: a; }
-html[data-ui="v2"] .v2f-grid3 > .v2f-tabbody { grid-area: b; }
-html[data-ui="v2"] .v2f-grid3 > .v2f-colC { grid-area: c; }
-html[data-ui="v2"] .v2f-grid3.larga { grid-template-columns: minmax(0, 1fr); grid-template-areas: "b"; }
-@media (max-width: 1280px) {
-  /* sem espaço para 3 colunas: vistoria vai para cima dos dados (a aba ocupa as duas linhas) */
-  html[data-ui="v2"] .v2f-grid3 { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "c b" "a b"; }
-}
-@media (max-width: 1000px) {
-  html[data-ui="v2"] .v2f-grid3 { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "b" "c" "a"; }
-}
 @media (max-width: 760px) { html[data-ui="v2"] .v2f .v2f-exp { display: none; } } /* no celular a ficha já ocupa a tela */
 
 /* ---------- cabeçalho compacto (ao rolar; em telas baixas já abre assim) ---------- */
@@ -261,7 +249,7 @@ html[data-ui="v2"] .v2f:not(.compacto) :is(.v2f-steps, .v2f-sum) { animation: v2
   html[data-ui="v2"] .v2f-mini, html[data-ui="v2"] .v2f :is(.v2f-steps, .v2f-sum) { animation: none; }
 }
 
-/* ---------- aba "Dados" (telas abaixo de 1440px: sem coluna lateral) ---------- */
+/* ---------- aba "Dados" (dados do cliente numa aba própria, largura toda) ---------- */
 html[data-ui="v2"] .v2f-dadosaba { display: flex; flex-direction: column; gap: 14px; }
 html[data-ui="v2"] .v2f-fields4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 14px; }
 html[data-ui="v2"] .v2f-fields4 .span2 { grid-column: span 2; }
