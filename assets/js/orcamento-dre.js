@@ -49,7 +49,10 @@
     let p = Object.assign({}, PCT_FALLBACK);
     let ok = false;
     try {
-      if (window.supabaseClient) {
+      // supabaseClient é `const` global (config.js) — não vira window.supabaseClient.
+      // Antes o teste era window.supabaseClient, sempre falso: a tela nunca lia os %
+      // do Financeiro e ficava sempre nos padrões 18/10/4,5.
+      if (typeof supabaseClient !== 'undefined' && supabaseClient) {
         const { data, error } = await supabaseClient.rpc('get_dre_percentuais');
         if (!error && data) {
           ok = true;
