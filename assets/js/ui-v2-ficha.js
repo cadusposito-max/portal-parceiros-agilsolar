@@ -25,14 +25,52 @@
     document.body.appendChild(s);
   }
 
+  // ---------- tamanho: painel lateral x tela cheia; cabeçalho compacto ao rolar ----------
+  // Tela cheia é escolha de cada pessoa (fica salva no navegador). O cabeçalho
+  // encolhe ao rolar a ficha e, em telas baixas (notebook), já abre encolhido;
+  // tocar na linha compacta mostra as etapas e o resumo de novo.
+  const CHEIA_KEY = 'ui_v2_ficha_cheia';
+  const cheia = () => { try { return localStorage.getItem(CHEIA_KEY) === '1'; } catch (_) { return false; } };
+  const telaBaixa = () => window.innerHeight < 760;
+  let expandido = false;
+  let fichaDe = null;
+  function ajustarCabecalho() {
+    const f = document.querySelector('#crm360-overlay .v2f');
+    const sc = document.getElementById('crm360-scroll');
+    if (!f || !sc) return;
+    const y = sc.scrollTop;
+    // só encolhe se houver o que rolar (senão encolher/expandir fica piscando)
+    const rolavel = sc.scrollHeight - sc.clientHeight > 220;
+    let comp = f.classList.contains('compacto');
+    if (y > 60 && rolavel) { comp = true; expandido = false; } else if (y < 8) comp = telaBaixa() && !expandido;
+    f.classList.toggle('compacto', comp);
+  }
+  window.addEventListener('resize', ajustarCabecalho);
+  window.uiV2Ficha = {
+    cheia() {
+      const on = !cheia();
+      try { localStorage.setItem(CHEIA_KEY, on ? '1' : '0'); } catch (_) {}
+      if (has('renderCrm360')) renderCrm360();
+    },
+    expandir() {
+      expandido = true;
+      const sc = document.getElementById('crm360-scroll');
+      if (sc && sc.scrollTop > 0) sc.scrollTo({ top: 0, behavior: 'smooth' });
+      const f = document.querySelector('#crm360-overlay .v2f');
+      if (f) f.classList.remove('compacto');
+    },
+  };
+
   // ---------- vistoria (controle mínimo; clientes.vistoria_*) ----------
   const VIS = () => window.uiV2VistoriaInfo || { info: () => null, ST: {} };
-  function vistoriaResumoHTML(client) {
-    const v = VIS().info(client);
-    const txt = !v ? 'Sem vistoria' : v.st === 'agendada' && v.data
+  function vistoriaTexto(v) {
+    return !v ? 'Sem vistoria' : v.st === 'agendada' && v.data
       ? `${v.data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${v.data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
       : v.label;
-    return `<div class="v2f-sumvis ${v ? v.cls : ''} ${v && v.atrasada ? 'late' : ''}" onclick="uiV2Vistoria.focar()" title="Ver vistoria"><small>Vistoria</small><b>${esc(txt)}</b></div>`;
+  }
+  function vistoriaResumoHTML(client) {
+    const v = VIS().info(client);
+    return `<div class="v2f-sumvis ${v ? v.cls : ''} ${v && v.atrasada ? 'late' : ''}" onclick="uiV2Vistoria.focar()" title="Ver vistoria"><small>Vistoria</small><b>${esc(vistoriaTexto(v))}</b></div>`;
   }
   function vistoriaCardHTML(client) {
     const cur = VIS().ST[client.vistoria_status] ? client.vistoria_status : '';
@@ -251,6 +289,57 @@
 
     const prevScroll = document.getElementById('crm360-scroll');
     const keepY = prevScroll && overlay.dataset.clientId === String(client.id) ? prevScroll.scrollTop : 0;
+    if (fichaDe !== String(client.id)) { fichaDe = String(client.id); expandido = false; }
+    const full = cheia();
+    overlay.classList.toggle('v2f-cheia', full);
+
+    // linha que substitui etapas + resumo quando o cabeçalho encolhe
+    const visTx = vistoriaTexto(VIS().info(client));
+    const mini = `<button type="button" class="v2f-mini" onclick="uiV2Ficha.expandir()" title="Mostrar etapas e resumo">
+            <span>${lost ? '<b>Perdido</b>' : `Etapa <b>${cur + 1} de ${seq.length}</b>`}</span>
+            <span>Resp. <b>${esc(String(vend).split(' ')[0])}</b></span>
+            <span class="${proxAtrasada ? 'late' : ''}">Próx. ação <b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })) : 'nenhuma'}</b></span>
+            <span>Vistoria <b>${esc(visTx)}</b></span>${ic('chevron-down')}</button>`;
+
+    const cardDados = `
+              <div class="v2f-card">
+                <h3>${ic('user-cog')}Dados do cliente</h3>
+                <div class="v2f-fields">
+                  ${crm360Field('Nome', `<input id="crm360-nome" value="${esc(client.nome || '')}" class="crm360-input">`, 'full')}
+                  ${crm360Field('Telefone', `<input id="crm360-telefone" value="${esc(client.telefone || '')}" class="crm360-input">`)}
+                  ${crm360Field('E-mail', `<input id="crm360-email" type="email" value="${esc(client.email || '')}" class="crm360-input">`)}
+                  ${crm360Field('Cidade/UF', `<div class="relative"><input id="crm360-cidade" value="${esc(client.cidade || '')}" class="crm360-input" autocomplete="off"></div>`)}
+                  ${crm360Field('CPF/CNPJ', `<input id="crm360-documento" value="${esc(client.documento || '')}" class="crm360-input">`)}
+                  ${crm360Field('CEP', `<input id="crm360-cep" value="${esc(client.cep || '')}" class="crm360-input">`)}
+                  ${crm360Field('Origem', `<select id="crm360-origem" class="crm360-input">${clientOrigemOptionsHTML(client.origem)}</select>`)}
+                  ${crm360Field('Endereço', `<input id="crm360-endereco" value="${esc(client.endereco || '')}" class="crm360-input">`, 'full')}
+                  ${crm360Field('Número', `<input id="crm360-numero" value="${esc(client.numero || '')}" class="crm360-input">`)}
+                  ${crm360Field('Bairro', `<input id="crm360-bairro" value="${esc(client.bairro || '')}" class="crm360-input">`)}
+                  ${crm360CamposDocumentosHTML(client)}
+                  ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="3" class="crm360-input">${esc(client.observacoes || '')}</textarea>`, 'full')}
+                </div>
+              </div>`;
+    const cardProx = `
+              <div class="v2f-card">
+                <h3>${ic('alarm-clock')}Próxima ação</h3>
+                <div class="v2f-fields">
+                  ${crm360Field('Quando', `<input id="crm360-proxima-em" type="datetime-local" value="${toLocalDatetimeInputValue(client.proxima_acao_em)}" class="crm360-input">`)}
+                  ${crm360Field('O que fazer', `<input id="crm360-proxima-nota" value="${esc(client.proxima_acao_nota || '')}" class="crm360-input" placeholder="Ex.: ligar para follow-up">`)}
+                </div>
+              </div>
+              <button onclick="crmSaveClient360()" id="crm360-save-btn" class="v2f-save">${ic('save')}Salvar alterações</button>`;
+    const cardAba = `<div class="v2f-card v2f-tabbody"><div id="crm360-tab-content">${renderCrm360TabContent(client, propostas, vendas)}</div></div>`;
+    // tela cheia: dados | aba | vistoria (3 colunas); painel lateral: como sempre foi
+    const grade = full
+      ? `<div class="v2f-grid v2f-grid3 ${larga ? 'larga' : ''}">
+            <div class="v2f-dados v2f-colA ${larga ? 'hidden' : ''}">${cardDados}${cardProx}</div>
+            ${cardAba}
+            <div class="v2f-dados v2f-colC ${larga ? 'hidden' : ''}">${vistoriaCardHTML(client)}</div>
+          </div>`
+      : `<div class="v2f-grid ${larga ? 'larga' : ''}">
+            <div class="v2f-dados ${larga ? 'hidden' : ''}">${vistoriaCardHTML(client)}${cardDados}${cardProx}</div>
+            ${cardAba}
+          </div>`;
 
     overlay.innerHTML = `
       <div class="v2f">
@@ -273,6 +362,7 @@
               ${tel ? `<a class="v2-sq" href="tel:+55${tel}" title="Ligar">${ic('phone')}</a>` : ''}
               ${docs ? `<button class="v2-sq" onclick="abrirDocumentosCliente('${esc(client.id)}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}
               <button class="v2-sq" onclick="openFechaVenda('${esc(client.id)}')" title="Registrar venda">${ic('trophy')}</button>
+              <button class="v2-sq v2f-exp" onclick="uiV2Ficha.cheia()" title="${full ? 'Voltar ao painel lateral' : 'Abrir em tela cheia'}">${ic(full ? 'minimize-2' : 'maximize-2')}</button>
               <button class="v2-sq" onclick="closeCrm360()" title="Fechar (Esc)">${ic('x')}</button>
             </div>
           </div>
@@ -284,41 +374,12 @@
             <div class="${proxAtrasada ? 'late' : ''}"><small>Próxima ação</small><b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + prox.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })) : 'Nenhuma'}</b></div>
             ${vistoriaResumoHTML(client)}
           </div>
+          ${mini}
           <div class="v2f-tabs">${tabs.map((t) => `<button class="${t[4] || ''} ${_crm360Tab === t[0] ? 'on' : ''}" onclick="crmSet360Tab('${t[0]}')">${ic(t[1])}${t[2]}${t[3] != null ? `<em>${t[3]}</em>` : ''}</button>`).join('')}</div>
         </div>
 
         <div id="crm360-scroll" class="v2f-body">
-          <div class="v2f-grid ${larga ? 'larga' : ''}">
-            <div class="v2f-dados ${larga ? 'hidden' : ''}">
-              ${vistoriaCardHTML(client)}
-              <div class="v2f-card">
-                <h3>${ic('user-cog')}Dados do cliente</h3>
-                <div class="v2f-fields">
-                  ${crm360Field('Nome', `<input id="crm360-nome" value="${esc(client.nome || '')}" class="crm360-input">`, 'full')}
-                  ${crm360Field('Telefone', `<input id="crm360-telefone" value="${esc(client.telefone || '')}" class="crm360-input">`)}
-                  ${crm360Field('E-mail', `<input id="crm360-email" type="email" value="${esc(client.email || '')}" class="crm360-input">`)}
-                  ${crm360Field('Cidade/UF', `<div class="relative"><input id="crm360-cidade" value="${esc(client.cidade || '')}" class="crm360-input" autocomplete="off"></div>`)}
-                  ${crm360Field('CPF/CNPJ', `<input id="crm360-documento" value="${esc(client.documento || '')}" class="crm360-input">`)}
-                  ${crm360Field('CEP', `<input id="crm360-cep" value="${esc(client.cep || '')}" class="crm360-input">`)}
-                  ${crm360Field('Origem', `<select id="crm360-origem" class="crm360-input">${clientOrigemOptionsHTML(client.origem)}</select>`)}
-                  ${crm360Field('Endereço', `<input id="crm360-endereco" value="${esc(client.endereco || '')}" class="crm360-input">`, 'full')}
-                  ${crm360Field('Número', `<input id="crm360-numero" value="${esc(client.numero || '')}" class="crm360-input">`)}
-                  ${crm360Field('Bairro', `<input id="crm360-bairro" value="${esc(client.bairro || '')}" class="crm360-input">`)}
-                  ${crm360CamposDocumentosHTML(client)}
-                  ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="3" class="crm360-input">${esc(client.observacoes || '')}</textarea>`, 'full')}
-                </div>
-              </div>
-              <div class="v2f-card">
-                <h3>${ic('alarm-clock')}Próxima ação</h3>
-                <div class="v2f-fields">
-                  ${crm360Field('Quando', `<input id="crm360-proxima-em" type="datetime-local" value="${toLocalDatetimeInputValue(client.proxima_acao_em)}" class="crm360-input">`)}
-                  ${crm360Field('O que fazer', `<input id="crm360-proxima-nota" value="${esc(client.proxima_acao_nota || '')}" class="crm360-input" placeholder="Ex.: ligar para follow-up">`)}
-                </div>
-              </div>
-              <button onclick="crmSaveClient360()" id="crm360-save-btn" class="v2f-save">${ic('save')}Salvar alterações</button>
-            </div>
-            <div class="v2f-card v2f-tabbody"><div id="crm360-tab-content">${renderCrm360TabContent(client, propostas, vendas)}</div></div>
-          </div>
+          ${grade}
         </div>
       </div>`;
 
@@ -340,6 +401,8 @@
     overlay.dataset.clientId = String(client.id);
     const sc = document.getElementById('crm360-scroll');
     if (sc && keepY) sc.scrollTop = keepY;
+    if (sc) sc.addEventListener('scroll', ajustarCabecalho, { passive: true });
+    ajustarCabecalho();
   }
 
   const _renderCrm360 = renderCrm360;
