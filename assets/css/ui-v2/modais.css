@@ -369,3 +369,67 @@ html[data-ui="v2"] body .v2-upd .r:hover { background: var(--v2-blue-hover); }
   html[data-ui="v2"] body:not(:has(#v2-mnav)) .v2-upd { bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) { html[data-ui="v2"] body .v2-upd { animation: none; } }
+
+/* ---------- precificação interna (orcamento-dre.js) no padrão Clara ---------- */
+html[data-ui="v2"] body #orc-dre-overlay { background: var(--v2-scrim) !important; backdrop-filter: none !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-box { background: var(--v2-bg) !important; border: 0 !important; border-radius: 28px !important; overflow: hidden; box-shadow: var(--v2-shadow-pop) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-head { background: var(--v2-card) !important; border-bottom: 1px solid var(--v2-line) !important; padding: 18px 24px !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-tag { display: inline-flex !important; width: fit-content; text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; font-weight: 700 !important; color: var(--v2-blue-text) !important; background: var(--v2-blue-50); border-radius: 99px; padding: 3px 10px; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-title { color: var(--v2-ink) !important; font-size: 20px !important; font-weight: 800 !important; letter-spacing: -.01em; margin-top: 8px !important; text-transform: none !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-cli { color: var(--v2-ink-2) !important; font-size: 13px !important; font-weight: 600 !important; text-transform: none !important; }
+html[data-ui="v2"] body #orc-dre-overlay #orc-salvo-info { font-size: 12px !important; font-weight: 500 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #orc-dre-overlay #orc-salvo-info.text-yellow-500 { color: var(--v2-orange-text) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-x { width: 40px !important; height: 40px !important; border-radius: 12px !important; border: 0 !important; background: var(--v2-bg) !important; color: var(--v2-ink-2) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-x:hover { background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-dre { background: var(--v2-card) !important; border: 0 !important; border-radius: 24px !important; box-shadow: var(--v2-shadow); overflow: hidden; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-dre-h { background: var(--v2-card) !important; border-bottom: 1px solid var(--v2-line) !important; padding: 14px 20px !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-dre-t { text-transform: none !important; letter-spacing: 0 !important; font-size: 15px !important; font-weight: 800 !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-dre-s { text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; font-weight: 600 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-dre .divide-y > * + * { border-color: var(--v2-line) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-row { padding: 8px 20px !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-lbl { color: var(--v2-ink) !important; font-size: 14px !important; font-weight: 600 !important; text-transform: none !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-lbl span { color: var(--v2-gray) !important; font-size: 12px !important; font-weight: 500 !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-row.rec .orc-lbl, html[data-ui="v2"] body #orc-dre-overlay .orc-row.tot .orc-lbl, html[data-ui="v2"] body #orc-dre-overlay .orc-row.fin .orc-lbl { font-weight: 800 !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-row.tot { background: var(--v2-soft) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-row.fin { background: var(--v2-blue-50) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-row.fin .orc-lbl { color: var(--v2-blue-text) !important; font-size: 15px !important; }
+html[data-ui="v2"] body #orc-dre-overlay #orc-tot-custos, html[data-ui="v2"] body #orc-dre-overlay #orc-tot-lucroop { color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-money input { border-radius: 12px !important; border: 1px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink) !important; height: 36px; font-weight: 700 !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-money input:focus { border-color: var(--v2-blue) !important; box-shadow: 0 0 0 3px var(--v2-blue-50) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-money > span { color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-extras { background: var(--v2-soft) !important; padding: 12px 20px !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-sec, html[data-ui="v2"] body #orc-dre-overlay .orc-vazio { text-transform: none !important; letter-spacing: 0 !important; font-size: 12.5px !important; font-weight: 700 !important; color: var(--v2-ink-2) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-vazio { font-weight: 500 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-link { text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 700 !important; color: var(--v2-blue-text) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-extra :is(input, select) { border-radius: 10px !important; border: 1px solid var(--v2-line-strong) !important; background: var(--v2-card) !important; color: var(--v2-ink) !important; height: 34px; font-size: 13px !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-side { background: transparent !important; border-color: var(--v2-line) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-kpi { background: var(--v2-card) !important; border: 0 !important; border-radius: 20px !important; box-shadow: var(--v2-shadow); padding: 14px 16px !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-kpi-l { text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; font-weight: 600 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-kpi .num { font-size: 20px !important; font-weight: 800 !important; letter-spacing: -.01em; }
+html[data-ui="v2"] body #orc-dre-overlay #orc-k-receita, html[data-ui="v2"] body #orc-dre-overlay #orc-k-lucro, html[data-ui="v2"] body #orc-dre-overlay #orc-k-custos { color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-alvo { background: var(--v2-card) !important; border: 0 !important; border-radius: 20px !important; box-shadow: var(--v2-shadow); padding: 14px 16px !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-alvo > span:first-child { color: var(--v2-ink-2) !important; font-size: 13px !important; font-weight: 600 !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-alvo b, html[data-ui="v2"] body #orc-dre-overlay #orc-venda-alvo { color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #orc-dre-overlay #orc-venda-alvo { font-size: 16px !important; font-weight: 800 !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-usar { border: 0 !important; border-radius: 10px !important; background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 700 !important; padding: 7px 14px !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-usar:hover { background: var(--v2-blue) !important; color: #fff !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-btn { min-height: 44px; border-radius: 14px !important; text-transform: none !important; letter-spacing: 0 !important; font-size: 14px !important; font-weight: 700 !important; background: var(--v2-card) !important; border: 1px solid var(--v2-line-strong) !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-btn:hover { background: var(--v2-hover) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-btn.pri { background: var(--v2-orange) !important; border-color: var(--v2-orange) !important; color: var(--v2-orange-ink) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-btn.pri:hover { background: #F29A05 !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-nota { font-size: 12px !important; font-weight: 500 !important; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #orc-dre-overlay .orc-aviso { color: var(--v2-orange-text) !important; font-weight: 600; }
+html[data-ui="v2"] body #orc-dre-overlay :is(#orc-k-margem, #orc-tot-lucroliq).text-emerald-400 { color: #12704A !important; }
+html[data-ui="v2"][data-theme="dark"] body #orc-dre-overlay :is(#orc-k-margem, #orc-tot-lucroliq).text-emerald-400 { color: #7BE0B5 !important; }
+html[data-ui="v2"] body #orc-dre-overlay :is(#orc-k-margem, #orc-tot-lucroliq).text-red-400 { color: var(--v2-red) !important; }
+@media (max-width: 640px) {
+  html[data-ui="v2"] body #orc-dre-overlay { padding: 8px !important; }
+  html[data-ui="v2"] body #orc-dre-overlay .orc-box { border-radius: 22px !important; }
+  html[data-ui="v2"] body #orc-dre-overlay .orc-head { padding: 14px 16px !important; }
+  html[data-ui="v2"] body #orc-dre-overlay .orc-row { padding: 8px 12px !important; gap: 8px !important; }
+  html[data-ui="v2"] body #orc-dre-overlay .orc-lbl { font-size: 13px !important; }
+  html[data-ui="v2"] body #orc-dre-overlay .orc-money { width: 116px !important; }
+  html[data-ui="v2"] body #orc-dre-overlay .orc-dre-h { padding: 12px 14px !important; }
+  html[data-ui="v2"] body #orc-dre-overlay .orc-extras { padding: 12px 14px !important; }
+  html[data-ui="v2"] body #orc-dre-overlay .orc-kpi .num { font-size: 17px !important; }
+}
