@@ -146,13 +146,21 @@
     const lucroLiq = r2(lucro - deducoes);
     const margem = receita > 0 ? r2(lucroLiq / receita * 100) : 0;
 
-    // Venda que atinge a margem-alvo (percentuais automáticos, sem overrides):
-    // V·(1 − i − c − r − d − m) = diretos + extrasDesp − kit·i − extrasRec·(1 − m)
-    const i = pct.imposto / 100, c = pct.comissao / 100, r = pct.royalties / 100;
-    const dd = pct.deducoes / 100, m = pct.margem_alvo / 100;
+    // Venda que atinge a margem-alvo. Linha automática entra como % da venda;
+    // linha digitada pelo gestor (override) é valor fixo — antes o alvo usava
+    // sempre os %, e com overrides o "Usar" levava a margem para longe do alvo.
+    // V·(1 − i − c − r − d − m) = diretos + extrasDesp + fixos − kit·i − extrasRec·(1 − m)
+    const auto = (k) => ov[k] == null;
+    const i = auto('imposto') ? pct.imposto / 100 : 0;
+    const c = auto('comissao') ? pct.comissao / 100 : 0;
+    const r = auto('royalties') ? pct.royalties / 100 : 0;
+    const dd = auto('deducoes') ? pct.deducoes / 100 : 0;
+    const m = pct.margem_alvo / 100;
+    const fixos = (auto('imposto') ? 0 : imposto) + (auto('comissao') ? 0 : comissao)
+      + (auto('royalties') ? 0 : royalties) + (auto('deducoes') ? 0 : deducoes);
     const denom = 1 - i - c - r - dd - m;
     const vendaAlvo = denom > 0
-      ? r2((diretos + extrasDesp - kit * i - extrasRec * (1 - m)) / denom)
+      ? r2((diretos + extrasDesp + fixos - kit * i - extrasRec * (1 - m)) / denom)
       : null;
 
     return {
