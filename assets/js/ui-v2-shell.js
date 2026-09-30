@@ -20,7 +20,7 @@
   const isMobile = () => window.matchMedia('(max-width: 760px)').matches;
 
   // Rótulos das abas em caixa normal (config.js segue em CAIXA ALTA para o visual antigo).
-  const KEEP_UPPER = ['O&M', 'OS', 'DRE', 'CRM', 'NF', 'PDF', 'UC', 'ART'];
+  const KEEP_UPPER = ['O&M', 'OS', 'DRE', '(DRE)', 'CRM', 'NF', 'PDF', 'UC', 'ART'];
   function sentence(label) {
     const s = String(label || '').trim();
     if (!s) return s;
@@ -37,6 +37,7 @@
     financeiro: { n: 'Financeiro', i: 'wallet', d: 'Recebíveis, pagamentos e margem', cta: null },
     vistoria: { n: 'Vistoria', i: 'clipboard-check', d: 'Agenda, checklists e laudos', cta: ['Nova vistoria', 'visNovaVistoria'] },
     engenharia: { n: 'Engenharia', i: 'ruler', d: 'Projetos e equipamentos', cta: null },
+    rede: { n: 'Rede', i: 'network', d: 'Unidades, CNPJs, impostos e resultado', cta: null },
   };
   function envAllowed(k) {
     if (state.isTecnico) return k === 'om';
@@ -45,6 +46,7 @@
     if (k === 'financeiro') return !!state.canFin;
     if (k === 'vistoria') return !!state.canVis;
     if (k === 'engenharia') return !!state.canEng;
+    if (k === 'rede') return !!state.isAdmin;
     return false;
   }
   const envKey = () => (ENVS[state.environment] ? state.environment : 'comercial');
@@ -183,7 +185,7 @@
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
     // celular: início · 2 abas · + · mais
-    const MOB = { comercial: ['clientes', 'propostas'], om: ['os', 'clientes'], financeiro: ['recebiveis', 'pagamentos'], vistoria: ['agenda', 'os'], engenharia: ['calculadora', 'projetos'] };
+    const MOB = { comercial: ['clientes', 'propostas'], om: ['os', 'clientes'], financeiro: ['recebiveis', 'pagamentos'], vistoria: ['agenda', 'os'], engenharia: ['calculadora', 'projetos'], rede: ['unidades', 'dre'] };
     const pref = (MOB[k] || []).map((id) => T.find((t) => t.id === id)).filter(Boolean);
     const home = T[0], picks = (pref.length === 2 ? pref : T.slice(1, 3)), inBar = [home, ...picks].filter(Boolean).map((t) => t.id);
     const mBtn = (t, label) => t ? `<button class="${t.id === cur ? 'on' : ''}" data-v2="tab" data-tab="${t.id}">${ic(t.icon || 'circle')}${esc(label || shortLabel(t.label))}</button>` : '';

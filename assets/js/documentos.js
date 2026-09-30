@@ -403,8 +403,44 @@ async function docCarregarConfig() {
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('Dados da empresa para documentos não cadastrados.');
-  _docConfigCache = data;
-  return data;
+  // CNPJs da unidade (ambiente Rede). Com mais de um, o contrato deixa escolher
+  // por qual deles sai; sem nenhum, vale só a contratada do documentos_config.
+  const { data: empresas, error: errEmp } = await supabaseClient
+    .from('rede_empresas')
+    .select('id, cnpj, razao_social, nome_fantasia, nome_contrato, endereco, municipio, uf, foro, principal')
+    .eq('franquia_id', state.franquiaId)
+    .eq('ativo', true)
+    .order('principal', { ascending: false })
+    .order('razao_social', { ascending: true });
+  if (errEmp) console.warn('[documentos] Falha ao carregar os CNPJs da unidade.', errEmp);
+  _docConfigCache = { ...data, empresas: empresas || [] };
+  return _docConfigCache;
+}
+
+// Chamado pelo ambiente Rede quando um CNPJ é salvo.
+function docLimparCache() { _docConfigCache = null; }
+
+// Empresa (CNPJ) escolhida para o contrato; cai na principal se a salva não existe mais.
+function _docEmpresaEscolhida() {
+  const lista = _docCtx?.config?.empresas || [];
+  if (!lista.length) return null;
+  return lista.find((e) => e.id === _docCtx.dados.empresa_id) || lista[0];
+}
+
+// Contratada do documento: dados do CNPJ escolhido, completando com o documentos_config.
+function _docContratada() {
+  const base = _docCtx?.config?.contratada || {};
+  const e = _docEmpresaEscolhida();
+  if (!e) return base;
+  const local = e.municipio && e.uf ? `${e.municipio}/${e.uf}` : '';
+  return {
+    ...base,
+    nome: e.nome_contrato || e.razao_social || base.nome,
+    cnpj: e.cnpj || base.cnpj,
+    endereco: e.endereco || base.endereco,
+    foro: e.foro || base.foro || local,
+    local_assinatura: base.local_assinatura || local,
+  };
 }
 
 // ==========================================
@@ -564,6 +600,7 @@ function docDadosIniciais(client, fonte) {
     financeiro: base.financeiro,
     prazo_entrega_dias: salvo.prazo_entrega_dias || DOC_DEFAULTS.prazo_entrega_dias,
     data: salvo.data || new Date().toISOString().slice(0, 10),
+    empresa_id: salvo.empresa_id || null,
   };
 }
 
@@ -605,6 +642,8 @@ async function abrirDocumentosCliente(clientId, origem) {
   }
 
   _docCtx = { clientId: client.id, fontes, dados: docDadosIniciais(client, fonte), config };
+  const empresa = _docEmpresaEscolhida();
+  _docCtx.dados.empresa_id = empresa ? empresa.id : null;
 
   document.getElementById('doc-overlay')?.remove();
   const overlay = document.createElement('div');
@@ -665,7 +704,8 @@ function _docRender() {
   const pj = d.tipo_pessoa === 'PJ';
   const c = d.cliente, e = c.endereco || {}, rep = c.representante || {};
   const inst = d.instalacao, sis = d.sistema, fin = d.financeiro;
-  const ie = (inst.endereco && typeof inst.endereco === 'object') ? inst.endereco : {};
+  const empresas = _docCtx.config?.empresas || [];
+  const ie =(inst.endereco && typeof inst.endereco === 'object') ? inst.endereco : {};
   const scrollAnterior = document.getElementById('doc-corpo')?.scrollTop || 0;
 
   const itensHTML = (sis.itens || []).map((it, i) => `
@@ -772,6 +812,11 @@ function _docRender() {
       </div>
 
       <div id="doc-corpo" class="p-5 space-y-6 overflow-y-auto flex-1 min-h-0">
+        ${empresas.length > 1 ? _docSecao('building', 'Empresa contratada (CNPJ)', `
+          ${_docCampo('O contrato sai por qual CNPJ?', `<select id="doc-empresa" onchange="_docCtx.dados.empresa_id = this.value" class="${_docInp}">
+            ${empresas.map((e) => `<option value="${e.id}" ${e.id === d.empresa_id ? 'selected' : ''}>${escapeHTML(e.razao_social)} · ${escapeHTML(e.cnpj)}${e.principal ? ' (principal)' : ''}</option>`).join('')}
+          </select>`)}
+          <p class="text-[10px] text-neutral-500">Os CNPJs da unidade são cadastrados no ambiente Rede (admin).</p>`) : ''}
         ${_docSecao('layout-template', 'Modelo', `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             ${_docCampo('Tipo de cliente', _docSelect('doc-tipo-pessoa', d.tipo_pessoa, [['PF', 'Pessoa física (CPF)'], ['PJ', 'Pessoa jurídica (CNPJ)']], '_docLer(); _docCtx.dados.tipo_pessoa = this.value; _docRender()'))}
@@ -1082,7 +1127,7 @@ function _docDadosParaGerar(tipo) {
     };
   }
   d.data = d.data ? `${d.data}T12:00:00` : undefined;
-  d.contratada = _docCtx.config?.contratada || {};
+  d.contratada = _docContratada();
   d.procurador = _docCtx.config?.procurador || {};
   return d;
 }
@@ -1138,6 +1183,7 @@ async function _docRegistrarNaTimeline(tipo, modelo, dados) {
   if (tipo === 'contrato') {
     const condicao = (DOC_CONDICOES.find(([v]) => v === dados.condicao) || [])[1] || 'Personalizada';
     descricao = `Contrato ${pj} gerado · ${condicao} · ${docFormatBRL(dados.financeiro?.valor_total)} · ${docFormatKwp(dados.sistema?.potencia_kwp)} kWp`;
+    if ((_docCtx?.config?.empresas || []).length > 1 && dados.contratada?.cnpj) descricao += ` · CNPJ ${dados.contratada.cnpj}`;
   } else {
     const titular = dados.titular?.outro_titular ? ` · titular ${String(dados.cliente?.nome || '').toUpperCase()}` : '';
     descricao = `Procuração ${pj} gerada${titular} · UC ${dados.instalacao?.numero_instalacao || '-'} · ${String(dados.instalacao?.concessionaria || DOC_DEFAULTS.concessionaria).toUpperCase()}`;
@@ -1150,6 +1196,7 @@ async function _docRegistrarNaTimeline(tipo, modelo, dados) {
     descricao,
     meta: {
       modelo, condicao: dados.condicao || null, valor_total: dados.financeiro?.valor_total || null, origem: dados.origem || null,
+      contratada_cnpj: dados.contratada?.cnpj || null,
       ...(tipo === 'procuracao' && dados.titular?.outro_titular ? { titular: dados.cliente?.nome || null } : {}),
     },
   }]);

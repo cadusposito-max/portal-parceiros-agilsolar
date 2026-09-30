@@ -10,7 +10,7 @@
     style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src    'self' https://fonts.gstatic.com;
     img-src     'self' data: blob: https://placehold.co https://tzwjxgprhorqrmpqudgg.supabase.co https:;
-    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com https://*.i.posthog.com https://power.larc.nasa.gov https://*.api.groner.app;
+    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com https://*.i.posthog.com https://power.larc.nasa.gov https://*.api.groner.app https://brasilapi.com.br;
     frame-src   https://challenges.cloudflare.com;
     object-src  'none';
     base-uri    'self';
@@ -115,6 +115,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/chat.css?v=20260928-f8" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/admin.css?v=20260929-p31" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/rede.css?v=20260930-rede" data-ui-v2 media="not all">
   <script>
     /* Visual novo (v2) é o ÚNICO visual para todos desde 29/09/2026: sempre liga,
        sem preferência nem ?ui=v1. Só em emergência (desenvolvedor): trocar para
@@ -1311,7 +1312,7 @@
   function w(src)            { document.write('<script src="' + src + '"><\/script>'); }
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
 
-  local('config.js',           '20260923-groner');
+  local('config.js',           '20260930-rede');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20260924-venda-anim2');
   local('api.js',              '20260723-nome-vendedor');
@@ -1320,7 +1321,7 @@
   local('dashboard.js',        '20260925-layout-c');
   local('cidades.js',          '20260703-crm1');
   local('clientes.js',         '20260925-fontes');
-  local('documentos.js',       '20260928-titular-uc');
+  local('documentos.js',       '20260930-rede-cnpj');
   local('crm.js',              '20260925-timeline');
   local('crm-arquivos.js',     '20260925-arquivos');
   local('crm-fila.js',         '20260917-modal-altura');
@@ -1340,9 +1341,10 @@
   local('vistoria.js',         '20260929-p22');
   local('vistoria-os.js',      '20260626-vistoria-os');
   local('engenharia.js',       '20260925-layout-c');
-  local('app.js',              '20260929-vis');
+  local('rede.js',             '20260930-rede');
+  local('app.js',              '20260930-rede');
   local('ui-v2.js',            '20260929-rel6');
-  local('ui-v2-shell.js',      '20260929-rel2');
+  local('ui-v2-shell.js',      '20260930-rede');
   local('ui-v2-screens.js',    '20260929-rel5');
   local('ui-v2-select.js',     '20260929-p28');
   local('ui-v2-filtros.js',    '20260929-p28');

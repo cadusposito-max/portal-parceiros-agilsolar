@@ -67,6 +67,8 @@ let state = {
   engActiveTab: 'visao',
   // Acesso à Engenharia (fase atual: admin sempre; flag eng_enabled + role 'engenheiro' vêm na fase Supabase)
   canEng: false,
+  // Ambiente Rede (6º ambiente — gestão das unidades da rede). Só admin (state.isAdmin).
+  redeActiveTab: 'visao',
   // Sub-estado da Engenharia: inputs, último resultado calculado, presets e projetos (estado local até o banco).
   eng: {
     inputs: {},
@@ -336,4 +338,13 @@ const ENG_TABS = [
   { id: 'calculadora',  label: 'CALCULADORA',  icon: 'calculator',   secondary: true },
   { id: 'equipamentos', label: 'EQUIPAMENTOS', icon: 'cpu',          secondary: true },
   { id: 'projetos',     label: 'PROJETOS',     icon: 'folder-open',  secondary: true }
+];
+
+// Tabs do ambiente Rede (só admin): unidades, CNPJs, impostos, DRE e receitas da franqueadora.
+const REDE_TABS = [
+  { id: 'visao',        label: 'VISÃO GERAL',              icon: 'layout-dashboard' },
+  { id: 'unidades',     label: 'UNIDADES',                 icon: 'store' },
+  { id: 'dre',          label: 'RESULTADO (DRE)',          icon: 'sheet' },
+  { id: 'franqueadora', label: 'RECEITAS DA FRANQUEADORA', icon: 'landmark' },
+  { id: 'padroes',      label: 'PADRÕES DA REDE',          icon: 'sliders-horizontal' }
 ];

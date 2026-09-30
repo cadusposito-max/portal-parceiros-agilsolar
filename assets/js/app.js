@@ -466,6 +466,7 @@ const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
 function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
+  if (state.environment === 'rede' && state.isAdmin) return REDE_TABS;
   if (state.environment === 'engenharia' && state.canEng) return ENG_TABS;
   if (state.environment === 'vistoria' && state.canVis) return VISTORIA_TABS;
   if (state.environment === 'financeiro' && state.canFin) return FIN_TABS;
@@ -488,6 +489,7 @@ function getActiveTabId() {
   if (state.environment === 'financeiro') return state.finActiveTab;
   if (state.environment === 'vistoria') return state.vistoriaActiveTab;
   if (state.environment === 'engenharia') return state.engActiveTab;
+  if (state.environment === 'rede') return state.redeActiveTab;
   return state.activeTab;
 }
 
@@ -807,7 +809,8 @@ function closeOmMoreMenuOnOutside(ev) {
 
 function setEnvironment(env) {
   if (state.isTecnico) return; // técnico não troca de ambiente
-  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia') return;
+  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede') return;
+  if (env === 'rede' && !state.isAdmin) return; // Rede é só admin
   if (env === 'om' && !state.canOM) return; // sem acesso ao O&M
   if (env === 'financeiro' && !state.canFin) return; // sem acesso ao Financeiro
   if (env === 'vistoria' && !state.canVis) return; // sem acesso à Vistoria
@@ -932,7 +935,8 @@ function startLauncherTypewriter() {
 // Disparado pelo clique nos cards. NÃO usa setEnvironment (que aborta quando o
 // ambiente já é o atual — caso do Comercial, que é o default).
 function enterEnvironment(env) {
-  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia') return;
+  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede') return;
+  if (env === 'rede' && !state.isAdmin) return;
   if (env === 'om' && !state.canOM) return;
   if (env === 'financeiro' && !state.canFin) return;
   if (env === 'vistoria' && !state.canVis) return;
@@ -949,6 +953,7 @@ function enterEnvironment(env) {
   if (env === 'financeiro') state.finActiveTab = 'visao';
   if (env === 'vistoria') state.vistoriaActiveTab = 'visao';
   if (env === 'engenharia') state.engActiveTab = 'visao';
+  if (env === 'rede') state.redeActiveTab = 'visao';
   renderTabs();
   renderContent();
   appRouteSync(false);
@@ -1007,6 +1012,17 @@ function setTab(tabId) {
     return;
   }
 
+  if (state.environment === 'rede') {
+    closeMobileMenu();
+    if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
+    stopDashboardClock();
+    state.redeActiveTab = tabId;
+    renderTabs();
+    renderContent();
+    appRouteSync(true);
+    return;
+  }
+
   closeMobileMenu();
   if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
   stopDashboardClock();
@@ -1044,6 +1060,7 @@ function appRouteCurrentHash() {
     financeiro: state.finActiveTab,
     vistoria: state.vistoriaActiveTab,
     engenharia: state.engActiveTab,
+    rede: state.redeActiveTab,
   };
   return `${APP_ROUTE_PREFIX}${state.environment}/${tabByEnv[state.environment] || ''}`;
 }
@@ -1074,6 +1091,7 @@ function appRouteParse(rawHash) {
     financeiro: (typeof FIN_TABS !== 'undefined' ? FIN_TABS : []).map((t) => t.id),
     vistoria: (typeof VISTORIA_TABS !== 'undefined' ? VISTORIA_TABS : []).map((t) => t.id),
     engenharia: (typeof ENG_TABS !== 'undefined' ? ENG_TABS : []).map((t) => t.id),
+    rede: (typeof REDE_TABS !== 'undefined' ? REDE_TABS : []).map((t) => t.id),
   };
 
   if (!Object.prototype.hasOwnProperty.call(tabsByEnv, env)) return null;
@@ -1081,6 +1099,7 @@ function appRouteParse(rawHash) {
   if (env === 'financeiro' && !state.canFin) return null;
   if (env === 'vistoria' && !state.canVis) return null;
   if (env === 'engenharia' && !state.canEng) return null;
+  if (env === 'rede' && !state.isAdmin) return null;
   if (!tabsByEnv[env].includes(tab)) return null;
   if (env === 'comercial' && TABS_GESTAO.includes(tab) && !(state.isAdmin || state.isGestor)) return null;
 
@@ -1625,6 +1644,22 @@ function _renderContentImpl() {
       renderVistoriaRoute(container, state.vistoriaActiveTab);
     } else {
       container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Vistoria não carregado.</div>';
+    }
+    queueAppLucideCreateIcons();
+    return;
+  }
+
+  // Ambiente Rede (só admin): delega para o módulo rede.js
+  if (state.environment === 'rede') {
+    stopDashboardClock();
+    if (typeof stopOmClock === 'function') stopOmClock();
+    mainToolbar.classList.add('hidden');
+    toggleContainer.classList.add('hidden');
+    if (adminBar) adminBar.classList.add('hidden');
+    if (typeof renderRedeRoute === 'function') {
+      renderRedeRoute(container, state.redeActiveTab);
+    } else {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Rede não carregado.</div>';
     }
     queueAppLucideCreateIcons();
     return;
