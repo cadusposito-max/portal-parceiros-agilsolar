@@ -6,7 +6,7 @@
   <!-- Content Security Policy: bloqueia scripts de origens não autorizadas -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src  'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://challenges.cloudflare.com https://*.i.posthog.com;
+    script-src  'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://challenges.cloudflare.com https://*.i.posthog.com;
     style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src    'self' https://fonts.gstatic.com;
     img-src     'self' data: blob: https://placehold.co https://tzwjxgprhorqrmpqudgg.supabase.co https:;
@@ -22,23 +22,15 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Plataforma Ágil Solar</title>
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Lucide Icons — versão FIXA: o @latest passava por um redirect com cache de 60 s a cada abertura -->
+  <script src="https://unpkg.com/lucide@1.49.0/dist/umd/lucide.min.js"></script>
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- PostHog JS SDK -->
   <script src="https://unpkg.com/posthog-js@1.364.2/dist/array.js"></script>
-  <!-- SheetJS (XLSX export) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- SheetJS (Excel), jsPDF, Chart.js e exifr: carregados só quando usados (carregarLib em utils.js) -->
 
-  <!-- Engenharia (calculadora): gráfico de geração + PDF técnico. jsDelivr está na whitelist do CSP. -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -51,56 +43,6 @@
   <meta name="apple-mobile-web-app-title" content="Agil Solar">
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 
-  <!-- Configurações Tailwind -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
-          colors: {
-            orange: { 500: '#f97316', 600: '#ea580c' },
-            yellow: { 400: '#facc15', 500: '#eab308' }
-          },
-          animation: {
-            'spin-slow':      'spin 3s linear infinite',
-            'fade-in-down':   'fadeInDown 0.5s ease-out',
-            'fade-in-up':     'fadeInUp 0.5s ease-out',
-            'pulse-slow':     'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'slide-in-left':  'slideInLeft 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            'slide-in-right': 'slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            'glow-pulse':     'glowPulse 3s ease-in-out infinite',
-            'float':          'float 6s ease-in-out infinite',
-          },
-          keyframes: {
-            fadeInDown: {
-              '0%':   { opacity: '0', transform: 'translateY(-10px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)' },
-            },
-            fadeInUp: {
-              '0%':   { opacity: '0', transform: 'translateY(10px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)' },
-            },
-            slideInLeft: {
-              '0%':   { opacity: '0', transform: 'translateX(-16px)' },
-              '100%': { opacity: '1', transform: 'translateX(0)' },
-            },
-            slideInRight: {
-              '0%':   { opacity: '0', transform: 'translateX(16px)' },
-              '100%': { opacity: '1', transform: 'translateX(0)' },
-            },
-            glowPulse: {
-              '0%, 100%': { boxShadow: '0 0 10px rgba(249,115,22,0.2)' },
-              '50%':      { boxShadow: '0 0 25px rgba(249,115,22,0.5)' },
-            },
-            float: {
-              '0%, 100%': { transform: 'translateY(0)' },
-              '50%':      { transform: 'translateY(-6px)' },
-            },
-          }
-        }
-      }
-    }
-  </script>
 
   <link rel="stylesheet" href="assets/css/main.css?v=20260925-fontes">
   <link rel="stylesheet" href="assets/css/theme-light.css?v=20260925-layout-c" id="theme-light-css" disabled>
@@ -116,6 +58,10 @@
   <link rel="stylesheet" href="assets/css/ui-v2/admin.css?v=20260929-p31" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/rede.css?v=20260930-rede" data-ui-v2 media="not all">
+  <!-- Tailwind PRÉ-COMPILADO (antes era o cdn.tailwindcss.com, que compilava CSS dentro do navegador e
+       deixava a plataforma pesada em PC fraco). Fica depois dos outros CSS, na mesma posição em que o CDN
+       injetava o <style>. Usou classe Tailwind nova? Regerar — comando no tailwind.config.js. -->
+  <link rel="stylesheet" href="assets/css/tailwind.css?v=20260930-tw">
   <script>
     /* Visual novo (v2) é o ÚNICO visual para todos desde 29/09/2026: sempre liga,
        sem preferência nem ?ui=v1. Só em emergência (desenvolvedor): trocar para
@@ -1314,7 +1260,7 @@
 
   local('config.js',           '20260930-rede');
   local('analytics.js',        '20260615-om-central-propostas');
-  local('utils.js',            '20260924-venda-anim2');
+  local('utils.js',            '20260930-leve');
   local('api.js',              '20260723-nome-vendedor');
   local('auth.js',             '20260925-f5-lugar');
   local('comunicados.js',      '20260615-om-central-propostas');
@@ -1327,7 +1273,7 @@
   local('crm-fila.js',         '20260917-modal-altura');
   local('crm-metas.js',        '20260716-crm-loop');
   local('analise.js',          '20260918-tooltip-analise');
-  local('produtos.js',         '20260922-conferir-editavel');
+  local('produtos.js',         '20260930-leve');
   local('proposta-builder.js', '20260924-venda-anim2');
   local('orcamento-dre.js',    '20260930-clara');
   local('vendas.js',           '20260930-venda');
@@ -1335,12 +1281,11 @@
   local('profile.js',          '20260922-2fa-sobrio');
   local('chat.js',             '20260925-layout-c');
   local('om.js',               '20260929-p22');
-  w('https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js');
-  local('om-os.js',            '20260707-checklist-trava');
+  local('om-os.js',            '20260930-leve');
   local('financeiro.js',       '20260925-layout-c');
   local('vistoria.js',         '20260929-p22');
-  local('vistoria-os.js',      '20260626-vistoria-os');
-  local('engenharia.js',       '20260925-layout-c');
+  local('vistoria-os.js',      '20260930-leve');
+  local('engenharia.js',       '20260930-leve');
   local('rede.js',             '20260930-rede');
   local('app.js',              '20260930-rede');
   local('ui-v2.js',            '20260929-rel6');

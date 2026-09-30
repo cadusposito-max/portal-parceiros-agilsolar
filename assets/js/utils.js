@@ -454,12 +454,50 @@ function fallbackCopiar(texto) {
 }
 
 // ==========================================
-// EXPORTAR XLSX (requer SheetJS)
+// BIBLIOTECAS SOB DEMANDA
+// Excel (SheetJS), PDF (jsPDF + autotable), gráfico (Chart.js) e EXIF das fotos
+// somavam ~1,5 MB baixados e interpretados no login, em todo PC, mesmo sem uso.
+// Agora cada uma só carrega na primeira vez que alguém usa a função.
 // ==========================================
-function exportToXLSX(rows, columns, filename) {
+const LIBS_SOB_DEMANDA = {
+  xlsx:  { pronta: () => typeof XLSX !== 'undefined', src: ['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'] },
+  jspdf: { pronta: () => !!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable),
+           src: ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'] },
+  chart: { pronta: () => typeof Chart !== 'undefined', src: ['https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'] },
+  exifr: { pronta: () => !!window.exifr, src: ['https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js'] },
+};
+const _libsCarregando = {};
+function carregarLib(nome) {
+  const lib = LIBS_SOB_DEMANDA[nome];
+  if (!lib) return Promise.reject(new Error('Biblioteca desconhecida: ' + nome));
+  if (lib.pronta()) return Promise.resolve();
+  if (_libsCarregando[nome]) return _libsCarregando[nome];
+  const umScript = (src) => new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = false;
+    s.onload = resolve;
+    s.onerror = () => { s.remove(); reject(new Error('Falha ao carregar ' + src)); };
+    document.head.appendChild(s);
+  });
+  // em sequência: o autotable precisa do jsPDF já carregado
+  _libsCarregando[nome] = lib.src.reduce((p, src) => p.then(() => umScript(src)), Promise.resolve())
+    .then(() => { if (!lib.pronta()) throw new Error('Biblioteca ' + nome + ' não inicializou'); })
+    .catch((err) => { delete _libsCarregando[nome]; throw err; });
+  return _libsCarregando[nome];
+}
+window.carregarLib = carregarLib;
+
+// ==========================================
+// EXPORTAR XLSX (SheetJS, carregado sob demanda)
+// ==========================================
+async function exportToXLSX(rows, columns, filename) {
   if (typeof XLSX === 'undefined') {
-    showToast('Biblioteca XLSX não carregada. Recarregue a página.');
-    return;
+    try { await carregarLib('xlsx'); } catch (err) {
+      console.warn('[xlsx]', err);
+      showToast('Não foi possível carregar o Excel. Verifique a internet e tente de novo.');
+      return;
+    }
   }
   if (!rows || rows.length === 0) {
     showToast('Nenhum dado para exportar.');

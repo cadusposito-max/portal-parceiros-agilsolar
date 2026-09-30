@@ -741,7 +741,9 @@ function engRenderVoltageDrop(inputs, stringLength) {
 
 function engCreateChart(monthly, total) {
   const cv = document.getElementById('eng-generation-chart');
-  if (!cv || !window.Chart) return;
+  if (!cv) return;
+  // Chart.js sob demanda: carrega e desenha quando chegar
+  if (!window.Chart) { carregarLib('chart').then(() => engCreateChart(monthly, total)).catch((err) => console.warn('[eng] gráfico', err)); return; }
   if (engChartInstance) { engChartInstance.destroy(); engChartInstance = null; }
   const ctx = cv.getContext('2d');
   engChartInstance = new Chart(ctx, {
@@ -857,7 +859,7 @@ function engApplyManualStringConfig() {
 async function engGerarPdf() {
   const data = state.eng && state.eng.lastResult;
   if (!data || !data.inputs) { showToast('Valide uma configuração antes de gerar o PDF.'); return; }
-  if (!window.jspdf || !window.jspdf.jsPDF) { showToast('Biblioteca de PDF não carregada. Recarregue a página.'); return; }
+  try { await carregarLib('jspdf'); } catch (_) { showToast('Não foi possível carregar o gerador de PDF. Verifique a internet e tente de novo.'); return; }
 
   const btn = document.getElementById('eng-pdf-button');
   const originalHTML = btn ? btn.innerHTML : '';

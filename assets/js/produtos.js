@@ -850,7 +850,9 @@ function buildKitMatchKey(name, brand, power) {
 
 async function readImportedKitRows(file) {
   if (typeof XLSX === 'undefined') {
-    throw new Error('Biblioteca XLSX nao carregada. Recarregue a pagina e tente novamente.');
+    try { await carregarLib('xlsx'); } catch (_) {
+      throw new Error('Não foi possível carregar o leitor de planilhas. Verifique a internet e tente de novo.');
+    }
   }
 
   const fileName = String(file?.name || '').toLowerCase();

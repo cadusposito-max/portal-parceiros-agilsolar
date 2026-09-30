@@ -37,7 +37,7 @@
   }
   async function extractExif(file) {
     try {
-      if (!window.exifr) return { lat: null, lng: null, ts: null };
+      if (!window.exifr) { try { await carregarLib('exifr'); } catch (_) { return { lat: null, lng: null, ts: null }; } }
       const x = await window.exifr.parse(file, { gps: true });
       if (!x) return { lat: null, lng: null, ts: null };
       let ts = null;
