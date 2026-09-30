@@ -596,18 +596,6 @@ function _crm360AbaLarga() {
   return _crm360Tab === 'nova' || _crm360Tab === 'financiamento';
 }
 
-// Link de (re)envio da proposta no WhatsApp do cliente — mesma mensagem do
-// painel pós-geração do construtor.
-function crm360PropostaWhatsappLink(client, p) {
-  const digits = digitsOnly(client?.telefone || '');
-  if (digits.length < 10) return null;
-  const primeiro = String(client?.nome || 'cliente').trim().split(' ')[0];
-  const nome = primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
-  const link = `${window.location.origin}/proposta.html?id=${p.id}`;
-  const msg = encodeURIComponent(`Olá, ${nome}! Segue a sua proposta de energia solar da Ágil Solar: ${link}\nQualquer dúvida, é só me chamar por aqui.`);
-  return `https://wa.me/55${digits}?text=${msg}`;
-}
-
 function renderCrm360TabContent(client, propostas, vendas) {
   // Construtor de proposta embutido: o slot recebe #pb-embedded-panel via
   // appendChild no pós-render do renderCrm360 (preserva listeners do painel).
@@ -658,7 +646,6 @@ function renderCrm360TabContent(client, propostas, vendas) {
       const vistaInfo = st === 'VISTA' && p.vista_em
         ? `<span class="text-[9px] text-orange-400/80 font-bold">vista ${typeof crmTimeAgo === 'function' ? crmTimeAgo(p.vista_em) : formatDate(p.vista_em)}${Number(p.vista_count) > 1 ? ` · ${p.vista_count}x` : ''}</span>`
         : '';
-      const waResend = crm360PropostaWhatsappLink(client, p);
       return `
         <div class="border ${st === 'VISTA' ? 'border-orange-500/30' : 'border-neutral-800'} bg-black/40 p-3.5 flex items-center gap-3 flex-wrap">
           <div class="flex-1 min-w-[160px]">
@@ -673,9 +660,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
           <span class="text-green-400 font-black text-sm">${formatCurrency(preco || 0)}</span>
           <div class="flex items-center gap-1.5">
             ${state.isAdmin ? `<button onclick="openOrcamentoDre('${p.id}')" title="Precificação interna (só admin)" class="btn btn-secondary btn-icon"><i data-lucide="calculator"></i></button>` : ''}
-            ${waResend ? `<a href="${waResend}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${p.id}')" title="Enviar no WhatsApp do cliente" class="btn btn-primary btn-icon"><i data-lucide="message-circle"></i></a>` : ''}
-            <button onclick="copiarLinkExistente('${p.id}', this)" title="Copiar link" class="btn btn-secondary btn-icon"><i data-lucide="copy"></i></button>
-            ${_crm360DocsAtivo() ? `<button onclick="abrirDocumentosCliente('${client.id}', 'proposta:${p.id}')" title="Contrato e procuração com base nesta proposta" class="btn btn-secondary btn-icon"><i data-lucide="file-signature"></i></button>` : ''}
+            <button onclick="copiarLinkExistente('${p.id}', this); marcarPropostaEnviada('${p.id}')" title="Copiar link (marca como enviada)" class="btn btn-secondary btn-icon"><i data-lucide="copy"></i></button>
             <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
             <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-icon"><i data-lucide="file-down"></i></a>
             <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Abrir proposta" class="btn btn-secondary btn-icon"><i data-lucide="external-link"></i></a>

@@ -68,6 +68,95 @@
   }
   if (typeof CRM_ATIVIDADE_META !== 'undefined') CRM_ATIVIDADE_META.vistoria = { icon: 'clipboard-check', label: 'Vistoria', color: 'text-sky-400' };
 
+
+  // ---------- responsável do cliente (só admin e gestor) ----------
+  // Lista e troca pelas RPCs cliente_responsaveis_possiveis / cliente_trocar_responsavel:
+  // admin escolhe qualquer usuário ativo (o cliente muda de unidade junto);
+  // gestor só alguém da própria unidade. Fica registrado na timeline.
+  const podeTrocarResp = () => Boolean(state.isAdmin || state.isGestor);
+  const R = { clientId: null, lista: [], q: '', escolhido: null, salvando: false };
+
+  function respFechar() { const s = document.getElementById('v2-resp-scrim'); if (s) s.remove(); R.clientId = null; }
+  function respPintar() {
+    const box = document.getElementById('v2-resp-body');
+    if (!box) return;
+    const client = (state.clientes || []).find((c) => c.id === R.clientId);
+    if (!client) { respFechar(); return; }
+    const atual = String(client.vendedor_email || '').toLowerCase();
+
+    if (R.escolhido) {
+      const u = R.escolhido;
+      const mudaUnidade = u.franquia_id && client.franquia_id && u.franquia_id !== client.franquia_id;
+      box.innerHTML = `
+        <p class="v2-resp-conf">Passar <b>${esc(client.nome || 'o cliente')}</b> para <b>${esc(u.nome)}</b>?</p>
+        ${mudaUnidade ? `<p class="v2-resp-aviso">${ic('alert-triangle')}<span>${esc(u.nome)} é de outra unidade (${esc(u.franquia_nome || '—')}). O cliente vai junto para essa unidade.</span></p>` : ''}
+        <p class="v2-resp-nota">As propostas e vendas já feitas continuam no nome de quem fez. A troca fica registrada na timeline.</p>
+        <div class="v2-resp-acts"><button class="v2-btn2" onclick="uiV2Responsavel.voltar()">Voltar</button><button class="v2-btnp" id="v2-resp-ok" onclick="uiV2Responsavel.confirmar()" ${R.salvando ? 'disabled' : ''}>${ic('check')}${R.salvando ? 'Salvando...' : 'Trocar responsável'}</button></div>`;
+    } else {
+      const q = R.q.trim().toLowerCase();
+      const itens = R.lista.filter((u) => !q || `${u.nome} ${u.email} ${u.franquia_nome || ''}`.toLowerCase().includes(q));
+      const papel = { admin: 'Admin', gestor: 'Gestor', vendedor: 'Vendedor' };
+      let grupo = null;
+      const linhas = itens.map((u) => {
+        let h = '';
+        if (state.isAdmin && u.franquia_nome !== grupo) { grupo = u.franquia_nome; h += `<div class="v2-resp-grp">${esc(grupo || 'Sem unidade')}</div>`; }
+        const eh = String(u.email).toLowerCase() === atual;
+        return h + `<button class="v2-resp-item ${eh ? 'on' : ''}" ${eh ? 'disabled' : `onclick="uiV2Responsavel.escolher('${esc(u.email)}')"`}>
+          <span class="av">${esc(String(u.nome || u.email).trim().charAt(0).toUpperCase())}</span>
+          <span class="tx"><b>${esc(u.nome)}</b><small>${papel[u.role] || esc(u.role)} · ${esc(u.email)}</small></span>
+          ${eh ? '<em>atual</em>' : ''}</button>`;
+      }).join('');
+      box.innerHTML = linhas || `<p class="v2-resp-nota" style="text-align:center;padding:18px 0">Ninguém encontrado.</p>`;
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  window.uiV2Responsavel = {
+    async abrir(clientId) {
+      if (!podeTrocarResp()) return;
+      const client = (state.clientes || []).find((c) => c.id === clientId);
+      if (!client) return;
+      respFechar();
+      Object.assign(R, { clientId, lista: [], q: '', escolhido: null, salvando: false });
+      const s = document.createElement('div');
+      s.id = 'v2-resp-scrim';
+      s.innerHTML = `<div class="v2-resp" role="dialog" aria-modal="true" aria-label="Trocar responsável">
+        <div class="v2-resp-h"><div><h3>Trocar responsável</h3><small>${esc(client.nome || '')}</small></div><button class="v2-sq" onclick="uiV2Responsavel.fechar()" title="Fechar">${ic('x')}</button></div>
+        <label class="v2-sbox v2-resp-busca">${ic('search')}<input id="v2-resp-q" placeholder="Buscar por nome, e-mail${state.isAdmin ? ' ou unidade' : ''}" autocomplete="off" oninput="uiV2Responsavel.buscar(this.value)"></label>
+        <div class="v2-resp-body" id="v2-resp-body"><p class="v2-resp-nota" style="text-align:center;padding:18px 0">Carregando...</p></div>
+      </div>`;
+      s.addEventListener('mousedown', (e) => { if (e.target === s) respFechar(); });
+      document.body.appendChild(s);
+      if (window.lucide) window.lucide.createIcons();
+      setTimeout(() => { const i = document.getElementById('v2-resp-q'); if (i) i.focus(); }, 30);
+      const { data, error } = await supabaseClient.rpc('cliente_responsaveis_possiveis', { p_cliente_id: clientId });
+      if (R.clientId !== clientId) return;
+      if (error) { const b = document.getElementById('v2-resp-body'); if (b) b.innerHTML = `<p class="v2-resp-nota">Não foi possível carregar: ${esc(error.message)}</p>`; return; }
+      R.lista = data || [];
+      respPintar();
+    },
+    fechar: respFechar,
+    buscar(q) { R.q = q; R.escolhido = null; respPintar(); },
+    escolher(email) { R.escolhido = R.lista.find((u) => u.email === email) || null; const b = document.querySelector('.v2-resp-busca'); if (b) b.style.display = 'none'; respPintar(); },
+    voltar() { R.escolhido = null; const b = document.querySelector('.v2-resp-busca'); if (b) b.style.display = ''; respPintar(); },
+    async confirmar() {
+      const u = R.escolhido, clientId = R.clientId;
+      if (!u || R.salvando) return;
+      R.salvando = true; respPintar();
+      const { data, error } = await supabaseClient.rpc('cliente_trocar_responsavel', { p_cliente_id: clientId, p_email: u.email });
+      R.salvando = false;
+      if (error) { respPintar(); if (has('showToast')) showToast('Não foi possível trocar: ' + error.message); return; }
+      const client = (state.clientes || []).find((c) => c.id === clientId);
+      if (client && data) { client.vendedor_email = data.vendedor_email; client.franquia_id = data.franquia_id; }
+      respFechar();
+      if (has('showToast')) showToast(`Responsável agora é ${u.nome}${data && data.mudou_unidade ? ` (cliente foi para ${u.franquia_nome || 'outra unidade'})` : ''}.`);
+      if (has('crmFetchAtividades')) crmFetchAtividades(clientId);
+      if (has('renderContent')) renderContent();
+      if (has('renderCrm360')) renderCrm360();
+    },
+  };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.getElementById('v2-resp-scrim')) { e.stopPropagation(); respFechar(); } }, true);
+
   window.uiV2Vistoria = {
     focar() {
       const card = document.getElementById('v2f-vistoria');
@@ -190,7 +279,7 @@
           <div class="v2f-steps">${steps}</div>
           <div class="v2f-sum">
             <div><small>Origem</small><b>${esc(origemLbl)}</b></div>
-            <div><small>Responsável</small><b>${esc(vend)}</b></div>
+            ${podeTrocarResp() ? `<div class="v2f-sumresp" role="button" tabindex="0" onclick="uiV2Responsavel.abrir('${esc(client.id)}')" onkeydown="if(event.key==='Enter')uiV2Responsavel.abrir('${esc(client.id)}')" title="Trocar responsável"><small>Responsável</small><b>${esc(vend)}${ic('chevron-down')}</b></div>` : `<div><small>Responsável</small><b>${esc(vend)}</b></div>`}
             <div><small>Propostas</small><b>${propostas.length}${vendas.length ? ` · ${vendas.length} venda${vendas.length > 1 ? 's' : ''}` : ''}</b></div>
             <div class="${proxAtrasada ? 'late' : ''}"><small>Próxima ação</small><b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + prox.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })) : 'Nenhuma'}</b></div>
             ${vistoriaResumoHTML(client)}
