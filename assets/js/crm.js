@@ -679,6 +679,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
             <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
             <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-icon"><i data-lucide="file-down"></i></a>
             <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Abrir proposta" class="btn btn-secondary btn-icon"><i data-lucide="external-link"></i></a>
+            ${st === 'ACEITA' && crmPodeGerirVenda(p) ? crmMenuHTML([['undo-2', 'Desfazer aceite', `crmDesfazerAceite('${p.id}')`]]) : ''}
           </div>
         </div>`;
     }).join('')}</div>`;
@@ -686,17 +687,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
 
   if (_crm360Tab === 'vendas') {
     if (vendas.length === 0) return crm360Empty('trophy', 'Nenhuma venda fechada ainda');
-    return `<div class="space-y-2">${vendas.map((v) => `
-      <div class="border border-green-900/40 bg-green-950/10 p-3.5 flex items-center gap-3 flex-wrap">
-        <div class="flex-1 min-w-[160px]">
-          <p class="text-white font-black text-xs uppercase">${escapeHTML(v.kit_nome || 'Venda')}</p>
-          <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(v.created_at)} · ${escapeHTML(String(v.kit_power || '-'))} kWp</p>
-        </div>
-        <span class="text-green-400 font-black text-sm">${formatCurrency(v.kit_price || 0)}</span>
-        ${typeof canGerarDocumentos === 'function' && canGerarDocumentos()
-          ? `<button onclick="abrirDocumentosVenda('${v.id}')" title="Gerar contrato e procuração" class="btn btn-secondary btn-sm"><i data-lucide="file-signature"></i> Documentos</button>`
-          : ''}
-      </div>`).join('')}</div>`;
+    return `<div class="space-y-2">${vendas.map(crmVendaCardHTML).join('')}</div>`;
   }
 
   if (_crm360Tab === 'arquivos' && typeof renderCrmArquivosTab === 'function') {
@@ -784,6 +775,228 @@ function renderCrm360TabContent(client, propostas, vendas) {
       }).join('')}
     </div>
     </div>`;
+}
+
+// ==========================================
+// CARD DA VENDA (ficha) — pagamento, observações, excluir; desfazer aceite
+// Excluir e desfazer rodam em RPC (venda_excluir / proposta_desfazer_aceite),
+// que acertam proposta, cliente e timeline de uma vez. Vendedor só edita as
+// observações das próprias vendas (garantido também por trigger no banco).
+// ==========================================
+const VENDA_FORMAS_PAGAMENTO = [
+  ['avista', 'À vista (PIX / transferência)'],
+  ['cartao', 'Cartão de crédito'],
+  ['boleto', 'Boleto parcelado'],
+  ['financiamento', 'Financiamento'],
+  ['entrada_financiamento', 'Entrada + financiamento'],
+  ['outra', 'Outra'],
+];
+let _crmVendaEditando = null;
+
+function crmPodeGerirVenda(row) {
+  if (state.isAdmin) return true;
+  return Boolean(state.isGestor && row && (!row.franquia_id || row.franquia_id === state.franquiaId));
+}
+function crmPodeEditarObsVenda(v) {
+  if (crmPodeGerirVenda(v)) return true;
+  const email = String(state.currentUser?.email || '').toLowerCase();
+  return Boolean(email && String(v.vendedor_email || '').toLowerCase() === email);
+}
+
+// Menu de "três pontinhos": itens = [[ícone, rótulo, onclick, perigo?]]
+function crmMenuHTML(itens) {
+  return `<div class="crm-menu">
+    <button type="button" class="btn btn-secondary btn-icon" title="Mais ações" onclick="crmMenuToggle(event, this)"><i data-lucide="more-vertical"></i></button>
+    <div class="crm-menu-pop">${itens.map(([ic, label, fn, perigo]) => `<button type="button" class="${perigo ? 'perigo' : ''}" onclick="crmMenuFechar(); ${fn}">${ic ? `<i data-lucide="${ic}"></i>` : ''}${label}</button>`).join('')}</div>
+  </div>`;
+}
+function crmMenuToggle(ev, btn) {
+  ev.stopPropagation();
+  const pop = btn.nextElementSibling;
+  const aberto = pop.classList.contains('on');
+  crmMenuFechar();
+  if (!aberto) {
+    pop.classList.add('on');
+    setTimeout(() => document.addEventListener('click', crmMenuFechar, { once: true }), 0);
+  }
+}
+function crmMenuFechar() {
+  document.querySelectorAll('.crm-menu-pop.on').forEach((m) => m.classList.remove('on'));
+}
+
+function crmVendaCardHTML(v) {
+  const podeObs = crmPodeEditarObsVenda(v);
+  const podeGerir = crmPodeGerirVenda(v);
+  const forma = (VENDA_FORMAS_PAGAMENTO.find(([k]) => k === v.forma_pagamento) || [])[1] || '';
+  const temInfo = Boolean(forma || v.pagamento_detalhes || v.observacoes);
+  const vendedor = String(v.vendedor_nome || '').split(' ')[0];
+  const itens = [];
+  if (podeObs) itens.push(['pencil', 'Editar pagamento e observações', `crmVendaEditar('${v.id}')`]);
+  if (podeGerir) itens.push(['trash-2', 'Excluir venda', `crmVendaExcluir('${v.id}')`, true]);
+
+  let det = '';
+  if (_crmVendaEditando === v.id) {
+    det = `<div class="crm-venda-form">
+        <div class="space-y-1"><label>Forma de pagamento</label>
+          <select id="crmv-forma" class="crm360-input"><option value="">—</option>${VENDA_FORMAS_PAGAMENTO.map(([k, l]) => `<option value="${k}" ${v.forma_pagamento === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="space-y-1"><label>Detalhes do pagamento</label>
+          <input id="crmv-detalhes" class="crm360-input" maxlength="300" value="${escapeHTML(v.pagamento_detalhes || '')}" placeholder="Banco, parcelas, entrada, vencimento..."></div>
+        <div class="space-y-1 full"><label>Observações</label>
+          <textarea id="crmv-obs" class="crm360-input" rows="4" maxlength="4000" placeholder="Qualquer informação importante sobre esta venda">${escapeHTML(v.observacoes || '')}</textarea></div>
+      </div>
+      <div class="crm-venda-acts">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="crmVendaCancelar()">Cancelar</button>
+        <button type="button" id="crmv-salvar" class="btn btn-primary btn-sm" onclick="crmVendaSalvar('${v.id}')"><i data-lucide="check"></i> Salvar</button>
+      </div>`;
+  } else if (temInfo) {
+    const quando = v.obs_atualizado_em ? (typeof crmTimeAgo === 'function' ? crmTimeAgo(v.obs_atualizado_em) : formatDate(v.obs_atualizado_em)) : '';
+    det = `${forma || v.pagamento_detalhes ? `<div class="crm-venda-pay">
+          ${forma ? `<span class="chip"><i data-lucide="landmark"></i>${escapeHTML(forma)}</span>` : ''}
+          ${v.pagamento_detalhes ? `<span class="chip o">${escapeHTML(v.pagamento_detalhes)}</span>` : ''}
+        </div>` : ''}
+      ${v.observacoes ? `<div class="crm-venda-obs">${escapeHTML(v.observacoes)}</div>` : ''}
+      <div class="crm-venda-rodape">
+        ${v.obs_atualizado_por ? `<span>Editado por ${escapeHTML(crmNomeAutor(v.obs_atualizado_por))}${quando ? ' · ' + escapeHTML(quando) : ''}</span>` : '<span></span>'}
+        ${podeObs ? `<button type="button" class="btn btn-secondary btn-sm" onclick="crmVendaEditar('${v.id}')"><i data-lucide="pencil"></i> Editar</button>` : ''}
+      </div>`;
+  } else if (podeObs) {
+    det = `<button type="button" class="crm-venda-add" onclick="crmVendaEditar('${v.id}')"><i data-lucide="plus"></i> Adicionar forma de pagamento e observações</button>`;
+  }
+
+  return `
+    <div class="crm-venda">
+      <div class="crm-venda-h">
+        <div class="t">
+          <p class="text-white font-black text-xs uppercase">${escapeHTML(v.kit_nome || 'Venda')}</p>
+          <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(v.created_at)} · ${escapeHTML(String(v.kit_power || '-'))} kWp${vendedor ? ' · vendedor ' + escapeHTML(vendedor) : ''}</p>
+        </div>
+        <div class="crm-venda-acoes">
+        <span class="text-green-400 font-black text-sm">${formatCurrency(v.kit_price || 0)}</span>
+        ${typeof canGerarDocumentos === 'function' && canGerarDocumentos()
+          ? `<button onclick="abrirDocumentosVenda('${v.id}')" title="Gerar contrato e procuração" class="btn btn-secondary btn-sm"><i data-lucide="file-signature"></i> Documentos</button>`
+          : ''}
+        ${itens.length ? crmMenuHTML(itens) : ''}
+        </div>
+      </div>
+      ${det ? `<div class="crm-venda-det">${det}</div>` : ''}
+    </div>`;
+}
+
+function crmNomeAutor(email) {
+  const e = String(email || '').toLowerCase();
+  if (e && e === String(state.currentUser?.email || '').toLowerCase()) return 'você';
+  if (typeof dashVendedorNome === 'function') { const n = dashVendedorNome(email); if (n) return n; }
+  return email;
+}
+
+function crmVendaEditar(id) {
+  _crmVendaEditando = id;
+  renderCrm360();
+  const el = document.getElementById('crmv-forma');
+  if (el) el.focus();
+}
+function crmVendaCancelar() {
+  _crmVendaEditando = null;
+  renderCrm360();
+}
+
+async function crmVendaSalvar(id) {
+  const v = (state.vendas || []).find((x) => x.id === id);
+  if (!v) return;
+  const payload = {
+    forma_pagamento: document.getElementById('crmv-forma')?.value || null,
+    pagamento_detalhes: (document.getElementById('crmv-detalhes')?.value || '').trim() || null,
+    observacoes: (document.getElementById('crmv-obs')?.value || '').trim() || null,
+  };
+  const btn = document.getElementById('crmv-salvar');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Salvando...'; lucide.createIcons(); }
+  const { data, error } = await supabaseClient.from('vendas').update(payload).eq('id', id)
+    .select('forma_pagamento, pagamento_detalhes, observacoes, obs_atualizado_por, obs_atualizado_em').single();
+  if (error) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="check"></i> Salvar'; lucide.createIcons(); }
+    showToast('Não foi possível salvar: ' + error.message);
+    return;
+  }
+  Object.assign(v, data);
+  _crmVendaEditando = null;
+  if (v.cliente_id) {
+    const forma = (VENDA_FORMAS_PAGAMENTO.find(([k]) => k === payload.forma_pagamento) || [])[1];
+    const { error: errTl } = await supabaseClient.from('crm_atividades').insert([{
+      cliente_id: v.cliente_id,
+      franquia_id: v.franquia_id || state.franquiaId,
+      autor_email: state.currentUser?.email || 'sistema',
+      tipo: 'venda',
+      descricao: `Pagamento e observações da venda atualizados${forma ? ' · ' + forma : ''}${payload.pagamento_detalhes ? ' · ' + payload.pagamento_detalhes : ''}`,
+      meta: { acao: 'venda_obs', venda_id: v.id },
+    }]);
+    if (errTl) console.warn('[crmVendaSalvar] Salvo, mas falhou ao registrar na timeline.', errTl);
+    if (_crm360ClientId === v.cliente_id) crmFetchAtividades(v.cliente_id);
+  }
+  showToast('Venda atualizada.');
+  renderCrm360();
+}
+
+// Aplica no estado local o que a RPC mudou (venda sumiu, proposta/cliente voltaram de etapa).
+function _crmAplicarReversao(r, vendaIds) {
+  if (vendaIds && vendaIds.length) state.vendas = (state.vendas || []).filter((x) => !vendaIds.includes(x.id));
+  if (r?.proposta_id && r.proposta_status) {
+    const prop = (state.propostas || []).find((x) => x.id === r.proposta_id);
+    if (prop) prop.status = r.proposta_status;
+  }
+  if (r?.cliente_id && r.cliente_status) {
+    const cli = (state.clientes || []).find((x) => x.id === r.cliente_id);
+    if (cli) cli.status = r.cliente_status;
+  }
+  if (r?.cliente_id && _crm360ClientId === r.cliente_id) crmFetchAtividades(r.cliente_id);
+  if (typeof renderContent === 'function') renderContent();
+  if (_crm360ClientId) renderCrm360();
+}
+
+const _crmEtapaNome = { VISTA: 'Vista', ENVIADA: 'Enviada', GERADA: 'Gerada' };
+function _crmEtapaSemAceite(p) { return p?.vista_em ? 'VISTA' : p?.enviada_em ? 'ENVIADA' : 'GERADA'; }
+
+function crmVendaExcluir(id) {
+  const v = (state.vendas || []).find((x) => x.id === id);
+  if (!v) return;
+  const outrasDoCliente = (state.vendas || []).some((x) => x.id !== id && x.cliente_id && x.cliente_id === v.cliente_id);
+  const prop = v.proposta_id ? (state.propostas || []).find((x) => x.id === v.proposta_id) : null;
+  const linhas = [
+    `Excluir a venda ${v.kit_nome || ''} · ${formatCurrency(v.kit_price || 0)}? Não dá pra desfazer.`,
+    '',
+    '• a venda sai do total do mês, do ranking e da Rede',
+    outrasDoCliente ? '• o cliente continua Fechado (tem outra venda)' : '• o cliente volta para Proposta enviada',
+    prop && propostaStatus(prop) === 'ACEITA' ? `• a proposta volta de Aceita para ${_crmEtapaNome[_crmEtapaSemAceite(prop)]}` : null,
+    '• fica registrado na timeline quem excluiu',
+  ].filter((l) => l !== null);
+  showConfirmModal(linhas.join('\n'), async () => {
+    const { data, error } = await supabaseClient.rpc('venda_excluir', { p_venda_id: id });
+    if (error) { showToast('Não foi possível excluir: ' + error.message); return; }
+    _crmVendaEditando = null;
+    _crmAplicarReversao(data, [id]);
+    showToast('Venda excluída.');
+  }, 'EXCLUIR VENDA');
+}
+
+function crmDesfazerAceite(propostaId) {
+  const p = (state.propostas || []).find((x) => x.id === propostaId);
+  if (!p) return;
+  const vendasLigadas = (state.vendas || []).filter((x) => x.proposta_id === propostaId);
+  const etapa = _crmEtapaNome[_crmEtapaSemAceite(p)];
+  const linhas = [
+    `Desfazer o aceite da proposta ${p.numero ? p.numero + ' · ' : ''}${formatCurrency(propostaPreco(p))}?`,
+    '',
+    `• ela volta para ${etapa}`,
+    vendasLigadas.length
+      ? `• a venda ligada a ela (${vendasLigadas.map((x) => formatCurrency(x.kit_price || 0)).join(', ')}) será EXCLUÍDA`
+      : '• não tem venda ligada a ela, então nada mais muda',
+    '• fica registrado na timeline',
+  ];
+  showConfirmModal(linhas.join('\n'), async () => {
+    const { data, error } = await supabaseClient.rpc('proposta_desfazer_aceite', { p_proposta_id: propostaId });
+    if (error) { showToast('Não foi possível desfazer: ' + error.message); return; }
+    _crmAplicarReversao(data, vendasLigadas.map((x) => x.id));
+    showToast(`Aceite desfeito. Proposta voltou para ${_crmEtapaNome[data?.proposta_status] || etapa}.`);
+  }, 'DESFAZER ACEITE', !!vendasLigadas.length);
 }
 
 function crm360Empty(icon, message) {

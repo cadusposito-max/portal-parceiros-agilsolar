@@ -751,46 +751,12 @@ async function enviarVendaGroner(vendaId, btn) {
   }, 'ENVIAR', false);
 }
 
+// Excluir venda: mesma regra da ficha do cliente (crmVendaExcluir em crm.js).
+// A RPC venda_excluir apaga a venda e já volta proposta (Aceita → etapa anterior)
+// e cliente (Fechado → Proposta enviada), registrando na timeline. Admin e gestor.
 function deleteVenda(id) {
-  if (!state.isAdmin) return;
-
-  showConfirmModal(
-    'Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.',
-    async () => {
-      const vendaExcluida = (state.vendas || []).find((item) => item.id === id) || null;
-
-      const { error } = await supabaseClient.from('vendas').delete().eq('id', id);
-      if (error) {
-        showToast('ERRO AO EXCLUIR VENDA: ' + error.message);
-        return;
-      }
-
-      state.vendas = (state.vendas || []).filter((item) => item.id !== id);
-
-      // Sem essa venda, o cliente não pode continuar "FECHADO" órfão:
-      // se não sobrou nenhuma outra venda dele, volta para a etapa anterior.
-      const clienteId = vendaExcluida?.cliente_id || null;
-      if (clienteId && !(state.vendas || []).some((v) => v.cliente_id === clienteId)) {
-        const cliente = (state.clientes || []).find((c) => c.id === clienteId);
-        if (cliente && String(cliente.status).toUpperCase() === 'FECHADO') {
-          const temProposta = (state.propostas || []).some((p) => p.cliente_id === clienteId);
-          const novoStatus = temProposta ? 'PROPOSTA ENVIADA' : 'NOVO';
-          const { error: statusError } = await supabaseClient.from('clientes').update({ status: novoStatus }).eq('id', clienteId);
-          if (!statusError) {
-            cliente.status = novoStatus;
-            showToast(`VENDA EXCLUÍDA. Cliente voltou para ${novoStatus}.`);
-            renderContent();
-            return;
-          }
-          console.warn('[deleteVenda] Venda excluída, mas falhou ao reverter status do cliente.', statusError);
-        }
-      }
-
-      showToast('VENDA EXCLUÍDA COM SUCESSO.');
-      renderContent();
-    },
-    'EXCLUIR VENDA'
-  );
+  if (typeof crmVendaExcluir === 'function') { crmVendaExcluir(id); return; }
+  showToast('Não foi possível excluir agora. Recarregue a página.');
 }
 
 function exportVendasXLSX() {

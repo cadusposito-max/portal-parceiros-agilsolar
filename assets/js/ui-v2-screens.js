@@ -582,8 +582,15 @@
 
     const kpi = (label, value, icon, color, sub, hero) => `<div class="v2-card v2-kpi ${hero ? 'hero' : ''}" style="cursor:default"><div class="h"><span>${label}</span><div class="ic" style="background:${color}1F;color:${color}">${ic(icon)}</div></div><div class="v">${value}</div><div class="foot"><span>${sub}</span></div></div>`;
     const vista = modo('propostas', 'kanban', ['kanban', 'lista']);
-    // kanban mostra mais de uma vez (várias colunas); lista segue o lote de 12
-    const visible = filtered.slice(0, vista === 'kanban' ? _propostasRenderLimit * 3 : _propostasRenderLimit);
+    // Lista: lote único sobre o filtro. Kanban: o lote vale POR COLUNA — antes era um
+    // lote só (as mais recentes de todas as etapas) repartido nas colunas, e as etapas
+    // pequenas (Enviadas, Vistas, Aceitas) perdiam as propostas mais antigas e a soma.
+    const porEtapa = {};
+    filtered.forEach((p) => { const st = propostaStatus(p); (porEtapa[st] = porEtapa[st] || []).push(p); });
+    const limiteCol = _propostasRenderLimit * 2;
+    const visible = vista === 'kanban'
+      ? Object.keys(PROP_ST).flatMap((st) => (porEtapa[st] || []).slice(0, limiteCol))
+      : filtered.slice(0, _propostasRenderLimit);
     const pill = (v, label) => `<button class="${status === v ? 'on' : ''}" onclick="setPropostasFiltro('status','${v}')">${label}<em>${count[v] || 0}</em></button>`;
     const acoes = (p) => `<div class="v2-acts">
             <button class="v2-sq" title="Copiar link da proposta" onclick="event.stopPropagation(); uiV2Screens.copiarLink('${esc(p.id)}')">${ic('link')}</button>
@@ -600,8 +607,9 @@
         <div class="f"><b>${moneyC(propostaPreco(p))}</b>${acoes(p)}</div>
       </article>`;
     const kanban = () => `<div class="v2-kanban v2-kanban4">${Object.keys(PROP_ST).map((s) => {
-      const items = visible.filter((p) => propostaStatus(p) === s);
-      const soma = items.reduce((a, p) => a + propostaPreco(p), 0);
+      const todos = porEtapa[s] || [];
+      const items = todos.slice(0, limiteCol);
+      const soma = todos.reduce((a, p) => a + propostaPreco(p), 0);
       return `<div class="v2-col"><div class="v2-colh"><i class="dot" style="background:${{ GERADA: '#808284', ENVIADA: '#008FD4', VISTA: '#FAA519', ACEITA: '#1FA971' }[s]}"></i><b>${PROP_ST[s][0]}s</b><em>${count[s] || 0}</em><small>${soma ? moneyC(soma) : ''}</small></div>
         ${items.length ? items.map(kcard).join('') : '<div class="v2-drop">Nenhuma proposta</div>'}</div>`;
     }).join('')}</div>`;
@@ -727,7 +735,7 @@
     const acoesVenda = (v) => { const wa = waVenda(v); return `<div class="v2-acts">
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); enviarVendaGroner('${esc(v.id)}', this)" title="Enviar para a Groner">${ic('send')}</button>` : ''}
-          ${state.isAdmin ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); deleteVenda('${esc(v.id)}')" title="Excluir venda" style="color:#D14343">${ic('trash-2')}</button>` : ''}
+          ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); deleteVenda('${esc(v.id)}')" title="Excluir venda" style="color:#D14343">${ic('trash-2')}</button>` : ''}
         </div>`; };
     const kwpVenda = (v) => (v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—');
     const visiveis = vendas.slice(0, limite);
