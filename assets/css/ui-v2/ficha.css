@@ -260,3 +260,26 @@ html[data-ui="v2"] .v2f:not(.compacto) :is(.v2f-steps, .v2f-sum) { animation: v2
 @media (prefers-reduced-motion: reduce) {
   html[data-ui="v2"] .v2f-mini, html[data-ui="v2"] .v2f :is(.v2f-steps, .v2f-sum) { animation: none; }
 }
+
+/* ---------- aba "Dados" (telas abaixo de 1440px: sem coluna lateral) ---------- */
+html[data-ui="v2"] .v2f-dadosaba { display: flex; flex-direction: column; gap: 14px; }
+html[data-ui="v2"] .v2f-fields4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 14px; }
+html[data-ui="v2"] .v2f-fields4 .span2 { grid-column: span 2; }
+html[data-ui="v2"] .v2f-dadosrow { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+html[data-ui="v2"] .v2f-savebar {
+  position: sticky; bottom: -16px; z-index: 2; display: flex; justify-content: flex-end; margin: 0 -16px -16px; padding: 12px 16px 16px;
+  background: linear-gradient(to bottom, transparent, var(--v2-bg) 45%);
+}
+html[data-ui="v2"] .v2f-savebar .v2f-save { padding: 0 32px; box-shadow: 0 8px 20px rgba(0,143,212,.25); }
+html[data-ui="v2"] .v2f-sumlink { cursor: pointer; }
+html[data-ui="v2"] .v2f-sumlink:hover { background: var(--v2-hover) !important; }
+@media (max-width: 1000px) {
+  html[data-ui="v2"] .v2f-fields4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html[data-ui="v2"] .v2f-dadosrow { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2f-fields4 { grid-template-columns: minmax(0, 1fr); }
+  html[data-ui="v2"] .v2f-fields4 .span2 { grid-column: auto; }
+  html[data-ui="v2"] .v2f-savebar { bottom: -24px; margin: 0 -12px -24px; padding: 12px 12px calc(16px + env(safe-area-inset-bottom)); }
+  html[data-ui="v2"] .v2f-savebar .v2f-save { flex: 1; }
+}

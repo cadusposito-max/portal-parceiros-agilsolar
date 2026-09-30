@@ -32,8 +32,18 @@
   const CHEIA_KEY = 'ui_v2_ficha_cheia';
   const cheia = () => { try { return localStorage.getItem(CHEIA_KEY) === '1'; } catch (_) { return false; } };
   const telaBaixa = () => window.innerHeight < 760;
+  const LARGURA_ABA_DADOS = 1440; // abaixo disso os dados do cliente viram a aba "Dados"
   let expandido = false;
   let fichaDe = null;
+  // redimensionou a janela passando dos 1440px com a ficha aberta: redesenha no layout certo
+  let eraEstreita = window.innerWidth < LARGURA_ABA_DADOS;
+  window.addEventListener('resize', () => {
+    const agora = window.innerWidth < LARGURA_ABA_DADOS;
+    if (agora === eraEstreita) return;
+    eraEstreita = agora;
+    const o = document.getElementById('crm360-overlay');
+    if (window.uiV2.isActive() && o && o.classList.contains('is-open') && has('renderCrm360')) renderCrm360();
+  });
   function ajustarCabecalho() {
     const f = document.querySelector('#crm360-overlay .v2f');
     const sc = document.getElementById('crm360-scroll');
@@ -51,6 +61,17 @@
       const on = !cheia();
       try { localStorage.setItem(CHEIA_KEY, on ? '1' : '0'); } catch (_) {}
       if (has('renderCrm360')) renderCrm360();
+    },
+    // atalhos do resumo (Vistoria / Próxima ação): em tela menor abre a aba Dados antes
+    irDados(alvo) {
+      const acha = () => (alvo === 'vistoria' ? document.getElementById('v2f-vistoria') : (document.getElementById('crm360-proxima-em') || {}).closest?.('.v2f-card'));
+      if (!acha() && typeof _crm360Tab !== 'undefined') { _crm360Tab = 'dados'; renderCrm360(); }
+      requestAnimationFrame(() => {
+        const el = acha();
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      });
     },
     expandir() {
       expandido = true;
@@ -198,7 +219,7 @@
   window.uiV2Vistoria = {
     focar() {
       const card = document.getElementById('v2f-vistoria');
-      if (!card) return;
+      if (!card) { window.uiV2Ficha.irDados('vistoria'); return; } // está na aba Dados
       card.scrollIntoView({ behavior: 'smooth', block: 'start' });
       card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
     },
@@ -260,9 +281,13 @@
     const omFlag = state.omFlags ? state.omFlags[client.id] : null;
     const podeProposta = typeof canOperateClientProposalFlow !== 'function' || canOperateClientProposalFlow(client);
     const docs = has('_crm360DocsAtivo') && _crm360DocsAtivo();
+    // tela menor: os dados saem da coluna lateral e viram a aba "Dados"
+    const estreita = window.innerWidth < LARGURA_ABA_DADOS;
+    if (!estreita && _crm360Tab === 'dados') _crm360Tab = 'timeline';
     const larga = has('_crm360AbaLarga') && _crm360AbaLarga();
 
     const tabs = [['timeline', 'history', 'Timeline'], ['propostas', 'file-text', 'Propostas', propostas.length]];
+    if (estreita) tabs.unshift(['dados', 'id-card', 'Dados']);
     if (podeProposta) tabs.push(['nova', 'file-plus-2', 'Nova proposta', null, 'acc']);
     tabs.push(['vendas', 'trophy', 'Vendas', vendas.length], ['financiamento', 'landmark', 'Financ.']);
     if (has('renderCrmArquivosTab')) tabs.push(['arquivos', 'paperclip', 'Arquivos', `<span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`]);
@@ -301,45 +326,62 @@
             <span class="${proxAtrasada ? 'late' : ''}">Próx. ação <b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })) : 'nenhuma'}</b></span>
             <span>Vistoria <b>${esc(visTx)}</b></span>${ic('chevron-down')}</button>`;
 
-    const cardDados = `
-              <div class="v2f-card">
-                <h3>${ic('user-cog')}Dados do cliente</h3>
-                <div class="v2f-fields">
-                  ${crm360Field('Nome', `<input id="crm360-nome" value="${esc(client.nome || '')}" class="crm360-input">`, 'full')}
+    // campos do cliente (mesmos IDs de crm.js: salvar, máscaras e cidade seguem iguais)
+    const camposDados = (largo) => `
+                  ${crm360Field('Nome', `<input id="crm360-nome" value="${esc(client.nome || '')}" class="crm360-input">`, largo ? 'span2' : 'full')}
                   ${crm360Field('Telefone', `<input id="crm360-telefone" value="${esc(client.telefone || '')}" class="crm360-input">`)}
                   ${crm360Field('E-mail', `<input id="crm360-email" type="email" value="${esc(client.email || '')}" class="crm360-input">`)}
                   ${crm360Field('Cidade/UF', `<div class="relative"><input id="crm360-cidade" value="${esc(client.cidade || '')}" class="crm360-input" autocomplete="off"></div>`)}
                   ${crm360Field('CPF/CNPJ', `<input id="crm360-documento" value="${esc(client.documento || '')}" class="crm360-input">`)}
                   ${crm360Field('CEP', `<input id="crm360-cep" value="${esc(client.cep || '')}" class="crm360-input">`)}
                   ${crm360Field('Origem', `<select id="crm360-origem" class="crm360-input">${clientOrigemOptionsHTML(client.origem)}</select>`)}
-                  ${crm360Field('Endereço', `<input id="crm360-endereco" value="${esc(client.endereco || '')}" class="crm360-input">`, 'full')}
+                  ${crm360Field('Endereço', `<input id="crm360-endereco" value="${esc(client.endereco || '')}" class="crm360-input">`, largo ? 'span2' : 'full')}
                   ${crm360Field('Número', `<input id="crm360-numero" value="${esc(client.numero || '')}" class="crm360-input">`)}
                   ${crm360Field('Bairro', `<input id="crm360-bairro" value="${esc(client.bairro || '')}" class="crm360-input">`)}
                   ${crm360CamposDocumentosHTML(client)}
-                  ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="3" class="crm360-input">${esc(client.observacoes || '')}</textarea>`, 'full')}
+                  ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="3" class="crm360-input">${esc(client.observacoes || '')}</textarea>`, 'full')}`;
+    const cardDados = `
+              <div class="v2f-card">
+                <h3>${ic('user-cog')}Dados do cliente</h3>
+                <div class="v2f-fields">${camposDados(false)}
                 </div>
               </div>`;
-    const cardProx = `
-              <div class="v2f-card">
+    const cardProxSo = `
+              <div class="v2f-card v2f-proxcard">
                 <h3>${ic('alarm-clock')}Próxima ação</h3>
                 <div class="v2f-fields">
                   ${crm360Field('Quando', `<input id="crm360-proxima-em" type="datetime-local" value="${toLocalDatetimeInputValue(client.proxima_acao_em)}" class="crm360-input">`)}
                   ${crm360Field('O que fazer', `<input id="crm360-proxima-nota" value="${esc(client.proxima_acao_nota || '')}" class="crm360-input" placeholder="Ex.: ligar para follow-up">`)}
                 </div>
-              </div>
-              <button onclick="crmSaveClient360()" id="crm360-save-btn" class="v2f-save">${ic('save')}Salvar alterações</button>`;
-    const cardAba = `<div class="v2f-card v2f-tabbody"><div id="crm360-tab-content">${renderCrm360TabContent(client, propostas, vendas)}</div></div>`;
-    // tela cheia: dados | aba | vistoria (3 colunas); painel lateral: como sempre foi
-    const grade = full
-      ? `<div class="v2f-grid v2f-grid3 ${larga ? 'larga' : ''}">
-            <div class="v2f-dados v2f-colA ${larga ? 'hidden' : ''}">${cardDados}${cardProx}</div>
-            ${cardAba}
-            <div class="v2f-dados v2f-colC ${larga ? 'hidden' : ''}">${vistoriaCardHTML(client)}</div>
+              </div>`;
+    const btnSalvar = `<button onclick="crmSaveClient360()" id="crm360-save-btn" class="v2f-save">${ic('save')}Salvar alterações</button>`;
+    const cardProx = cardProxSo + btnSalvar;
+    // só monta o conteúdo da aba quando ele aparece (a aba "Dados" não usa)
+    const cardAba = () => `<div class="v2f-card v2f-tabbody"><div id="crm360-tab-content">${renderCrm360TabContent(client, propostas, vendas)}</div></div>`;
+    let grade;
+    if (estreita) {
+      // tela menor: sem coluna lateral; os dados viram a aba "Dados" em layout largo
+      grade = _crm360Tab === 'dados'
+        ? `<div class="v2f-dadosaba">
+            <div class="v2f-card"><h3>${ic('user-cog')}Contato e endereço</h3><div class="v2f-fields v2f-fields4">${camposDados(true)}
+            </div></div>
+            <div class="v2f-dadosrow">${cardProxSo}${vistoriaCardHTML(client)}</div>
+            <div class="v2f-savebar">${btnSalvar}</div>
           </div>`
-      : `<div class="v2f-grid ${larga ? 'larga' : ''}">
-            <div class="v2f-dados ${larga ? 'hidden' : ''}">${vistoriaCardHTML(client)}${cardDados}${cardProx}</div>
-            ${cardAba}
+        : `<div class="v2f-grid larga">${cardAba()}</div>`;
+    } else if (full) {
+      // tela cheia: dados | aba | vistoria (3 colunas)
+      grade = `<div class="v2f-grid v2f-grid3 ${larga ? 'larga' : ''}">
+            <div class="v2f-dados v2f-colA ${larga ? 'hidden' : ''}">${cardDados}${cardProx}</div>
+            ${cardAba()}
+            <div class="v2f-dados v2f-colC ${larga ? 'hidden' : ''}">${vistoriaCardHTML(client)}</div>
           </div>`;
+    } else {
+      grade = `<div class="v2f-grid ${larga ? 'larga' : ''}">
+            <div class="v2f-dados ${larga ? 'hidden' : ''}">${vistoriaCardHTML(client)}${cardDados}${cardProx}</div>
+            ${cardAba()}
+          </div>`;
+    }
 
     overlay.innerHTML = `
       <div class="v2f">
@@ -371,7 +413,7 @@
             <div><small>Origem</small><b>${esc(origemLbl)}</b></div>
             ${podeTrocarResp() ? `<div class="v2f-sumresp" role="button" tabindex="0" onclick="uiV2Responsavel.abrir('${esc(client.id)}')" onkeydown="if(event.key==='Enter')uiV2Responsavel.abrir('${esc(client.id)}')" title="Trocar responsável"><small>Responsável</small><b>${esc(vend)}${ic('chevron-down')}</b></div>` : `<div><small>Responsável</small><b>${esc(vend)}</b></div>`}
             <div><small>Propostas</small><b>${propostas.length}${vendas.length ? ` · ${vendas.length} venda${vendas.length > 1 ? 's' : ''}` : ''}</b></div>
-            <div class="${proxAtrasada ? 'late' : ''}"><small>Próxima ação</small><b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + prox.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })) : 'Nenhuma'}</b></div>
+            <div class="v2f-sumlink ${proxAtrasada ? 'late' : ''}" role="button" tabindex="0" onclick="uiV2Ficha.irDados('proxima')" title="Ver próxima ação"><small>Próxima ação</small><b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + prox.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })) : 'Nenhuma'}</b></div>
             ${vistoriaResumoHTML(client)}
           </div>
           ${mini}
@@ -384,10 +426,17 @@
       </div>`;
 
     // mesmo pós-render de crm.js
-    if (has('attachCidadeAutocomplete')) attachCidadeAutocomplete(document.getElementById('crm360-cidade'), (mun) => { _crm360Cidade = mun; });
+    // (em tela menor os campos só existem na aba "Dados")
+    const cidadeInput = document.getElementById('crm360-cidade');
+    if (cidadeInput && has('attachCidadeAutocomplete')) attachCidadeAutocomplete(cidadeInput, (mun) => { _crm360Cidade = mun; });
     const telInput = document.getElementById('crm360-telefone');
     if (telInput && has('formatarTelefone')) telInput.addEventListener('input', formatarTelefone);
-    if (has('ligarMascara')) { ligarMascara(document.getElementById('crm360-documento'), 'auto'); ligarMascara(document.getElementById('crm360-cep'), 'cep'); }
+    if (has('ligarMascara')) {
+      const docInput = document.getElementById('crm360-documento');
+      const cepInput = document.getElementById('crm360-cep');
+      if (docInput) ligarMascara(docInput, 'auto');
+      if (cepInput) ligarMascara(cepInput, 'cep');
+    }
     if (_crm360Tab === 'nova') {
       const slot = document.getElementById('crm360-builder-slot');
       const panel = document.getElementById('pb-embedded-panel');
