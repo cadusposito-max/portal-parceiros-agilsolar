@@ -49,11 +49,14 @@
 
   // Campos da ficha técnica.
   const FICHA = {
-    modulo: [['potencia', 'Potência', 'Wp'], ['voc', 'Voc', 'V'], ['vmp', 'Vmp', 'V'], ['isc', 'Isc', 'A'], ['imp', 'Imp', 'A'], ['coef_voc', 'Coef. de temperatura do Voc', '%/°C']],
-    inversor: [['potencia', 'Potência CA', 'W'], ['overload', 'Overload máximo', '%'], ['mppts', 'Nº de MPPTs', ''], ['entradas', 'Entradas por MPPT', 'ex.: 2 ou 2,1'], ['v_max', 'Tensão CC máxima', 'V'], ['v_min_mppt', 'Tensão mínima de MPPT', 'V'], ['i_max_mppt', 'Corrente máx. de curto-circuito por MPPT', 'A']],
+    modulo: [['potencia', 'Potência', 'Wp'], ['voc', 'Voc', 'V'], ['vmp', 'Vmp', 'V'], ['isc', 'Isc', 'A'], ['imp', 'Imp', 'A'], ['coef_voc', 'Coef. de temperatura do Voc', '%/°C'], ['coef_pmax', 'Coef. de temperatura da Pmáx', '%/°C']],
+    inversor: [['potencia', 'Potência CA', 'W'], ['overload', 'Overload máximo', '%'], ['mppts', 'Nº de MPPTs', ''], ['entradas', 'Entradas por MPPT', 'ex.: 2 ou 2,1'], ['v_max', 'Tensão CC máxima', 'V'], ['v_min_mppt', 'Tensão mínima de MPPT', 'V'], ['v_mppt_max', 'Tensão máxima de MPPT (operação)', 'V'], ['i_max_mppt', 'Corrente máx. de curto-circuito por MPPT', 'A']],
     micro: [['potencia', 'Potência CA', 'W'], ['modulos_por_micro', 'Módulos por micro', ''], ['v_max_entrada', 'Tensão máxima por entrada', 'V'], ['i_max_entrada', 'Corrente máxima por entrada', 'A'], ['p_max_entrada', 'Potência máxima por entrada', 'W']],
   };
-  const OPCIONAIS = ['p_max_entrada', 'i_max_entrada', 'overload']; // overload vazio = 50 %
+  const OPCIONAIS = ['p_max_entrada', 'i_max_entrada', 'overload', 'coef_pmax', 'v_mppt_max']; // overload vazio = 50 %
+  // rótulos curtos para a ficha compacta da calculadora
+  const CURTO = { potencia: 'Potência', voc: 'Voc', vmp: 'Vmp', isc: 'Isc', imp: 'Imp', coef_voc: 'Coef. Voc', coef_pmax: 'Coef. Pmáx', overload: 'Overload', mppts: 'MPPTs', entradas: 'Entr./MPPT', v_max: 'V CC máx.', v_min_mppt: 'V mín. MPPT', v_mppt_max: 'V máx. MPPT', i_max_mppt: 'Isc/MPPT', modulos_por_micro: 'Mód./micro', v_max_entrada: 'V máx. entr.', i_max_entrada: 'I máx. entr.', p_max_entrada: 'P máx. entr.' };
+  const TEMP_CELULA = 70;    // °C de célula para o Vmp quente
 
   const E = {
     projetos: null, loading: null, catalogo: null, kits: null, osLista: null,
@@ -202,12 +205,13 @@
   // Cálculo comum (dimensionamento automático e calculadora). O motor é o
   // engCompute da calculadora antiga; com arranjo personalizado, as
   // verificações são refeitas sobre o arranjo informado.
-  // o = { mod, inv (com qtd e ficha), hsp, perdas, tmin, lig, dist, bitola, arranjo? }
+  // o = { mod, inv (com qtd e ficha), hsp, perdas, tmin, tmax, lig, dist, bitola, arranjo? }
   function calcularSistema(o) {
     const { mod, inv } = o;
     const hsp = num(o.hsp) > 0 ? num(o.hsp) : 5.4;
     const perdas = numOu(o.perdas, PERDAS);
     const tmin = numOu(o.tmin, TEMP_MIN);
+    const tmax = numOu(o.tmax, TEMP_CELULA);
     const bitola = num(o.bitola) > 0 ? num(o.bitola) : CABO_CC;
     const dist = num(o.dist);
     const lig = o.lig;
@@ -221,21 +225,23 @@
     const m = mod.ficha, f = inv.ficha;
     const voc = num(m.voc), vmp = num(m.vmp), isc = num(m.isc), imp = num(m.imp), pmod = num(m.potencia), coef = num(m.coef_voc);
     const vocFrio = voc * (1 + (tmin - 25) * (coef / 100));
+    const vmpQuente = vmp * (1 + (tmax - 25) * (coef / 100)); // aproximação pelo coef. do Voc
     const kwp = (mod.qtd * pmod) / 1000;
     const checks = [];
-    const add = (nome, calc, limite, valor, ok) => checks.push({ nome, calc, limite, valor, ok });
+    // n/lim/sentido: números para a barra de "uso do limite"
+    const add = (nome, calc, limite, valor, ok, n, lim, sentido) => checks.push({ nome, calc, limite, valor, ok, n, lim, sentido: sentido || 'max' });
     const potCA = num(f.potencia) * inv.qtd;
     const overloadMax = numOu(f.overload, 50);
-    let res = null, tipo, minSerie = 0;
+    let res = null, tipo, minSerie = 0, maxSerie = 0, maxPar = 0;
 
     if (ehMicro(inv)) {
       tipo = 'micro';
       const porMicro = num(f.modulos_por_micro);
       const cap = porMicro * inv.qtd;
-      add('Módulos por micro', `${mod.qtd} módulos em ${inv.qtd} micros de ${porMicro} entradas`, `≤ ${cap}`, `${mod.qtd}`, mod.qtd <= cap);
-      add('Tensão máxima no frio (' + tmin + ' °C)', 'Voc corrigido de um módulo', `≤ ${nf(f.v_max_entrada, 0)} V`, `${nf(vocFrio, 1)} V`, vocFrio <= num(f.v_max_entrada));
-      if (!vazio(f.i_max_entrada)) add('Corrente por entrada', 'Isc do módulo', `≤ ${nf(f.i_max_entrada, 1)} A`, `${nf(isc, 1)} A`, isc <= num(f.i_max_entrada));
-      if (!vazio(f.p_max_entrada)) add('Potência por entrada', 'Potência do módulo', `≤ ${nf(f.p_max_entrada, 0)} W`, `${nf(pmod, 0)} W`, pmod <= num(f.p_max_entrada));
+      add('Módulos por micro', `${mod.qtd} módulos em ${inv.qtd} micros de ${porMicro} entradas`, `≤ ${cap}`, `${mod.qtd}`, mod.qtd <= cap, mod.qtd, cap);
+      add('Tensão máxima no frio (' + tmin + ' °C)', 'Voc corrigido de um módulo', `≤ ${nf(f.v_max_entrada, 0)} V`, `${nf(vocFrio, 1)} V`, vocFrio <= num(f.v_max_entrada), vocFrio, num(f.v_max_entrada));
+      if (!vazio(f.i_max_entrada)) add('Corrente por entrada', 'Isc do módulo', `≤ ${nf(f.i_max_entrada, 1)} A`, `${nf(isc, 1)} A`, isc <= num(f.i_max_entrada), isc, num(f.i_max_entrada));
+      if (!vazio(f.p_max_entrada)) add('Potência por entrada', 'Potência do módulo', `≤ ${nf(f.p_max_entrada, 0)} W`, `${nf(pmod, 0)} W`, pmod <= num(f.p_max_entrada), pmod, num(f.p_max_entrada));
       const mensal = geracaoMensal(kwp, hsp, perdas);
       res = { monthlyGeneration: mensal, geracaoMedia: mensal.reduce((a, b) => a + b, 0) / 12, micro: { qtd: inv.qtd, porMicro } };
     } else {
@@ -269,20 +275,23 @@
       }
       const usados = distribution.filter((d) => d.numStrings > 0);
       minSerie = Math.min(...usados.map((d) => d.modulesPerString));
-      const maxPar = Math.max(...usados.map((d) => d.numStrings));
-      add('Tensão máxima no frio (' + tmin + ' °C)', 'Voc corrigido da maior string', `≤ ${nf(f.v_max, 0)} V`, `${nf(res.maxVStringGlobal, 1)} V`, res.maxVStringGlobal <= num(f.v_max));
-      add('Tensão mínima de MPPT', 'Vmp da menor string', `≥ ${nf(f.v_min_mppt, 0)} V`, `${nf(vmp * minSerie, 1)} V`, vmp * minSerie >= num(f.v_min_mppt));
-      add('Corrente por MPPT', 'Isc × strings em paralelo', `≤ ${nf(f.i_max_mppt, 1)} A`, `${nf(isc * maxPar, 1)} A`, isc * maxPar <= num(f.i_max_mppt));
+      maxPar = Math.max(...usados.map((d) => d.numStrings));
+      maxSerie = Math.max(...usados.map((d) => d.modulesPerString));
+      add('Tensão máxima no frio (' + tmin + ' °C)', 'Voc corrigido da maior string', `≤ ${nf(f.v_max, 0)} V`, `${nf(res.maxVStringGlobal, 1)} V`, res.maxVStringGlobal <= num(f.v_max), res.maxVStringGlobal, num(f.v_max));
+      add('Tensão mínima de MPPT (quente, ' + tmax + ' °C)', 'Vmp corrigido da menor string', `≥ ${nf(f.v_min_mppt, 0)} V`, `${nf(vmpQuente * minSerie, 1)} V`, vmpQuente * minSerie >= num(f.v_min_mppt), vmpQuente * minSerie, num(f.v_min_mppt), 'min');
+      if (!vazio(f.v_mppt_max)) add('Tensão de MPPT em operação', 'Vmp da maior string (STC)', `≤ ${nf(f.v_mppt_max, 0)} V`, `${nf(vmp * maxSerie, 1)} V`, vmp * maxSerie <= num(f.v_mppt_max), vmp * maxSerie, num(f.v_mppt_max));
+      add('Corrente por MPPT', 'Isc × strings em paralelo', `≤ ${nf(f.i_max_mppt, 1)} A`, `${nf(isc * maxPar, 1)} A`, isc * maxPar <= num(f.i_max_mppt), isc * maxPar, num(f.i_max_mppt));
       const ov = (kwp * 1000 / potCA - 1) * 100;
-      add('Overload', `${nf(kwp, 2)} kWp ÷ ${nf(potCA / 1000, 2)} kW`, `≤ ${nf(overloadMax, 0)} %`, `${nf(ov, 1)} %`, ov <= overloadMax);
+      add('Overload', `${nf(kwp, 2)} kWp ÷ ${nf(potCA / 1000, 2)} kW`, `≤ ${nf(overloadMax, 0)} %`, `${nf(ov, 1)} %`, ov <= overloadMax, ov, overloadMax);
       res.inputs = inputs;
     }
     add('Tipo de ligação', `${inv.nome} (${(REDES_INV.find((x) => x[0] === f.rede) || [, 'rede não informada'])[1]}) com ${LIG[lig] || 'ligação não informada'}`, 'compatível', ligacaoOk(f.rede, lig) ? 'ok' : 'não', !!lig && ligacaoOk(f.rede, lig));
-    let queda = null;
+    let queda = null, quedaInfo = null;
     if (tipo === 'string' && Number.isFinite(dist) && dist > 0) {
       const dv = (0.0172 * 2 * dist / bitola) * imp;
       queda = (dv / (vmp * minSerie)) * 100;
-      add('Queda de tensão CC', `${nf(dist, 0)} m · cabo ${String(bitola).replace('.', ',')} mm² · ${nf(imp, 1)} A`, `≤ ${LIMITE_QUEDA} %`, `${nf(queda, 2)} %`, queda <= LIMITE_QUEDA);
+      quedaInfo = { R: 0.0172 * 2 * dist / bitola, dv, pct: queda, dist, bitola, imp };
+      add('Queda de tensão CC', `${nf(dist, 0)} m · cabo ${String(bitola).replace('.', ',')} mm² · ${nf(imp, 1)} A`, `≤ ${LIMITE_QUEDA} %`, `${nf(queda, 2)} %`, queda <= LIMITE_QUEDA, queda, LIMITE_QUEDA);
     }
     const falhas = checks.filter((c) => !c.ok);
     const fichasConferidas = mod.ficha_conferida && inv.ficha_conferida;
@@ -293,6 +302,7 @@
       distribution: res.distribution || null, micro: res.micro || null, arranjo_personalizado: !!o.arranjo,
       geracaoMedia: res.geracaoMedia, monthlyGeneration: res.monthlyGeneration,
       vocCorrected: vocFrio, inputs: res.inputs || null,
+      tmax, vmpQuente, maxSerie, maxPar, quedaInfo, modEl: { voc, vmp, isc, imp, pmod },
       protecoes: protecoes(potCA / inv.qtd, f.rede), inversores: inv.qtd,
       equipamentos: { modulo: mod, inversor: inv },
       fichas_conferidas: !!fichasConferidas, em: new Date().toISOString(),
@@ -625,45 +635,52 @@
   function pintarKits() { const box = document.getElementById('eg-kits'); if (box) { box.innerHTML = kitsLista(); icons(); } }
 
   // ------------------------------------------------------------ calculadora
-  // Equipamentos do catálogo técnico, valores editáveis, resultado ao clicar
-  // em Validar. Usa o mesmo calcularSistema do dimensionamento automático.
+  // Formato bancada: entradas à esquerda (ficha editável na própria tabela),
+  // diagrama do arranjo em cima e resumo / verificações / geração embaixo.
+  // Resultado só ao clicar em Validar. Mesmo calcularSistema do automático.
   function calcPadrao() {
     const hspF = num(state.franquiaHsp);
     return {
-      modId: '', invId: '', nmod: 9, ninv: 1, hsp: hspF > 0 ? hspF : 5.4, perdas: PERDAS, tmin: TEMP_MIN, lig: 'mono_220',
-      queda: true, dist: 15, bitola: CABO_CC, man: { mod: false, inv: false }, manual: { mod: {}, inv: {} },
+      modId: '', invId: '', nmod: 9, ninv: 1, hsp: hspF > 0 ? hspF : 5.4, perdas: PERDAS, tmin: TEMP_MIN, tmax: TEMP_CELULA,
+      lig: 'mono_220', dist: 15, bitola: CABO_CC, manual: { mod: {}, inv: {} },
       projId: null, res: null, sujo: false, arranjo: null, editArranjo: false,
     };
   }
   const C = () => (E.calc || (E.calc = calcPadrao()));
   const catTipo = (tipo, micro) => (E.catalogo || []).filter((c) => c.ativo !== false && c.tipo === tipo && (micro === undefined || ehMicro(c) === micro));
+  const calcBase = (k) => (E.catalogo || []).find((x) => x.id === (k === 'mod' ? C().modId : C().invId)) || null;
+  const editado = (k) => { const b = calcBase(k); const m = C().manual[k]; return !!b && Object.keys(m).some((f) => String(m[f]).replace(',', '.') !== String((b.ficha || {})[f] ?? '')); };
   function calcEquip(k) {
     const c = C();
-    const base = (E.catalogo || []).find((x) => x.id === (k === 'mod' ? c.modId : c.invId));
+    const base = calcBase(k);
     if (!base) return null;
-    const ficha = c.man[k] ? { ...(base.ficha || {}), ...c.manual[k] } : (base.ficha || {});
-    if (c.man[k]) FICHA[k === 'mod' ? 'modulo' : (ehMicro(base) ? 'micro' : 'inversor')].forEach(([f]) => { if (f !== 'entradas' && ficha[f] !== undefined && ficha[f] !== '') ficha[f] = num(ficha[f]); });
-    return { ...base, ficha, qtd: Math.round(num(k === 'mod' ? c.nmod : c.ninv)) || 0, ficha_conferida: c.man[k] ? false : base.ficha_conferida };
+    const ficha = { ...(base.ficha || {}) };
+    Object.entries(c.manual[k]).forEach(([f, v]) => { ficha[f] = (f === 'entradas' || f === 'rede' || vazio(v)) ? v : num(v); });
+    return { ...base, ficha, qtd: Math.round(num(k === 'mod' ? c.nmod : c.ninv)) || 0, ficha_conferida: editado(k) ? false : base.ficha_conferida };
   }
   function calcGarantirPadrao() {
     const c = C();
     if (!c.modId) { const m = catTipo('modulo').find((x) => fichaOk(x)) || catTipo('modulo')[0]; if (m) c.modId = m.id; }
     if (!c.invId) { const i = catTipo('inversor', false).find((x) => fichaOk(x)) || catTipo('inversor')[0]; if (i) c.invId = i.id; }
   }
-
-  function specHTML(k) {
-    const c = C();
+  function calcStatusTag(k) {
     const eq = calcEquip(k);
-    if (!eq) return '<div class="rd-muted" style="margin-top:8px">Cadastre equipamentos no catálogo técnico.</div>';
-    const tipo = k === 'mod' ? 'modulo' : (ehMicro(eq) ? 'micro' : 'inversor');
-    const f = eq.ficha || {};
-    const falta = camposFaltando(eq, tipo);
-    const chips = FICHA[tipo].filter(([f2]) => f[f2] !== undefined && f[f2] !== '').map(([f2, l, u]) => `<span class="eg-spec">${esc(l)} <b>${esc(String(f[f2]).replace('.', ','))}${u && !u.startsWith('ex') ? ' ' + esc(u) : ''}</b></span>`).join('');
-    const st = c.man[k] ? pill('valores manuais', 'info') : falta.length ? pill('ficha incompleta', 'bad') : eq.ficha_conferida ? pill('ficha conferida', 'ok') : pill('ficha a conferir', 'at');
-    const man = c.man[k] ? `<div class="eg-man">${FICHA[tipo].map(([f2, l, u]) => `<div class="rd-fld"><label>${esc(l)}${u ? ` <span class="rd-muted">(${esc(u)})</span>` : ''}</label><input value="${esc(f[f2] ?? '')}" oninput="EV.cManual('${k}','${f2}',this.value)"></div>`).join('')}
-      ${tipo !== 'modulo' ? `<div class="rd-fld"><label>Rede</label><select onchange="EV.cManual('${k}','rede',this.value)">${REDES_INV.map(([v, l]) => `<option value="${v}" ${f.rede === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}</div>` : '';
-    return `<div class="eg-specs">${st}${chips}<button class="eg-link" onclick="EV.cManualToggle('${k}')">${ic(c.man[k] ? 'rotate-ccw' : 'pencil')}${c.man[k] ? 'Voltar à ficha' : 'Editar valores'}</button></div>
-      ${falta.length && !c.man[k] ? `<p class="rd-tip">${ic('info')}Faltam na ficha: ${esc(falta.join(', '))}. Complete no catálogo técnico ou use "Editar valores".</p>` : ''}${man}`;
+    if (!eq) return '';
+    if (editado(k)) return `${pill('editado', 'info')}<button class="eg-link" onclick="EV.cRestaurar('${k}')">restaurar ficha</button>`;
+    if (camposFaltando(eq, k === 'mod' ? 'modulo' : (ehMicro(eq) ? 'micro' : 'inversor')).length) return pill('ficha incompleta', 'bad');
+    return eq.ficha_conferida ? pill('conferida', 'ok') : pill('a conferir', 'at');
+  }
+  function fichaGrid(k) {
+    const base = calcBase(k);
+    if (!base) return '<div class="rd-muted">Cadastre equipamentos no catálogo técnico.</div>';
+    const tipo = k === 'mod' ? 'modulo' : (ehMicro(base) ? 'micro' : 'inversor');
+    const eq = calcEquip(k), f = eq.ficha || {}, orig = base.ficha || {};
+    const cel = FICHA[tipo].map(([campo, longo, u]) => {
+      const mudou = C().manual[k][campo] !== undefined && String(C().manual[k][campo]).replace(',', '.') !== String(orig[campo] ?? '');
+      return `<label class="eg-fc" title="${esc(longo)}"><span>${esc(CURTO[campo] || longo)}</span><input class="${mudou ? 'mod' : ''}" value="${esc(String(f[campo] ?? '').replace('.', ','))}" placeholder="—" oninput="EV.cFicha('${k}','${campo}',this)"><em>${esc(u && !u.startsWith('ex') ? u : '')}</em></label>`;
+    }).join('');
+    const rede = tipo === 'modulo' ? '' : `<label class="eg-fc full"><span>Rede de saída</span><select onchange="EV.cFicha('${k}','rede',this)">${REDES_INV.map(([v, l]) => `<option value="${v}" ${f.rede === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+    return `<div class="eg-fgrid">${cel}${rede}</div>`;
   }
 
   function telaCalc() {
@@ -671,104 +688,157 @@
     const c = C();
     const projs = (E.projetos || []).filter((p) => !['projeto_concluido', 'cancelado'].includes(p.status));
     const proj = c.projId && (E.projetos || []).find((p) => p.id === c.projId);
-    const optMod = catTipo('modulo').map((x) => `<option value="${x.id}" ${x.id === c.modId ? 'selected' : ''}>${esc(x.nome)}${x.marca ? ' · ' + esc(x.marca) : ''}</option>`).join('');
-    const optInv = `<optgroup label="Inversores">${catTipo('inversor', false).map((x) => `<option value="${x.id}" ${x.id === c.invId ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>
-      <optgroup label="Microinversores">${catTipo('inversor', true).map((x) => `<option value="${x.id}" ${x.id === c.invId ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>`;
-    const qty = (k, v) => `<div class="eg-qty"><button onclick="EV.cQtd('${k}',-1)" aria-label="Menos">−</button><input id="eg-c-${k}" inputmode="numeric" value="${esc(v)}" oninput="EV.cSet('${k}',this.value)"><button onclick="EV.cQtd('${k}',1)" aria-label="Mais">+</button></div>`;
-    const fld = (id, label, v, extra = '') => `<div class="rd-fld"><label>${label}</label><input inputmode="decimal" value="${esc(String(v).replace('.', ','))}" oninput="EV.cSet('${id}',this.value)" ${extra}></div>`;
+    const opt = (lista, sel) => lista.map((x) => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.nome)}${x.marca && x.tipo === 'modulo' ? ' · ' + esc(x.marca) : ''}</option>`).join('');
+    const inp = (id, v, w) => `<input inputmode="decimal" value="${esc(String(v ?? '').replace('.', ','))}" oninput="EV.cSet('${id}',this.value)" ${w ? `style="width:${w}"` : ''}>`;
     return `<div class="rd-bar">
         ${proj ? `<span class="rd-sel">${ic('folder-open')}<b style="font-weight:700">${pnum(proj)} · ${esc(proj.cliente_nome || '')}</b><button class="rd-btn sm ghost" onclick="EV.cProjeto('')" title="Sair do projeto">${ic('x')}</button></span>`
           : `<span class="rd-muted" style="font-weight:600">Simulação avulsa</span><button class="rd-btn" onclick="EV.cProjetoModal()" ${projs.length ? '' : 'disabled title="Nenhum projeto em andamento"'}>${ic('folder-open')}Abrir projeto</button>`}
         <span class="rd-grow"></span>
         <button class="rd-btn ghost" onclick="EV.cLimpar()">${ic('eraser')}Limpar</button>
       </div>
-      <div class="eg-calc">
-        <div>
-          <div class="rd-card rd-mb"><h3>${ic('cpu')}Equipamentos</h3><p class="rd-sub">Puxados do catálogo técnico. Os dados elétricos vêm da ficha de cada um.</p>
-            <div class="eg-eqbox"><div class="eg-eqrow"><div class="rd-fld"><label>Módulo</label><select onchange="EV.cEquip('mod',this.value)">${optMod}</select></div><div class="rd-fld"><label>Quantidade</label>${qty('nmod', c.nmod)}</div></div>${specHTML('mod')}</div>
-            <div class="eg-eqbox"><div class="eg-eqrow"><div class="rd-fld"><label>Inversor ou micro</label><select onchange="EV.cEquip('inv',this.value)">${optInv}</select></div><div class="rd-fld"><label>Quantidade</label>${qty('ninv', c.ninv)}</div></div>${specHTML('inv')}</div>
-          </div>
-          <div class="rd-card rd-mb"><h3>${ic('map-pin')}Local e instalação</h3><p class="rd-sub">HSP da cidade do cliente ou da franquia</p>
-            <div class="eg-g4">${fld('hsp', 'HSP (kWh/m²·dia)', c.hsp)}${fld('perdas', 'Perdas (%)', c.perdas)}${fld('tmin', 'Temp. mínima (°C)', c.tmin)}
-              <div class="rd-fld"><label>Ligação</label><select onchange="EV.cSet('lig',this.value)">${LIGACOES.map(([v, l]) => `<option value="${v}" ${c.lig === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>
-          </div>
-          <div class="rd-card rd-mb"><label class="eg-tog ${c.queda ? 'on' : ''}" onclick="EV.cQueda()"><span class="eg-sw"></span>Queda de tensão nos cabos CC</label>
-            ${c.queda ? `<div class="eg-g2" style="margin-top:12px">${fld('dist', 'Distância módulos → inversor (m)', c.dist)}
-              <div class="rd-fld"><label>Bitola do cabo CC</label><select onchange="EV.cSet('bitola',this.value)">${[4, 6, 10].map((b) => `<option value="${b}" ${num(c.bitola) === b ? 'selected' : ''}>${b} mm²</option>`).join('')}</select></div></div>` : ''}
+      <div class="eg-bench">
+        <div class="eg-bin">
+          <div class="eg-pn"><h4>${ic('grid-3x3')}Módulo<span id="eg-st-mod">${calcStatusTag('mod')}</span></h4>
+            <div class="eg-eqsel"><select onchange="EV.cEquip('mod',this.value)">${opt(catTipo('modulo'), c.modId)}</select><input id="eg-c-nmod" class="eg-qtd" inputmode="numeric" title="Quantidade" value="${esc(c.nmod)}" oninput="EV.cSet('nmod',this.value)"></div>
+            ${fichaGrid('mod')}</div>
+          <div class="eg-pn"><h4>${ic('cpu')}Inversor / micro<span id="eg-st-inv">${calcStatusTag('inv')}</span></h4>
+            <div class="eg-eqsel"><select onchange="EV.cEquip('inv',this.value)"><optgroup label="Inversores">${opt(catTipo('inversor', false), c.invId)}</optgroup><optgroup label="Microinversores">${opt(catTipo('inversor', true), c.invId)}</optgroup></select><input id="eg-c-ninv" class="eg-qtd" inputmode="numeric" title="Quantidade" value="${esc(c.ninv)}" oninput="EV.cSet('ninv',this.value)"></div>
+            ${fichaGrid('inv')}</div>
+          <div class="eg-pn"><h4>${ic('map-pin')}Local e cabos</h4>
+            <div class="eg-lc4"><label>HSP${inp('hsp', c.hsp)}</label><label>Perdas %${inp('perdas', c.perdas)}</label><label>T. mín. °C${inp('tmin', c.tmin)}</label><label>T. célula °C${inp('tmax', c.tmax)}</label></div>
+            <div class="eg-lc2"><label>Ligação<select onchange="EV.cSet('lig',this.value)">${LIGACOES.map(([v, l]) => `<option value="${v}" ${c.lig === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+              <label>Distância CC (m) · bitola<span class="eg-dist">${inp('dist', c.dist)}<select onchange="EV.cSet('bitola',this.value)">${[4, 6, 10].map((b) => `<option value="${b}" ${num(c.bitola) === b ? 'selected' : ''}>${b} mm²</option>`).join('')}</select></span></label></div>
           </div>
           <button class="rd-btn blue eg-validar" onclick="EV.cValidar()">${ic('shield-check')}Validar</button>
+          <div class="eg-sujo" id="eg-c-sujo" ${c.sujo ? '' : 'hidden'}>${ic('refresh-cw')}Valores mudaram: valide de novo</div>
         </div>
-        <div class="eg-calc-res" id="eg-calc-res">${calcResultadoHTML()}</div>
+        <div class="eg-bout" id="eg-calc-res">${calcResultadoHTML()}</div>
       </div>`;
   }
 
+  const usoLimite = (k) => (Number.isFinite(k.n) && Number.isFinite(k.lim) && k.lim > 0 && k.n > 0 ? (k.sentido === 'min' ? (k.lim / k.n) * 100 : (k.n / k.lim) * 100) : null);
   function calcResultadoHTML() {
     const c = C();
     const r = c.res;
-    const aviso = c.sujo && r ? `<div class="rd-note" style="background:var(--v2-orange-50);color:var(--v2-orange-text)">${ic('refresh-cw')}<span>Você mudou os valores. Clique em <b>Validar</b> para atualizar o resultado.</span></div>` : '';
-    if (!r) return `<div class="rd-card rd-empty"><div class="ic">${ic('calculator')}</div><b>Escolha os equipamentos e clique em Validar</b>O resultado aparece aqui: arranjo, verificações, geração e proteções.</div>`;
-    if (!r.checks || !r.checks.length) return `${aviso}<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red)">${ic('circle-alert')}<span><b>Não deu para calcular</b><br><span style="color:var(--v2-ink)">${esc(r.motivo || '')}</span></span></div>${c.arranjo ? `<button class="rd-btn sm" onclick="EV.cArranjoAuto()">${ic('rotate-ccw')}Voltar ao arranjo automático</button>` : ''}`;
+    if (!r) return `<div class="rd-card rd-empty"><div class="ic">${ic('calculator')}</div><b>Escolha os equipamentos e clique em Validar</b>O resultado aparece aqui: diagrama do arranjo, verificações, geração e proteções.</div>`;
+    if (!r.checks || !r.checks.length) return `<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red)">${ic('circle-alert')}<span><b>Não deu para calcular</b><br><span style="color:var(--v2-ink)">${esc(r.motivo || '')}</span></span></div>
+      <div class="rd-card"><p class="rd-sub" style="margin:0">Ajuste os equipamentos ou as quantidades e valide de novo.${r.tipo === 'string' ? ' Se quiser, monte o arranjo na mão.' : ''}</p>
+      ${r.tipo === 'string' && r.inputs ? `<div class="eg-calc-acts">${c.arranjo ? `<button class="rd-btn sm ghost" onclick="EV.cArranjoAuto()">${ic('rotate-ccw')}Voltar ao automático</button>` : ''}<button class="rd-btn sm" onclick="EV.cArranjoNovo()">${ic('settings-2')}Montar arranjo na mão</button></div>${c.editArranjo ? arranjoEditor(r) : ''}` : ''}</div>`;
     const falhou = r.checks.filter((k) => !k.ok);
-    const ov = (r.kwp * 1000 / r.potCA - 1) * 100;
-    const ovCheck = r.checks.find((k) => k.nome === 'Overload');
-    const mx = Math.max(...r.monthlyGeneration);
-    const MES = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
     const proj = c.projId && (E.projetos || []).find((p) => p.id === c.projId);
-    const pr = r.protecoes;
-    return `${aviso}${falhou.length
-        ? `<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red)">${ic('circle-alert')}<span><b>Não passou</b><br><span style="color:var(--v2-ink)">${esc(falhou.map((k) => k.nome).join(', '))}</span></span></div>`
-        : `<div class="rd-note" style="background:rgba(31,169,113,.12);color:#12704A">${ic('circle-check')}<span><b>Dimensionamento válido</b><br><span style="color:var(--v2-ink)">Todas as verificações passaram${r.arranjo_personalizado ? ' (arranjo personalizado)' : ''}</span></span></div>`}
-      <div class="rd-grid eg-k4 rd-mb">
-        <div class="rd-kpi hero"><div class="l">Potência CC</div><div class="v">${nf(r.kwp, 2)} kWp</div><div class="h">${nf(r.potCA / 1000, 2)} kW CA</div></div>
-        <div class="rd-kpi"><div class="l">Overload</div><div class="v" style="color:${ovCheck && !ovCheck.ok ? 'var(--v2-red)' : 'inherit'}">${r.tipo === 'micro' ? '—' : nf(ov, 1) + ' %'}</div><div class="h">${ovCheck ? 'limite ' + esc(ovCheck.limite.replace('≤ ', '')) : 'micro'}</div></div>
-        <div class="rd-kpi"><div class="l">Geração média</div><div class="v">${nf(r.geracaoMedia)}</div><div class="h">kWh/mês</div></div>
-        <div class="rd-kpi"><div class="l">Geração anual</div><div class="v">${nf(r.geracaoMedia * 12 / 1000, 1)}</div><div class="h">MWh/ano</div></div>
-      </div>
-      ${calcArranjoHTML(r)}
-      <div class="rd-card rd-mb"><h3>${ic('list-checks')}Verificações</h3>
-        ${r.checks.map((k) => `<div class="eg-chk"><span class="ic ${k.ok ? 'ok' : 'bad'}">${ic(k.ok ? 'check' : 'x')}</span><div><b>${esc(k.nome)}</b><small>${esc(k.calc)}</small></div><div class="v" style="color:${k.ok ? '#12704A' : 'var(--v2-red)'}">${k.valor === 'ok' ? 'compatível' : k.valor === 'não' ? 'incompatível' : esc(k.valor) + ' <small>' + esc(k.limite) + '</small>'}</div></div>`).join('')}</div>
-      <div class="rd-card rd-mb"><h3>${ic('sun')}Geração mensal</h3><p class="rd-sub">kWh por mês · HSP ${nf(r.hsp, 2)} · perdas ${nf(r.perdas)} %</p>
-        <div class="eg-bars">${r.monthlyGeneration.map((g, i) => `<div title="${nf(g)} kWh"><i style="height:${(g / mx) * 100}%"></i><span>${MES[i]}</span></div>`).join('')}</div></div>
-      ${pr ? `<div class="rd-card rd-mb"><h3>${ic('shield')}Proteções CA <span class="rd-tag man">sugerido</span></h3>
-        <div class="rd-line"><div class="nm">Corrente por inversor</div><div class="val">${nf(pr.corrente, 1)} A</div></div>
-        <div class="rd-line"><div class="nm">Disjuntor</div><div class="val">${pr.disjuntor} A ${pr.polos}</div></div>
-        <div class="rd-line"><div class="nm">Cabo CA</div><div class="val">${String(pr.cabo).replace('.', ',')} mm² · ${pr.condutores}</div></div></div>` : ''}
-      ${proj ? `<div class="eg-calc-acts"><button class="rd-btn pri" id="eg-c-salvar" ${falhou.length || c.sujo ? 'disabled title="Valide um dimensionamento que passe em tudo"' : ''} onclick="EV.cSalvar()">${ic('save')}Salvar no projeto ${pnum(proj)}</button></div>` : ''}`;
+    const anual = r.geracaoMedia * 12;
+    const ov = (r.kwp * 1000 / r.potCA - 1) * 100;
+    const el = r.modEl || {};
+    const kpi = (l, v, hl) => `<div class="${hl ? 'hl' : ''}"><small>${l}</small><b>${v}</b></div>`;
+    const MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const mx = Math.max(...r.monthlyGeneration);
+    const pr = r.protecoes || {};
+    const q = r.quedaInfo;
+    const maxVoc = r.tipo === 'micro' ? r.vocCorrected : (r.maxSerie || 0) * r.vocCorrected;
+    return `<div class="rd-note eg-stat" style="${falhou.length ? 'background:rgba(209,67,67,.1);color:var(--v2-red)' : 'background:rgba(31,169,113,.12);color:#12704A'}">${ic(falhou.length ? 'circle-alert' : 'circle-check')}<span><b>${falhou.length ? 'Não passou' : 'Dimensionamento válido'}</b> · <span style="color:var(--v2-ink)">${falhou.length ? esc(falhou.map((k) => k.nome).join(', ')) : 'Todas as verificações dentro do limite' + (r.arranjo_personalizado ? ' (arranjo personalizado)' : '')}</span></span>
+        ${proj ? `<button class="rd-btn sm pri" id="eg-c-salvar" style="margin-left:auto" ${falhou.length || c.sujo ? 'disabled title="Valide um dimensionamento que passe em tudo"' : ''} onclick="EV.cSalvar()">${ic('save')}Salvar no projeto ${pnum(proj)}</button>` : ''}</div>
+      <div class="eg-pn"><h4>${ic('git-branch')}Arranjo${r.arranjo_personalizado ? ' <span class="rd-tag man">personalizado</span>' : ''}${r.tipo === 'string' && !c.editArranjo ? `<button class="eg-link" onclick="EV.cArranjoEditar(true)">${ic('settings-2')}Personalizar</button>` : ''}</h4>
+        ${c.editArranjo ? arranjoEditor(r) : (r.tipo === 'micro' ? diagramaMicro(r) : diagramaString(r))}
+        <div class="eg-leg"><span><i style="background:var(--v2-orange)"></i>CC · cabo ${String(r.bitola || CABO_CC).replace('.', ',')} mm² solar</span><span><i style="background:var(--v2-blue)"></i>CA · cabo ${String(pr.cabo || '—').replace('.', ',')} mm²</span><span>Voc frio a ${nf(r.tmin)} °C · Vmp quente a ${nf(r.tmax)} °C de célula</span></div></div>
+      <div class="eg-b3">
+        <div>
+          <div class="eg-pn"><h4>${ic('gauge')}Resumo</h4><div class="eg-kp">
+            ${kpi('Potência CC', nf(r.kwp, 2) + ' kWp', true)}${kpi('Potência CA', nf(r.potCA / 1000, 2) + ' kW')}${kpi('CC/CA', nf(r.kwp * 1000 / r.potCA, 2))}
+            ${kpi('Geração/mês', nf(r.geracaoMedia) + ' kWh')}${kpi('Geração/ano', nf(anual) + ' kWh')}${kpi('Produtividade', nf(anual / r.kwp) + ' kWh/kWp')}
+            ${kpi('Overload', r.tipo === 'micro' ? '—' : nf(ov, 1) + ' %')}${kpi('Voc frio', nf(r.vocCorrected, 2) + ' V')}${kpi('Vmp quente', nf(r.vmpQuente, 2) + ' V')}</div></div>
+          ${q ? `<div class="eg-pn"><h4>${ic('cable')}Cabos e queda de tensão CC</h4>
+            <div class="eg-ln"><span>Comprimento (ida e volta)</span><b>${nf(q.dist * 2)} m</b></div><div class="eg-ln"><span>Bitola</span><b>${String(q.bitola).replace('.', ',')} mm² cobre</b></div>
+            <div class="eg-ln"><span>Resistência</span><b>${nf(q.R, 3)} Ω</b></div><div class="eg-ln"><span>Corrente (Imp)</span><b>${nf(q.imp, 2)} A</b></div>
+            <div class="eg-ln"><span>Queda</span><b>${nf(q.dv, 2)} V</b></div><div class="eg-ln"><span>Queda %</span><b style="color:${q.pct <= 1 ? '#12704A' : q.pct <= LIMITE_QUEDA ? 'var(--v2-orange-text)' : 'var(--v2-red)'}">${nf(q.pct, 2)} % · ${q.pct <= 1 ? 'ideal' : q.pct <= LIMITE_QUEDA ? 'atenção' : 'crítico'}</b></div></div>` : ''}
+        </div>
+        <div class="eg-pn"><h4>${ic('list-checks')}Verificações<span class="rd-muted" style="font-weight:600;font-size:11px">uso do limite</span></h4>
+          ${r.checks.map((k) => { const u = usoLimite(k); const cor = !k.ok ? 'var(--v2-red)' : u > 90 ? 'var(--v2-orange)' : 'var(--v2-green)';
+            return `<div class="eg-ck"><span class="ic ${k.ok ? 'ok' : 'bad'}">${ic(k.ok ? 'check' : 'x')}</span><div class="nm"><b>${esc(k.nome)}</b><small>${esc(k.calc)}</small></div>
+              <div class="v" style="color:${k.ok ? '#12704A' : 'var(--v2-red)'}">${k.valor === 'ok' ? 'compatível' : k.valor === 'não' ? 'incompatível' : esc(k.valor)}${k.valor === 'ok' || k.valor === 'não' ? '' : `<small>${esc(k.limite)}</small>`}</div>
+              <div class="fb">${u == null ? '' : `<div class="bar"><i style="width:${Math.min(u, 100)}%;background:${cor}"></i></div><small>${nf(u)}%</small>`}</div></div>`; }).join('')}</div>
+        <div>
+          <div class="eg-pn"><h4>${ic('sun')}Geração mensal (kWh)</h4>
+            <div class="eg-gm">${r.monthlyGeneration.map((g, i) => `<i style="height:${(g / mx) * 100}%" title="${MES[i]}: ${nf(g)} kWh"></i>`).join('')}</div>
+            <div class="eg-gmt">${r.monthlyGeneration.map((g, i) => `<span><small>${MES[i]}</small>${nf(g)}</span>`).join('')}</div></div>
+          <div class="eg-pn"><h4>${ic('shield')}Proteções e cabos <span class="rd-tag man">sugerido</span></h4>
+            <div class="eg-ln"><span>Corrente CA nominal</span><b>${nf(pr.corrente, 1)} A${r.inversores > 1 ? ' / inv.' : ''}</b></div>
+            <div class="eg-ln"><span>Disjuntor CA</span><b>${pr.disjuntor} A ${pr.polos} curva C</b></div>
+            <div class="eg-ln"><span>Cabo CA</span><b>${String(pr.cabo).replace('.', ',')} mm² · ${pr.condutores}</b></div>
+            <div class="eg-ln"><span>DPS CA</span><b>classe II</b></div>
+            ${r.tipo === 'micro' ? '' : `<div class="eg-ln"><span>Cabo CC</span><b>${String(r.bitola).replace('.', ',')} mm² solar</b></div>
+            <div class="eg-ln"><span>DPS CC</span><b>≥ ${nf(Math.ceil(maxVoc / 100) * 100)} V · classe II</b></div>
+            <div class="eg-ln"><span>Fusível de string</span><b>${(r.maxPar || 0) >= 3 ? 'necessário' : 'não precisa'}</b></div>`}</div>
+        </div>
+      </div>`;
   }
 
-  function calcArranjoHTML(r) {
-    const c = C();
-    if (r.micro) {
-      const nMod = C().nmod;
-      return `<div class="rd-card rd-mb"><h3>${ic('grid-3x3')}Arranjo</h3><p class="rd-sub">${r.micro.qtd} microinversores de ${r.micro.porMicro} entradas</p>
-        <div class="eg-mppt">${Array.from({ length: r.micro.qtd }, (_, i) => { const n = Math.max(0, Math.min(r.micro.porMicro, nMod - i * r.micro.porMicro)); return `<div class="eg-mp"><div class="t">Micro ${i + 1}</div><div class="eg-mods">${'<i></i>'.repeat(n)}${'<i class="e"></i>'.repeat(r.micro.porMicro - n)}</div><div class="rd-muted">${n}/${r.micro.porMicro}</div></div>`; }).join('')}</div></div>`;
-    }
+  // Diagrama: strings -> inversor (MPPTs) -> quadro CA -> rede
+  function diagramaString(r) {
     const d = r.distribution || [];
-    const editor = c.editArranjo ? `<div class="eg-arr-ed">${d.map((m, i) => `<div class="eg-arr-row"><b>MPPT ${i + 1}</b>
+    const el = r.modEl || {};
+    const pr = r.protecoes || {};
+    const inv = (r.equipamentos && r.equipamentos.inversor) || {};
+    const fi = inv.ficha || {};
+    const N = Math.max(1, d.length);
+    const linhas = d.map((m, i) => {
+      const strs = m.numStrings ? Array.from({ length: m.numStrings }, (_, j) => `<div class="s"><div class="mods">${'<i></i>'.repeat(m.modulesPerString)}</div>
+        <div class="lb"><b>String ${i + 1}.${j + 1}</b> · ${m.modulesPerString} × ${nf(el.pmod)} W = ${nf(m.modulesPerString * el.pmod / 1000, 2)} kWp<br>
+        Voc ${nf(m.modulesPerString * el.voc, 1)} V · <b>frio ${nf(m.modulesPerString * r.vocCorrected, 1)} V</b> · Vmp ${nf(m.modulesPerString * el.vmp, 1)} V · quente ${nf(m.modulesPerString * r.vmpQuente, 1)} V · Isc ${nf(el.isc, 2)} A · Imp ${nf(el.imp, 2)} A</div></div>`).join('') : '<div class="lb">sem string</div>';
+      return `<div class="grp ${m.numStrings ? '' : 'vz'}" style="grid-row:${i + 1}">${strs}</div><div class="w cc ${m.numStrings ? '' : 'vz'}" style="grid-row:${i + 1}"></div>`;
+    }).join('');
+    const span = `grid-row:1 / span ${N}`;
+    return `<div class="eg-dg">${linhas}
+      <div class="box inv" style="${span}"><div><b>${esc(inv.nome || 'Inversor')}</b>${nf(num(fi.potencia) / 1000, 1)} kW · ${esc(fi.mppts || '?')} MPPT${r.inversores > 1 ? `<br><b class="x">× ${r.inversores} inversores (arranjo igual)</b>` : ''}</div>
+        <div class="ports">${d.map((m, i) => `<span class="${m.numStrings ? '' : 'vz'}">MPPT ${i + 1}${m.numStrings > 1 ? ' · ' + m.numStrings + ' str' : ''}</span>`).join('')}</div>
+        <div>Isc máx. ${nf(el.isc * (r.maxPar || 1), 1)} A · CA ${nf(pr.corrente, 1)} A</div></div>
+      <div class="w ca" style="${span};grid-column:4"></div>
+      <div class="box" style="${span};grid-column:5">${ic('shield')}<b>Quadro CA</b>Disjuntor ${pr.disjuntor} A ${pr.polos}<br>DPS CA classe II<br>Cabo ${String(pr.cabo).replace('.', ',')} mm²</div>
+      <div class="w ca" style="${span};grid-column:6"></div>
+      <div class="box" style="${span};grid-column:7">${ic('zap')}<b>Rede</b>${esc(LIG[C().lig] || '')}</div></div>`;
+  }
+  function diagramaMicro(r) {
+    const el = r.modEl || {};
+    const pr = r.protecoes || {};
+    const inv = (r.equipamentos && r.equipamentos.inversor) || {};
+    const fi = inv.ficha || {};
+    const n = r.micro.qtd, por = r.micro.porMicro, nMod = (r.equipamentos && r.equipamentos.modulo && r.equipamentos.modulo.qtd) || 0;
+    const linhas = Array.from({ length: n }, (_, i) => { const q = Math.max(0, Math.min(por, nMod - i * por));
+      return `<div class="grp" style="grid-row:${i + 1}"><div class="s"><div class="mods">${'<i></i>'.repeat(q)}${'<i class="e"></i>'.repeat(por - q)}</div>
+        <div class="lb"><b>${q} módulo(s)</b> · ${nf(q * el.pmod)} W CC · Voc frio ${nf(r.vocCorrected, 1)} V · Isc ${nf(el.isc, 2)} A</div></div></div>
+        <div class="w cc" style="grid-row:${i + 1}"></div><div class="box mic" style="grid-row:${i + 1}"><b>Micro ${i + 1}</b>${nf(num(fi.potencia))} W · CC/CA ${nf(q * el.pmod / num(fi.potencia), 2)}</div>`; }).join('');
+    const span = `grid-row:1 / span ${n}`;
+    return `<div class="eg-dg">${linhas}<div class="w ca" style="${span};grid-column:4"></div>
+      <div class="box" style="${span};grid-column:5">${ic('shield')}<b>Quadro CA</b>Disjuntor ${pr.disjuntor} A ${pr.polos}<br>DPS CA classe II<br>Cabo ${String(pr.cabo).replace('.', ',')} mm²</div>
+      <div class="w ca" style="${span};grid-column:6"></div><div class="box" style="${span};grid-column:7">${ic('zap')}<b>Rede</b>${esc(LIG[C().lig] || '')}</div></div>`;
+  }
+  function arranjoEditor(r) {
+    const c = C();
+    const inv = calcEquip('inv');
+    const n = Math.max(1, num(inv && inv.ficha && inv.ficha.mppts) || (r.distribution || []).length || 1);
+    const atual = (c.arranjo || r.distribution || []);
+    return `<div class="eg-arr-ed">${Array.from({ length: n }, (_, i) => { const m = atual[i] || { numStrings: 0, modulesPerString: 0 }; return `<div class="eg-arr-row"><b>MPPT ${i + 1}</b>
         <div class="rd-fld"><label>Strings</label><input id="eg-arr-s${i}" inputmode="numeric" value="${m.numStrings}"></div>
-        <div class="rd-fld"><label>Módulos por string</label><input id="eg-arr-m${i}" inputmode="numeric" value="${m.modulesPerString}"></div></div>`).join('')}
-        <div class="eg-calc-acts">${c.arranjo ? `<button class="rd-btn sm ghost" onclick="EV.cArranjoAuto()">${ic('rotate-ccw')}Automático</button>` : ''}<button class="rd-btn sm" onclick="EV.cArranjoEditar(false)">Cancelar</button><button class="rd-btn sm pri" onclick="EV.cArranjoAplicar(${d.length})">${ic('check')}Aplicar e validar</button></div></div>` : '';
-    return `<div class="rd-card rd-mb"><div class="rd-ch"><div><h3>${ic('grid-3x3')}Arranjo${r.arranjo_personalizado ? ' <span class="rd-tag man">personalizado</span>' : ''}</h3><p class="rd-sub">Strings por MPPT${r.inversores > 1 ? `, em cada um dos ${r.inversores} inversores` : ''}</p></div>
-        ${c.editArranjo ? '' : `<button class="rd-btn sm" onclick="EV.cArranjoEditar(true)">${ic('settings-2')}Personalizar</button>`}</div>
-      ${editor || `<div class="eg-mppt">${d.map((m, i) => `<div class="eg-mp"><div class="t">MPPT ${i + 1}</div>${m.numStrings ? Array.from({ length: m.numStrings }, () => `<div class="eg-mods">${'<i></i>'.repeat(m.modulesPerString)}</div>`).join('') : '<div class="rd-muted">vazia</div>'}<div class="rd-muted">${m.numStrings ? `${m.numStrings} × ${m.modulesPerString} módulos` : ''}</div></div>`).join('')}</div>`}</div>`;
+        <div class="rd-fld"><label>Módulos por string</label><input id="eg-arr-m${i}" inputmode="numeric" value="${m.modulesPerString}"></div></div>`; }).join('')}
+      <div class="eg-calc-acts">${c.arranjo ? `<button class="rd-btn sm ghost" onclick="EV.cArranjoAuto()">${ic('rotate-ccw')}Automático</button>` : ''}<button class="rd-btn sm" onclick="EV.cArranjoEditar(false)">Cancelar</button><button class="rd-btn sm pri" onclick="EV.cArranjoAplicar(${n})">${ic('check')}Aplicar e validar</button></div></div>`;
   }
 
   function calcMarcarSujo() {
     const c = C();
-    if (!c.res || c.sujo) return;
+    if (!c.res) return;
     c.sujo = true;
-    const box = document.getElementById('eg-calc-res');
-    if (box) { box.innerHTML = calcResultadoHTML(); icons(); }
+    const el = document.getElementById('eg-c-sujo');
+    if (el) el.hidden = false;
+    const b = document.getElementById('eg-c-salvar');
+    if (b) b.disabled = true;
   }
   function calcValidar() {
     const c = C();
     const mod = calcEquip('mod'), inv = calcEquip('inv');
     if (!mod || !inv) { toast('Escolha o módulo e o inversor.'); return; }
-    c.res = calcularSistema({ mod, inv, hsp: c.hsp, perdas: c.perdas, tmin: c.tmin, lig: c.lig, dist: c.queda ? c.dist : null, bitola: c.bitola, arranjo: c.arranjo });
+    c.res = calcularSistema({ mod, inv, hsp: c.hsp, perdas: c.perdas, tmin: c.tmin, tmax: c.tmax, lig: c.lig, dist: c.dist, bitola: c.bitola, arranjo: c.arranjo });
     c.sujo = false;
+    c.editArranjo = false;
     pintar();
-    const box = document.getElementById('eg-calc-res');
-    if (box && window.innerWidth < 1000) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   // Abre um projeto na calculadora (equipamentos, HSP, ligação e distância do envio).
   function calcAbrirProjeto(id) {
@@ -784,7 +854,7 @@
       if (inv) { c.invId = inv.id; c.ninv = inv.qtd || c.ninv; }
       c.hsp = hspDe(p);
       if (inst.tipo_ligacao) c.lig = inst.tipo_ligacao;
-      if (num(inst.distancia_m) > 0) c.dist = num(inst.distancia_m); else c.queda = false;
+      c.dist = num(inst.distancia_m) > 0 ? num(inst.distancia_m) : '';
       if (p.dim && p.dim.arranjo_personalizado && p.dim.distribution) c.arranjo = p.dim.distribution;
     }
     calcGarantirPadrao();
@@ -1553,18 +1623,34 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     compModal, salvarComp, compFeita: (id) => salvarComp(id, 'feita'), compRemover: (id) => { if (confirm('Remover a compensação deste projeto?')) salvarComp(id, 'remover'); },
     gerarOS, imprimirOS, recalcular, calculadora,
     // calculadora
-    cSet: (k, v) => { const c = C(); c[k] = ['nmod', 'ninv'].includes(k) ? (parseInt(v, 10) || 0) : v; if (['nmod', 'ninv', 'lig', 'bitola'].includes(k)) c.arranjo = null; if (k === 'lig' || k === 'bitola') { c.sujo = !!c.res; pintar(); } else calcMarcarSujo(); },
-    cQtd: (k, d) => { const c = C(); c[k] = Math.max(1, (parseInt(c[k], 10) || 0) + d); c.arranjo = null; const inv = calcEquip('inv'); if (k === 'nmod' && inv && ehMicro(inv)) c.ninv = Math.ceil(c.nmod / (num(inv.ficha.modulos_por_micro) || 4)); c.sujo = !!c.res; pintar(); },
-    cEquip: (k, id) => { const c = C(); c[k === 'mod' ? 'modId' : 'invId'] = id; c.man[k] = false; c.manual[k] = {}; c.arranjo = null; const inv = calcEquip('inv'); if (inv && ehMicro(inv)) c.ninv = Math.ceil(c.nmod / (num(inv.ficha.modulos_por_micro) || 4)); else if (k === 'inv') c.ninv = 1; c.sujo = !!c.res; pintar(); },
-    cManualToggle: (k) => { const c = C(); c.man[k] = !c.man[k]; if (c.man[k]) { const base = (E.catalogo || []).find((x) => x.id === (k === 'mod' ? c.modId : c.invId)); c.manual[k] = { ...((base && base.ficha) || {}) }; } c.sujo = !!c.res; pintar(); },
-    cManual: (k, f, v) => { C().manual[k][f] = v; calcMarcarSujo(); },
-    cQueda: () => { const c = C(); c.queda = !c.queda; c.sujo = !!c.res; pintar(); },
+    cSet: (k, v) => {
+      const c = C();
+      c[k] = ['nmod', 'ninv'].includes(k) ? (parseInt(v, 10) || 0) : v;
+      if (['nmod', 'ninv'].includes(k)) c.arranjo = null;
+      if (k === 'nmod') { const inv = calcEquip('inv'); if (inv && ehMicro(inv)) { c.ninv = Math.ceil(c.nmod / (num(inv.ficha.modulos_por_micro) || 4)); const i = document.getElementById('eg-c-ninv'); if (i) i.value = c.ninv; } }
+      calcMarcarSujo();
+    },
+    cEquip: (k, id) => { const c = C(); c[k === 'mod' ? 'modId' : 'invId'] = id; c.manual[k] = {}; c.arranjo = null; const inv = calcEquip('inv'); if (inv && ehMicro(inv)) c.ninv = Math.ceil(c.nmod / (num(inv.ficha.modulos_por_micro) || 4)); else if (k === 'inv') c.ninv = 1; c.sujo = !!c.res; pintar(); },
+    // edição direto na ficha: marca de laranja o que difere do catálogo, sem redesenhar (mantém o foco)
+    cFicha: (k, campo, el) => {
+      const c = C();
+      const base = calcBase(k);
+      c.manual[k][campo] = el.value;
+      const orig = String(((base && base.ficha) || {})[campo] ?? '');
+      el.classList.toggle('mod', String(el.value).replace(',', '.') !== orig);
+      const st = document.getElementById('eg-st-' + k);
+      if (st) { st.innerHTML = calcStatusTag(k); icons(); }
+      if (['mppts', 'entradas'].includes(campo)) c.arranjo = null;
+      calcMarcarSujo();
+    },
+    cRestaurar: (k) => { const c = C(); c.manual[k] = {}; c.sujo = !!c.res; pintar(); },
     cValidar: calcValidar,
     cLimpar: () => { E.calc = calcPadrao(); calcGarantirPadrao(); pintar(); },
     cProjeto: (id) => { calcAbrirProjeto(id); pintar(); },
     cProjetoModal: calcProjetoModal,
     cProjetoBuscar: (q) => { clearTimeout(EV._tp); EV._tp = setTimeout(() => { const box = document.getElementById('eg-pj-lista'); if (box) { box.innerHTML = calcProjetoLista(q); icons(); } }, 150); },
     cArranjoEditar: (v) => { C().editArranjo = v; pintar(); },
+    cArranjoNovo: () => { const c = C(); c.editArranjo = true; const box = document.getElementById('eg-calc-res'); if (box) { box.innerHTML = calcResultadoHTML(); icons(); } },
     cArranjoAplicar: (n) => { const arr = Array.from({ length: n }, (_, i) => ({ numStrings: val('eg-arr-s' + i), modulesPerString: val('eg-arr-m' + i) })); const c = C(); c.arranjo = arr; c.editArranjo = false; calcValidar(); },
     cArranjoAuto: () => { const c = C(); c.arranjo = null; c.editArranjo = false; calcValidar(); },
     cSalvar: calcSalvar,
