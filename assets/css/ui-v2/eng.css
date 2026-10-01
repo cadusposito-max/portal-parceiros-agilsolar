@@ -166,3 +166,6 @@ body.eg-lock { overflow: hidden; }
   .eg-calc-res { position: static; }
   .eg-k4, .eg-g4, .eg-man { grid-template-columns: 1fr 1fr; }
 }
+.eg-pj { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; color: var(--v2-ink); background: none; border: 0; border-bottom: 1px solid var(--v2-line); padding: 10px 6px; cursor: pointer; border-radius: 10px; }
+.eg-pj:hover { background: var(--v2-hover); }
+.eg-pj b { font-size: 13.5px; }

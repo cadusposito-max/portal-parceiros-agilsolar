@@ -678,7 +678,7 @@
     const fld = (id, label, v, extra = '') => `<div class="rd-fld"><label>${label}</label><input inputmode="decimal" value="${esc(String(v).replace('.', ','))}" oninput="EV.cSet('${id}',this.value)" ${extra}></div>`;
     return `<div class="rd-bar">
         ${proj ? `<span class="rd-sel">${ic('folder-open')}<b style="font-weight:700">${pnum(proj)} · ${esc(proj.cliente_nome || '')}</b><button class="rd-btn sm ghost" onclick="EV.cProjeto('')" title="Sair do projeto">${ic('x')}</button></span>`
-          : `<label class="rd-sel">${ic('folder-open')}<select onchange="EV.cProjeto(this.value)"><option value="">Simulação avulsa</option>${projs.map((p) => `<option value="${p.id}">Abrir projeto ${pnum(p)} · ${esc(p.cliente_nome || '')}</option>`).join('')}</select></label>`}
+          : `<span class="rd-muted" style="font-weight:600">Simulação avulsa</span><button class="rd-btn" onclick="EV.cProjetoModal()" ${projs.length ? '' : 'disabled title="Nenhum projeto em andamento"'}>${ic('folder-open')}Abrir projeto</button>`}
         <span class="rd-grow"></span>
         <button class="rd-btn ghost" onclick="EV.cLimpar()">${ic('eraser')}Limpar</button>
       </div>
@@ -803,6 +803,26 @@
         abrir(id, 'dim');
       } catch (e) { toast(e.message); }
     });
+  }
+
+  // Escolher projeto para abrir na calculadora: busca + poucos resultados.
+  const PROJ_MAX = 8;
+  function calcProjetoModal() {
+    modal(`<h3>Abrir projeto na calculadora</h3><p class="rd-sub">Traz os equipamentos, o HSP, a ligação e a distância do projeto</p>
+      <label class="rd-sel" style="width:100%;margin-top:6px">${ic('search')}<input id="eg-pj-busca" placeholder="Cliente, número do projeto ou cidade" oninput="EV.cProjetoBuscar(this.value)" style="width:100%"></label>
+      <div id="eg-pj-lista" style="margin-top:10px">${calcProjetoLista('')}</div>
+      <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Fechar</button></div>`);
+    setTimeout(() => { const i = document.getElementById('eg-pj-busca'); if (i) i.focus(); }, 30);
+  }
+  function calcProjetoLista(q) {
+    const t = String(q || '').trim().toLowerCase();
+    const todos = (E.projetos || []).filter((p) => !['projeto_concluido', 'cancelado'].includes(p.status))
+      .filter((p) => !t || `${p.cliente_nome || ''} ${pnum(p)} ${p.cidade || ''} ${nomeFranquia(p)}`.toLowerCase().includes(t))
+      .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+    if (!todos.length) return '<div class="rd-empty">Nenhum projeto encontrado.</div>';
+    return todos.slice(0, PROJ_MAX).map((p) => `<button class="eg-pj" onclick="EV.cProjeto('${p.id}');EV.fecharModal()">
+        <div style="flex:1;min-width:0"><b>${esc(p.cliente_nome || 'Cliente')}</b><div class="rd-muted">${pnum(p)} · ${esc(nomeFranquia(p))} · ${nf(p.kwp, 2)} kWp</div></div>${stPill(p)}</button>`).join('')
+      + (todos.length > PROJ_MAX ? `<p class="rd-tip">${ic('info')}Mostrando os ${PROJ_MAX} mais recentes de ${todos.length}. Busque pelo nome para achar os outros.</p>` : '');
   }
 
   // ------------------------------------------------------------ modal genérico
@@ -1542,6 +1562,8 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     cValidar: calcValidar,
     cLimpar: () => { E.calc = calcPadrao(); calcGarantirPadrao(); pintar(); },
     cProjeto: (id) => { calcAbrirProjeto(id); pintar(); },
+    cProjetoModal: calcProjetoModal,
+    cProjetoBuscar: (q) => { clearTimeout(EV._tp); EV._tp = setTimeout(() => { const box = document.getElementById('eg-pj-lista'); if (box) { box.innerHTML = calcProjetoLista(q); icons(); } }, 150); },
     cArranjoEditar: (v) => { C().editArranjo = v; pintar(); },
     cArranjoAplicar: (n) => { const arr = Array.from({ length: n }, (_, i) => ({ numStrings: val('eg-arr-s' + i), modulesPerString: val('eg-arr-m' + i) })); const c = C(); c.arranjo = arr; c.editArranjo = false; calcValidar(); },
     cArranjoAuto: () => { const c = C(); c.arranjo = null; c.editArranjo = false; calcValidar(); },
