@@ -302,6 +302,8 @@
     if (!p.dim_status) return pill('Calculando', 'gray');
     return p.dim_status === 'ok' ? pill('Auto aprovado', 'ok') : pill('Precisa revisão', 'bad');
   }
+  const docsFaltando = (p) => ((p.snapshot && p.snapshot.docs_faltando) || []);
+  const docsPill = (p) => (docsFaltando(p).length && NIVEL[p.status] <= 1 ? `<span class="rd-pill rd-at" title="Faltou: ${esc(docsFaltando(p).join(', '))}">Docs incompletos</span>` : '');
   const compPill = (p) => (p.compensacao ? (p.compensacao.status === 'feita' ? pill('Compensação feita', 'ok') : pill('Compensação pendente', 'at')) : '');
   const alertaPill = (p) => (p.alerta && central() ? `<span class="eg-alerta" title="Algo mudou depois do envio">${ic('triangle-alert')}</span>` : '');
   const kitCurto = (p) => String((p.snapshot && p.snapshot.venda && p.snapshot.venda.kit_nome) || '').replace(/^KIT\s+/i, '');
@@ -466,7 +468,7 @@
       <div class="eg-cnm">${esc(p.cliente_nome || 'Cliente')}${alertaPill(p)}</div>
       <div class="eg-cmt">${pnum(p)} · ${esc(nomeFranquia(p))} · ${nf(p.kwp, 2)} kWp<br>${esc(kitCurto(p).slice(0, 44))}</div>
       ${ultimoMotivo}
-      <div class="eg-cft">${dimPill(p)}${compPill(p)}${p.status === 'projeto_concluido' ? '' : `<span class="eg-dias ${atrasado(p) ? 'late' : ''}">${ic('clock')}${dias(p.status_desde)}d</span>`}<span class="eg-av" title="${esc(p.responsavel_nome || 'Sem responsável')}">${esc(p.responsavel_nome ? ini(p.responsavel_nome) : '—')}</span></div>
+      <div class="eg-cft">${dimPill(p)}${docsPill(p)}${compPill(p)}${p.status === 'projeto_concluido' ? '' : `<span class="eg-dias ${atrasado(p) ? 'late' : ''}">${ic('clock')}${dias(p.status_desde)}d</span>`}<span class="eg-av" title="${esc(p.responsavel_nome || 'Sem responsável')}">${esc(p.responsavel_nome ? ini(p.responsavel_nome) : '—')}</span></div>
     </button>`;
   }
 
@@ -476,7 +478,7 @@
     const chips = `<div class="rd-chips rd-mb"><button class="rd-chip ${!fst ? 'on' : ''}" onclick="EV.verStatus('')">Todos ${base.length}</button>${STATUS.map((s) => { const n = base.filter((p) => p.status === s.id).length; return `<button class="rd-chip ${fst === s.id ? 'on' : ''}" ${n ? '' : 'style="opacity:.55"'} onclick="EV.verStatus('${s.id}')">${esc(s.n)} ${n}</button>`; }).join('')}</div>`;
     return `${chips}<div class="rd-card" style="padding:6px 12px"><table class="rd-t cards"><thead><tr><th>Cliente</th><th>Franquia</th><th>Sistema</th><th>Status</th><th class="r">No status</th><th>Resp.</th></tr></thead><tbody>
       ${rows.map((p) => `<tr class="click" onclick="EV.abrir('${p.id}')">
-        <td class="first"><div class="rd-name">${esc(p.cliente_nome || 'Cliente')} ${alertaPill(p)}</div><div class="rd-muted">${pnum(p)} · ${esc(p.cidade || '')}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${dimPill(p)}${compPill(p)}</div></td>
+        <td class="first"><div class="rd-name">${esc(p.cliente_nome || 'Cliente')} ${alertaPill(p)}</div><div class="rd-muted">${pnum(p)} · ${esc(p.cidade || '')}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${dimPill(p)}${docsPill(p)}${compPill(p)}</div></td>
         <td data-l="Franquia">${esc(nomeFranquia(p))}</td>
         <td data-l="Sistema"><b>${nf(p.kwp, 2)} kWp</b><div class="rd-muted">${esc(kitCurto(p).slice(0, 38))}</div></td>
         <td data-l="Status">${stPill(p)}</td>
@@ -749,7 +751,7 @@
           <h2>${esc(p.cliente_nome || 'Cliente')}</h2>
           <div class="rd-muted">${esc(p.cidade || '')} · ${nf(p.kwp, 2)} kWp · ${esc(LIG[p.snapshot && p.snapshot.instalacao && p.snapshot.instalacao.tipo_ligacao] || 'ligação não informada')} · enviado por ${esc(p.enviado_por_nome || '—')} em ${dataBR(p.created_at)}</div>
         </div>
-        <div class="eg-pacts">${stPill(p)}${dimPill(p)}${compPill(p)}<button class="rd-btn sm ghost" onclick="EV.fechar()" title="Fechar">${ic('x')}</button></div></div>
+        <div class="eg-pacts">${stPill(p)}${dimPill(p)}${docsPill(p)}${compPill(p)}<button class="rd-btn sm ghost" onclick="EV.fechar()" title="Fechar">${ic('x')}</button></div></div>
         ${p.status === 'cancelado' ? '' : `<div class="eg-steps">${LINHA.map((sid) => { const s = ST[sid]; const n = NIVEL[sid]; return `<div class="${n < nivel ? 'done' : n === nivel ? (ruim ? 'bad' : 'cur') : ''}"><i></i><span>${esc(s.n)}</span></div>`; }).join('')}</div>`}
         ${eng ? acoesEng(p) : acoesFranquia(p)}
         <div class="rd-tabs eg-ptabs">${abas.map(([k, i, l]) => `<button class="rd-tab ${E.ptab === k ? 'on' : ''}" onclick="EV.aba('${k}')">${ic(i)}${l}</button>`).join('')}</div>
@@ -880,7 +882,9 @@
   function abaDocs(p) {
     const docs = (p.snapshot && p.snapshot.docs) || [];
     const urls = E.urls || {};
-    return `<div class="rd-card"><h3>${ic('folder-check')}Documentos enviados</h3><p class="rd-sub">Congelados no envio${p.status === 'validacao' || p.status === 'validacao_reprovada' ? '' : ''}. A franquia não consegue apagar estes arquivos enquanto o projeto está em andamento.</p>
+    const faltou = docsFaltando(p);
+    return `<div class="rd-card"><h3>${ic('folder-check')}Documentos enviados</h3><p class="rd-sub">Congelados no envio. A franquia não consegue apagar estes arquivos enquanto o projeto está em andamento.</p>
+      ${faltou.length ? `<div class="rd-note" style="background:var(--v2-orange-50);color:var(--v2-orange-text)">${ic('triangle-alert')}<span><b>Enviado sem:</b> ${esc(faltou.join(', '))}. Se precisar, reprove a validação pedindo esses documentos.</span></div>` : ''}
       ${docs.length ? docs.map((a) => `<div class="eg-doc">${ic(String(a.mime || '').startsWith('image') ? 'image' : 'file-text')}<div style="flex:1;min-width:0"><b>${esc(DOC_LABEL[a.tipo] || a.tipo)}${a.slot ? ' · ' + esc(a.slot) : ''}</b><div class="rd-muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.nome || '')} · ${dataBR(a.em)}</div></div>
         ${urls[a.storage_path] ? `<a class="rd-btn sm" href="${esc(urls[a.storage_path])}" target="_blank" rel="noopener">${ic('eye')}Abrir</a>` : '<span class="rd-muted">...</span>'}</div>`).join('') : '<div class="rd-muted">Nenhum documento.</div>'}
       ${p.cliente_id ? `<p class="rd-tip">${ic('info')}Documentos anexados depois do envio aparecem na timeline como alerta.</p>` : ''}</div>`;
@@ -1285,9 +1289,12 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     if (!client || !vendas.length) return;
     modal(`<div class="rd-loading">${ic('loader-2')}Conferindo documentos e kit...</div>`);
     let falta = [];
+    let nArquivos = 0;
     let kits = [];
     try {
       falta = (await rpc('eng_docs_faltando', { p_cliente: clienteId })) || [];
+      const cnt = await sb().from('cliente_arquivos').select('id', { count: 'exact', head: true }).eq('cliente_id', clienteId);
+      nArquivos = cnt.count || 0;
       const nomes = [...new Set(vendas.map((v) => v.kit_nome).filter(Boolean))];
       const props = vendas.map((v) => v.proposta_id).filter(Boolean);
       const [kp, pp] = await Promise.all([
@@ -1302,9 +1309,12 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     E._envio = { clienteId, kits, vendas };
     const inst = (client.documentos_dados && client.documentos_dados.instalacao) || {};
     const ok = !falta.length;
+    const pode = nArquivos > 0; // só barra quando não há nenhum arquivo
     modal(`<h3>Enviar à engenharia</h3><p class="rd-sub">${esc(client.nome)}</p>
       <div class="eg-conf">
-        <div class="${ok ? 'ok' : 'bad'}">${ic(ok ? 'check' : 'x')}<div><b>Documentos</b><span>${ok ? 'Todos os obrigatórios anexados' : 'Faltam: ' + esc(falta.join(', '))}</span></div></div>
+        <div class="${ok ? 'ok' : pode ? 'at' : 'bad'}">${ic(ok ? 'check' : pode ? 'triangle-alert' : 'x')}<div><b>Documentos</b><span>${ok ? 'Todos os obrigatórios anexados'
+          : pode ? `Faltam: ${esc(falta.join(', '))}. Dá para enviar: a engenharia recebe o aviso e pode devolver pedindo o que falta.`
+          : 'Nenhum documento anexado. Anexe na aba Arquivos antes de enviar.'}</span></div></div>
         <div id="eg-env-kit"></div>
       </div>
       <div class="rd-fgrid">
@@ -1318,7 +1328,7 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
       </div>
       <p class="rd-tip">${ic('lock')}Depois do envio, os documentos e o kit ficam congelados. Mudanças aparecem para a engenharia como alerta.</p>
       <div class="rd-err" id="eg-err"></div>
-      <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Cancelar</button><button class="rd-btn pri" id="eg-env-ok" ${ok ? '' : 'disabled'} onclick="EV.enviar()">${ic('send')}Enviar</button></div>`, true);
+      <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Cancelar</button><button class="rd-btn pri" id="eg-env-ok" ${pode ? '' : 'disabled'} onclick="EV.enviar()">${ic('send')}${ok ? 'Enviar' : pode ? 'Enviar mesmo assim' : 'Enviar'}</button></div>`, true);
     envioKit();
   }
   function envioKit() {
