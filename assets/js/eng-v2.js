@@ -69,6 +69,8 @@
   const toast = (m) => { if (typeof showToast === 'function') showToast(m); };
   const icons = () => { if (typeof queueAppLucideCreateIcons === 'function') queueAppLucideCreateIcons(); else if (window.lucide) window.lucide.createIcons(); };
   const num = (v) => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : NaN; };
+  const vazio = (v) => v === undefined || v === null || String(v).trim() === '';
+  const numOu = (v, padrao) => (vazio(v) || !Number.isFinite(num(v)) ? padrao : num(v)); // campo vazio = padrão (num('') daria 0)
   const nf = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—');
   const dataBR = (s) => (s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('pt-BR') : '—');
   const dataHora = (s) => (s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
@@ -161,10 +163,10 @@
     if (rede === 'mono_220') return lig !== 'mono_127';
     return rede === lig;
   }
-  function geracaoMensal(kwp, hsp) {
+  function geracaoMensal(kwp, hsp, perdas = PERDAS) {
     const dm = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     const fs = [1.15, 1.1, 1.05, 0.95, 0.85, 0.8, 0.8, 0.85, 0.95, 1.05, 1.1, 1.15];
-    const pr = 1 - PERDAS / 100;
+    const pr = 1 - perdas / 100;
     return fs.map((f, i) => kwp * hsp * f * pr * dm[i]);
   }
   function hspDe(p) {
@@ -184,16 +186,33 @@
     return { corrente: i, disjuntor: disj, polos: tri ? 'tripolar' : 'bipolar', cabo, condutores: tri ? '3F + N + PE' : 'F + N + PE' };
   }
 
+  // Dimensionamento do projeto: confere o kit e chama o cálculo comum.
   function dimensionar(p) {
     const sn = p.snapshot || {};
     const mod = sn.modulo, inv = sn.inversor;
-    const lig = sn.instalacao && sn.instalacao.tipo_ligacao;
     const hsp = hspDe(p);
-    const dist = num(sn.instalacao && sn.instalacao.distancia_m);
     const rev = (motivo) => ({ status: 'revisao', motivo, checks: [], hsp, auto: true });
     if (!sn.kit) return rev('Kit da venda não encontrado no catálogo (proposta personalizada ou kit fora da lista)');
     if (!mod || !inv) return rev('O kit "' + sn.kit.nome + '" ainda não tem módulo e inversor ligados');
     if (!(mod.qtd > 0) || !(inv.qtd > 0)) return rev('O vínculo do kit está sem quantidade de módulos ou de inversores');
+    const inst = sn.instalacao || {};
+    return { ...calcularSistema({ mod, inv, hsp, perdas: PERDAS, tmin: TEMP_MIN, lig: inst.tipo_ligacao, dist: num(inst.distancia_m), bitola: CABO_CC }), auto: true };
+  }
+
+  // Cálculo comum (dimensionamento automático e calculadora). O motor é o
+  // engCompute da calculadora antiga; com arranjo personalizado, as
+  // verificações são refeitas sobre o arranjo informado.
+  // o = { mod, inv (com qtd e ficha), hsp, perdas, tmin, lig, dist, bitola, arranjo? }
+  function calcularSistema(o) {
+    const { mod, inv } = o;
+    const hsp = num(o.hsp) > 0 ? num(o.hsp) : 5.4;
+    const perdas = numOu(o.perdas, PERDAS);
+    const tmin = numOu(o.tmin, TEMP_MIN);
+    const bitola = num(o.bitola) > 0 ? num(o.bitola) : CABO_CC;
+    const dist = num(o.dist);
+    const lig = o.lig;
+    const rev = (motivo, extra) => ({ status: 'revisao', motivo, checks: [], hsp, ...(extra || {}) });
+    if (!(mod && mod.qtd > 0) || !(inv && inv.qtd > 0)) return rev('Informe a quantidade de módulos e de inversores');
     const fm = camposFaltando(mod, 'modulo');
     if (fm.length) return rev('Ficha técnica incompleta: ' + mod.nome + ' (' + fm.join(', ') + ')');
     const fi = camposFaltando(inv, ehMicro(inv) ? 'micro' : 'inversor');
@@ -201,11 +220,12 @@
 
     const m = mod.ficha, f = inv.ficha;
     const voc = num(m.voc), vmp = num(m.vmp), isc = num(m.isc), imp = num(m.imp), pmod = num(m.potencia), coef = num(m.coef_voc);
-    const vocFrio = voc * (1 + (TEMP_MIN - 25) * (coef / 100));
+    const vocFrio = voc * (1 + (tmin - 25) * (coef / 100));
     const kwp = (mod.qtd * pmod) / 1000;
     const checks = [];
     const add = (nome, calc, limite, valor, ok) => checks.push({ nome, calc, limite, valor, ok });
     const potCA = num(f.potencia) * inv.qtd;
+    const overloadMax = numOu(f.overload, 50);
     let res = null, tipo, minSerie = 0;
 
     if (ehMicro(inv)) {
@@ -213,52 +233,68 @@
       const porMicro = num(f.modulos_por_micro);
       const cap = porMicro * inv.qtd;
       add('Módulos por micro', `${mod.qtd} módulos em ${inv.qtd} micros de ${porMicro} entradas`, `≤ ${cap}`, `${mod.qtd}`, mod.qtd <= cap);
-      add('Tensão máxima no frio (' + TEMP_MIN + ' °C)', 'Voc corrigido de um módulo', `≤ ${nf(f.v_max_entrada, 0)} V`, `${nf(vocFrio, 1)} V`, vocFrio <= num(f.v_max_entrada));
-      if (Number.isFinite(num(f.i_max_entrada))) add('Corrente por entrada', 'Isc do módulo', `≤ ${nf(f.i_max_entrada, 1)} A`, `${nf(isc, 1)} A`, isc <= num(f.i_max_entrada));
-      if (Number.isFinite(num(f.p_max_entrada))) add('Potência por entrada', 'Potência do módulo', `≤ ${nf(f.p_max_entrada, 0)} W`, `${nf(pmod, 0)} W`, pmod <= num(f.p_max_entrada));
-      const mensal = geracaoMensal(kwp, hsp);
-      res = { potenciaPico: kwp, monthlyGeneration: mensal, geracaoMedia: mensal.reduce((a, b) => a + b, 0) / 12, micro: { qtd: inv.qtd, porMicro } };
+      add('Tensão máxima no frio (' + tmin + ' °C)', 'Voc corrigido de um módulo', `≤ ${nf(f.v_max_entrada, 0)} V`, `${nf(vocFrio, 1)} V`, vocFrio <= num(f.v_max_entrada));
+      if (!vazio(f.i_max_entrada)) add('Corrente por entrada', 'Isc do módulo', `≤ ${nf(f.i_max_entrada, 1)} A`, `${nf(isc, 1)} A`, isc <= num(f.i_max_entrada));
+      if (!vazio(f.p_max_entrada)) add('Potência por entrada', 'Potência do módulo', `≤ ${nf(f.p_max_entrada, 0)} W`, `${nf(pmod, 0)} W`, pmod <= num(f.p_max_entrada));
+      const mensal = geracaoMensal(kwp, hsp, perdas);
+      res = { monthlyGeneration: mensal, geracaoMedia: mensal.reduce((a, b) => a + b, 0) / 12, micro: { qtd: inv.qtd, porMicro } };
     } else {
       tipo = 'string';
       if (typeof engCompute !== 'function') return rev('Motor de cálculo não carregado');
       const inputs = {
         invBrand: inv.marca || '', invModel: inv.nome, modBrand: mod.marca || '', modModel: mod.nome, gridType: lig || '',
-        inverterCount: inv.qtd, moduleCount: mod.qtd, irradiation: hsp, systemLosses: PERDAS,
-        inverterPower: num(f.potencia), overload: Number.isFinite(num(f.overload)) ? num(f.overload) : 50, mpptCount: num(f.mppts),
+        inverterCount: inv.qtd, moduleCount: mod.qtd, irradiation: hsp, systemLosses: perdas,
+        inverterPower: num(f.potencia), overload: overloadMax, mpptCount: num(f.mppts),
         connectorsPerMppt: String(f.entradas).replace(/\s/g, ''), mpptMinV: num(f.v_min_mppt), inverterMaxV: num(f.v_max), mpptMaxA: num(f.i_max_mppt),
-        modulePower: pmod, moduleVmp: vmp, moduleImp: imp, moduleVoc: voc, moduleIsc: isc, tempCoef: coef, minTemp: TEMP_MIN,
-        enableVdropCalc: Number.isFinite(dist) && dist > 0, cableDistance: Number.isFinite(dist) ? dist : 0, dcCableSize: String(CABO_CC), groupingFactor: '0.7',
+        modulePower: pmod, moduleVmp: vmp, moduleImp: imp, moduleVoc: voc, moduleIsc: isc, tempCoef: coef, minTemp: tmin,
+        enableVdropCalc: Number.isFinite(dist) && dist > 0, cableDistance: Number.isFinite(dist) ? dist : 0, dcCableSize: String(bitola), groupingFactor: '0.7',
       };
-      const r = engCompute(inputs);
-      if (r.error) return { ...rev(r.error), inputs };
-      res = r;
-      const usados = r.distribution.filter((d) => d.numStrings > 0);
+      let distribution;
+      if (o.arranjo) {
+        // arranjo personalizado: confere o total e o limite físico de entradas por MPPT
+        distribution = o.arranjo.map((d) => ({ numStrings: Math.max(0, Math.round(num(d.numStrings)) || 0), modulesPerString: Math.max(0, Math.round(num(d.modulesPerString)) || 0) }));
+        const porInv = mod.qtd / inv.qtd;
+        const total = distribution.reduce((a, d) => a + d.numStrings * d.modulesPerString, 0);
+        if (total !== porInv) return rev(`O arranjo soma ${total} módulos por inversor; o sistema tem ${nf(porInv, 1)}`, { inputs, tipo });
+        const lim = String(f.entradas).includes(',') ? String(f.entradas).split(',').map((x) => parseInt(x, 10)) : Array(num(f.mppts)).fill(parseInt(f.entradas, 10));
+        const estoura = distribution.findIndex((d, i) => d.numStrings > (lim[i] || lim[0] || 1));
+        if (estoura >= 0) return rev(`A MPPT ${estoura + 1} tem só ${lim[estoura] || lim[0]} entrada(s)`, { inputs, tipo });
+        const mensal = geracaoMensal(kwp, hsp, perdas);
+        res = { distribution, monthlyGeneration: mensal, geracaoMedia: mensal.reduce((a, b) => a + b, 0) / 12, maxVStringGlobal: Math.max(...distribution.filter((d) => d.numStrings).map((d) => d.modulesPerString)) * vocFrio };
+      } else {
+        const r = engCompute(inputs);
+        if (r.error) return rev(r.error, { inputs, tipo });
+        res = r;
+        distribution = r.distribution;
+      }
+      const usados = distribution.filter((d) => d.numStrings > 0);
       minSerie = Math.min(...usados.map((d) => d.modulesPerString));
       const maxPar = Math.max(...usados.map((d) => d.numStrings));
-      add('Tensão máxima no frio (' + TEMP_MIN + ' °C)', 'Voc corrigido da maior string', `≤ ${nf(f.v_max, 0)} V`, `${nf(r.maxVStringGlobal, 1)} V`, r.maxVStringGlobal <= num(f.v_max));
+      add('Tensão máxima no frio (' + tmin + ' °C)', 'Voc corrigido da maior string', `≤ ${nf(f.v_max, 0)} V`, `${nf(res.maxVStringGlobal, 1)} V`, res.maxVStringGlobal <= num(f.v_max));
       add('Tensão mínima de MPPT', 'Vmp da menor string', `≥ ${nf(f.v_min_mppt, 0)} V`, `${nf(vmp * minSerie, 1)} V`, vmp * minSerie >= num(f.v_min_mppt));
       add('Corrente por MPPT', 'Isc × strings em paralelo', `≤ ${nf(f.i_max_mppt, 1)} A`, `${nf(isc * maxPar, 1)} A`, isc * maxPar <= num(f.i_max_mppt));
       const ov = (kwp * 1000 / potCA - 1) * 100;
-      add('Overload', `${nf(kwp, 2)} kWp ÷ ${nf(potCA / 1000, 2)} kW`, `≤ ${nf(inputs.overload, 0)} %`, `${nf(ov, 1)} %`, ov <= inputs.overload);
+      add('Overload', `${nf(kwp, 2)} kWp ÷ ${nf(potCA / 1000, 2)} kW`, `≤ ${nf(overloadMax, 0)} %`, `${nf(ov, 1)} %`, ov <= overloadMax);
       res.inputs = inputs;
     }
     add('Tipo de ligação', `${inv.nome} (${(REDES_INV.find((x) => x[0] === f.rede) || [, 'rede não informada'])[1]}) com ${LIG[lig] || 'ligação não informada'}`, 'compatível', ligacaoOk(f.rede, lig) ? 'ok' : 'não', !!lig && ligacaoOk(f.rede, lig));
     let queda = null;
     if (tipo === 'string' && Number.isFinite(dist) && dist > 0) {
-      const dv = (0.0172 * 2 * dist / CABO_CC) * imp;
+      const dv = (0.0172 * 2 * dist / bitola) * imp;
       queda = (dv / (vmp * minSerie)) * 100;
-      add('Queda de tensão CC', `${nf(dist, 0)} m · cabo ${CABO_CC} mm² · ${nf(imp, 1)} A`, `≤ ${LIMITE_QUEDA} %`, `${nf(queda, 2)} %`, queda <= LIMITE_QUEDA);
+      add('Queda de tensão CC', `${nf(dist, 0)} m · cabo ${String(bitola).replace('.', ',')} mm² · ${nf(imp, 1)} A`, `≤ ${LIMITE_QUEDA} %`, `${nf(queda, 2)} %`, queda <= LIMITE_QUEDA);
     }
     const falhas = checks.filter((c) => !c.ok);
     const fichasConferidas = mod.ficha_conferida && inv.ficha_conferida;
     return {
-      auto: true, tipo, status: falhas.length ? 'revisao' : 'ok',
+      tipo, status: falhas.length ? 'revisao' : 'ok',
       motivo: falhas.length ? falhas.map((c) => c.nome).join(', ') : (fichasConferidas ? null : 'Ficha técnica ainda não conferida pela engenharia'),
-      checks, hsp, kwp, potCA, queda,
-      distribution: res.distribution || null, micro: res.micro || null,
+      checks, hsp, perdas, tmin, kwp, potCA, queda, bitola,
+      distribution: res.distribution || null, micro: res.micro || null, arranjo_personalizado: !!o.arranjo,
       geracaoMedia: res.geracaoMedia, monthlyGeneration: res.monthlyGeneration,
       vocCorrected: vocFrio, inputs: res.inputs || null,
       protecoes: protecoes(potCA / inv.qtd, f.rede), inversores: inv.qtd,
+      equipamentos: { modulo: mod, inversor: inv },
       fichas_conferidas: !!fichasConferidas, em: new Date().toISOString(),
     };
   }
@@ -333,11 +369,7 @@
       icons();
       return;
     }
-    if (E.tab === 'calculadora') {
-      if (typeof renderEngCalculadora === 'function') renderEngCalculadora(container);
-      return;
-    }
-    await carregarTela(container, E.tab === 'catalogo');
+    await carregarTela(container, E.tab === 'catalogo' || E.tab === 'calculadora');
   }
 
   async function renderEngProjetosComercial(container) {
@@ -381,7 +413,7 @@
     if (!c || !document.body.contains(c)) { pintarDrawer(); return; }
     const naTela = (E.ctx === 'eng' && state.environment === 'engenharia') || (E.ctx === 'com' && state.environment !== 'engenharia' && state.activeTab === 'engprojetos');
     if (!naTela) { pintarDrawer(); return; }
-    const corpo = E.ctx === 'com' ? telaFunil() : ({ visao: telaVisao, funil: telaFunil, os: telaOS, catalogo: telaCatalogo }[E.tab] || telaVisao)();
+    const corpo = E.ctx === 'com' ? telaFunil() : ({ visao: telaVisao, funil: telaFunil, os: telaOS, catalogo: telaCatalogo, calculadora: telaCalc }[E.tab] || telaVisao)();
     const y = window.scrollY;
     c.innerHTML = `<div class="rd eg">${corpo}</div>`;
     pintarDrawer();
@@ -591,6 +623,187 @@
           ${E.kitLimite > KITS_PASSO ? `<button class="rd-btn sm ghost" onclick="EV.kitMenos()">${ic('chevron-up')}Recolher</button>` : ''}</div>`;
   }
   function pintarKits() { const box = document.getElementById('eg-kits'); if (box) { box.innerHTML = kitsLista(); icons(); } }
+
+  // ------------------------------------------------------------ calculadora
+  // Equipamentos do catálogo técnico, valores editáveis, resultado ao clicar
+  // em Validar. Usa o mesmo calcularSistema do dimensionamento automático.
+  function calcPadrao() {
+    const hspF = num(state.franquiaHsp);
+    return {
+      modId: '', invId: '', nmod: 9, ninv: 1, hsp: hspF > 0 ? hspF : 5.4, perdas: PERDAS, tmin: TEMP_MIN, lig: 'mono_220',
+      queda: true, dist: 15, bitola: CABO_CC, man: { mod: false, inv: false }, manual: { mod: {}, inv: {} },
+      projId: null, res: null, sujo: false, arranjo: null, editArranjo: false,
+    };
+  }
+  const C = () => (E.calc || (E.calc = calcPadrao()));
+  const catTipo = (tipo, micro) => (E.catalogo || []).filter((c) => c.ativo !== false && c.tipo === tipo && (micro === undefined || ehMicro(c) === micro));
+  function calcEquip(k) {
+    const c = C();
+    const base = (E.catalogo || []).find((x) => x.id === (k === 'mod' ? c.modId : c.invId));
+    if (!base) return null;
+    const ficha = c.man[k] ? { ...(base.ficha || {}), ...c.manual[k] } : (base.ficha || {});
+    if (c.man[k]) FICHA[k === 'mod' ? 'modulo' : (ehMicro(base) ? 'micro' : 'inversor')].forEach(([f]) => { if (f !== 'entradas' && ficha[f] !== undefined && ficha[f] !== '') ficha[f] = num(ficha[f]); });
+    return { ...base, ficha, qtd: Math.round(num(k === 'mod' ? c.nmod : c.ninv)) || 0, ficha_conferida: c.man[k] ? false : base.ficha_conferida };
+  }
+  function calcGarantirPadrao() {
+    const c = C();
+    if (!c.modId) { const m = catTipo('modulo').find((x) => fichaOk(x)) || catTipo('modulo')[0]; if (m) c.modId = m.id; }
+    if (!c.invId) { const i = catTipo('inversor', false).find((x) => fichaOk(x)) || catTipo('inversor')[0]; if (i) c.invId = i.id; }
+  }
+
+  function specHTML(k) {
+    const c = C();
+    const eq = calcEquip(k);
+    if (!eq) return '<div class="rd-muted" style="margin-top:8px">Cadastre equipamentos no catálogo técnico.</div>';
+    const tipo = k === 'mod' ? 'modulo' : (ehMicro(eq) ? 'micro' : 'inversor');
+    const f = eq.ficha || {};
+    const falta = camposFaltando(eq, tipo);
+    const chips = FICHA[tipo].filter(([f2]) => f[f2] !== undefined && f[f2] !== '').map(([f2, l, u]) => `<span class="eg-spec">${esc(l)} <b>${esc(String(f[f2]).replace('.', ','))}${u && !u.startsWith('ex') ? ' ' + esc(u) : ''}</b></span>`).join('');
+    const st = c.man[k] ? pill('valores manuais', 'info') : falta.length ? pill('ficha incompleta', 'bad') : eq.ficha_conferida ? pill('ficha conferida', 'ok') : pill('ficha a conferir', 'at');
+    const man = c.man[k] ? `<div class="eg-man">${FICHA[tipo].map(([f2, l, u]) => `<div class="rd-fld"><label>${esc(l)}${u ? ` <span class="rd-muted">(${esc(u)})</span>` : ''}</label><input value="${esc(f[f2] ?? '')}" oninput="EV.cManual('${k}','${f2}',this.value)"></div>`).join('')}
+      ${tipo !== 'modulo' ? `<div class="rd-fld"><label>Rede</label><select onchange="EV.cManual('${k}','rede',this.value)">${REDES_INV.map(([v, l]) => `<option value="${v}" ${f.rede === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>` : ''}</div>` : '';
+    return `<div class="eg-specs">${st}${chips}<button class="eg-link" onclick="EV.cManualToggle('${k}')">${ic(c.man[k] ? 'rotate-ccw' : 'pencil')}${c.man[k] ? 'Voltar à ficha' : 'Editar valores'}</button></div>
+      ${falta.length && !c.man[k] ? `<p class="rd-tip">${ic('info')}Faltam na ficha: ${esc(falta.join(', '))}. Complete no catálogo técnico ou use "Editar valores".</p>` : ''}${man}`;
+  }
+
+  function telaCalc() {
+    calcGarantirPadrao();
+    const c = C();
+    const projs = (E.projetos || []).filter((p) => !['projeto_concluido', 'cancelado'].includes(p.status));
+    const proj = c.projId && (E.projetos || []).find((p) => p.id === c.projId);
+    const optMod = catTipo('modulo').map((x) => `<option value="${x.id}" ${x.id === c.modId ? 'selected' : ''}>${esc(x.nome)}${x.marca ? ' · ' + esc(x.marca) : ''}</option>`).join('');
+    const optInv = `<optgroup label="Inversores">${catTipo('inversor', false).map((x) => `<option value="${x.id}" ${x.id === c.invId ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>
+      <optgroup label="Microinversores">${catTipo('inversor', true).map((x) => `<option value="${x.id}" ${x.id === c.invId ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>`;
+    const qty = (k, v) => `<div class="eg-qty"><button onclick="EV.cQtd('${k}',-1)" aria-label="Menos">−</button><input id="eg-c-${k}" inputmode="numeric" value="${esc(v)}" oninput="EV.cSet('${k}',this.value)"><button onclick="EV.cQtd('${k}',1)" aria-label="Mais">+</button></div>`;
+    const fld = (id, label, v, extra = '') => `<div class="rd-fld"><label>${label}</label><input inputmode="decimal" value="${esc(String(v).replace('.', ','))}" oninput="EV.cSet('${id}',this.value)" ${extra}></div>`;
+    return `<div class="rd-bar">
+        ${proj ? `<span class="rd-sel">${ic('folder-open')}<b style="font-weight:700">${pnum(proj)} · ${esc(proj.cliente_nome || '')}</b><button class="rd-btn sm ghost" onclick="EV.cProjeto('')" title="Sair do projeto">${ic('x')}</button></span>`
+          : `<label class="rd-sel">${ic('folder-open')}<select onchange="EV.cProjeto(this.value)"><option value="">Simulação avulsa</option>${projs.map((p) => `<option value="${p.id}">Abrir projeto ${pnum(p)} · ${esc(p.cliente_nome || '')}</option>`).join('')}</select></label>`}
+        <span class="rd-grow"></span>
+        <button class="rd-btn ghost" onclick="EV.cLimpar()">${ic('eraser')}Limpar</button>
+      </div>
+      <div class="eg-calc">
+        <div>
+          <div class="rd-card rd-mb"><h3>${ic('cpu')}Equipamentos</h3><p class="rd-sub">Puxados do catálogo técnico. Os dados elétricos vêm da ficha de cada um.</p>
+            <div class="eg-eqbox"><div class="eg-eqrow"><div class="rd-fld"><label>Módulo</label><select onchange="EV.cEquip('mod',this.value)">${optMod}</select></div><div class="rd-fld"><label>Quantidade</label>${qty('nmod', c.nmod)}</div></div>${specHTML('mod')}</div>
+            <div class="eg-eqbox"><div class="eg-eqrow"><div class="rd-fld"><label>Inversor ou micro</label><select onchange="EV.cEquip('inv',this.value)">${optInv}</select></div><div class="rd-fld"><label>Quantidade</label>${qty('ninv', c.ninv)}</div></div>${specHTML('inv')}</div>
+          </div>
+          <div class="rd-card rd-mb"><h3>${ic('map-pin')}Local e instalação</h3><p class="rd-sub">HSP da cidade do cliente ou da franquia</p>
+            <div class="eg-g4">${fld('hsp', 'HSP (kWh/m²·dia)', c.hsp)}${fld('perdas', 'Perdas (%)', c.perdas)}${fld('tmin', 'Temp. mínima (°C)', c.tmin)}
+              <div class="rd-fld"><label>Ligação</label><select onchange="EV.cSet('lig',this.value)">${LIGACOES.map(([v, l]) => `<option value="${v}" ${c.lig === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>
+          </div>
+          <div class="rd-card rd-mb"><label class="eg-tog ${c.queda ? 'on' : ''}" onclick="EV.cQueda()"><span class="eg-sw"></span>Queda de tensão nos cabos CC</label>
+            ${c.queda ? `<div class="eg-g2" style="margin-top:12px">${fld('dist', 'Distância módulos → inversor (m)', c.dist)}
+              <div class="rd-fld"><label>Bitola do cabo CC</label><select onchange="EV.cSet('bitola',this.value)">${[4, 6, 10].map((b) => `<option value="${b}" ${num(c.bitola) === b ? 'selected' : ''}>${b} mm²</option>`).join('')}</select></div></div>` : ''}
+          </div>
+          <button class="rd-btn blue eg-validar" onclick="EV.cValidar()">${ic('shield-check')}Validar</button>
+        </div>
+        <div class="eg-calc-res" id="eg-calc-res">${calcResultadoHTML()}</div>
+      </div>`;
+  }
+
+  function calcResultadoHTML() {
+    const c = C();
+    const r = c.res;
+    const aviso = c.sujo && r ? `<div class="rd-note" style="background:var(--v2-orange-50);color:var(--v2-orange-text)">${ic('refresh-cw')}<span>Você mudou os valores. Clique em <b>Validar</b> para atualizar o resultado.</span></div>` : '';
+    if (!r) return `<div class="rd-card rd-empty"><div class="ic">${ic('calculator')}</div><b>Escolha os equipamentos e clique em Validar</b>O resultado aparece aqui: arranjo, verificações, geração e proteções.</div>`;
+    if (!r.checks || !r.checks.length) return `${aviso}<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red)">${ic('circle-alert')}<span><b>Não deu para calcular</b><br><span style="color:var(--v2-ink)">${esc(r.motivo || '')}</span></span></div>${c.arranjo ? `<button class="rd-btn sm" onclick="EV.cArranjoAuto()">${ic('rotate-ccw')}Voltar ao arranjo automático</button>` : ''}`;
+    const falhou = r.checks.filter((k) => !k.ok);
+    const ov = (r.kwp * 1000 / r.potCA - 1) * 100;
+    const ovCheck = r.checks.find((k) => k.nome === 'Overload');
+    const mx = Math.max(...r.monthlyGeneration);
+    const MES = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+    const proj = c.projId && (E.projetos || []).find((p) => p.id === c.projId);
+    const pr = r.protecoes;
+    return `${aviso}${falhou.length
+        ? `<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red)">${ic('circle-alert')}<span><b>Não passou</b><br><span style="color:var(--v2-ink)">${esc(falhou.map((k) => k.nome).join(', '))}</span></span></div>`
+        : `<div class="rd-note" style="background:rgba(31,169,113,.12);color:#12704A">${ic('circle-check')}<span><b>Dimensionamento válido</b><br><span style="color:var(--v2-ink)">Todas as verificações passaram${r.arranjo_personalizado ? ' (arranjo personalizado)' : ''}</span></span></div>`}
+      <div class="rd-grid eg-k4 rd-mb">
+        <div class="rd-kpi hero"><div class="l">Potência CC</div><div class="v">${nf(r.kwp, 2)} kWp</div><div class="h">${nf(r.potCA / 1000, 2)} kW CA</div></div>
+        <div class="rd-kpi"><div class="l">Overload</div><div class="v" style="color:${ovCheck && !ovCheck.ok ? 'var(--v2-red)' : 'inherit'}">${r.tipo === 'micro' ? '—' : nf(ov, 1) + ' %'}</div><div class="h">${ovCheck ? 'limite ' + esc(ovCheck.limite.replace('≤ ', '')) : 'micro'}</div></div>
+        <div class="rd-kpi"><div class="l">Geração média</div><div class="v">${nf(r.geracaoMedia)}</div><div class="h">kWh/mês</div></div>
+        <div class="rd-kpi"><div class="l">Geração anual</div><div class="v">${nf(r.geracaoMedia * 12 / 1000, 1)}</div><div class="h">MWh/ano</div></div>
+      </div>
+      ${calcArranjoHTML(r)}
+      <div class="rd-card rd-mb"><h3>${ic('list-checks')}Verificações</h3>
+        ${r.checks.map((k) => `<div class="eg-chk"><span class="ic ${k.ok ? 'ok' : 'bad'}">${ic(k.ok ? 'check' : 'x')}</span><div><b>${esc(k.nome)}</b><small>${esc(k.calc)}</small></div><div class="v" style="color:${k.ok ? '#12704A' : 'var(--v2-red)'}">${k.valor === 'ok' ? 'compatível' : k.valor === 'não' ? 'incompatível' : esc(k.valor) + ' <small>' + esc(k.limite) + '</small>'}</div></div>`).join('')}</div>
+      <div class="rd-card rd-mb"><h3>${ic('sun')}Geração mensal</h3><p class="rd-sub">kWh por mês · HSP ${nf(r.hsp, 2)} · perdas ${nf(r.perdas)} %</p>
+        <div class="eg-bars">${r.monthlyGeneration.map((g, i) => `<div title="${nf(g)} kWh"><i style="height:${(g / mx) * 100}%"></i><span>${MES[i]}</span></div>`).join('')}</div></div>
+      ${pr ? `<div class="rd-card rd-mb"><h3>${ic('shield')}Proteções CA <span class="rd-tag man">sugerido</span></h3>
+        <div class="rd-line"><div class="nm">Corrente por inversor</div><div class="val">${nf(pr.corrente, 1)} A</div></div>
+        <div class="rd-line"><div class="nm">Disjuntor</div><div class="val">${pr.disjuntor} A ${pr.polos}</div></div>
+        <div class="rd-line"><div class="nm">Cabo CA</div><div class="val">${String(pr.cabo).replace('.', ',')} mm² · ${pr.condutores}</div></div></div>` : ''}
+      ${proj ? `<div class="eg-calc-acts"><button class="rd-btn pri" id="eg-c-salvar" ${falhou.length || c.sujo ? 'disabled title="Valide um dimensionamento que passe em tudo"' : ''} onclick="EV.cSalvar()">${ic('save')}Salvar no projeto ${pnum(proj)}</button></div>` : ''}`;
+  }
+
+  function calcArranjoHTML(r) {
+    const c = C();
+    if (r.micro) {
+      const nMod = C().nmod;
+      return `<div class="rd-card rd-mb"><h3>${ic('grid-3x3')}Arranjo</h3><p class="rd-sub">${r.micro.qtd} microinversores de ${r.micro.porMicro} entradas</p>
+        <div class="eg-mppt">${Array.from({ length: r.micro.qtd }, (_, i) => { const n = Math.max(0, Math.min(r.micro.porMicro, nMod - i * r.micro.porMicro)); return `<div class="eg-mp"><div class="t">Micro ${i + 1}</div><div class="eg-mods">${'<i></i>'.repeat(n)}${'<i class="e"></i>'.repeat(r.micro.porMicro - n)}</div><div class="rd-muted">${n}/${r.micro.porMicro}</div></div>`; }).join('')}</div></div>`;
+    }
+    const d = r.distribution || [];
+    const editor = c.editArranjo ? `<div class="eg-arr-ed">${d.map((m, i) => `<div class="eg-arr-row"><b>MPPT ${i + 1}</b>
+        <div class="rd-fld"><label>Strings</label><input id="eg-arr-s${i}" inputmode="numeric" value="${m.numStrings}"></div>
+        <div class="rd-fld"><label>Módulos por string</label><input id="eg-arr-m${i}" inputmode="numeric" value="${m.modulesPerString}"></div></div>`).join('')}
+        <div class="eg-calc-acts">${c.arranjo ? `<button class="rd-btn sm ghost" onclick="EV.cArranjoAuto()">${ic('rotate-ccw')}Automático</button>` : ''}<button class="rd-btn sm" onclick="EV.cArranjoEditar(false)">Cancelar</button><button class="rd-btn sm pri" onclick="EV.cArranjoAplicar(${d.length})">${ic('check')}Aplicar e validar</button></div></div>` : '';
+    return `<div class="rd-card rd-mb"><div class="rd-ch"><div><h3>${ic('grid-3x3')}Arranjo${r.arranjo_personalizado ? ' <span class="rd-tag man">personalizado</span>' : ''}</h3><p class="rd-sub">Strings por MPPT${r.inversores > 1 ? `, em cada um dos ${r.inversores} inversores` : ''}</p></div>
+        ${c.editArranjo ? '' : `<button class="rd-btn sm" onclick="EV.cArranjoEditar(true)">${ic('settings-2')}Personalizar</button>`}</div>
+      ${editor || `<div class="eg-mppt">${d.map((m, i) => `<div class="eg-mp"><div class="t">MPPT ${i + 1}</div>${m.numStrings ? Array.from({ length: m.numStrings }, () => `<div class="eg-mods">${'<i></i>'.repeat(m.modulesPerString)}</div>`).join('') : '<div class="rd-muted">vazia</div>'}<div class="rd-muted">${m.numStrings ? `${m.numStrings} × ${m.modulesPerString} módulos` : ''}</div></div>`).join('')}</div>`}</div>`;
+  }
+
+  function calcMarcarSujo() {
+    const c = C();
+    if (!c.res || c.sujo) return;
+    c.sujo = true;
+    const box = document.getElementById('eg-calc-res');
+    if (box) { box.innerHTML = calcResultadoHTML(); icons(); }
+  }
+  function calcValidar() {
+    const c = C();
+    const mod = calcEquip('mod'), inv = calcEquip('inv');
+    if (!mod || !inv) { toast('Escolha o módulo e o inversor.'); return; }
+    c.res = calcularSistema({ mod, inv, hsp: c.hsp, perdas: c.perdas, tmin: c.tmin, lig: c.lig, dist: c.queda ? c.dist : null, bitola: c.bitola, arranjo: c.arranjo });
+    c.sujo = false;
+    pintar();
+    const box = document.getElementById('eg-calc-res');
+    if (box && window.innerWidth < 1000) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  // Abre um projeto na calculadora (equipamentos, HSP, ligação e distância do envio).
+  function calcAbrirProjeto(id) {
+    const p = (E.projetos || []).find((x) => x.id === id);
+    E.calc = calcPadrao();
+    const c = E.calc;
+    if (p) {
+      const sn = p.snapshot || {}, inst = sn.instalacao || {};
+      const eqs = (p.dim && p.dim.equipamentos) || {};
+      const mod = eqs.modulo || sn.modulo, inv = eqs.inversor || sn.inversor;
+      c.projId = p.id;
+      if (mod) { c.modId = mod.id; c.nmod = mod.qtd || c.nmod; }
+      if (inv) { c.invId = inv.id; c.ninv = inv.qtd || c.ninv; }
+      c.hsp = hspDe(p);
+      if (inst.tipo_ligacao) c.lig = inst.tipo_ligacao;
+      if (num(inst.distancia_m) > 0) c.dist = num(inst.distancia_m); else c.queda = false;
+      if (p.dim && p.dim.arranjo_personalizado && p.dim.distribution) c.arranjo = p.dim.distribution;
+    }
+    calcGarantirPadrao();
+  }
+  async function calcSalvar() {
+    const c = C();
+    const r = c.res;
+    if (!r || !c.projId || c.sujo || r.checks.some((k) => !k.ok)) return;
+    const d = { ...r, manual: true, status: 'ok', motivo: null };
+    await ocupado('eg-c-salvar', async () => {
+      try {
+        await rpc('eng_salvar_dim', { p_id: c.projId, p_dim: d, p_status: 'ok', p_motivo: null });
+        toast('Dimensionamento salvo no projeto');
+        const id = c.projId;
+        await recarregarProjeto(id);
+        abrir(id, 'dim');
+      } catch (e) { toast(e.message); }
+    });
+  }
 
   // ------------------------------------------------------------ modal genérico
   function modal(html, largo) {
@@ -1070,67 +1283,11 @@
     } catch (e) { toast(e.message); }
   }
 
-  // Abre a calculadora antiga já preenchida com o projeto.
+  // "Ajustar na calculadora": abre o projeto na calculadora nova.
   function calculadora(id) {
-    const p = (E.projetos || []).find((x) => x.id === id);
-    if (!p || !state.eng) return;
-    const d = p.dim || {};
-    const sn = p.snapshot || {};
-    const m = (d.equipamentos && d.equipamentos.modulo) || sn.modulo || {}, inv = (d.equipamentos && d.equipamentos.inversor) || sn.inversor || {};
-    const fm = m.ficha || {}, fi = inv.ficha || {};
-    state.eng.inputs = d.inputs ? { ...d.inputs } : {
-      modBrand: m.marca || '', modModel: m.nome || '', invBrand: inv.marca || '', invModel: inv.nome || '',
-      moduleCount: m.qtd, inverterCount: inv.qtd, irradiation: hspDe(p), systemLosses: PERDAS,
-      inverterPower: num(fi.potencia), overload: num(fi.overload), mpptCount: num(fi.mppts), connectorsPerMppt: fi.entradas || '',
-      mpptMinV: num(fi.v_min_mppt), inverterMaxV: num(fi.v_max), mpptMaxA: num(fi.i_max_mppt),
-      modulePower: num(fm.potencia), moduleVmp: num(fm.vmp), moduleImp: num(fm.imp), moduleVoc: num(fm.voc), moduleIsc: num(fm.isc), tempCoef: num(fm.coef_voc), minTemp: TEMP_MIN,
-    };
-    Object.keys(state.eng.inputs).forEach((k) => { if (typeof state.eng.inputs[k] === 'number' && !Number.isFinite(state.eng.inputs[k])) delete state.eng.inputs[k]; });
-    state.eng.lastResult = null;
-    state.eng.currentProjectId = p.id;
-    state.eng.currentProjectName = `${pnum(p)} · ${p.cliente_nome || ''}`;
+    calcAbrirProjeto(id);
     fechar();
     if (typeof setTab === 'function') setTab('calculadora');
-  }
-
-  // Rodapé da calculadora quando ela foi aberta a partir de um projeto.
-  function engCalcRodapeProjeto() {
-    if (!state.eng || !state.eng.currentProjectId || !(E.projetos || []).some((p) => p.id === state.eng.currentProjectId)) return '';
-    return `<div class="mt-6 bg-neutral-900/60 border border-neutral-800 p-3">
-      <button onclick="EV.salvarDaCalculadora()" class="w-full px-5 py-3 bg-neutral-800 border border-neutral-700 hover:border-sky-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-1.5"><i data-lucide="save" class="w-4 h-4"></i> Salvar no projeto ${esc(state.eng.currentProjectName || '')}</button>
-      <p class="text-[10px] text-neutral-600 mt-2 text-center">O resultado vira o dimensionamento do projeto (marcado como ajustado pelo engenheiro).</p></div>`;
-  }
-  async function salvarDaCalculadora() {
-    const r = state.eng && state.eng.lastResult;
-    const id = state.eng && state.eng.currentProjectId;
-    if (!r || !id) { toast('Valide o dimensionamento antes de salvar.'); return; }
-    const p = (E.projetos || []).find((x) => x.id === id);
-    const i = r.inputs;
-    const potCA = i.inverterPower * i.inverterCount;
-    const usados = r.distribution.filter((d) => d.numStrings > 0);
-    const minS = Math.min(...usados.map((d) => d.modulesPerString)), maxPar = Math.max(...usados.map((d) => d.numStrings));
-    const lig = p && p.snapshot && p.snapshot.instalacao && p.snapshot.instalacao.tipo_ligacao;
-    const rede = p && p.snapshot && p.snapshot.inversor && p.snapshot.inversor.ficha && p.snapshot.inversor.ficha.rede;
-    const ov = (r.potenciaPico * 1000 / potCA - 1) * 100;
-    const d = {
-      manual: true, tipo: 'string', status: 'ok', checks: [
-        { nome: 'Tensão máxima no frio (' + i.minTemp + ' °C)', calc: 'Voc corrigido da maior string', limite: `≤ ${nf(i.inverterMaxV)} V`, valor: `${nf(r.maxVStringGlobal, 1)} V`, ok: r.maxVStringGlobal <= i.inverterMaxV },
-        { nome: 'Tensão mínima de MPPT', calc: 'Vmp da menor string', limite: `≥ ${nf(i.mpptMinV)} V`, valor: `${nf(i.moduleVmp * minS, 1)} V`, ok: i.moduleVmp * minS >= i.mpptMinV },
-        { nome: 'Corrente por MPPT', calc: 'Isc × strings em paralelo', limite: `≤ ${nf(i.mpptMaxA, 1)} A`, valor: `${nf(i.moduleIsc * maxPar, 1)} A`, ok: i.moduleIsc * maxPar <= i.mpptMaxA },
-        { nome: 'Overload', calc: `${nf(r.potenciaPico, 2)} kWp ÷ ${nf(potCA / 1000, 2)} kW`, limite: `≤ ${nf(i.overload)} %`, valor: `${nf(ov, 1)} %`, ok: ov <= i.overload },
-      ],
-      hsp: i.irradiation, kwp: r.potenciaPico, potCA, distribution: r.distribution, geracaoMedia: r.geracaoMedia, monthlyGeneration: r.monthlyGeneration,
-      vocCorrected: r.vocCorrected, inputs: i, inversores: i.inverterCount, protecoes: protecoes(i.inverterPower, rede || (lig && lig.startsWith('tri') ? lig : 'mono_220')),
-      fichas_conferidas: true, em: new Date().toISOString(),
-    };
-    try {
-      await rpc('eng_salvar_dim', { p_id: id, p_dim: d, p_status: 'ok', p_motivo: null });
-      toast('Dimensionamento salvo no projeto');
-      state.eng.currentProjectId = null;
-      if (typeof setTab === 'function') setTab('funil');
-      await recarregarProjeto(id);
-      abrir(id, 'dim');
-    } catch (e) { toast(e.message); }
   }
 
   // ------------------------------------------------------------ impressão da OS
@@ -1364,7 +1521,7 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
 
   // ------------------------------------------------------------ exposição
   const EV = {
-    recarregar: async () => { E.projetos = null; E.catalogo = null; E.osLista = null; if (E.ctx === 'eng' && E.tab === 'catalogo') await carregarCatalogo(true); if (E.container) carregarTela(E.container, E.tab === 'catalogo'); },
+    recarregar: async () => { E.projetos = null; E.catalogo = null; E.osLista = null; if (E.container) carregarTela(E.container, E.tab === 'catalogo' || E.tab === 'calculadora'); },
     buscar: (q) => { E.busca = q; clearTimeout(EV._t); EV._t = setTimeout(() => { pintar(); const i = E.container && E.container.querySelector('.rd-bar input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200); },
     franquia: (v) => { E.fr = v; pintar(); },
     view: (v) => { E.view = v; lsSet('eng_view', v); pintar(); },
@@ -1374,7 +1531,21 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     verStatus: (s) => { E.fst = s; E.view = 'lista'; if (E.tab !== 'funil' && E.ctx === 'eng' && typeof setTab === 'function') setTab('funil'); else pintar(); },
     abrir, fechar, aba: (k) => { E.ptab = k; pintarDrawer(); }, mudar, confirmarMudar, assumir, reenviar, comentar, salvarConc,
     compModal, salvarComp, compFeita: (id) => salvarComp(id, 'feita'), compRemover: (id) => { if (confirm('Remover a compensação deste projeto?')) salvarComp(id, 'remover'); },
-    gerarOS, imprimirOS, recalcular, calculadora, salvarDaCalculadora,
+    gerarOS, imprimirOS, recalcular, calculadora,
+    // calculadora
+    cSet: (k, v) => { const c = C(); c[k] = ['nmod', 'ninv'].includes(k) ? (parseInt(v, 10) || 0) : v; if (['nmod', 'ninv', 'lig', 'bitola'].includes(k)) c.arranjo = null; if (k === 'lig' || k === 'bitola') { c.sujo = !!c.res; pintar(); } else calcMarcarSujo(); },
+    cQtd: (k, d) => { const c = C(); c[k] = Math.max(1, (parseInt(c[k], 10) || 0) + d); c.arranjo = null; const inv = calcEquip('inv'); if (k === 'nmod' && inv && ehMicro(inv)) c.ninv = Math.ceil(c.nmod / (num(inv.ficha.modulos_por_micro) || 4)); c.sujo = !!c.res; pintar(); },
+    cEquip: (k, id) => { const c = C(); c[k === 'mod' ? 'modId' : 'invId'] = id; c.man[k] = false; c.manual[k] = {}; c.arranjo = null; const inv = calcEquip('inv'); if (inv && ehMicro(inv)) c.ninv = Math.ceil(c.nmod / (num(inv.ficha.modulos_por_micro) || 4)); else if (k === 'inv') c.ninv = 1; c.sujo = !!c.res; pintar(); },
+    cManualToggle: (k) => { const c = C(); c.man[k] = !c.man[k]; if (c.man[k]) { const base = (E.catalogo || []).find((x) => x.id === (k === 'mod' ? c.modId : c.invId)); c.manual[k] = { ...((base && base.ficha) || {}) }; } c.sujo = !!c.res; pintar(); },
+    cManual: (k, f, v) => { C().manual[k][f] = v; calcMarcarSujo(); },
+    cQueda: () => { const c = C(); c.queda = !c.queda; c.sujo = !!c.res; pintar(); },
+    cValidar: calcValidar,
+    cLimpar: () => { E.calc = calcPadrao(); calcGarantirPadrao(); pintar(); },
+    cProjeto: (id) => { calcAbrirProjeto(id); pintar(); },
+    cArranjoEditar: (v) => { C().editArranjo = v; pintar(); },
+    cArranjoAplicar: (n) => { const arr = Array.from({ length: n }, (_, i) => ({ numStrings: val('eg-arr-s' + i), modulesPerString: val('eg-arr-m' + i) })); const c = C(); c.arranjo = arr; c.editArranjo = false; calcValidar(); },
+    cArranjoAuto: () => { const c = C(); c.arranjo = null; c.editArranjo = false; calcValidar(); },
+    cSalvar: calcSalvar,
     fichaModal, fichaTipo, salvarFicha, kitModal, salvarKit, vincularTodos, fecharModal,
     kitBuscar: (q) => { E.kitBusca = q; E.kitLimite = KITS_PASSO; clearTimeout(EV._tk); EV._tk = setTimeout(pintarKits, 150); },
     kitFiltrar: (v) => { E.kitFiltro = v; E.kitLimite = KITS_PASSO; pintar(); },
@@ -1389,7 +1560,6 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
   window.engFichaChip = engFichaChip;
   window.engSeloCard = engSeloCard;
   window.renderEngFichaTab = renderEngFichaTab;
-  window.engCalcRodapeProjeto = engCalcRodapeProjeto;
   window.engCarregarProjetos = carregarProjetos;
 
   document.addEventListener('keydown', (e) => {

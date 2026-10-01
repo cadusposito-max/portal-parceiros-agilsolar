@@ -118,3 +118,51 @@ body.eg-lock { overflow: hidden; }
 
 .eg-mais { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 10px 2px 0; }
 .eg-mais .rd-muted { margin-right: auto; }
+
+/* calculadora */
+.eg-calc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 16px; align-items: start; }
+.eg-calc-res { position: sticky; top: 14px; }
+.eg-eqbox { border: 1px solid var(--v2-line); border-radius: 16px; padding: 12px; margin-bottom: 10px; background: var(--v2-soft); }
+.eg-eqrow { display: grid; grid-template-columns: minmax(0, 1fr) 128px; gap: 10px; align-items: end; }
+.eg-specs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.eg-spec { font-size: 12px; font-weight: 600; background: var(--v2-card); border: 1px solid var(--v2-line); border-radius: 8px; padding: 3px 8px; color: var(--v2-ink-2); }
+.eg-spec b { color: var(--v2-ink); }
+.eg-link { border: 0; background: none; color: var(--v2-blue-text); font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer; padding: 0; display: inline-flex; gap: 5px; align-items: center; margin-left: auto; }
+.eg-link svg.lucide { width: 14px; height: 14px; }
+.eg-man { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.eg-qty { display: flex; align-items: center; border: 1px solid var(--v2-line-strong); border-radius: var(--v2-r-ctl); background: var(--v2-card); height: 40px; overflow: hidden; }
+.eg-qty button { width: 34px; height: 100%; border: 0; background: none; color: var(--v2-ink-2); font: inherit; font-size: 18px; cursor: pointer; }
+.eg-qty button:hover { background: var(--v2-hover); }
+.eg-qty input { border: 0 !important; box-shadow: none !important; width: 100%; height: 100% !important; text-align: center; background: none; color: var(--v2-ink); font: inherit; font-weight: 800; outline: 0; padding: 0 !important; }
+.eg-g4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.eg-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.eg-tog { display: flex; align-items: center; gap: 10px; font-weight: 700; cursor: pointer; user-select: none; }
+.eg-sw { width: 38px; height: 22px; border-radius: 99px; background: var(--v2-line-strong); position: relative; transition: background .2s; flex: none; }
+.eg-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .2s; }
+.eg-tog.on .eg-sw { background: var(--v2-blue); }
+.eg-tog.on .eg-sw::after { left: 19px; }
+.eg-validar { width: 100%; justify-content: center; height: 46px; font-size: 15px; }
+.eg-k4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.eg-k4 .rd-kpi .v { font-size: 20px; }
+.eg-chk { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--v2-line); align-items: center; font-size: 13px; }
+.eg-chk:last-child { border-bottom: 0; }
+.eg-chk .ic { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+.eg-chk .ic svg.lucide { width: 14px; height: 14px; }
+.eg-chk .ic.ok { background: rgba(31,169,113,.13); color: #12704A; }
+.eg-chk .ic.bad { background: rgba(209,67,67,.12); color: var(--v2-red); }
+.eg-chk small { display: block; color: var(--v2-ink-2); font-size: 11.5px; }
+.eg-chk .v { margin-left: auto; font-weight: 800; white-space: nowrap; text-align: right; }
+.eg-chk .v small { display: inline; font-weight: 600; }
+.eg-bars { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding-top: 8px; }
+.eg-bars div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.eg-bars i { display: block; width: 100%; border-radius: 6px 6px 2px 2px; background: var(--v2-blue); min-height: 4px; }
+.eg-bars span { font-size: 10px; color: var(--v2-gray); font-weight: 700; }
+.eg-calc-acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
+.eg-arr-ed { display: grid; gap: 8px; }
+.eg-arr-row { display: grid; grid-template-columns: 80px 1fr 1fr; gap: 10px; align-items: end; }
+.eg-arr-row b { padding-bottom: 10px; }
+@media (max-width: 1000px) {
+  .eg-calc { grid-template-columns: 1fr; }
+  .eg-calc-res { position: static; }
+  .eg-k4, .eg-g4, .eg-man { grid-template-columns: 1fr 1fr; }
+}
