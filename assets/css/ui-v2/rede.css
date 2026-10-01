@@ -36,6 +36,7 @@ html[data-ui="v2"] .rd { color: var(--v2-ink); font-size: 14px; }
 .rd-grid { display: grid; gap: 14px; }
 .rd-k4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .rd-k5 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.rd-k3 { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); }
 .rd-two { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
 .rd-half { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .rd-mb { margin-bottom: 14px; }
@@ -55,6 +56,14 @@ html[data-ui="v2"] .rd { color: var(--v2-ink); font-size: 14px; }
 .rd-kpi.hero .l, .rd-kpi.hero .h { color: #fff; font-weight: 600; }
 .rd-kpi.hero .rd-delta { background: rgba(255,255,255,.2); color: #fff; }
 
+/* receitas da franqueadora: título da seção com o total + barra do peso de cada receita */
+.rd-sec { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 6px 2px 10px; }
+.rd-sec h3 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; color: var(--v2-ink); }
+.rd-sec h3 svg.lucide { width: 18px; height: 18px; color: var(--v2-blue); }
+.rd-sec > span { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--v2-ink-2); }
+.rd-sec > span b { font-size: 16px; font-weight: 800; color: var(--v2-ink); }
+.rd-recbar { height: 5px; border-radius: 5px; background: var(--v2-line); margin-top: 10px; overflow: hidden; }
+.rd-recbar i { display: block; height: 100%; border-radius: 5px; background: var(--v2-blue); transition: width .4s ease; }
 .rd-delta { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .rd-delta svg.lucide { width: 13px; height: 13px; }
 .rd-up { background: rgba(31,169,113,.13); color: #12704A; }
@@ -196,7 +205,7 @@ html[data-theme="dark"] .rd-pos { color: #7BE0B5; }
 @media (max-width: 760px) {
   .rd-sel { flex: 1; }
   .rd-sel select, .rd-sel input { width: 100%; }
-  .rd-k4, .rd-k5 { grid-template-columns: 1fr 1fr; }
+  .rd-k3, .rd-k4, .rd-k5 { grid-template-columns: 1fr 1fr; }
   .rd-kpi.hero { grid-column: 1 / -1; }
   .rd-kpi { padding: 14px; }
   .rd-kpi .v { font-size: 19px; }

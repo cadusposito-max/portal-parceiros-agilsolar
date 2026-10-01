@@ -307,16 +307,29 @@
       if (f.tipo === 'franquia' && !c.fat) alertas.push(['bad', 'trending-down', `${nomeCurto(f.nome)} sem venda registrada`, `Nenhuma venda em ${mesNome(ym).toLowerCase()} (${periodoTxt()}).`, `redeAbrirUnidade('${f.id}','resultado')`]);
       else if (pc.fat && c.fat < pc.fat * 0.8) alertas.push(['at', 'arrow-down-right', `${nomeCurto(f.nome)} caiu ${pct((pc.fat - c.fat) / pc.fat * 100)}`, 'Comparado ao mesmo período do mês anterior.', `redeAbrirUnidade('${f.id}','resumo')`]);
     });
+    // receita da franqueadora: um card por fonte, com o peso de cada uma no total
+    const nMin = fs.filter((f) => calc(f, ym).royMin).length;
+    // royalties e fundo só incidem nas franquias (unidade própria não paga): o % é sobre elas
+    const fatFranq = fs.filter((f) => f.tipo === 'franquia').reduce((s, f) => s + calc(f, ym).fat, 0);
+    const sobreFranq = (v) => (fatFranq ? pct(v / fatFranq * 100) + ' do faturamento das franquias' : 'sem faturamento das franquias');
+    const parte = (v) => (r.franq > 0 ? Math.round(v / r.franq * 100) : 0);
+    const recCard = (icone, titulo, v, vAnt, det, extra = '') => `<div class="rd-kpi"><div class="l">${ic(icone)}${titulo}</div><div class="v">${brl(v)}</div><div class="h">${p ? delta(v, num(vAnt)) + ' ' : ''}${det}${extra ? ' ' + extra : ''}</div><div class="rd-recbar" title="${parte(v)}% da receita da franqueadora"><i style="width:${parte(v)}%"></i></div></div>`;
     const semDesp = fs.filter((f) => calc(f, ym).semDesp);
     if (semDesp.length) alertas.push(['info', 'file-warning', `${semDesp.length} unidade(s) sem despesas lançadas`, semDesp.slice(0, 3).map((f) => nomeCurto(f.nome)).join(', ') + (semDesp.length > 3 ? '…' : '') + ' · o resultado fica sem despesas.', `redeAbrirUnidade('${semDesp[0].id}','resultado')`]);
 
     return `
     ${r.vendas === 0 ? `<div class="rd-note">${ic('info')}<div>Nenhuma venda registrada na plataforma em ${mesNome(ym).toLowerCase()}. O faturamento da rede vem das vendas registradas ao marcar o cliente como <b>Fechado</b> (botão registrar venda). Venda fechada só no Groner não entra aqui.</div></div>` : ''}
-    <div class="rd-grid rd-k4 rd-mb">
+    <div class="rd-grid rd-k3 rd-mb">
       <div class="rd-kpi hero"><div class="l">${ic('trending-up')}Faturamento da rede</div><div class="v">${brl(r.fat)}</div><div class="h">${p ? delta(r.fat, p.fat) : ''} vs ${mesAbr(ant)} (${periodoTxt()})</div></div>
-      <div class="rd-kpi"><div class="l">${ic('landmark')}Receita da franqueadora</div><div class="v">${brl(r.franq)}</div><div class="h">${p ? delta(r.franq, p.franq) : ''} royalties, fundo, rebates e projetos</div></div>
       <div class="rd-kpi"><div class="l">${ic('scale')}Resultado líquido</div><div class="v ${r.res < 0 ? 'rd-neg' : ''}">${brl(r.res)}</div><div class="h">Margem de ${pct(r.fat ? r.res / r.fat * 100 : 0)} · soma das unidades</div></div>
       <div class="rd-kpi"><div class="l">${ic('handshake')}Vendas no mês</div><div class="v">${r.vendas}</div><div class="h">${r.propostas} propostas · ${brl(r.valorPropostas)} em propostas</div></div>
+    </div>
+    <div class="rd-sec"><h3>${ic('landmark')}Receitas da franqueadora</h3><span>Total <b>${brl(r.franq)}</b>${p ? delta(r.franq, p.franq) : ''}</span></div>
+    <div class="rd-grid rd-k4 rd-mb">
+      ${recCard('crown', 'Royalties', r.roy, p && p.roy, sobreFranq(r.roy), nMin ? `<span class="rd-tag">${nMin} no mínimo</span>` : '')}
+      ${recCard('megaphone', 'Fundo de publicidade', r.pub, p && p.pub, sobreFranq(r.pub))}
+      ${recCard('receipt', 'Rebates', r.reb, p && p.reb, 'pago pelo distribuidor sobre os kits')}
+      ${recCard('file-check-2', 'Projetos e mensalidades', r.proj + r.mens, p && p.proj + p.mens, `${r.nproj} projeto${r.nproj === 1 ? '' : 's'} de engenharia${r.mens ? ' + mensalidades' : ''}`)}
     </div>
     <div class="rd-grid rd-two rd-mb">
       <div class="rd-card">
