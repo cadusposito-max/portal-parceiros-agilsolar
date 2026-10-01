@@ -534,16 +534,30 @@ async function visRefreshAccess() {
   }
 }
 
-// Lê no backend se o usuário corrente pode ver o ambiente Engenharia.
-// Admin sempre pode; demais dependem da flag eng_enabled ou da role 'engenheiro'
-// (resolvido por eng_can_use_current_user). Espelha finRefreshAccess.
+// Lê no backend se o usuário corrente é da engenharia central (admin, ou
+// engenheiro/coordenador técnico da Matriz — is_eng_central). Só ela vê o
+// ambiente Engenharia; as franquias acompanham pela aba Projetos do Comercial.
 async function engRefreshAccess() {
-  if (state.isAdmin) { state.canEng = true; return; }
-  try {
-    const { data, error } = await supabaseClient.rpc('eng_can_use_current_user');
-    state.canEng = !error && data === true;
-  } catch (_) {
-    state.canEng = false;
+  if (state.isAdmin) {
+    state.canEng = true;
+    state.isEngCentral = true;
+  } else {
+    try {
+      const { data, error } = await supabaseClient.rpc('is_eng_central');
+      state.isEngCentral = !error && data === true;
+    } catch (_) {
+      state.isEngCentral = false;
+    }
+    state.canEng = state.isEngCentral;
+  }
+  // selos de status na ficha do cliente (em segundo plano)
+  if (typeof engCarregarProjetos === 'function') {
+    engCarregarProjetos(true)
+      .then((ps) => {
+        const naTela = state.environment === 'comercial' && ['funil', 'clientes'].includes(state.activeTab);
+        if (ps && ps.length && naTela && typeof renderContent === 'function') renderContent();
+      })
+      .catch((e) => console.warn('[eng] projetos', e));
   }
 }
 
@@ -1717,6 +1731,17 @@ function _renderContentImpl() {
     toggleContainer.classList.add('hidden');
     if (adminBar) adminBar.classList.add('hidden');
     renderVendas(container);
+  } else if (state.activeTab === 'engprojetos') {
+    // Projetos na engenharia (gestor/admin, só leitura) — módulo eng-v2.js
+    stopDashboardClock();
+    mainToolbar.classList.add('hidden');
+    toggleContainer.classList.add('hidden');
+    if (adminBar) adminBar.classList.add('hidden');
+    if (!(state.isAdmin || state.isGestor || state.isEngCentral)) {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8 text-sm">Esta área é restrita a gestores.</div>';
+    } else if (typeof renderEngProjetosComercial === 'function') {
+      renderEngProjetosComercial(container);
+    }
   } else if (state.activeTab === 'analise') {
     stopDashboardClock();
     mainToolbar.classList.add('hidden');

@@ -613,6 +613,11 @@ function renderCrm360TabContent(client, propostas, vendas) {
       <div id="crm360-builder-slot"></div>`;
   }
 
+  // Projetos na engenharia + envio (eng-v2.js).
+  if (_crm360Tab === 'engenharia' && typeof renderEngFichaTab === 'function') {
+    return renderEngFichaTab(client);
+  }
+
   // Vitrine de bancos/financiadoras (renderFinanciamento preenche no pós-render).
   if (_crm360Tab === 'financiamento') {
     return '<div id="pb-section-financiamento"></div>';

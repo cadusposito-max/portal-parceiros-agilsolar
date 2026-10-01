@@ -67,6 +67,8 @@
     return `<span class="v2-chip v2-vischip ${v.cls}" title="${esc(dica)}">${ic(v.icon)}${esc(v.curto)}</span>`;
   };
   window.uiV2VistoriaInfo = { info: vistoriaInfo, chip: vistoriaChip, ST: VIS_ST };
+  // etapa do projeto na engenharia (eng-v2.js)
+  const engChip = (c) => (typeof window.engSeloCard === 'function' ? window.engSeloCard(c) : '');
 
   // Título/subtítulo da barra de cima (lido pelo ui-v2-shell.js)
   function setPageMeta(key, title, sub) {
@@ -451,7 +453,7 @@
       const valor = has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0;
       const wa = waLink(c);
       return `<tr onclick="openCrm360('${esc(c.id)}')">
-        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}</span>` : ''}<span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${st[1]}">${st[0]}</span></span></div></div></td>
+        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}<span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${st[1]}">${st[0]}</span></span></div></div></td>
         <td class="hide-m">${esc(c.cidade || '—')}${Number(c.hsp) > 0 ? `<small class="muted" style="display:block;font-size:12px">HSP ${esc(String(c.hsp).replace('.', ','))}</small>` : ''}</td>
         <td class="hide-m"><button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Alterar status">${st[0]}</button></td>
         <td class="hide-m">${nProp ? `${nProp} proposta${nProp > 1 ? 's' : ''}` : '<span class="muted">—</span>'}${nVend ? `<small style="display:block;font-size:12px;color:#1FA971;font-weight:700">${nVend} venda${nVend > 1 ? 's' : ''}</small>` : ''}</td>
@@ -487,7 +489,7 @@
         <div class="t"><div><b>${esc(c.nome || 'Cliente')}${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado">${ic('alarm-clock')}</span>` : ''}</b><small>${esc([c.cidade, c.telefone].filter(Boolean).join(' · ') || '—')}</small></div>
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}</div>
         <div class="meta">${meta.join('')}</div>
-        ${vistoriaChip(c) ? `<div class="v2-visline">${vistoriaChip(c)}</div>` : ''}
+        ${vistoriaChip(c) || engChip(c) ? `<div class="v2-visline">${vistoriaChip(c)}${engChip(c)}</div>` : ''}
         <div class="f">${valor ? `<b>${moneyC(valor)}</b>` : '<span class="none">Sem proposta</span>'}
           ${editavel ? `<button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Mudar etapa">${st[0]}</button>` : `<span class="v2-chip dot ${st[1]}">${st[0]}</span>`}</div>
       </article>`;
@@ -842,6 +844,9 @@
     const franqNome = (franquias.find((f) => String(f.id) === String(franqAtual)) || {}).nome || '';
     setPageMeta('comercial:produtos', 'Produtos', `${todos.length} kit${todos.length === 1 ? '' : 's'}${nInativos ? ` · ${nInativos} fora de linha` : ''}${franqNome ? ` · preços de ${cap(franqNome)}` : ''}`);
 
+    // engenharia: kit sem módulo/inversor ligados não tem dimensionamento automático
+    const seloVinculo = (k) => (state.isAdmin && 'modulo_id' in k && !(k.modulo_id && k.inversor_id)
+      ? '<span class="v2-chip t-red" title="Sem módulo e inversor ligados no catálogo técnico: a engenharia não consegue dimensionar sozinha">Sem vínculo técnico</span>' : '');
     const card = (k) => {
       const inativo = k.ativo === false;
       const desconto = Number(k.list_price) > Number(k.price);
@@ -849,7 +854,7 @@
       const ger = Number(k._estGeneration) || calcularGeracaoEstimada(Number(k.power) || 0, k.categoria);
       const id = esc(k.id);
       return `<div class="v2-card v2-pcard v2-kit ${inativo ? 'off' : ''}" onclick="openModalById('${id}')">
-        <div class="tags">${k.brand ? `<span class="v2-chip t-blue">${esc(k.brand)}</span>` : ''}<span class="v2-chip t-gray">${micro ? 'Microinversor' : 'Inversor'}</span>${k.tag ? `<span class="v2-chip t-orange">${ic('flame')}${esc(cap(k.tag))}</span>` : ''}${inativo ? '<span class="v2-chip t-gray">Fora de linha</span>' : ''}</div>
+        <div class="tags">${k.brand ? `<span class="v2-chip t-blue">${esc(k.brand)}</span>` : ''}<span class="v2-chip t-gray">${micro ? 'Microinversor' : 'Inversor'}</span>${k.tag ? `<span class="v2-chip t-orange">${ic('flame')}${esc(cap(k.tag))}</span>` : ''}${inativo ? '<span class="v2-chip t-gray">Fora de linha</span>' : ''}${seloVinculo(k)}</div>
         <div><small class="muted" style="font-size:12px;font-weight:700">Kit fotovoltaico</small><div class="kp">${kwpTxt(k.power)} <small>kWp</small></div></div>
         <div class="kit">${ic('solar-panel')}<span title="${esc(k.name)}">${esc(k.name || 'Sem nome')}</span></div>
         <ul><li>${ic('cpu')}Categoria<b>${micro ? 'Microinversor' : 'Inversor string'}</b></li>${k.type ? `<li>${ic('home')}Tipo<b>${esc(cap(k.type))}</b></li>` : ''}<li>${ic('sun')}Geração média<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b></li></ul>
@@ -873,7 +878,7 @@
       const ger = Number(k._estGeneration) || calcularGeracaoEstimada(Number(k.power) || 0, k.categoria);
       const desconto = Number(k.list_price) > Number(k.price);
       return `<tr class="${inativo ? 'off' : ''}" onclick="openModalById('${esc(k.id)}')">
-        <td><div class="v2-eqn"><span class="v2-eqic">${ic('solar-panel')}</span><div><b>${esc(k.name || 'Sem nome')}</b><small>${esc(k.brand || '')}${k.tag ? ' · ' + esc(cap(k.tag)) : ''}${inativo ? ' · fora de linha' : ''}</small></div></div></td>
+        <td><div class="v2-eqn"><span class="v2-eqic">${ic('solar-panel')}</span><div><b>${esc(k.name || 'Sem nome')}</b><small>${esc(k.brand || '')}${k.tag ? ' · ' + esc(cap(k.tag)) : ''}${inativo ? ' · fora de linha' : ''}</small>${seloVinculo(k)}</div></div></td>
         <td style="font-weight:800">${kwpTxt(k.power)} kWp</td>
         <td class="hide-sm">${micro ? 'Microinversor' : 'Inversor'}${k.type ? `<small class="muted" style="display:block;font-size:12px">${esc(cap(k.type))}</small>` : ''}</td>
         <td class="hide-sm">${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</td>

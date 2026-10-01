@@ -1,5 +1,8 @@
 // ==========================================
 // MÓDULO ENGENHARIA — Calculadora / Dimensionamento Fotovoltaico
+// Out/2026: o ambiente Engenharia passou para eng-v2.js. Daqui só são usados o
+// motor de cálculo (engCompute, também no dimensionamento automático) e a aba
+// Calculadora. Visão/funil/projetos/equipamentos antigos não são mais roteados.
 // 5º ambiente do portal. Padrão espelhado de om.js / financeiro.js / vistoria.js:
 //   constantes → estado local → helpers → motor de cálculo (puro) →
 //   renderizadores → handlers → exposição global.
@@ -627,16 +630,7 @@ function engRenderReport(data) {
         <div class="h-64 relative bg-neutral-900/60 border border-neutral-800 p-3 mb-4"><canvas id="eng-generation-chart"></canvas></div>
         ${engRenderMonthlyTable(monthlyGeneration)}
 
-        ${state.eng.currentProjectId ? `
-        <div class="mt-6 bg-neutral-900/60 border border-neutral-800 p-3">
-          <button onclick="engSalvarNoProjeto()" class="w-full px-5 py-3 bg-neutral-800 border border-neutral-700 hover:border-sky-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 transition-colors"><i data-lucide="save" class="w-4 h-4"></i> Salvar no projeto "${engEscAttr(state.eng.currentProjectName || '')}"</button>
-          <p class="text-[10px] text-neutral-600 mt-2 text-center">Salva os dados e o resultado no projeto e marca como "Concluído".</p>
-        </div>` : `
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 bg-neutral-900/60 border border-neutral-800 p-3">
-          <input id="eng-proj-nome" placeholder="Nome do projeto" value="${engEscAttr((state.eng && state.eng.currentProjectName) || '')}" class="${ENG_INP}">
-          <input id="eng-proj-cliente" placeholder="Cliente (opcional)" class="${ENG_INP}">
-          <button onclick="engSalvarProjeto()" class="px-5 py-2 bg-neutral-800 border border-neutral-700 hover:border-sky-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 transition-colors"><i data-lucide="save" class="w-4 h-4"></i> Salvar Projeto</button>
-        </div>`}
+        ${typeof engCalcRodapeProjeto === 'function' ? engCalcRodapeProjeto() : ''}
 
         <button onclick="engGerarPdf()" id="eng-pdf-button" class="w-full mt-3 bg-gradient-to-r ${ENG_ACCENT.grad} text-black font-black uppercase tracking-widest py-3 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
           <i data-lucide="file-text" class="w-4 h-4"></i> Gerar PDF Técnico
@@ -1644,8 +1638,8 @@ async function engProjetoMover(id, dir) {
   }
 }
 
-// --- ROTEADOR PRINCIPAL ---
-function renderEngRoute(container, tabId) {
+// --- ROTEADOR ANTIGO (substituído por eng-v2.js; mantido só como referência) ---
+function renderEngRouteLegado(container, tabId) {
   switch (tabId) {
     case 'visao':        return renderEngVisao(container);
     case 'funil':        return renderEngFunil(container);
@@ -1658,7 +1652,6 @@ function renderEngRoute(container, tabId) {
 
 // --- EXPOSIÇÃO GLOBAL ---
 Object.assign(window, {
-  renderEngRoute,
   renderEngVisao,
   renderEngFunil,
   engOpenProjectDetail,

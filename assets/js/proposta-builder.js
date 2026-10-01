@@ -1063,6 +1063,7 @@ async function copyProposalLink(kit, event) {
       kit_price:         kit.price,
       kit_list_price:    kit.list_price,
       geracao_estimada:  calcularGeracaoEstimada(kit.power, kit.categoria, client.hsp),
+      source_product_id: kit.id || null, // a engenharia acha os equipamentos do kit por aqui
       franquia_id:       state.franquiaId
     }]).select();
 

@@ -163,6 +163,7 @@ async function fetchProducts() {
         .from('produtos')
         .select(`
           id, categoria, name, brand, power, type, description, tag, ativo, created_at, price, list_price, franquia_id,
+          modulo_id, modulo_qtd, inversor_id, inversor_qtd,
           precos_franquia!inner(price, list_price)
         `)
         .eq('precos_franquia.franquia_id', targetFranquiaId)

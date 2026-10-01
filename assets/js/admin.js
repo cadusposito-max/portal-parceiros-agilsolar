@@ -693,6 +693,9 @@ function _roleBadge(role) {
   if (normalized === 'gestor') {
     return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-blue-300 border-blue-700 bg-blue-900/30">GESTOR</span>';
   }
+  if (normalized === 'engenheiro') {
+    return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-sky-300 border-sky-700 bg-sky-900/30">ENGENHEIRO</span>';
+  }
   if (normalized === 'tecnico' || normalized === 'coordenador_tecnico') {
     return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-orange-300 border-orange-700 bg-orange-900/30">TÉCNICO</span>';
   }
@@ -878,6 +881,7 @@ async function renderAdminUsuarios(container, { useCache = false } = {}) {
         <option value="gestor" ${roleFilter === 'gestor' ? 'selected' : ''}>GESTOR</option>
         <option value="vendedor" ${roleFilter === 'vendedor' ? 'selected' : ''}>VENDEDOR</option>
         <option value="tecnico" ${roleFilter === 'tecnico' ? 'selected' : ''}>TÉCNICO</option>
+        <option value="engenheiro" ${roleFilter === 'engenheiro' ? 'selected' : ''}>ENGENHEIRO</option>
       </select>
       <select onchange="setAdminUsuariosFilter('franquia', this.value)" class="bg-black border border-neutral-700 focus:border-orange-500 px-3 py-2.5 text-white font-bold uppercase text-[11px]">
         <option value="all" ${franquiaFilter === 'all' ? 'selected' : ''}>TODAS FRANQUIAS</option>
@@ -981,6 +985,7 @@ async function openAdminUsuarioForm(userId) {
           <option value="gestor" ${defaultRole === 'gestor' ? 'selected' : ''}>GESTOR</option>
           <option value="admin" ${defaultRole === 'admin' ? 'selected' : ''}>ADMIN</option>
           <option value="tecnico" ${defaultRole === 'tecnico' ? 'selected' : ''}>TÉCNICO</option>
+          <option value="engenheiro" ${defaultRole === 'engenheiro' ? 'selected' : ''}>ENGENHEIRO (Matriz)</option>
         </select></div>
       <div><label class="${_labelCls}">Franquia *</label>
         <select id="au-franquia-id" class="${_selectCls}">${_renderFranquiaOptions(franquias, defaultFranquia)}</select></div>
@@ -1072,7 +1077,9 @@ async function openAdminUsuarioForm(userId) {
           email,
           password,
           nome: payload.p_nome,
-          role: payload.p_role,
+          // a função de criação ainda não conhece 'engenheiro': cria como vendedor e o
+          // admin_update_user logo abaixo grava o perfil certo
+          role: payload.p_role === 'engenheiro' ? 'vendedor' : payload.p_role,
           franquia_id: payload.p_franquia_id,
           ativo: payload.p_ativo,
         });

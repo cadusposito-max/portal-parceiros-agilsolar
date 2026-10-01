@@ -223,13 +223,14 @@ const TABS = [
   { id: 'clientes',  label: 'CLIENTES',    icon: 'users' },
   { id: 'propostas', label: 'PROPOSTAS',   icon: 'file-signature' },
   { id: 'vendas',    label: 'VENDAS',      icon: 'trophy' },
+  { id: 'engprojetos', label: 'PROJETOS',  icon: 'ruler' },
   { id: 'analise',   label: 'ANÁLISE',     icon: 'bar-chart-3' },
   { id: 'produtos',  label: 'PRODUTOS',    icon: 'package' }
 ];
 
 // Abas do Comercial restritas a admin/gestor (vendedor nem vê o botão).
 // PRODUTOS = gestão de catálogo; ANÁLISE = leitura do time inteiro.
-const TABS_GESTAO = ['produtos', 'analise'];
+const TABS_GESTAO = ['produtos', 'analise', 'engprojetos'];
 
 // --- CRM: origem do lead -------------------------------------------------
 // Lista única para o cadastro (index.html) e a ficha 360 (crm.js), que antes
@@ -331,13 +332,14 @@ const VISTORIA_TABS = [
   { id: 'config',     label: 'CONFIG',      icon: 'settings' }
 ];
 
-// Tabs do ambiente Engenharia (gestão de projetos + dimensionamento fotovoltaico).
+// Tabs do ambiente Engenharia (engenharia central): projetos das franquias, OS,
+// catálogo técnico e a calculadora antiga. Módulo eng-v2.js.
 const ENG_TABS = [
-  { id: 'visao',        label: 'VISÃO GERAL',  icon: 'layout-dashboard' },
-  { id: 'funil',        label: 'FUNIL',        icon: 'git-merge' },
-  { id: 'calculadora',  label: 'CALCULADORA',  icon: 'calculator',   secondary: true },
-  { id: 'equipamentos', label: 'EQUIPAMENTOS', icon: 'cpu',          secondary: true },
-  { id: 'projetos',     label: 'PROJETOS',     icon: 'folder-open',  secondary: true }
+  { id: 'visao',        label: 'VISÃO GERAL',       icon: 'layout-dashboard' },
+  { id: 'funil',        label: 'FUNIL',             icon: 'kanban' },
+  { id: 'os',           label: 'ORDENS DE SERVIÇO', icon: 'clipboard-list' },
+  { id: 'catalogo',     label: 'CATÁLOGO TÉCNICO',  icon: 'cpu' },
+  { id: 'calculadora',  label: 'CALCULADORA',       icon: 'calculator', secondary: true }
 ];
 
 // Tabs do ambiente Rede (só admin): unidades, CNPJs, impostos, DRE e receitas da franqueadora.

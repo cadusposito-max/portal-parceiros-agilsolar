@@ -247,6 +247,7 @@ function renderCatalogoKits(container) {
             <span class="text-[8px] px-1.5 py-0.5 font-black uppercase tracking-widest border border-neutral-700 text-neutral-500">${item.categoria === 'kitsMicro' ? 'MICRO' : 'INVERSOR'}</span>
             ${safeTag ? `<span class="text-[8px] px-1.5 py-0.5 font-black uppercase tracking-widest border border-yellow-500/30 bg-yellow-500/10 text-yellow-400">${safeTag}</span>` : ''}
             ${inativo ? '<span class="text-[8px] px-1.5 py-0.5 font-black uppercase tracking-widest border border-neutral-700 bg-neutral-800/60 text-neutral-400">INATIVO</span>' : ''}
+            ${state.isAdmin && 'modulo_id' in item ? (item.modulo_id && item.inversor_id ? '<span class="text-[8px] px-1.5 py-0.5 font-black uppercase tracking-widest border border-emerald-500/40 bg-emerald-500/10 text-emerald-400" title="Módulo e inversor ligados no catálogo técnico">VÍNCULO TÉCNICO</span>' : '<span class="text-[8px] px-1.5 py-0.5 font-black uppercase tracking-widest border border-red-500/40 bg-red-500/10 text-red-400" title="Sem módulo/inversor ligados: a engenharia não consegue dimensionar sozinha">SEM VÍNCULO TÉCNICO</span>') : ''}
           </div>
           <h3 class="text-white font-black text-sm uppercase leading-tight mt-1.5">${safeName}</h3>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[10px] font-bold">
@@ -739,6 +740,11 @@ const KIT_IMPORT_HEADER_ALIASES = {
   tag:        ['tag', 'selo', 'etiqueta'],
   description:['description', 'descricao', 'detalhes'],
   ativo:      ['ativo', 'status', 'ativoinativo', 'emlinha'],
+  // vínculo técnico (opcional): vazio = a plataforma lê do nome do kit
+  modulo:       ['modulo', 'modulofv', 'placa', 'modelomodulo', 'modelodomodulo'],
+  modulo_qtd:   ['qtdmodulos', 'qtdmodulo', 'quantidademodulos', 'qtdplacas', 'modulosqtd'],
+  inversor:     ['inversor', 'modeloinversor', 'modelodoinversor', 'microinversor'],
+  inversor_qtd: ['qtdinversores', 'qtdinversor', 'quantidadeinversores', 'qtdmicros', 'inversorqtd'],
 };
 
 const KIT_IMPORT_TAG_MAP = {
@@ -966,6 +972,12 @@ function mapKitImportRow(row, fallbackCategory) {
       tag,
       description,
       ativo,
+      _eq: {
+        modulo: String(getMappedImportValue(rowMap, 'modulo') ?? '').trim(),
+        modulo_qtd: parseSpreadsheetNumber(getMappedImportValue(rowMap, 'modulo_qtd')),
+        inversor: String(getMappedImportValue(rowMap, 'inversor') ?? '').trim(),
+        inversor_qtd: parseSpreadsheetNumber(getMappedImportValue(rowMap, 'inversor_qtd')),
+      },
     },
   };
 }
@@ -999,8 +1011,11 @@ async function loadKitsImportContext() {
 
   const { data: existing = [], error: existingErr } = await supabaseClient
     .from('produtos')
-    .select('id, categoria, name, brand, power, price, list_price, type, tag, description, ativo, franquia_id');
+    .select('id, categoria, name, brand, power, price, list_price, type, tag, description, ativo, franquia_id, modulo_id, modulo_qtd, inversor_id, inversor_qtd');
   if (existingErr) throw existingErr;
+  const { data: equip = [], error: equipErr } = await supabaseClient
+    .from('componentes').select('id, tipo, nome, marca, potencia_wp, ficha').in('tipo', ['modulo', 'inversor']);
+  if (equipErr) throw equipErr;
 
   let precosUnidade = new Map();
   if (franquiaId) {
@@ -1015,9 +1030,53 @@ async function loadKitsImportContext() {
   return {
     franquiaId,
     precosUnidade,
+    equip,
     byId: new Map(existing.map(item => [String(item.id), item])),
     byKey: new Map(existing.map(item => [buildKitMatchKey(item.name, item.brand, item.power), item])),
   };
+}
+
+// Vínculo técnico do kit (módulo/inversor do catálogo + quantidades) para a
+// engenharia dimensionar sozinha. Colunas da planilha vencem; vazias = lido do
+// nome do kit (EV.sugerirVinculo). Equipamento que não existe no catálogo
+// entra como novo, com ficha técnica pendente.
+function _kitImportAcharEquip(ctx, nome, tipo) {
+  const alvo = normalizeImportText(nome).toUpperCase();
+  if (!alvo) return null;
+  const doTipo = (ctx.equip || []).filter((c) => c.tipo === tipo);
+  return doTipo.find((c) => normalizeImportText(c.nome).toUpperCase() === alvo)
+    || doTipo.find((c) => normalizeImportText(`${c.marca || ''} ${c.nome}`).toUpperCase().trim() === alvo)
+    || null;
+}
+
+function _kitImportVinculo(ctx, row, target) {
+  const eq = row._eq || {};
+  const temPlanilha = Boolean(eq.modulo || eq.inversor);
+  const sug = (typeof EV !== 'undefined' && EV.sugerirVinculo)
+    ? EV.sugerirVinculo({ name: row.name || (target && target.name) || '' }, ctx.equip || [])
+    : {};
+  const out = { modulo_id: null, modulo_qtd: null, inversor_id: null, inversor_qtd: null, novos: [], origem: temPlanilha ? 'planilha' : 'nome' };
+  const resolve = (campo, tipo) => {
+    const nome = eq[campo];
+    if (nome) {
+      const c = _kitImportAcharEquip(ctx, nome, tipo);
+      if (c) out[campo + '_id'] = c.id;
+      else out.novos.push({ campo, tipo, nome: String(nome).trim() });
+    } else {
+      out[campo + '_id'] = sug[campo + '_id'] || null;
+    }
+    const q = Number(eq[campo + '_qtd']);
+    out[campo + '_qtd'] = Number.isFinite(q) && q > 0 ? Math.round(q) : (sug[campo + '_qtd'] || null);
+  };
+  resolve('modulo', 'modulo');
+  resolve('inversor', 'inversor');
+  const tem = (campo) => Boolean(out[campo + '_id'] || out.novos.some((n) => n.campo === campo));
+  out.completo = tem('modulo') && tem('inversor') && Boolean(out.modulo_qtd && out.inversor_qtd);
+  return out;
+}
+
+function _kitImportVinculoPayload(v) {
+  return { modulo_id: v.modulo_id, modulo_qtd: v.modulo_qtd, inversor_id: v.inversor_id, inversor_qtd: v.inversor_qtd };
 }
 
 // Casa uma linha com o kit existente e diz o que a importacao faria com ela (sem gravar).
@@ -1058,6 +1117,16 @@ function planKitRow(ctx, row) {
     if (!franquiaId && payload.ativo !== undefined && payload.ativo !== (target.ativo !== false)) {
       camposAlterados.push(payload.ativo ? 'reativa' : 'desativa');
     }
+    // vínculo técnico: só grava quando a planilha ou o nome resolvem os dois equipamentos
+    const vinculo = _kitImportVinculo(ctx, row, target);
+    if (vinculo.completo && mexeCatalogo) {
+      const mudouVinculo = vinculo.novos.length > 0
+        || ['modulo_id', 'modulo_qtd', 'inversor_id', 'inversor_qtd'].some((f) => String(target[f] ?? '') !== String(vinculo[f] ?? ''));
+      if (mudouVinculo) {
+        Object.assign(payload, _kitImportVinculoPayload(vinculo));
+        camposAlterados.push('equipamentos');
+      }
+    }
     const precoMudou = !precoAtual
       || !_sameImportMoney(precoAtual.price, payload.price)
       || !_sameImportMoney(precoAtual.list_price, payload.list_price);
@@ -1070,6 +1139,7 @@ function planKitRow(ctx, row) {
       exclusivaDestaUnidade,
       precoAtual,
       camposAlterados,
+      vinculo,
       changed: precoMudou || camposAlterados.length > 0,
     };
   }
@@ -1079,11 +1149,14 @@ function planKitRow(ctx, row) {
     return { kind: 'skip', row, motivo: 'Kit não encontrado e sem nome, marca ou potência para cadastrar' };
   }
 
+  const vinculo = _kitImportVinculo(ctx, row, null);
   return {
     kind: 'insert',
     row,
     changed: true,
+    vinculo,
     payload: {
+      ...(vinculo.completo ? _kitImportVinculoPayload(vinculo) : {}),
       // Preserva o id da planilha quando informado (round-trip do export).
       ...(row._explicitId ? { id: row._explicitId } : {}),
       categoria: row.categoria || getImportDefaultCategory(),
@@ -1141,6 +1214,25 @@ function buildKitsImportEntries(ctx, rawRows) {
 // Grava apenas os itens do plano que o admin deixou marcados na conferencia.
 async function applyKitsImportPlan(plan, selectedItems) {
   const { franquiaId } = plan;
+
+  // 0) equipamentos que a planilha cita e não existem no catálogo: entram com ficha pendente
+  const chaveEq = (n) => n.tipo + '|' + normalizeImportText(n.nome).toUpperCase();
+  const novosEq = new Map();
+  selectedItems.forEach((i) => (i.vinculo && i.vinculo.completo ? i.vinculo.novos : []).forEach((n) => {
+    if (!novosEq.has(chaveEq(n))) novosEq.set(chaveEq(n), { ...n, id: null });
+  }));
+  for (const n of novosEq.values()) {
+    const { data, error } = await supabaseClient.rpc('eng_criar_equipamento', { p_tipo: n.tipo, p_nome: n.nome, p_marca: null, p_ficha: null });
+    if (error) throw error;
+    n.id = data;
+  }
+  selectedItems.forEach((i) => {
+    if (!i.vinculo || !i.vinculo.completo) return;
+    i.vinculo.novos.forEach((n) => {
+      const criado = novosEq.get(chaveEq(n));
+      if (criado && criado.id && Object.prototype.hasOwnProperty.call(i.payload, n.campo + '_id')) i.payload[n.campo + '_id'] = criado.id;
+    });
+  });
   const toInsert = selectedItems.filter(i => i.kind === 'insert').map(i => i.payload);
   const toUpdate = selectedItems.filter(i => i.kind === 'update');
 
@@ -1207,6 +1299,7 @@ async function applyKitsImportPlan(plan, selectedItems) {
           type: item.payload.type,
           tag: item.payload.tag,
           description: item.payload.description,
+          ...(item.payload.modulo_qtd !== undefined ? { modulo_id: item.payload.modulo_id, modulo_qtd: item.payload.modulo_qtd, inversor_id: item.payload.inversor_id, inversor_qtd: item.payload.inversor_qtd } : {}),
         }).eq('id', item.id);
         if (error) throw error;
       }
@@ -1336,8 +1429,26 @@ function _kipNotesHtml(e, franquiaId) {
     if (k === 'update' && item.camposAlterados.length > 0) {
       notes.push(`Também muda: ${escapeHTML(item.camposAlterados.join(', '))}`);
     }
+    if (k === 'insert' || k === 'update') notes.push(_kipVinculoHtml(item));
   }
   return notes.map(n => `<div>${n}</div>`).join('');
+}
+
+// Linha "Equipamentos" na conferência: o que vai ser ligado ao kit.
+function _kipVinculoHtml(item) {
+  const v = item.vinculo;
+  if (!v) return '';
+  const equip = (_kitsImportPreview && _kitsImportPreview.ctx && _kitsImportPreview.ctx.equip) || [];
+  const nome = (id) => { const c = equip.find((x) => x.id === id); return c ? c.nome : '?'; };
+  if (!v.completo) {
+    return item.kind === 'update' && item.payload.modulo_id === undefined
+      ? '<span class="text-neutral-500">Equipamentos: mantém o vínculo atual</span>'
+      : '<span class="text-yellow-400">Equipamentos: não deu para ler do nome. Fica sem vínculo técnico (a engenharia liga depois)</span>';
+  }
+  const mod = v.modulo_id ? nome(v.modulo_id) : (v.novos.find((n) => n.campo === 'modulo') || {}).nome;
+  const inv = v.inversor_id ? nome(v.inversor_id) : (v.novos.find((n) => n.campo === 'inversor') || {}).nome;
+  const novos = v.novos.length ? ` <span class="text-yellow-400">· novo no catálogo, ficha pendente: ${escapeHTML(v.novos.map((n) => n.nome).join(', '))}</span>` : '';
+  return `<span class="text-emerald-400">Equipamentos: ${v.modulo_qtd}× ${escapeHTML(mod || '?')} + ${v.inversor_qtd}× ${escapeHTML(inv || '?')}</span> <span class="text-neutral-500">(${v.origem === 'planilha' ? 'da planilha' : 'lido do nome do kit'})</span>${novos}`;
 }
 
 function _kipMetaHtml(e) {
@@ -1714,7 +1825,7 @@ function triggerKitsImportPicker() {
   fileInput.click();
 }
 
-function exportCurrentKitsXLSX() {
+async function exportCurrentKitsXLSX() {
   if (!canManageProductCatalog()) {
     showToast('ACESSO RESTRITO.');
     return;
@@ -1738,7 +1849,19 @@ function exportCurrentKitsXLSX() {
     { header: 'tag', key: 'tag' },
     { header: 'description', key: 'description' },
     { header: 'ativo', key: 'ativo' },
+    // vínculo técnico (engenharia): vazio = a plataforma lê do nome do kit
+    { header: 'modulo', key: 'modulo' },
+    { header: 'qtd_modulos', key: 'qtd_modulos' },
+    { header: 'inversor', key: 'inversor' },
+    { header: 'qtd_inversores', key: 'qtd_inversores' },
   ];
+
+  // nomes dos equipamentos ligados (catálogo técnico)
+  let nomesEq = new Map();
+  try {
+    const { data } = await supabaseClient.from('componentes').select('id, nome').in('tipo', ['modulo', 'inversor']);
+    nomesEq = new Map((data || []).map((c) => [c.id, c.nome]));
+  } catch (_) { /* exporta sem os nomes */ }
 
   const rows = kits.map(item => {
     const power = Number(item.power);
@@ -1757,6 +1880,10 @@ function exportCurrentKitsXLSX() {
       tag: item.tag || '',
       description: item.description || '',
       ativo: item.ativo === false ? 'NAO' : 'SIM',
+      modulo: nomesEq.get(item.modulo_id) || '',
+      qtd_modulos: item.modulo_qtd || '',
+      inversor: nomesEq.get(item.inversor_id) || '',
+      qtd_inversores: item.inversor_qtd || '',
     };
   });
 
@@ -1782,6 +1909,11 @@ function downloadKitsImportTemplateXLSX() {
     { header: 'tag', key: 'tag' },
     { header: 'description', key: 'description' },
     { header: 'ativo', key: 'ativo' },
+    // vínculo técnico (engenharia): vazio = a plataforma lê do nome do kit
+    { header: 'modulo', key: 'modulo' },
+    { header: 'qtd_modulos', key: 'qtd_modulos' },
+    { header: 'inversor', key: 'inversor' },
+    { header: 'qtd_inversores', key: 'qtd_inversores' },
   ];
 
   const rows = [

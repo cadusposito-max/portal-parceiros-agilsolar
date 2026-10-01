@@ -275,6 +275,7 @@
     if (podeProposta) tabs.push(['nova', 'file-plus-2', 'Nova proposta', null, 'acc']);
     tabs.push(['vendas', 'trophy', 'Vendas', vendas.length], ['financiamento', 'landmark', 'Financ.']);
     if (has('renderCrmArquivosTab')) tabs.push(['arquivos', 'paperclip', 'Arquivos', `<span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`]);
+    if (has('renderEngFichaTab')) tabs.push(['engenharia', 'ruler', 'Engenharia']);
     if (omFlag) tabs.push(['om', 'wrench', 'O&M']);
 
     // barra de etapas: clicar usa crmSetClientStatus (Perdido pede motivo; Fechado abre a venda)
@@ -351,7 +352,7 @@
             <div class="tx">
               <h2>${esc(client.nome || 'Cliente')}
                 <button class="v2-chip dot ${ST_CLS[status] || 't-gray'} v2f-stchip" onclick="openClientStatusMenu(event, '${esc(client.id)}')" title="Alterar status">${ST[status] || status}${ic('chevron-down')}</button>
-                ${omFlag ? '<span class="v2-chip t-blue">O&amp;M</span>' : ''}</h2>
+                ${omFlag ? '<span class="v2-chip t-blue">O&amp;M</span>' : ''}${has('engFichaChip') ? engFichaChip(client) : ''}</h2>
               <div class="sub">
                 <span>${ic('phone')}${esc(client.telefone || '—')}</span>
                 <span>${ic('map-pin')}${esc(client.cidade || 'sem cidade')}${Number(client.hsp) > 0 ? ` · HSP ${esc(String(client.hsp).replace('.', ','))}` : ''}</span>

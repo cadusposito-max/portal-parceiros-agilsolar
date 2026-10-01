@@ -1,0 +1,117 @@
+/* ==========================================
+   ENGENHARIA v2 — funil, ficha do projeto e catálogo técnico.
+   Usa as peças .rd-* do ambiente Rede; aqui só o que é da engenharia.
+   ========================================== */
+
+.eg .rd-pill.nodot::before { display: none; }
+.eg .rd-btn.danger { color: var(--v2-red); }
+.eg .rd-btn.pri.danger, .eg .rd-btn.danger.pri { background: var(--v2-red); border-color: var(--v2-red); color: #fff; }
+.eg-seg { margin: 0; padding: 4px; box-shadow: none; border: 1px solid var(--v2-line); }
+.eg-seg .rd-tab { padding: 6px 11px; }
+.eg-filtros { display: flex; gap: 16px; flex-wrap: wrap; justify-content: flex-end; margin: -4px 2px 12px; color: var(--v2-ink-2); }
+
+.eg-barra { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; font: inherit; color: var(--v2-ink); padding: 6px 4px; border-radius: 10px; cursor: pointer; text-align: left; }
+.eg-barra:hover { background: var(--v2-soft); }
+.eg-barra > span { width: 180px; font-weight: 600; font-size: 13px; flex: none; }
+.eg-barra .rd-meter { flex: 1; height: 8px; }
+.eg-barra b { width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.eg-alerta { display: inline-flex; color: var(--v2-orange-text); vertical-align: -2px; margin-left: 4px; }
+.eg-alerta svg.lucide { width: 15px; height: 15px; }
+
+/* kanban */
+.eg-kanban { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; align-items: flex-start; scrollbar-width: thin; }
+.eg-col { flex: 0 0 248px; background: var(--v2-bg2); border-radius: 6px 6px 20px 20px; border-top: 4px solid var(--c); padding: 10px; min-height: 360px; }
+.eg-colh { display: flex; justify-content: space-between; gap: 6px; align-items: flex-start; padding: 2px 4px 10px; }
+.eg-colh b { display: block; font-size: 13px; font-weight: 800; }
+.eg-colh small { display: block; font-size: 11px; color: var(--v2-ink-2); font-weight: 600; margin-top: 1px; }
+.eg-colh > span { background: var(--v2-card); border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 800; color: var(--v2-ink-2); }
+.eg-vazio { text-align: center; color: var(--v2-gray); padding: 14px 0; }
+.eg-card { display: block; width: 100%; text-align: left; font: inherit; color: var(--v2-ink); background: var(--v2-card); border-radius: 16px; padding: 12px; margin-bottom: 8px; box-shadow: var(--v2-shadow); border: 1.5px solid transparent; cursor: pointer; transition: border-color .15s, transform .15s; }
+.eg-card:hover { border-color: var(--v2-blue); transform: translateY(-1px); }
+.eg-cnm { font-weight: 800; font-size: 13.5px; margin-bottom: 3px; }
+.eg-cmt { font-size: 12px; color: var(--v2-ink-2); line-height: 1.5; }
+.eg-motivo { font-size: 11.5px; color: var(--v2-red); font-weight: 600; margin-top: 6px; }
+.eg-cft { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-top: 9px; }
+.eg-dias { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 700; color: var(--v2-ink-2); }
+.eg-dias svg.lucide { width: 13px; height: 13px; }
+.eg-dias.late { color: var(--v2-red); }
+.eg-av { margin-left: auto; width: 24px; height: 24px; border-radius: 50%; background: var(--v2-blue-50); color: var(--v2-blue-text); font-size: 10px; font-weight: 800; display: grid; place-items: center; flex: none; }
+
+/* ficha do projeto (painel lateral) */
+body.eg-lock { overflow: hidden; }
+.eg-scrim { position: fixed; inset: 0; background: var(--v2-scrim); z-index: 150; display: flex; justify-content: flex-end; }
+.eg-panel { width: min(1040px, 100%); height: 100%; overflow-y: auto; background: var(--v2-bg); box-shadow: var(--v2-shadow-pop); color: var(--v2-ink); font-size: 14px; animation: egIn .22s cubic-bezier(.2,.8,.2,1); }
+@keyframes egIn { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+.eg-ph { background: var(--v2-card); padding: 18px 22px 0; box-shadow: var(--v2-shadow); position: sticky; top: 0; z-index: 3; }
+.eg-ph h2 { margin: 2px 0 2px; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.eg-pnum { font-size: 12px; font-weight: 700; color: var(--v2-blue-text); letter-spacing: .02em; }
+.eg-pacts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.eg-pb { padding: 16px 22px 40px; }
+.eg-ptabs { margin: 12px 0 0; box-shadow: none; border-radius: 0; padding: 0; border-top: 1px solid var(--v2-line); padding-top: 6px; background: none; }
+.eg-ptabs .rd-tab { border-radius: 10px 10px 0 0; }
+.eg-acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+.eg-acts .rd-grow { flex: 1; }
+
+.eg-steps { display: flex; gap: 4px; margin-top: 14px; }
+.eg-steps > div { flex: 1; text-align: center; font-size: 10.5px; font-weight: 700; color: var(--v2-gray); min-width: 0; }
+.eg-steps > div i { display: block; height: 6px; border-radius: 6px; background: var(--v2-line-strong); margin-bottom: 5px; }
+.eg-steps > div span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eg-steps > div.done i { background: var(--v2-blue); }
+.eg-steps > div.cur i { background: var(--v2-orange); }
+.eg-steps > div.cur { color: var(--v2-ink); }
+.eg-steps > div.bad i { background: var(--v2-red); }
+.eg-steps > div.bad { color: var(--v2-red); }
+.eg-steps.mini { margin-top: 10px; }
+.eg-steps.mini > div i { height: 5px; margin: 0; }
+
+.eg-eq { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--v2-line); flex-wrap: wrap; }
+.eg-eq:last-of-type { border-bottom: 0; }
+.eg-eq b { flex: 1; font-size: 13.5px; min-width: 140px; }
+
+.eg-mppt { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.eg-mp { border: 1px dashed var(--v2-line-strong); border-radius: 14px; padding: 10px; }
+.eg-mp .t { font-size: 10.5px; font-weight: 800; color: var(--v2-gray); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.eg-mods { display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 6px; }
+.eg-mods i { width: 13px; height: 19px; border-radius: 3px; background: var(--v2-blue); display: block; }
+.eg-mods i.e { background: var(--v2-line); }
+
+.eg-doc { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--v2-line); }
+.eg-doc:last-of-type { border-bottom: 0; }
+.eg-doc > svg.lucide { color: var(--v2-blue); }
+
+.eg-com textarea { width: 100%; border: 1px solid var(--v2-line-strong); border-radius: 12px; padding: 10px 12px; font: inherit; background: var(--v2-card); color: var(--v2-ink); resize: vertical; outline: 0; }
+.eg-com textarea:focus { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
+.eg-tl { margin-top: 14px; }
+.eg-tl > div { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--v2-line); font-size: 13px; }
+.eg-tl > div:last-child { border-bottom: 0; }
+.eg-tl > div.al { background: var(--v2-orange-50); border-radius: 12px; padding: 10px; border: 0; margin: 4px 0; }
+.eg-tl > div.int { opacity: .85; }
+.eg-tl > div.int .eg-tli { background: var(--v2-hover); color: var(--v2-ink-2); }
+.eg-tli { width: 28px; height: 28px; border-radius: 9px; background: var(--v2-blue-50); color: var(--v2-blue-text); display: grid; place-items: center; flex: none; }
+.eg-tli svg.lucide { width: 15px; height: 15px; }
+.eg-tl > div.al .eg-tli { background: var(--v2-card); color: var(--v2-orange-text); }
+
+/* conferência do envio */
+.eg-conf { display: grid; gap: 8px; margin-top: 12px; }
+.eg-conf > div { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; background: var(--v2-soft); }
+.eg-conf > div > svg.lucide { flex: none; margin-top: 2px; }
+.eg-conf > div b { display: block; font-size: 13px; }
+.eg-conf > div span { font-size: 12.5px; color: var(--v2-ink-2); }
+.eg-conf .ok { background: rgba(31,169,113,.1); } .eg-conf .ok > svg.lucide { color: #12704A; }
+.eg-conf .bad { background: rgba(209,67,67,.1); } .eg-conf .bad > svg.lucide { color: var(--v2-red); }
+.eg-conf .at { background: var(--v2-orange-50); } .eg-conf .at > svg.lucide { color: var(--v2-orange-text); }
+#eg-scrim { z-index: 170; }
+#eg-scrim .rd-modal textarea { width: 100%; }
+
+.eg-fproj { cursor: pointer; transition: transform .15s; }
+.eg-fproj:hover { transform: translateY(-1px); }
+
+@media (max-width: 760px) {
+  .eg-col { flex-basis: 82vw; }
+  .eg-ph { padding: 14px 14px 0; }
+  .eg-pb { padding: 12px 12px 40px; }
+  .eg-steps > div span { display: none; }
+  .eg-barra > span { width: 130px; }
+  .eg-acts select { width: 100%; }
+}

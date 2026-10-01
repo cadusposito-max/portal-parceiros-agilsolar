@@ -1,0 +1,1360 @@
+// ==========================================================================
+// ENGENHARIA v2 — projetos da engenharia central (out/2026)
+//
+// - Ambiente Engenharia (só engenharia central: admin ou engenheiro/coord.
+//   técnico da Matriz): visão geral, funil (kanban/lista com os status da
+//   Groner), ordens de serviço, catálogo técnico e a calculadora antiga.
+// - Comercial: aba "Projetos" (gestor/admin, só leitura) e aba "Engenharia"
+//   na ficha do cliente, com o envio à engenharia.
+//
+// Dimensionamento automático: o kit da venda é ligado a um módulo e a um
+// inversor do catálogo (componentes.ficha). O motor é o engCompute da
+// calculadora (engenharia.js), sem mudanças.
+//
+// Segurança: tudo que grava passa por RPC security definer (eng_*). A
+// franquia só lê; status muda só pela engenharia central.
+// ==========================================================================
+(function () {
+  'use strict';
+
+  // ------------------------------------------------------------ status
+  // [id, rótulo, dica, prazo em dias, tom, com quem está a bola]
+  const STATUS = [
+    ['validacao', 'Validação', 'Docs e dimensionamento', 2, 'info', 'eng'],
+    ['validacao_reprovada', 'Validação reprovada', 'Devolvido à franquia', 3, 'bad', 'franquia'],
+    ['validacao_aprovada', 'Validação aprovada', 'OS gerada', 1, 'ok', 'eng'],
+    ['elaborar_projeto', 'Elaborar projeto', 'Unifilar, memorial, ART', 3, 'at', 'eng'],
+    ['projeto_enviado', 'Projeto enviado', 'Na concessionária', 15, 'info', 'conc'],
+    ['projeto_aprovado', 'Projeto aprovado', 'Liberado para obra', 20, 'ok', 'obra'],
+    ['projeto_reprovado', 'Projeto reprovado', 'Corrigir e reenviar', 3, 'bad', 'eng'],
+    ['projeto_reenviado', 'Projeto reenviado', 'Aguardando novo parecer', 15, 'info', 'conc'],
+    ['solicitacao_vistoria', 'Solicitação de vistoria', 'Obra concluída', 2, 'at', 'eng'],
+    ['vistoria_solicitada', 'Vistoria solicitada', 'Aguardando concessionária', 10, 'info', 'conc'],
+    ['projeto_concluido', 'Projeto concluído', 'Finalizado', 0, 'ok', null],
+  ].map(([id, n, d, sla, tone, lado]) => ({ id, n, d, sla, tone, lado }));
+  const ST = Object.fromEntries(STATUS.map((s) => [s.id, s]));
+  ST.cancelado = { id: 'cancelado', n: 'Cancelado', d: '', sla: 0, tone: 'gray', lado: null };
+  // caminho principal (barra de progresso); reprovado/reenviado são desvios
+  const LINHA = ['validacao', 'validacao_aprovada', 'elaborar_projeto', 'projeto_enviado', 'projeto_aprovado', 'solicitacao_vistoria', 'vistoria_solicitada', 'projeto_concluido'];
+  const NIVEL = { validacao: 0, validacao_reprovada: 0, validacao_aprovada: 1, elaborar_projeto: 2, projeto_enviado: 3, projeto_reprovado: 3, projeto_reenviado: 3, projeto_aprovado: 4, solicitacao_vistoria: 5, vistoria_solicitada: 6, projeto_concluido: 7, cancelado: -1 };
+  const LADOS = { eng: 'Engenharia', franquia: 'Franquia', conc: 'Concessionária', obra: 'Obra' };
+  const COR = { info: 'var(--v2-blue)', bad: 'var(--v2-red)', ok: 'var(--v2-green)', at: 'var(--v2-orange)', gray: 'var(--v2-gray)' };
+  const LIGACOES = [['mono_127', 'Monofásico 127 V'], ['mono_220', 'Monofásico 220 V'], ['bi_220', 'Bifásico 220 V'], ['tri_220', 'Trifásico 220 V'], ['tri_380', 'Trifásico 380 V']];
+  const LIG = Object.fromEntries(LIGACOES);
+  const REDES_INV = [['mono_220', 'Monofásico 220 V'], ['tri_220', 'Trifásico 220 V'], ['tri_380', 'Trifásico 380 V']];
+  const TEMP_MIN = 5;          // °C para o Voc no frio
+  const PERDAS = 20;           // % de perdas do sistema (padrão da calculadora)
+  const CABO_CC = 4;           // mm² (os kits saem com cabo de 4 mm)
+  const LIMITE_QUEDA = 3;      // %
+
+  // Campos da ficha técnica.
+  const FICHA = {
+    modulo: [['potencia', 'Potência', 'Wp'], ['voc', 'Voc', 'V'], ['vmp', 'Vmp', 'V'], ['isc', 'Isc', 'A'], ['imp', 'Imp', 'A'], ['coef_voc', 'Coef. de temperatura do Voc', '%/°C']],
+    inversor: [['potencia', 'Potência CA', 'W'], ['overload', 'Overload máximo', '%'], ['mppts', 'Nº de MPPTs', ''], ['entradas', 'Entradas por MPPT', 'ex.: 2 ou 2,1'], ['v_max', 'Tensão CC máxima', 'V'], ['v_min_mppt', 'Tensão mínima de MPPT', 'V'], ['i_max_mppt', 'Corrente máx. de curto-circuito por MPPT', 'A']],
+    micro: [['potencia', 'Potência CA', 'W'], ['modulos_por_micro', 'Módulos por micro', ''], ['v_max_entrada', 'Tensão máxima por entrada', 'V'], ['i_max_entrada', 'Corrente máxima por entrada', 'A'], ['p_max_entrada', 'Potência máxima por entrada', 'W']],
+  };
+  const OPCIONAIS = ['p_max_entrada', 'i_max_entrada', 'overload']; // overload vazio = 50 %
+
+  const E = {
+    projetos: null, loading: null, catalogo: null, kits: null, osLista: null,
+    ev: {}, os: {}, tab: 'visao', ctx: 'eng', container: null,
+    view: lsGet('eng_view') || 'kanban', busca: '', fr: '', fst: '', vazios: lsGet('eng_vazios') === '1', soComp: false,
+    aberto: null, ptab: 'dim', dimRodando: false,
+  };
+
+  // ------------------------------------------------------------ utilidades
+  const esc = (s) => (typeof escapeHTML === 'function' ? escapeHTML(String(s ?? '')) : String(s ?? ''));
+  const ic = (n) => `<i data-lucide="${n}"></i>`;
+  const toast = (m) => { if (typeof showToast === 'function') showToast(m); };
+  const icons = () => { if (typeof queueAppLucideCreateIcons === 'function') queueAppLucideCreateIcons(); else if (window.lucide) window.lucide.createIcons(); };
+  const num = (v) => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : NaN; };
+  const nf = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : '—');
+  const dataBR = (s) => (s ? new Date(s.length === 10 ? s + 'T12:00:00' : s).toLocaleDateString('pt-BR') : '—');
+  const dataHora = (s) => (s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
+  const dias = (de, ate) => Math.max(0, Math.floor(((ate ? new Date(ate) : new Date()) - new Date(de)) / 86400000));
+  const pnum = (p) => 'P-' + String(p.numero || 0).padStart(4, '0');
+  const ini = (n) => String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]).join('').toUpperCase() || '?';
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (_) { /* sem storage */ } }
+  const central = () => !!(state.isAdmin || state.isEngCentral);
+  const podeEnviar = () => !!(state.isAdmin || state.isGestor || state.isEngCentral);
+  const atrasado = (p) => { const s = ST[p.status]; return !!(s && s.sla && dias(p.status_desde) > s.sla); };
+  const sb = () => supabaseClient;
+
+  async function rpc(nome, args) {
+    const { data, error } = await sb().rpc(nome, args);
+    if (error) throw new Error(error.message || String(error));
+    return data;
+  }
+
+  // ------------------------------------------------------------ dados
+  async function carregarProjetos(forcar) {
+    if (E.projetos && !forcar) return E.projetos;
+    if (E.loading) return E.loading;
+    E.loading = (async () => {
+      const { data, error } = await sb().from('eng_projetos').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      E.projetos = (data || []).filter((p) => p.status !== 'cancelado' || central());
+      atualizarIndice();
+      return E.projetos;
+    })();
+    try { return await E.loading; } finally { E.loading = null; }
+  }
+
+  // projeto mais recente de cada cliente (para selos no Comercial)
+  function atualizarIndice() {
+    const idx = {};
+    (E.projetos || []).forEach((p) => {
+      if (!p.cliente_id || p.status === 'cancelado') return;
+      if (!idx[p.cliente_id] || new Date(p.created_at) > new Date(idx[p.cliente_id].created_at)) idx[p.cliente_id] = p;
+    });
+    state.engPorCliente = idx;
+  }
+
+  async function carregarCatalogo(forcar) {
+    if (E.catalogo && !forcar) return E.catalogo;
+    const [c, k] = await Promise.all([
+      sb().from('componentes').select('id, tipo, nome, marca, potencia_wp, ativo, ficha, ficha_conferida, ficha_atualizada_em, ficha_atualizada_por').in('tipo', ['modulo', 'inversor']).order('tipo').order('potencia_wp'),
+      sb().from('produtos').select('id, name, power, ativo, modulo_id, modulo_qtd, inversor_id, inversor_qtd').order('power'),
+    ]);
+    if (c.error) throw c.error;
+    if (k.error) throw k.error;
+    E.catalogo = c.data || [];
+    E.kits = k.data || [];
+    return E.catalogo;
+  }
+
+  async function carregarEventos(id) {
+    const { data, error } = await sb().from('eng_eventos').select('*').eq('projeto_id', id).order('created_at');
+    if (error) throw error;
+    E.ev[id] = data || [];
+    return E.ev[id];
+  }
+
+  async function carregarOS(id) {
+    const { data, error } = await sb().from('eng_os').select('*').eq('projeto_id', id).order('revisao', { ascending: false });
+    if (error) throw error;
+    E.os[id] = data || [];
+    return E.os[id];
+  }
+
+  async function recarregarProjeto(id) {
+    const { data, error } = await sb().from('eng_projetos').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!E.projetos) E.projetos = [];
+    const i = E.projetos.findIndex((p) => p.id === id);
+    if (data) { if (i >= 0) E.projetos[i] = data; else E.projetos.unshift(data); }
+    atualizarIndice();
+    await Promise.all([carregarEventos(id), carregarOS(id)]);
+    return data;
+  }
+
+  // ------------------------------------------------------------ dimensionamento automático
+  const ehMicro = (inv) => !!(inv && inv.ficha && inv.ficha.micro);
+  function camposFaltando(eq, tipo) {
+    const f = (eq && eq.ficha) || {};
+    return FICHA[tipo].filter(([k]) => !OPCIONAIS.includes(k) && (f[k] === undefined || f[k] === null || String(f[k]).trim() === '' || (k !== 'entradas' && !Number.isFinite(num(f[k]))))).map(([, l]) => l);
+  }
+  function ligacaoOk(rede, lig) {
+    if (!rede || !lig) return true;
+    if (rede === 'mono_220') return lig !== 'mono_127';
+    return rede === lig;
+  }
+  function geracaoMensal(kwp, hsp) {
+    const dm = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const fs = [1.15, 1.1, 1.05, 0.95, 0.85, 0.8, 0.8, 0.85, 0.95, 1.05, 1.1, 1.15];
+    const pr = 1 - PERDAS / 100;
+    return fs.map((f, i) => kwp * hsp * f * pr * dm[i]);
+  }
+  function hspDe(p) {
+    const h = num(p.snapshot && p.snapshot.cliente && p.snapshot.cliente.hsp);
+    if (h > 0) return h;
+    const f = (state.franquias || []).find((x) => x.id === p.franquia_id);
+    return (f && num(f.hsp_medio) > 0) ? num(f.hsp_medio) : 5.4;
+  }
+
+  // Proteções CA sugeridas (regra simples: corrente nominal × 1,25).
+  function protecoes(potW, rede) {
+    const v = rede === 'tri_380' ? 380 : 220;
+    const tri = rede === 'tri_220' || rede === 'tri_380';
+    const i = tri ? potW / (Math.sqrt(3) * v) : potW / v;
+    const disj = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100, 125].find((d) => d >= i * 1.25) || 125;
+    const cabo = disj <= 20 ? 2.5 : disj <= 25 ? 4 : disj <= 32 ? 6 : disj <= 50 ? 10 : disj <= 63 ? 16 : disj <= 80 ? 25 : 35;
+    return { corrente: i, disjuntor: disj, polos: tri ? 'tripolar' : 'bipolar', cabo, condutores: tri ? '3F + N + PE' : 'F + N + PE' };
+  }
+
+  function dimensionar(p) {
+    const sn = p.snapshot || {};
+    const mod = sn.modulo, inv = sn.inversor;
+    const lig = sn.instalacao && sn.instalacao.tipo_ligacao;
+    const hsp = hspDe(p);
+    const dist = num(sn.instalacao && sn.instalacao.distancia_m);
+    const rev = (motivo) => ({ status: 'revisao', motivo, checks: [], hsp, auto: true });
+    if (!sn.kit) return rev('Kit da venda não encontrado no catálogo (proposta personalizada ou kit fora da lista)');
+    if (!mod || !inv) return rev('O kit "' + sn.kit.nome + '" ainda não tem módulo e inversor ligados');
+    if (!(mod.qtd > 0) || !(inv.qtd > 0)) return rev('O vínculo do kit está sem quantidade de módulos ou de inversores');
+    const fm = camposFaltando(mod, 'modulo');
+    if (fm.length) return rev('Ficha técnica incompleta: ' + mod.nome + ' (' + fm.join(', ') + ')');
+    const fi = camposFaltando(inv, ehMicro(inv) ? 'micro' : 'inversor');
+    if (fi.length) return rev('Ficha técnica incompleta: ' + inv.nome + ' (' + fi.join(', ') + ')');
+
+    const m = mod.ficha, f = inv.ficha;
+    const voc = num(m.voc), vmp = num(m.vmp), isc = num(m.isc), imp = num(m.imp), pmod = num(m.potencia), coef = num(m.coef_voc);
+    const vocFrio = voc * (1 + (TEMP_MIN - 25) * (coef / 100));
+    const kwp = (mod.qtd * pmod) / 1000;
+    const checks = [];
+    const add = (nome, calc, limite, valor, ok) => checks.push({ nome, calc, limite, valor, ok });
+    const potCA = num(f.potencia) * inv.qtd;
+    let res = null, tipo, minSerie = 0;
+
+    if (ehMicro(inv)) {
+      tipo = 'micro';
+      const porMicro = num(f.modulos_por_micro);
+      const cap = porMicro * inv.qtd;
+      add('Módulos por micro', `${mod.qtd} módulos em ${inv.qtd} micros de ${porMicro} entradas`, `≤ ${cap}`, `${mod.qtd}`, mod.qtd <= cap);
+      add('Tensão máxima no frio (' + TEMP_MIN + ' °C)', 'Voc corrigido de um módulo', `≤ ${nf(f.v_max_entrada, 0)} V`, `${nf(vocFrio, 1)} V`, vocFrio <= num(f.v_max_entrada));
+      if (Number.isFinite(num(f.i_max_entrada))) add('Corrente por entrada', 'Isc do módulo', `≤ ${nf(f.i_max_entrada, 1)} A`, `${nf(isc, 1)} A`, isc <= num(f.i_max_entrada));
+      if (Number.isFinite(num(f.p_max_entrada))) add('Potência por entrada', 'Potência do módulo', `≤ ${nf(f.p_max_entrada, 0)} W`, `${nf(pmod, 0)} W`, pmod <= num(f.p_max_entrada));
+      const mensal = geracaoMensal(kwp, hsp);
+      res = { potenciaPico: kwp, monthlyGeneration: mensal, geracaoMedia: mensal.reduce((a, b) => a + b, 0) / 12, micro: { qtd: inv.qtd, porMicro } };
+    } else {
+      tipo = 'string';
+      if (typeof engCompute !== 'function') return rev('Motor de cálculo não carregado');
+      const inputs = {
+        invBrand: inv.marca || '', invModel: inv.nome, modBrand: mod.marca || '', modModel: mod.nome, gridType: lig || '',
+        inverterCount: inv.qtd, moduleCount: mod.qtd, irradiation: hsp, systemLosses: PERDAS,
+        inverterPower: num(f.potencia), overload: Number.isFinite(num(f.overload)) ? num(f.overload) : 50, mpptCount: num(f.mppts),
+        connectorsPerMppt: String(f.entradas).replace(/\s/g, ''), mpptMinV: num(f.v_min_mppt), inverterMaxV: num(f.v_max), mpptMaxA: num(f.i_max_mppt),
+        modulePower: pmod, moduleVmp: vmp, moduleImp: imp, moduleVoc: voc, moduleIsc: isc, tempCoef: coef, minTemp: TEMP_MIN,
+        enableVdropCalc: Number.isFinite(dist) && dist > 0, cableDistance: Number.isFinite(dist) ? dist : 0, dcCableSize: String(CABO_CC), groupingFactor: '0.7',
+      };
+      const r = engCompute(inputs);
+      if (r.error) return { ...rev(r.error), inputs };
+      res = r;
+      const usados = r.distribution.filter((d) => d.numStrings > 0);
+      minSerie = Math.min(...usados.map((d) => d.modulesPerString));
+      const maxPar = Math.max(...usados.map((d) => d.numStrings));
+      add('Tensão máxima no frio (' + TEMP_MIN + ' °C)', 'Voc corrigido da maior string', `≤ ${nf(f.v_max, 0)} V`, `${nf(r.maxVStringGlobal, 1)} V`, r.maxVStringGlobal <= num(f.v_max));
+      add('Tensão mínima de MPPT', 'Vmp da menor string', `≥ ${nf(f.v_min_mppt, 0)} V`, `${nf(vmp * minSerie, 1)} V`, vmp * minSerie >= num(f.v_min_mppt));
+      add('Corrente por MPPT', 'Isc × strings em paralelo', `≤ ${nf(f.i_max_mppt, 1)} A`, `${nf(isc * maxPar, 1)} A`, isc * maxPar <= num(f.i_max_mppt));
+      const ov = (kwp * 1000 / potCA - 1) * 100;
+      add('Overload', `${nf(kwp, 2)} kWp ÷ ${nf(potCA / 1000, 2)} kW`, `≤ ${nf(inputs.overload, 0)} %`, `${nf(ov, 1)} %`, ov <= inputs.overload);
+      res.inputs = inputs;
+    }
+    add('Tipo de ligação', `${inv.nome} (${(REDES_INV.find((x) => x[0] === f.rede) || [, 'rede não informada'])[1]}) com ${LIG[lig] || 'ligação não informada'}`, 'compatível', ligacaoOk(f.rede, lig) ? 'ok' : 'não', !!lig && ligacaoOk(f.rede, lig));
+    let queda = null;
+    if (tipo === 'string' && Number.isFinite(dist) && dist > 0) {
+      const dv = (0.0172 * 2 * dist / CABO_CC) * imp;
+      queda = (dv / (vmp * minSerie)) * 100;
+      add('Queda de tensão CC', `${nf(dist, 0)} m · cabo ${CABO_CC} mm² · ${nf(imp, 1)} A`, `≤ ${LIMITE_QUEDA} %`, `${nf(queda, 2)} %`, queda <= LIMITE_QUEDA);
+    }
+    const falhas = checks.filter((c) => !c.ok);
+    const fichasConferidas = mod.ficha_conferida && inv.ficha_conferida;
+    return {
+      auto: true, tipo, status: falhas.length ? 'revisao' : 'ok',
+      motivo: falhas.length ? falhas.map((c) => c.nome).join(', ') : (fichasConferidas ? null : 'Ficha técnica ainda não conferida pela engenharia'),
+      checks, hsp, kwp, potCA, queda,
+      distribution: res.distribution || null, micro: res.micro || null,
+      geracaoMedia: res.geracaoMedia, monthlyGeneration: res.monthlyGeneration,
+      vocCorrected: vocFrio, inputs: res.inputs || null,
+      protecoes: protecoes(potCA / inv.qtd, f.rede), inversores: inv.qtd,
+      fichas_conferidas: !!fichasConferidas, em: new Date().toISOString(),
+    };
+  }
+
+  // A engenharia roda o automático nos projetos em validação que ainda não têm resultado.
+  async function rodarAutomaticos() {
+    if (!central() || E.dimRodando || !E.projetos) return;
+    const pend = E.projetos.filter((p) => p.status === 'validacao' && !p.dim);
+    if (!pend.length) return;
+    E.dimRodando = true;
+    try {
+      for (const p of pend) {
+        const d = dimensionar(p);
+        try {
+          await rpc('eng_salvar_dim', { p_id: p.id, p_dim: d, p_status: d.status === 'ok' ? 'ok' : 'revisao', p_motivo: d.status === 'ok' ? null : d.motivo });
+          Object.assign(p, { dim: d, dim_status: d.status === 'ok' ? 'ok' : 'revisao', dim_motivo: d.status === 'ok' ? null : d.motivo, dim_em: d.em });
+        } catch (e) { console.warn('[eng] dimensionamento automático', p.id, e); }
+      }
+    } finally { E.dimRodando = false; }
+    pintar();
+  }
+
+  // ------------------------------------------------------------ tempo dividido (relógio do servidor)
+  function tempoPorLado(p, eventos) {
+    const marcos = (eventos || []).filter((e) => (e.tipo === 'status' || e.tipo === 'envio') && e.para_status).map((e) => ({ st: e.para_status, em: e.created_at }));
+    if (!marcos.length) marcos.push({ st: 'validacao', em: p.created_at });
+    const tot = { eng: 0, franquia: 0, conc: 0, obra: 0 };
+    marcos.forEach((m, i) => {
+      const fim = i + 1 < marcos.length ? new Date(marcos[i + 1].em) : (p.status === 'projeto_concluido' || p.status === 'cancelado' ? new Date(m.em) : new Date());
+      const lado = ST[m.st] && ST[m.st].lado;
+      if (lado) tot[lado] += Math.max(0, fim - new Date(m.em)) / 86400000;
+    });
+    return tot;
+  }
+
+  // ------------------------------------------------------------ peças visuais
+  const pill = (txt, tone, dot = true) => `<span class="rd-pill ${dot ? '' : 'nodot'} ${({ info: 'rd-info', bad: 'rd-bad', ok: 'rd-ok', at: 'rd-at', gray: 'rd-gray' })[tone] || 'rd-gray'}">${txt}</span>`;
+  const stPill = (p) => { const s = ST[p.status] || ST.cancelado; return pill(esc(s.n), s.tone); };
+  function dimPill(p) {
+    if (p.status !== 'validacao') return '';
+    if (!p.dim_status) return pill('Calculando', 'gray');
+    return p.dim_status === 'ok' ? pill('Auto aprovado', 'ok') : pill('Precisa revisão', 'bad');
+  }
+  const compPill = (p) => (p.compensacao ? (p.compensacao.status === 'feita' ? pill('Compensação feita', 'ok') : pill('Compensação pendente', 'at')) : '');
+  const alertaPill = (p) => (p.alerta && central() ? `<span class="eg-alerta" title="Algo mudou depois do envio">${ic('triangle-alert')}</span>` : '');
+  const kitCurto = (p) => String((p.snapshot && p.snapshot.venda && p.snapshot.venda.kit_nome) || '').replace(/^KIT\s+/i, '');
+
+  function filtrados() {
+    const q = E.busca.trim().toLowerCase();
+    return (E.projetos || []).filter((p) => p.status !== 'cancelado'
+      && (!E.fr || p.franquia_id === E.fr)
+      && (!E.soComp || (p.compensacao && p.compensacao.status !== 'feita'))
+      && (!q || `${p.cliente_nome || ''} ${pnum(p)} ${p.cidade || ''} ${p.uc || ''} ${p.protocolo || ''}`.toLowerCase().includes(q)));
+  }
+
+  function franquiasDosProjetos() {
+    const m = new Map();
+    (E.projetos || []).forEach((p) => m.set(p.franquia_id, (p.snapshot && p.snapshot.franquia_nome) || 'Franquia'));
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }
+  const nomeFranquia = (p) => String((p.snapshot && p.snapshot.franquia_nome) || '').replace(/^\s*[áa]gil\s*solar\s*/i, '') || '—';
+
+  // ------------------------------------------------------------ rotas
+  async function renderEngRoute(container, tab) {
+    E.ctx = 'eng';
+    E.container = container;
+    E.tab = tab || 'visao';
+    if (!central()) {
+      container.innerHTML = `<div class="rd"><div class="rd-card rd-empty"><div class="ic">${ic('lock')}</div><b>Acesso restrito</b>O ambiente Engenharia é da engenharia central.</div></div>`;
+      icons();
+      return;
+    }
+    if (E.tab === 'calculadora') {
+      if (typeof renderEngCalculadora === 'function') renderEngCalculadora(container);
+      return;
+    }
+    await carregarTela(container, E.tab === 'catalogo');
+  }
+
+  async function renderEngProjetosComercial(container) {
+    E.ctx = 'com';
+    E.container = container;
+    E.tab = 'funil';
+    await carregarTela(container, false);
+  }
+
+  async function carregarTela(container, comCatalogo) {
+    const precisa = !E.projetos || (comCatalogo && !E.catalogo) || (E.tab === 'os' && !E.osLista);
+    if (precisa) {
+      container.innerHTML = `<div class="rd"><div class="rd-loading">${ic('loader-2')}Carregando a engenharia...</div></div>`;
+      icons();
+      try {
+        await Promise.all([
+          carregarProjetos(),
+          comCatalogo ? carregarCatalogo() : null,
+          E.tab === 'os' ? carregarListaOS() : null,
+        ]);
+      } catch (err) {
+        console.error('[eng] falha ao carregar', err);
+        container.innerHTML = `<div class="rd"><div class="rd-card rd-empty"><div class="ic">${ic('alert-triangle')}</div><b>Não foi possível carregar</b>${esc(err.message || err)}<br><br><button class="rd-btn" onclick="EV.recarregar()">${ic('refresh-cw')}Tentar de novo</button></div></div>`;
+        icons();
+        return;
+      }
+    }
+    if (E.container !== container) return;
+    pintar();
+    rodarAutomaticos();
+  }
+
+  async function carregarListaOS() {
+    const { data, error } = await sb().from('eng_os').select('id, projeto_id, numero, revisao, equipe, created_at, created_by_nome').eq('ativa', true).order('created_at', { ascending: false });
+    if (error) throw error;
+    E.osLista = data || [];
+  }
+
+  function pintar() {
+    const c = E.container;
+    if (!c || !document.body.contains(c)) { pintarDrawer(); return; }
+    const naTela = (E.ctx === 'eng' && state.environment === 'engenharia') || (E.ctx === 'com' && state.environment !== 'engenharia' && state.activeTab === 'engprojetos');
+    if (!naTela) { pintarDrawer(); return; }
+    const corpo = E.ctx === 'com' ? telaFunil() : ({ visao: telaVisao, funil: telaFunil, os: telaOS, catalogo: telaCatalogo }[E.tab] || telaVisao)();
+    const y = window.scrollY;
+    c.innerHTML = `<div class="rd eg">${corpo}</div>`;
+    pintarDrawer();
+    icons();
+    window.scrollTo(0, y);
+  }
+
+  // ------------------------------------------------------------ visão geral
+  function telaVisao() {
+    const ps = filtrados();
+    const fila = ps.filter((p) => p.status === 'validacao');
+    const okc = fila.filter((p) => p.dim_status === 'ok').length;
+    const atr = ps.filter(atrasado).sort((a, b) => dias(b.status_desde) - dias(a.status_desde));
+    const alertas = ps.filter((p) => p.alerta);
+    const por = STATUS.map((s) => ps.filter((p) => p.status === s.id).length);
+    const mx = Math.max(1, ...por);
+    const mesIni = new Date(); mesIni.setDate(1); mesIni.setHours(0, 0, 0, 0);
+    const conc = ps.filter((p) => p.status === 'projeto_concluido');
+    const durs = conc.map((p) => dias(p.created_at, p.status_desde));
+    const media = durs.length ? Math.round(durs.reduce((a, b) => a + b, 0) / durs.length) : null;
+    const comp = ps.filter((p) => p.compensacao && p.compensacao.status !== 'feita').length;
+    return `${barra(true)}
+      <div class="rd-grid rd-k5 rd-mb">
+        <div class="rd-kpi hero"><div class="l">${ic('inbox')}Em validação</div><div class="v">${fila.length}</div><div class="h">Chegaram das franquias</div></div>
+        <div class="rd-kpi"><div class="l" style="color:#12704A">${ic('circle-check')}Auto aprovados</div><div class="v">${okc}</div><div class="h">Só falta conferir e aprovar</div></div>
+        <div class="rd-kpi"><div class="l" style="color:var(--v2-red)">${ic('circle-alert')}Precisam de revisão</div><div class="v">${fila.length - okc}</div><div class="h">Equipamento, ficha ou cálculo</div></div>
+        <div class="rd-kpi"><div class="l">${ic('alarm-clock')}Fora do prazo</div><div class="v">${atr.length}</div><div class="h">Prazo de cada status</div></div>
+        <div class="rd-kpi"><div class="l">${ic('timer')}Envio → concluído</div><div class="v">${media == null ? '—' : media + ' dias'}</div><div class="h">${conc.length} concluído(s)</div></div>
+      </div>
+      <div class="rd-grid rd-two">
+        <div class="rd-card"><h3>${ic('git-merge')}Projetos por status</h3><p class="rd-sub">Clique para ver a lista</p>
+          ${STATUS.map((s, i) => `<button class="eg-barra" onclick="EV.verStatus('${s.id}')"><span>${esc(s.n)}</span><div class="rd-meter"><i style="width:${(por[i] / mx) * 100}%;background:${COR[s.tone]}"></i></div><b>${por[i]}</b></button>`).join('')}
+        </div>
+        <div>
+          <div class="rd-card rd-mb"><h3>${ic('alarm-clock')}Passaram do prazo</h3><p class="rd-sub">Do mais antigo para o mais novo</p>
+            ${atr.length ? atr.slice(0, 8).map((p) => alertaLinha(p, 'bad', 'clock', `${esc(ST[p.status].n)} · ${dias(p.status_desde)} dias (prazo ${ST[p.status].sla})`)).join('') : '<div class="rd-muted">Nada atrasado.</div>'}
+          </div>
+          <div class="rd-card"><h3>${ic('triangle-alert')}Mudou depois do envio</h3><p class="rd-sub">Documento novo ou dado do cliente alterado</p>
+            ${alertas.length ? alertas.slice(0, 8).map((p) => alertaLinha(p, 'at', 'file-warning', esc(nomeFranquia(p)))).join('') : '<div class="rd-muted">Nenhum alerta.</div>'}
+            ${comp ? `<button class="rd-alert" onclick="EV.soCompensacao()"><span class="ic at">${ic('zap')}</span><span><b>${comp} compensação(ões) pendente(s)</b><span>Ver no funil</span></span></button>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+  const alertaLinha = (p, tone, icone, sub) => `<button class="rd-alert" onclick="EV.abrir('${p.id}')"><span class="ic ${tone}">${ic(icone)}</span><span><b>${esc(p.cliente_nome || 'Cliente')} · ${pnum(p)}</b><span>${sub}</span></span></button>`;
+
+  function barra(semVisao) {
+    const frs = franquiasDosProjetos();
+    const leitura = E.ctx === 'com';
+    return `<div class="rd-bar">
+      <label class="rd-sel">${ic('search')}<input placeholder="Buscar cliente, projeto, UC" value="${esc(E.busca)}" oninput="EV.buscar(this.value)"></label>
+      ${frs.length > 1 ? `<label class="rd-sel">${ic('store')}<select onchange="EV.franquia(this.value)"><option value="">Todas as franquias</option>${frs.map(([id, n]) => `<option value="${id}" ${E.fr === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>` : ''}
+      <span class="rd-grow"></span>
+      ${semVisao ? '' : `<div class="rd-tabs eg-seg">${[['kanban', 'kanban', 'Kanban'], ['lista', 'list', 'Lista']].map(([v, i, l]) => `<button class="rd-tab ${E.view === v ? 'on' : ''}" onclick="EV.view('${v}')">${ic(i)}${l}</button>`).join('')}</div>`}
+      <button class="rd-btn ghost" onclick="EV.recarregar()" title="Atualizar">${ic('refresh-cw')}<span class="rd-hide-m">Atualizar</span></button>
+      ${leitura ? '' : ''}
+    </div>`;
+  }
+
+  // ------------------------------------------------------------ funil
+  function telaFunil() {
+    const base = filtrados();
+    const leitura = E.ctx === 'com';
+    const topo = leitura ? `<div class="rd-note">${ic('eye')}<span>Acompanhamento dos projetos da sua franquia na engenharia. Quem muda o status é a engenharia; aqui você vê o andamento, responde pendências e comenta.</span></div>` : '';
+    const extra = `<div class="eg-filtros">
+      ${E.view === 'kanban' ? `<label class="rd-check"><input type="checkbox" ${E.vazios ? 'checked' : ''} onchange="EV.vazios(this.checked)">Ocultar status vazios</label>` : ''}
+      <label class="rd-check"><input type="checkbox" ${E.soComp ? 'checked' : ''} onchange="EV.comp(this.checked)">Só com compensação pendente</label>
+    </div>`;
+    if (!(E.projetos || []).length) {
+      return `${topo}${barra()}<div class="rd-card rd-empty"><div class="ic">${ic('ruler')}</div><b>Nenhum projeto ainda</b>${leitura ? 'Os projetos aparecem aqui quando o gestor envia uma venda à engenharia pela ficha do cliente (aba Engenharia).' : 'Os projetos chegam quando uma franquia envia uma venda à engenharia.'}</div>`;
+    }
+    if (E.view === 'lista') return topo + barra() + extra + lista(base);
+    const cols = STATUS.filter((s) => !E.vazios || base.some((p) => p.status === s.id));
+    return `${topo}${barra()}${extra}<div class="eg-kanban">${cols.map((s) => {
+      const its = base.filter((p) => p.status === s.id).sort((a, b) => new Date(a.status_desde) - new Date(b.status_desde));
+      return `<div class="eg-col" style="--c:${COR[s.tone]}"><div class="eg-colh"><div><b>${esc(s.n)}</b><small>${esc(s.d)}${s.sla ? ` · prazo ${s.sla}d` : ''}</small></div><span>${its.length}</span></div>${its.map(card).join('') || '<div class="eg-vazio">—</div>'}</div>`;
+    }).join('')}</div>`;
+  }
+
+  function card(p) {
+    const s = ST[p.status];
+    const ultimoMotivo = (s.tone === 'bad' && p._motivo) ? `<div class="eg-motivo">${esc(p._motivo)}</div>` : '';
+    return `<button class="eg-card" onclick="EV.abrir('${p.id}')">
+      <div class="eg-cnm">${esc(p.cliente_nome || 'Cliente')}${alertaPill(p)}</div>
+      <div class="eg-cmt">${pnum(p)} · ${esc(nomeFranquia(p))} · ${nf(p.kwp, 2)} kWp<br>${esc(kitCurto(p).slice(0, 44))}</div>
+      ${ultimoMotivo}
+      <div class="eg-cft">${dimPill(p)}${compPill(p)}${p.status === 'projeto_concluido' ? '' : `<span class="eg-dias ${atrasado(p) ? 'late' : ''}">${ic('clock')}${dias(p.status_desde)}d</span>`}<span class="eg-av" title="${esc(p.responsavel_nome || 'Sem responsável')}">${esc(p.responsavel_nome ? ini(p.responsavel_nome) : '—')}</span></div>
+    </button>`;
+  }
+
+  function lista(base) {
+    const fst = E.fst;
+    const rows = base.filter((p) => !fst || p.status === fst).sort((a, b) => (atrasado(b) - atrasado(a)) || (new Date(a.status_desde) - new Date(b.status_desde)));
+    const chips = `<div class="rd-chips rd-mb"><button class="rd-chip ${!fst ? 'on' : ''}" onclick="EV.verStatus('')">Todos ${base.length}</button>${STATUS.map((s) => { const n = base.filter((p) => p.status === s.id).length; return `<button class="rd-chip ${fst === s.id ? 'on' : ''}" ${n ? '' : 'style="opacity:.55"'} onclick="EV.verStatus('${s.id}')">${esc(s.n)} ${n}</button>`; }).join('')}</div>`;
+    return `${chips}<div class="rd-card" style="padding:6px 12px"><table class="rd-t cards"><thead><tr><th>Cliente</th><th>Franquia</th><th>Sistema</th><th>Status</th><th class="r">No status</th><th>Resp.</th></tr></thead><tbody>
+      ${rows.map((p) => `<tr class="click" onclick="EV.abrir('${p.id}')">
+        <td class="first"><div class="rd-name">${esc(p.cliente_nome || 'Cliente')} ${alertaPill(p)}</div><div class="rd-muted">${pnum(p)} · ${esc(p.cidade || '')}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${dimPill(p)}${compPill(p)}</div></td>
+        <td data-l="Franquia">${esc(nomeFranquia(p))}</td>
+        <td data-l="Sistema"><b>${nf(p.kwp, 2)} kWp</b><div class="rd-muted">${esc(kitCurto(p).slice(0, 38))}</div></td>
+        <td data-l="Status">${stPill(p)}</td>
+        <td data-l="No status" class="r"><b style="color:${atrasado(p) ? 'var(--v2-red)' : 'inherit'}">${p.status === 'projeto_concluido' ? '—' : dias(p.status_desde) + ' dias'}</b>${atrasado(p) ? `<div class="rd-muted">prazo ${ST[p.status].sla}d</div>` : ''}</td>
+        <td data-l="Resp.">${esc(p.responsavel_nome || '—')}</td></tr>`).join('') || '<tr><td colspan="6" class="rd-empty">Nenhum projeto neste status.</td></tr>'}
+    </tbody></table></div>`;
+  }
+
+  // ------------------------------------------------------------ OS
+  function telaOS() {
+    const l = E.osLista || [];
+    const byId = Object.fromEntries((E.projetos || []).map((p) => [p.id, p]));
+    return `${barra(true)}<div class="rd-card" style="padding:6px 12px">${l.length ? `<table class="rd-t cards"><thead><tr><th>OS</th><th>Cliente</th><th>Franquia</th><th>Equipe</th><th>Status do projeto</th><th class="r">Emitida</th></tr></thead><tbody>
+      ${l.filter((o) => byId[o.projeto_id]).map((o) => { const p = byId[o.projeto_id]; return `<tr class="click" onclick="EV.abrir('${p.id}','os')">
+        <td class="first"><b>${esc(o.numero)}</b>${o.revisao > 1 ? ` <span class="rd-tag">rev. ${o.revisao}</span>` : ''}</td><td data-l="Cliente">${esc(p.cliente_nome || '')}</td><td data-l="Franquia">${esc(nomeFranquia(p))}</td>
+        <td data-l="Equipe">${esc(o.equipe || '—')}</td><td data-l="Status">${stPill(p)}</td><td data-l="Emitida" class="r">${dataBR(o.created_at)}</td></tr>`; }).join('')}
+      </tbody></table>` : `<div class="rd-empty"><div class="ic">${ic('clipboard-list')}</div><b>Nenhuma OS ainda</b>A OS sai automaticamente quando a validação é aprovada.</div>`}</div>`;
+  }
+
+  // ------------------------------------------------------------ catálogo técnico + vínculo dos kits
+  function sugerirVinculo(kit, catalogo) {
+    const cat = catalogo || E.catalogo || [];
+    const nome = String(kit.name || '').toUpperCase();
+    const m = nome.match(/(\d+)\s*MOD[^\d]*?(\d{3})\s*W/);
+    const out = { modulo_id: null, modulo_qtd: null, inversor_id: null, inversor_qtd: null };
+    if (!m) return out;
+    out.modulo_qtd = Number(m[1]);
+    const w = Number(m[2]);
+    const mods = cat.filter((c) => c.tipo === 'modulo' && Math.round(num((c.ficha && c.ficha.potencia) || c.potencia_wp)) === w);
+    if (mods.length === 1) out.modulo_id = mods[0].id;
+    const parte = nome.split('+').slice(1).join('+');
+    const micro = /MICRO/.test(parte);
+    const kw = (parte.match(/(\d+(?:[.,]\d+)?)\s*K/) || [])[1];
+    const kwN = kw ? Number(kw.replace(',', '.')) : NaN;
+    const marcas = ['SOFAR', 'SOLIS', 'GROWATT', 'CHINT', 'HOYMILES', 'GOODWE', 'DEYE', 'FRONIUS', 'SAJ', 'WEG', 'APSYSTEMS'];
+    const marca = marcas.find((x) => parte.includes(x));
+    const invs = cat.filter((c) => c.tipo === 'inversor' && ehMicro(c) === micro
+      && (!marca || `${c.marca || ''} ${c.nome}`.toUpperCase().includes(marca))
+      && Number.isFinite(kwN) && Math.abs(num((c.ficha && c.ficha.potencia) || (c.potencia_wp)) / 1000 - kwN) < 0.06);
+    if (invs.length === 1) {
+      out.inversor_id = invs[0].id;
+      const pm = num(invs[0].ficha && invs[0].ficha.modulos_por_micro);
+      out.inversor_qtd = micro && pm > 0 ? Math.ceil(out.modulo_qtd / pm) : 1;
+    }
+    return out;
+  }
+  const kitLigado = (k) => !!(k.modulo_id && k.inversor_id && k.modulo_qtd && k.inversor_qtd);
+  const fichaOk = (c) => !camposFaltando(c, c.tipo === 'modulo' ? 'modulo' : (ehMicro(c) ? 'micro' : 'inversor')).length;
+  const nomeEq = (id) => { const c = (E.catalogo || []).find((x) => x.id === id); return c ? c.nome : '—'; };
+
+  function telaCatalogo() {
+    const cat = E.catalogo || [];
+    const kits = (E.kits || []).filter((k) => k.ativo !== false);
+    const pend = cat.filter((c) => c.ativo !== false && !fichaOk(c)).length;
+    const naoConf = cat.filter((c) => c.ativo !== false && fichaOk(c) && !c.ficha_conferida).length;
+    const semVinc = kits.filter((k) => !kitLigado(k)).length;
+    const linhaEq = (c) => {
+      const tipo = c.tipo === 'modulo' ? 'Módulo' : (ehMicro(c) ? 'Micro' : 'Inversor');
+      const f = c.ficha || {};
+      const resumo = c.tipo === 'modulo'
+        ? `Voc ${nf(f.voc, 1)} V · Vmp ${nf(f.vmp, 1)} V · Isc ${nf(f.isc, 2)} A · ${nf(f.coef_voc, 2)} %/°C`
+        : ehMicro(c) ? `${nf(f.modulos_por_micro)} módulos/micro · ${nf(f.potencia)} W · ${nf(f.v_max_entrada)} V máx`
+          : `${nf(f.potencia)} W · ${nf(f.mppts)} MPPT (${esc(f.entradas || '—')}) · ${nf(f.v_max)} V · ${nf(f.i_max_mppt, 1)} A/MPPT`;
+      const usados = kits.filter((k) => k.modulo_id === c.id || k.inversor_id === c.id).length;
+      return `<tr class="click" onclick="EV.fichaModal('${c.id}')"><td class="first"><span class="rd-tag">${tipo}</span></td>
+        <td data-l="Equipamento"><div class="rd-name">${esc(c.nome)}</div><div class="rd-muted">${esc(c.marca || '')}</div></td>
+        <td data-l="Ficha técnica" class="rd-muted">${fichaOk(c) ? resumo : '<span style="color:var(--v2-red)">Ficha incompleta</span>'}</td>
+        <td data-l="Kits" class="r">${usados}</td>
+        <td data-l="Situação">${!fichaOk(c) ? pill('Pendente', 'bad') : c.ficha_conferida ? pill('Conferida', 'ok') : pill('A conferir', 'at')}</td></tr>`;
+    };
+    return `<div class="rd-bar"><span class="rd-grow"></span>
+        <button class="rd-btn ghost" onclick="EV.recarregar()">${ic('refresh-cw')}<span class="rd-hide-m">Atualizar</span></button>
+        <button class="rd-btn pri" onclick="EV.fichaModal()">${ic('plus')}Equipamento</button></div>
+      ${pend || naoConf || semVinc ? `<div class="rd-note" style="background:var(--v2-orange-50);color:var(--v2-orange-text)">${ic('triangle-alert')}<span>${[pend ? `${pend} equipamento(s) com ficha incompleta` : '', naoConf ? `${naoConf} ficha(s) a conferir` : '', semVinc ? `${semVinc} kit(s) sem vínculo técnico` : ''].filter(Boolean).join(' · ')}. Projeto com esses equipamentos cai em "Precisa revisão".</span></div>` : ''}
+      <div class="rd-card rd-mb"><h3>${ic('cpu')}Equipamentos</h3><p class="rd-sub">Um catálogo só: o Comercial usa o preço, a engenharia usa a ficha técnica</p>
+        ${cat.length ? `<table class="rd-t cards"><thead><tr><th>Tipo</th><th>Equipamento</th><th>Ficha técnica</th><th class="r">Kits</th><th>Situação</th></tr></thead><tbody>${cat.filter((c) => c.ativo !== false).map(linhaEq).join('')}</tbody></table>`
+          : `<div class="rd-empty"><div class="ic">${ic('cpu')}</div><b>Nenhum equipamento</b>Cadastre os módulos e inversores dos kits com a ficha técnica.</div>`}
+      </div>
+      <div class="rd-card"><div class="rd-ch"><div><h3>${ic('package')}Vínculo dos kits</h3><p class="rd-sub">Quais equipamentos cada kit tem. É daqui que sai o dimensionamento automático.</p></div>
+        ${semVinc ? `<button class="rd-btn sm" onclick="EV.vincularTodos()">${ic('wand-sparkles')}Ligar pelo nome do kit</button>` : ''}</div>
+        <table class="rd-t cards"><thead><tr><th>Kit</th><th>Módulos</th><th>Inversor</th><th>Vínculo</th></tr></thead><tbody>
+        ${kits.map((k) => `<tr class="click" onclick="EV.kitModal('${k.id}')"><td class="first"><div class="rd-name" style="font-size:13px">${esc(k.name)}</div></td>
+          <td data-l="Módulos">${k.modulo_id ? `${k.modulo_qtd || '?'}× ${esc(nomeEq(k.modulo_id))}` : '—'}</td>
+          <td data-l="Inversor">${k.inversor_id ? `${k.inversor_qtd || '?'}× ${esc(nomeEq(k.inversor_id))}` : '—'}</td>
+          <td data-l="Vínculo">${kitLigado(k) ? pill('Ligado', 'ok') : pill('Sem vínculo', 'bad')}</td></tr>`).join('')}
+        </tbody></table></div>`;
+  }
+
+  // ------------------------------------------------------------ modal genérico
+  function modal(html, largo) {
+    fecharModal();
+    const s = document.createElement('div');
+    s.className = 'rd-scrim';
+    s.id = 'eg-scrim';
+    s.innerHTML = `<div class="rd-modal rd eg" role="dialog" aria-modal="true" ${largo ? 'style="max-width:760px"' : ''}>${html}</div>`;
+    s.addEventListener('mousedown', (e) => { if (e.target === s) fecharModal(); });
+    document.body.appendChild(s);
+    icons();
+  }
+  function fecharModal() { const s = document.getElementById('eg-scrim'); if (s) s.remove(); }
+  const val = (id) => { const el = document.getElementById(id); return el ? String(el.value).trim() : ''; };
+  const erro = (m) => { const el = document.getElementById('eg-err'); if (el) el.textContent = m; };
+  async function ocupado(btn, fn) {
+    const b = typeof btn === 'string' ? document.getElementById(btn) : btn;
+    const h = b && b.innerHTML;
+    if (b) { b.disabled = true; b.innerHTML = ic('loader-2') + 'Aguarde...'; icons(); }
+    try { return await fn(); } finally { if (b && document.body.contains(b)) { b.disabled = false; b.innerHTML = h; icons(); } }
+  }
+
+  function fichaModal(id) {
+    const c = id ? (E.catalogo || []).find((x) => x.id === id) : null;
+    const f = (c && c.ficha) || {};
+    const tipo0 = c ? (c.tipo === 'modulo' ? 'modulo' : (ehMicro(c) ? 'micro' : 'inversor')) : 'modulo';
+    const campos = (tipo) => FICHA[tipo].map(([k, l, u]) => `<div class="rd-fld"><label>${esc(l)}${u ? ` <span class="rd-muted">(${esc(u)})</span>` : ''}${OPCIONAIS.includes(k) ? ' <span class="rd-muted">opcional</span>' : ''}</label><input id="eg-f-${k}" value="${esc(f[k] ?? '')}" inputmode="${k === 'entradas' ? 'text' : 'decimal'}"></div>`).join('');
+    const rede = `<div class="rd-fld"><label>Rede de saída</label><select id="eg-f-rede">${REDES_INV.map(([v, l]) => `<option value="${v}" ${f.rede === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`;
+    modal(`<h3>${c ? esc(c.nome) : 'Novo equipamento'}</h3><p class="rd-sub">Dados do datasheet. ${c && c.ficha_atualizada_por ? `Última edição: ${esc(c.ficha_atualizada_por)} em ${dataBR(c.ficha_atualizada_em)}.` : ''}</p>
+      <div class="rd-fgrid">
+        ${c ? '' : `<div class="rd-fld"><label>Tipo</label><select id="eg-f-tipo" onchange="EV.fichaTipo(this.value)"><option value="modulo">Módulo</option><option value="inversor">Inversor</option><option value="micro">Microinversor</option></select></div>
+          <div class="rd-fld"><label>Marca</label><input id="eg-f-marca" placeholder="Ex.: Ronma"></div>
+          <div class="rd-fld full"><label>Modelo</label><input id="eg-f-nome" placeholder="Ex.: RM-182R/132TB 620W"></div>`}
+        <div class="full" id="eg-f-campos" style="display:contents" data-tipo="${tipo0}">${campos(tipo0)}${tipo0 === 'modulo' ? '' : rede}</div>
+        <label class="rd-check full"><input type="checkbox" id="eg-f-conf" ${c && c.ficha_conferida ? 'checked' : ''}>Conferi com o datasheet</label>
+      </div>
+      <div class="rd-err" id="eg-err"></div>
+      <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Cancelar</button><button class="rd-btn pri" id="eg-f-salvar" onclick="EV.salvarFicha(${c ? `'${c.id}'` : 'null'})">${ic('check')}Salvar</button></div>`);
+    E._campos = campos; E._rede = rede;
+  }
+  function fichaTipo(t) {
+    const box = document.getElementById('eg-f-campos');
+    if (!box) return;
+    box.dataset.tipo = t;
+    box.innerHTML = E._campos(t) + (t === 'modulo' ? '' : E._rede);
+  }
+  async function salvarFicha(id) {
+    const box = document.getElementById('eg-f-campos');
+    const tipo = box ? box.dataset.tipo : 'modulo';
+    const ficha = {};
+    FICHA[tipo].forEach(([k]) => { const v = val('eg-f-' + k); if (v !== '') ficha[k] = k === 'entradas' ? v.replace(/\s/g, '') : num(v); });
+    if (tipo !== 'modulo') ficha.rede = val('eg-f-rede');
+    if (tipo === 'micro') ficha.micro = true;
+    const ruins = FICHA[tipo].filter(([k]) => k !== 'entradas' && ficha[k] !== undefined && !Number.isFinite(ficha[k])).map(([, l]) => l);
+    if (ruins.length) { erro('Número inválido em: ' + ruins.join(', ')); return; }
+    if (ficha.coef_voc > 0) ficha.coef_voc = -ficha.coef_voc;
+    const conf = !!(document.getElementById('eg-f-conf') || {}).checked;
+    await ocupado('eg-f-salvar', async () => {
+      try {
+        if (id) await rpc('eng_salvar_ficha', { p_id: id, p_ficha: ficha, p_conferida: conf });
+        else {
+          if (val('eg-f-nome').length < 2) { erro('Informe o modelo.'); return; }
+          const novo = await rpc('eng_criar_equipamento', { p_tipo: tipo === 'modulo' ? 'modulo' : 'inversor', p_nome: val('eg-f-nome'), p_marca: val('eg-f-marca'), p_ficha: ficha });
+          if (conf) await rpc('eng_salvar_ficha', { p_id: novo, p_ficha: ficha, p_conferida: true });
+        }
+        fecharModal();
+        toast('Ficha técnica salva');
+        await carregarCatalogo(true);
+        pintar();
+      } catch (e) { erro(e.message); }
+    });
+  }
+
+  function kitModal(id) {
+    const k = (E.kits || []).find((x) => x.id === id);
+    if (!k) return;
+    const sug = kitLigado(k) ? {} : sugerirVinculo(k);
+    const v = { modulo_id: k.modulo_id || sug.modulo_id, modulo_qtd: k.modulo_qtd || sug.modulo_qtd, inversor_id: k.inversor_id || sug.inversor_id, inversor_qtd: k.inversor_qtd || sug.inversor_qtd };
+    const opts = (tipo, sel) => `<option value="">— escolha —</option>` + (E.catalogo || []).filter((c) => c.tipo === tipo && c.ativo !== false).map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.nome)}${c.marca ? ' · ' + esc(c.marca) : ''}${ehMicro(c) ? ' (micro)' : ''}</option>`).join('');
+    modal(`<h3>${esc(k.name)}</h3><p class="rd-sub">${kitLigado(k) ? 'Equipamentos ligados a este kit.' : 'Sugestão lida do nome do kit. Confira antes de salvar.'}</p>
+      <div class="rd-fgrid">
+        <div class="rd-fld"><label>Módulo</label><select id="eg-k-mod">${opts('modulo', v.modulo_id)}</select></div>
+        <div class="rd-fld"><label>Quantidade de módulos</label><input id="eg-k-modq" inputmode="numeric" value="${esc(v.modulo_qtd ?? '')}"></div>
+        <div class="rd-fld"><label>Inversor ou micro</label><select id="eg-k-inv">${opts('inversor', v.inversor_id)}</select></div>
+        <div class="rd-fld"><label>Quantidade</label><input id="eg-k-invq" inputmode="numeric" value="${esc(v.inversor_qtd ?? '')}"></div>
+      </div>
+      <p class="rd-tip">${ic('info')}Não achou o equipamento? Cadastre em "Equipamento" e volte aqui.</p>
+      <div class="rd-err" id="eg-err"></div>
+      <div class="rd-mfoot">${kitLigado(k) ? `<button class="rd-btn ghost danger" onclick="EV.salvarKit('${k.id}', true)">Desligar</button>` : ''}<button class="rd-btn" onclick="EV.fecharModal()">Cancelar</button><button class="rd-btn pri" id="eg-k-salvar" onclick="EV.salvarKit('${k.id}')">${ic('check')}Salvar</button></div>`);
+  }
+  async function salvarKit(id, desligar) {
+    const args = desligar ? { p_produto: id, p_modulo: null, p_modulo_qtd: null, p_inversor: null, p_inversor_qtd: null }
+      : { p_produto: id, p_modulo: val('eg-k-mod') || null, p_modulo_qtd: parseInt(val('eg-k-modq'), 10) || null, p_inversor: val('eg-k-inv') || null, p_inversor_qtd: parseInt(val('eg-k-invq'), 10) || null };
+    if (!desligar && (!args.p_modulo || !args.p_inversor || !args.p_modulo_qtd || !args.p_inversor_qtd)) { erro('Escolha os dois equipamentos e as quantidades.'); return; }
+    await ocupado('eg-k-salvar', async () => {
+      try {
+        await rpc('eng_vincular_kit', args);
+        const k = E.kits.find((x) => x.id === id);
+        Object.assign(k, { modulo_id: args.p_modulo, modulo_qtd: args.p_modulo_qtd, inversor_id: args.p_inversor, inversor_qtd: args.p_inversor_qtd });
+        fecharModal();
+        toast(desligar ? 'Vínculo removido' : 'Kit ligado');
+        pintar();
+      } catch (e) { erro(e.message); }
+    });
+  }
+  async function vincularTodos() {
+    const alvo = (E.kits || []).filter((k) => k.ativo !== false && !kitLigado(k)).map((k) => ({ k, s: sugerirVinculo(k) })).filter(({ s }) => s.modulo_id && s.inversor_id && s.modulo_qtd && s.inversor_qtd);
+    const semSug = (E.kits || []).filter((k) => k.ativo !== false && !kitLigado(k)).length - alvo.length;
+    if (!alvo.length) { toast('Nenhum kit deu para ligar pelo nome. Cadastre os equipamentos que faltam no catálogo.'); return; }
+    if (!confirm(`Ligar ${alvo.length} kit(s) pelo nome?${semSug ? `\n${semSug} kit(s) ficam de fora (equipamento não encontrado no catálogo).` : ''}`)) return;
+    let ok = 0;
+    for (const { k, s } of alvo) {
+      try { await rpc('eng_vincular_kit', { p_produto: k.id, p_modulo: s.modulo_id, p_modulo_qtd: s.modulo_qtd, p_inversor: s.inversor_id, p_inversor_qtd: s.inversor_qtd }); Object.assign(k, s); ok++; } catch (e) { console.warn('[eng] vincular', k.name, e); }
+    }
+    toast(`${ok} kit(s) ligados`);
+    pintar();
+  }
+
+  // ------------------------------------------------------------ ficha do projeto (painel lateral)
+  async function abrir(id, aba) {
+    E.aberto = id;
+    E.ptab = aba || (E.ctx === 'eng' && central() ? 'dim' : 'resumo');
+    pintarDrawer();
+    try {
+      if (!E.projetos || !E.projetos.some((p) => p.id === id)) await recarregarProjeto(id);
+      else await Promise.all([carregarEventos(id), carregarOS(id)]);
+      const p = E.projetos.find((x) => x.id === id);
+      if (p && central() && p.status === 'validacao' && !p.dim) await rodarAutomaticos();
+    } catch (e) { console.error('[eng] abrir projeto', e); toast('Não foi possível abrir o projeto: ' + e.message); }
+    pintarDrawer();
+  }
+  function fechar() { E.aberto = null; const d = document.getElementById('eg-drawer'); if (d) d.remove(); document.body.classList.remove('eg-lock'); }
+
+  function pintarDrawer() {
+    if (!E.aberto) return;
+    const p = (E.projetos || []).find((x) => x.id === E.aberto);
+    let d = document.getElementById('eg-drawer');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'eg-drawer';
+      d.className = 'eg-scrim';
+      d.addEventListener('mousedown', (e) => { if (e.target === d) fechar(); });
+      document.body.appendChild(d);
+      document.body.classList.add('eg-lock');
+    }
+    const painel = d.querySelector('.eg-panel');
+    const y = painel ? painel.scrollTop : 0;
+    if (!p) { d.innerHTML = `<div class="eg-panel rd eg"><div class="rd-loading">${ic('loader-2')}Abrindo o projeto...</div></div>`; icons(); return; }
+    const eng = central();
+    const abas = [['resumo', 'layout-list', 'Resumo'], ['dim', 'zap', 'Dimensionamento'], ['docs', 'folder-open', 'Documentos'], ['conc', 'landmark', 'Concessionária'], ['os', 'clipboard-list', 'Ordem de serviço'], ['tl', 'history', 'Timeline']];
+    const nivel = NIVEL[p.status];
+    const ruim = ST[p.status] && ST[p.status].tone === 'bad';
+    const corpo = ({ resumo: abaResumo, dim: abaDim, docs: abaDocs, conc: abaConc, os: abaOS, tl: abaTL })[E.ptab] || abaResumo;
+    d.innerHTML = `<div class="eg-panel rd eg" role="dialog" aria-modal="true">
+      <div class="eg-ph">
+        <div class="rd-ch"><div>
+          <div class="eg-pnum">${pnum(p)} · ${esc(nomeFranquia(p))}</div>
+          <h2>${esc(p.cliente_nome || 'Cliente')}</h2>
+          <div class="rd-muted">${esc(p.cidade || '')} · ${nf(p.kwp, 2)} kWp · ${esc(LIG[p.snapshot && p.snapshot.instalacao && p.snapshot.instalacao.tipo_ligacao] || 'ligação não informada')} · enviado por ${esc(p.enviado_por_nome || '—')} em ${dataBR(p.created_at)}</div>
+        </div>
+        <div class="eg-pacts">${stPill(p)}${dimPill(p)}${compPill(p)}<button class="rd-btn sm ghost" onclick="EV.fechar()" title="Fechar">${ic('x')}</button></div></div>
+        ${p.status === 'cancelado' ? '' : `<div class="eg-steps">${LINHA.map((sid) => { const s = ST[sid]; const n = NIVEL[sid]; return `<div class="${n < nivel ? 'done' : n === nivel ? (ruim ? 'bad' : 'cur') : ''}"><i></i><span>${esc(s.n)}</span></div>`; }).join('')}</div>`}
+        ${eng ? acoesEng(p) : acoesFranquia(p)}
+        <div class="rd-tabs eg-ptabs">${abas.map(([k, i, l]) => `<button class="rd-tab ${E.ptab === k ? 'on' : ''}" onclick="EV.aba('${k}')">${ic(i)}${l}</button>`).join('')}</div>
+      </div>
+      <div class="eg-pb">${corpo(p)}</div>
+    </div>`;
+    icons();
+    const np = d.querySelector('.eg-panel');
+    if (np && y) np.scrollTop = y;
+    if (E.ptab === 'docs') assinarDocs(p);
+  }
+
+  function acoesEng(p) {
+    const s = p.status;
+    const btn = (st, txt, cls = '', icone = 'arrow-right') => `<button class="rd-btn sm ${cls}" onclick="EV.mudar('${p.id}','${st}')">${ic(icone)}${txt}</button>`;
+    const prox = {
+      validacao: [p.dim_status === 'ok' ? btn('validacao_aprovada', 'Aprovar e gerar OS', 'pri', 'check') : btn('validacao_aprovada', 'Aprovar mesmo assim e gerar OS', '', 'check'), btn('validacao_reprovada', 'Reprovar validação', 'danger', 'undo-2')],
+      validacao_reprovada: [],
+      validacao_aprovada: [btn('elaborar_projeto', 'Elaborar projeto', 'pri')],
+      elaborar_projeto: [btn('projeto_enviado', 'Projeto enviado', 'pri', 'send')],
+      projeto_enviado: [btn('projeto_aprovado', 'Projeto aprovado', 'pri', 'check'), btn('projeto_reprovado', 'Projeto reprovado', 'danger', 'x')],
+      projeto_reprovado: [btn('projeto_reenviado', 'Projeto reenviado', 'pri', 'send')],
+      projeto_reenviado: [btn('projeto_aprovado', 'Projeto aprovado', 'pri', 'check'), btn('projeto_reprovado', 'Projeto reprovado', 'danger', 'x')],
+      projeto_aprovado: [btn('solicitacao_vistoria', 'Obra concluída: solicitar vistoria', 'pri')],
+      solicitacao_vistoria: [btn('vistoria_solicitada', 'Vistoria solicitada', 'pri', 'send')],
+      vistoria_solicitada: [btn('projeto_concluido', 'Projeto concluído', 'pri', 'flag')],
+      projeto_concluido: [],
+      cancelado: [],
+    }[s] || [];
+    const meu = p.responsavel_nome ? `<span class="rd-muted">Responsável: <b>${esc(p.responsavel_nome)}</b></span>` : `<button class="rd-btn sm ghost" onclick="EV.assumir('${p.id}')">${ic('hand')}Assumir</button>`;
+    return `<div class="eg-acts">${prox.join('')}
+      <span class="rd-grow"></span>${meu}
+      <select class="rd-inline-sel" onchange="if(this.value){EV.mudar('${p.id}',this.value);this.value=''}" title="Mover para qualquer status"><option value="">Mover para...</option>${STATUS.filter((x) => x.id !== s).map((x) => `<option value="${x.id}">${esc(x.n)}</option>`).join('')}${s !== 'cancelado' ? '<option value="cancelado">Cancelar projeto</option>' : ''}</select>
+    </div>`;
+  }
+
+  function acoesFranquia(p) {
+    if (p.status !== 'validacao_reprovada') return '';
+    const ult = ultimoMotivo(p);
+    const pode = state.isAdmin || state.isGestor;
+    return `<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red);display:block">
+      <b>${ic('undo-2')} Validação reprovada pela engenharia</b><div style="color:var(--v2-ink);margin:6px 0 10px">${esc(ult || 'Veja o motivo na timeline.')}</div>
+      ${pode ? `<div class="rd-fld"><label>O que foi corrigido</label><input id="eg-reenv" placeholder="Ex.: anexei a conta de luz legível"></div>
+      <div class="rd-err" id="eg-err"></div>
+      <div style="margin-top:8px"><button class="rd-btn pri sm" id="eg-reenv-btn" onclick="EV.reenviar('${p.id}')">${ic('send')}Corrigi, reenviar à engenharia</button></div>` : '<div class="rd-muted">O gestor da franquia corrige e reenvia.</div>'}
+    </div>`;
+  }
+  function ultimoMotivo(p) {
+    const ev = (E.ev[p.id] || []).filter((e) => e.tipo === 'status' && e.para_status === p.status && e.texto);
+    return ev.length ? ev[ev.length - 1].texto : null;
+  }
+
+  function abaResumo(p) {
+    const sn = p.snapshot || {}, c = sn.cliente || {}, inst = sn.instalacao || {};
+    const t = tempoPorLado(p, E.ev[p.id]);
+    const tot = Object.values(t).reduce((a, b) => a + b, 0) || 1;
+    const kv = (l, v) => `<div><div class="l">${l}</div><div class="v">${v || '—'}</div></div>`;
+    return `<div class="rd-grid rd-half">
+      <div class="rd-card"><h3>${ic('user')}Cliente</h3>
+        <div class="rd-kv" style="grid-template-columns:1fr 1fr">${kv('Nome', esc(c.nome))}${kv('CPF/CNPJ', esc(c.documento))}${kv('Telefone', esc(c.telefone))}${kv('Vendedor', esc(c.vendedor_nome || c.vendedor_email))}
+        ${kv('Endereço', esc([c.endereco, c.numero, c.complemento, c.bairro].filter(Boolean).join(', ')))}${kv('Cidade', esc([c.cidade, c.uf].filter(Boolean).join(' - ')))}</div></div>
+      <div class="rd-card"><h3>${ic('home')}Instalação</h3>
+        <div class="rd-kv" style="grid-template-columns:1fr 1fr">${kv('Ligação', esc(LIG[inst.tipo_ligacao]))}${kv('UC', esc(p.uc || inst.numero_instalacao))}${kv('Concessionária', esc(p.concessionaria || inst.concessionaria))}${kv('Telhado', esc(inst.telhado))}
+        ${kv('Distância módulos → inversor', inst.distancia_m ? esc(inst.distancia_m) + ' m' : '')}${kv('Localização do padrão', esc(c.padrao_localizacao))}</div>
+        ${inst.obs ? `<p class="rd-tip">${ic('message-square')}${esc(inst.obs)}</p>` : ''}</div>
+    </div>
+    <div class="rd-grid rd-half" style="margin-top:14px">
+      <div class="rd-card"><h3>${ic('package')}Kit da venda</h3><p class="rd-sub">${esc((sn.venda && sn.venda.kit_nome) || '—')}</p>
+        ${eqLinha(sn.modulo, 'Módulo')}${eqLinha(sn.inversor, ehMicro(sn.inversor) ? 'Microinversor' : 'Inversor')}
+        ${!sn.kit ? `<div class="rd-muted">Kit não encontrado no catálogo: a engenharia escolhe os equipamentos.</div>` : ''}</div>
+      <div class="rd-card"><h3>${ic('timer')}Tempo com cada lado</h3><p class="rd-sub">Contado pelo relógio do servidor, a cada mudança de status</p>
+        ${Object.entries(LADOS).map(([k, l]) => `<div class="eg-barra" style="cursor:default"><span>${l}</span><div class="rd-meter"><i style="width:${(t[k] / tot) * 100}%;background:${{ eng: 'var(--v2-blue)', franquia: 'var(--v2-orange)', conc: 'var(--v2-gray)', obra: 'var(--v2-green)' }[k]}"></i></div><b>${nf(t[k], 1)}d</b></div>`).join('')}</div>
+    </div>`;
+  }
+  function eqLinha(eq, tipo) {
+    if (!eq) return `<div class="eg-eq"><span class="rd-tag">${tipo}</span><b>—</b>${pill('sem vínculo', 'bad')}</div>`;
+    return `<div class="eg-eq"><span class="rd-tag">${tipo}</span><b>${eq.qtd}× ${esc(eq.nome)}</b>${fichaOk(eq) ? (eq.ficha_conferida ? pill('ficha ok', 'ok') : pill('ficha a conferir', 'at')) : pill('ficha pendente', 'bad')}</div>`;
+  }
+
+  function abaDim(p) {
+    const d = p.dim;
+    const eng = central();
+    if (!d) return `<div class="rd-card rd-empty"><div class="ic">${ic('loader-2')}</div><b>Dimensionamento ainda não calculado</b>${eng ? 'Calculando...' : 'A engenharia calcula quando abre o projeto.'}</div>`;
+    const ok = p.dim_status === 'ok';
+    const banner = ok
+      ? `<div class="rd-note" style="background:rgba(31,169,113,.12);color:#12704A">${ic('circle-check')}<span><b>${d.manual ? 'Dimensionamento ajustado pelo engenheiro' : 'Dimensionamento automático aprovado'}</b><br><span style="color:var(--v2-ink)">${d.manual ? 'Feito na calculadora e salvo no projeto.' : 'A plataforma leu o kit da venda, puxou as fichas técnicas e rodou o cálculo da calculadora. Todas as verificações passaram.'}${d.fichas_conferidas === false ? ' Atenção: alguma ficha técnica ainda não foi conferida.' : ''}</span></span></div>`
+      : `<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red)">${ic('circle-alert')}<span><b>Não deu para dimensionar sozinho</b><br><span style="color:var(--v2-ink)">${esc(p.dim_motivo || d.motivo || '')}</span></span></div>`;
+    const checks = (d.checks || []).map((c) => `<tr><td class="first"><b>${esc(c.nome)}</b><div class="rd-muted">${esc(c.calc)}</div></td><td data-l="Limite" class="r">${esc(c.limite)}</td><td data-l="Resultado" class="r" style="color:${c.ok ? '#12704A' : 'var(--v2-red)'};font-weight:800">${esc(c.valor === 'ok' ? '' : c.valor)} ${c.ok ? '✓' : '✗'}</td></tr>`).join('');
+    const pr = d.protecoes;
+    return `${banner}
+      <div class="rd-grid rd-two">
+        <div>
+          ${d.checks && d.checks.length ? `<div class="rd-card rd-mb"><h3>${ic('list-checks')}Verificações</h3><table class="rd-t cards"><thead><tr><th>Verificação</th><th class="r">Limite</th><th class="r">Resultado</th></tr></thead><tbody>${checks}</tbody></table></div>` : ''}
+          ${arranjoHTML(d, p)}
+        </div>
+        <div>
+          <div class="rd-card rd-mb"><h3>${ic('sun')}Sistema</h3>
+            <div class="rd-kv" style="grid-template-columns:1fr 1fr">
+              <div><div class="l">Potência CC</div><div class="v" style="font-size:18px">${nf(d.kwp || p.kwp, 2)} kWp</div></div>
+              <div><div class="l">Potência CA</div><div class="v" style="font-size:18px">${d.potCA ? nf(d.potCA / 1000, 2) + ' kW' : '—'}</div></div>
+              <div><div class="l">Geração média</div><div class="v" style="font-size:18px">${d.geracaoMedia ? nf(d.geracaoMedia) + ' kWh/mês' : '—'}</div></div>
+              <div><div class="l">HSP usado</div><div class="v" style="font-size:18px">${nf(d.hsp, 2)}</div></div>
+            </div></div>
+          ${pr ? `<div class="rd-card rd-mb"><h3>${ic('shield')}Proteções CA <span class="rd-tag man">sugerido</span></h3>
+            <div class="rd-line"><div class="nm">Corrente por inversor</div><div class="val">${nf(pr.corrente, 1)} A</div></div>
+            <div class="rd-line"><div class="nm">Disjuntor</div><div class="val">${pr.disjuntor} A ${pr.polos}</div></div>
+            <div class="rd-line"><div class="nm">Cabo CA</div><div class="val">${String(pr.cabo).replace('.', ',')} mm² · ${pr.condutores}</div></div>
+            <p class="rd-tip">${ic('info')}Regra simples (corrente × 1,25). O engenheiro confere.</p></div>` : ''}
+          ${eng ? `<div class="rd-card"><button class="rd-btn" style="width:100%;justify-content:center" onclick="EV.calculadora('${p.id}')">${ic('calculator')}Ajustar na calculadora</button>
+            <button class="rd-btn ghost" style="width:100%;justify-content:center;margin-top:6px" onclick="EV.recalcular('${p.id}')">${ic('refresh-cw')}Recalcular com o catálogo atual</button></div>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function arranjoHTML(d, p) {
+    if (d.micro) {
+      const nMod = (p.snapshot && p.snapshot.modulo && p.snapshot.modulo.qtd) || 0;
+      return `<div class="rd-card"><h3>${ic('grid-3x3')}Arranjo</h3><p class="rd-sub">${d.micro.qtd} microinversores de ${d.micro.porMicro} entradas</p>
+        <div class="eg-mppt">${Array.from({ length: d.micro.qtd }, (_, i) => { const n = Math.max(0, Math.min(d.micro.porMicro, nMod - i * d.micro.porMicro)); return `<div class="eg-mp"><div class="t">Micro ${i + 1}</div><div class="eg-mods">${'<i></i>'.repeat(n)}${'<i class="e"></i>'.repeat(d.micro.porMicro - n)}</div><div class="rd-muted">${n} módulo(s)</div></div>`; }).join('')}</div></div>`;
+    }
+    if (!d.distribution) return '';
+    return `<div class="rd-card"><h3>${ic('grid-3x3')}Arranjo calculado</h3><p class="rd-sub">Strings por MPPT${d.inversores > 1 ? `, em cada um dos ${d.inversores} inversores` : ''} · cabo CC ${CABO_CC} mm²</p>
+      <div class="eg-mppt">${d.distribution.map((m, i) => `<div class="eg-mp"><div class="t">MPPT ${i + 1}</div>${m.numStrings ? Array.from({ length: m.numStrings }, () => `<div class="eg-mods">${'<i></i>'.repeat(m.modulesPerString)}</div>`).join('') : '<div class="rd-muted">vazia</div>'}<div class="rd-muted">${m.numStrings ? `${m.numStrings} string(s) × ${m.modulesPerString} módulos` : ''}</div></div>`).join('')}</div></div>`;
+  }
+
+  // documentos congelados no envio (com o que chegou depois)
+  const DOC_LABEL = { rg_cnh: 'RG / CNH', conta_energia: 'Conta de energia', foto_padrao: 'Foto do padrão', foto_disjuntor: 'Foto do disjuntor', foto_fachada: 'Fachada', localizacao_padrao: 'Localização do padrão', foto_medidor: 'Medidor', caixa_medicao: 'Caixa de medição', procuracao: 'Procuração', comprovante_taxa: 'Comprovante da taxa', engenharia: 'Engenharia', inspecao: 'Inspeção', outros: 'Outros' };
+  function abaDocs(p) {
+    const docs = (p.snapshot && p.snapshot.docs) || [];
+    const urls = E.urls || {};
+    return `<div class="rd-card"><h3>${ic('folder-check')}Documentos enviados</h3><p class="rd-sub">Congelados no envio${p.status === 'validacao' || p.status === 'validacao_reprovada' ? '' : ''}. A franquia não consegue apagar estes arquivos enquanto o projeto está em andamento.</p>
+      ${docs.length ? docs.map((a) => `<div class="eg-doc">${ic(String(a.mime || '').startsWith('image') ? 'image' : 'file-text')}<div style="flex:1;min-width:0"><b>${esc(DOC_LABEL[a.tipo] || a.tipo)}${a.slot ? ' · ' + esc(a.slot) : ''}</b><div class="rd-muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.nome || '')} · ${dataBR(a.em)}</div></div>
+        ${urls[a.storage_path] ? `<a class="rd-btn sm" href="${esc(urls[a.storage_path])}" target="_blank" rel="noopener">${ic('eye')}Abrir</a>` : '<span class="rd-muted">...</span>'}</div>`).join('') : '<div class="rd-muted">Nenhum documento.</div>'}
+      ${p.cliente_id ? `<p class="rd-tip">${ic('info')}Documentos anexados depois do envio aparecem na timeline como alerta.</p>` : ''}</div>`;
+  }
+  async function assinarDocs(p) {
+    const docs = (p.snapshot && p.snapshot.docs) || [];
+    E.urls = E.urls || {};
+    const falta = docs.map((a) => a.storage_path).filter((x) => x && !E.urls[x]);
+    if (!falta.length) return;
+    const { data, error } = await sb().storage.from('crm-arquivos').createSignedUrls(falta, 3600);
+    if (error) { console.warn('[eng] assinar docs', error); return; }
+    (data || []).forEach((x) => { if (x.signedUrl && x.path) E.urls[x.path] = x.signedUrl; });
+    if (E.aberto === p.id && E.ptab === 'docs') pintarDrawer();
+  }
+
+  function abaConc(p) {
+    const eng = central();
+    const dis = eng ? '' : 'disabled';
+    const comp = p.compensacao;
+    const ucsTxt = comp && Array.isArray(comp.ucs) ? comp.ucs.map((u) => `${u.uc}${u.pct ? ' (' + u.pct + '%)' : ''}`).join('; ') : '';
+    return `<div class="rd-card rd-mb"><h3>${ic('landmark')}Concessionária</h3><p class="rd-sub">${eng ? 'Preencha conforme o andamento.' : 'Preenchido pela engenharia.'}</p>
+      <div class="rd-fgrid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+        <div class="rd-fld"><label>Concessionária</label><input id="eg-c-conc" ${dis} value="${esc(p.concessionaria || '')}"></div>
+        <div class="rd-fld"><label>UC (nº da instalação)</label><input id="eg-c-uc" ${dis} value="${esc(p.uc || '')}"></div>
+        <div class="rd-fld"><label>Nº do protocolo</label><input id="eg-c-prot" ${dis} value="${esc(p.protocolo || '')}"></div>
+        <div class="rd-fld"><label>Data do protocolo</label><input id="eg-c-protem" type="date" ${dis} value="${esc(p.protocolo_em || '')}"></div>
+        <div class="rd-fld"><label>Data do parecer</label><input id="eg-c-par" type="date" ${dis} value="${esc(p.parecer_em || '')}"></div>
+        <div class="rd-fld"><label>Vistoria / troca do medidor</label><input id="eg-c-vis" type="date" ${dis} value="${esc(p.vistoria_em || '')}"></div>
+      </div>
+      ${eng ? `<div class="rd-err" id="eg-err"></div><div class="rd-mfoot"><button class="rd-btn pri" id="eg-c-salvar" onclick="EV.salvarConc('${p.id}')">${ic('check')}Salvar</button></div>` : ''}</div>
+    <div class="rd-card"><div class="rd-ch"><div><h3>${ic('zap')}Compensação</h3><p class="rd-sub">Quando o cliente quer compensar créditos em outras UCs depois do projeto enviado</p></div>${compPill(p)}</div>
+      ${comp ? `<div class="rd-line"><div class="nm">UCs beneficiárias</div><div class="val" style="white-space:normal;text-align:right">${esc(ucsTxt || '—')}</div></div>${comp.obs ? `<div class="rd-line"><div class="nm">Observação</div><div class="val" style="white-space:normal">${esc(comp.obs)}</div></div>` : ''}` : '<div class="rd-muted">Sem compensação.</div>'}
+      ${eng ? `<div class="rd-mfoot">${comp && comp.status !== 'feita' ? `<button class="rd-btn" onclick="EV.compFeita('${p.id}')">${ic('check')}Marcar como feita</button>` : ''}${comp ? `<button class="rd-btn ghost danger" onclick="EV.compRemover('${p.id}')">Remover</button>` : ''}<button class="rd-btn ${comp ? '' : 'pri'}" onclick="EV.compModal('${p.id}')">${ic(comp ? 'pencil' : 'plus')}${comp ? 'Editar' : 'Solicitar compensação'}</button></div>` : ''}
+    </div>`;
+  }
+
+  function abaOS(p) {
+    const lista = E.os[p.id] || [];
+    const at = lista.find((o) => o.ativa) || lista[0];
+    const eng = central();
+    if (!at) return `<div class="rd-card rd-empty"><div class="ic">${ic('clipboard-list')}</div><b>A OS ainda não foi gerada</b>Ela sai automaticamente quando a validação é aprovada.${eng && NIVEL[p.status] >= 1 ? `<br><br><button class="rd-btn pri" onclick="EV.gerarOS('${p.id}')">${ic('file-plus')}Gerar OS agora</button>` : ''}</div>`;
+    return `<div class="rd-card rd-mb"><div class="rd-ch"><div><h3>${ic('clipboard-list')}${esc(at.numero)}${at.revisao > 1 ? ` · revisão ${at.revisao}` : ''}</h3><p class="rd-sub">Emitida em ${dataHora(at.created_at)} por ${esc(at.created_by_nome || '—')}</p></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        ${eng ? `<label class="rd-sel" style="height:34px">${ic('users')}<input id="eg-os-eq" placeholder="Equipe" value="${esc(at.equipe || '')}" style="width:150px"></label><button class="rd-btn sm" onclick="EV.gerarOS('${p.id}', true)" title="Gera uma nova revisão com os dados atuais do projeto">${ic('refresh-cw')}Nova revisão</button>` : ''}
+        <button class="rd-btn sm pri" onclick="EV.imprimirOS('${at.id}')">${ic('printer')}Abrir / imprimir</button></div></div>
+      ${eng ? '<p class="rd-tip">' + ic('info') + 'Mudou o kit, o arranjo ou a equipe? Gere uma nova revisão: a anterior fica guardada.</p>' : ''}</div>
+      ${lista.length > 1 ? `<div class="rd-card"><h3>${ic('history')}Revisões</h3>${lista.map((o) => `<div class="rd-line"><div class="nm"><b>${esc(o.numero)}</b> rev. ${o.revisao} ${o.ativa ? pill('vigente', 'ok') : pill('substituída', 'gray')}</div><div class="val"><button class="rd-btn sm ghost" onclick="EV.imprimirOS('${o.id}')">${ic('eye')}Ver</button></div></div>`).join('')}</div>` : ''}`;
+  }
+
+  const EV_ICON = { envio: 'send', status: 'git-commit-horizontal', comentario: 'message-square', dimensionamento: 'zap', os: 'clipboard-list', alerta: 'triangle-alert', edicao: 'pencil', compensacao: 'zap' };
+  function abaTL(p) {
+    const ev = [...(E.ev[p.id] || [])].reverse();
+    const eng = central();
+    const txt = (e) => {
+      if (e.tipo === 'status' || e.tipo === 'envio') return `<b>${e.de_status ? esc((ST[e.de_status] || {}).n || e.de_status) + ' → ' : ''}${esc((ST[e.para_status] || {}).n || e.para_status || '')}</b>${e.texto && e.tipo !== 'envio' ? `<div>${esc(e.texto)}</div>` : e.tipo === 'envio' ? '<div>Enviado à engenharia</div>' : ''}`;
+      return `<b>${esc(e.texto || '')}</b>`;
+    };
+    return `<div class="rd-card"><h3>${ic('history')}Timeline</h3><p class="rd-sub">Ninguém edita nem apaga. ${eng ? 'Comentário interno não aparece para a franquia.' : ''}</p>
+      <div class="eg-com">
+        <textarea id="eg-com" rows="2" placeholder="Escreva um comentário"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:6px">${eng ? '<label class="rd-check"><input type="checkbox" id="eg-com-int">Interno</label>' : ''}<button class="rd-btn sm pri" id="eg-com-btn" onclick="EV.comentar('${p.id}')">${ic('send')}Comentar</button></div>
+      </div>
+      <div class="eg-tl">${ev.map((e) => `<div class="${e.tipo === 'alerta' ? 'al' : ''} ${e.interno ? 'int' : ''}"><span class="eg-tli">${ic(EV_ICON[e.tipo] || 'dot')}</span><div>${txt(e)}<div class="rd-muted">${esc(e.autor_nome || '')} · ${dataHora(e.created_at)}${e.interno ? ' · interno' : ''}</div></div></div>`).join('') || '<div class="rd-muted">Sem eventos.</div>'}</div></div>`;
+  }
+
+  // ------------------------------------------------------------ ações
+  async function mudar(id, status) {
+    const p = (E.projetos || []).find((x) => x.id === id);
+    if (!p) return;
+    const exige = ['validacao_reprovada', 'projeto_reprovado', 'cancelado'].includes(status);
+    const s = ST[status];
+    modal(`<h3>${status === 'cancelado' ? 'Cancelar projeto' : 'Mover para ' + esc(s.n)}</h3><p class="rd-sub">${esc(p.cliente_nome || '')} · ${pnum(p)}</p>
+      ${status === 'validacao_aprovada' ? `<div class="rd-note">${ic('clipboard-list')}<span>A OS é gerada automaticamente.${p.dim_status !== 'ok' ? ' <b>O dimensionamento automático não passou</b>: aprove só se conferiu na calculadora.' : ''}</span></div>` : ''}
+      ${status === 'validacao_reprovada' ? `<div class="rd-note">${ic('info')}<span>Volta para a franquia corrigir. O motivo aparece para o gestor.</span></div>` : ''}
+      <div class="rd-fld"><label>${exige ? 'Motivo (obrigatório)' : 'Observação (opcional)'}</label><input id="eg-mot" placeholder="${exige ? 'Ex.: conta de luz ilegível' : ''}"></div>
+      ${status === 'projeto_enviado' ? `<div class="rd-fgrid"><div class="rd-fld"><label>Nº do protocolo</label><input id="eg-mot-prot" value="${esc(p.protocolo || '')}"></div><div class="rd-fld"><label>Data do protocolo</label><input id="eg-mot-dt" type="date" value="${esc(p.protocolo_em || new Date().toISOString().slice(0, 10))}"></div></div>` : ''}
+      <div class="rd-err" id="eg-err"></div>
+      <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Voltar</button><button class="rd-btn ${exige ? 'danger' : 'pri'}" id="eg-mot-ok" onclick="EV.confirmarMudar('${id}','${status}')">${ic('check')}Confirmar</button></div>`);
+    setTimeout(() => { const i = document.getElementById('eg-mot'); if (i) i.focus(); }, 30);
+  }
+  async function confirmarMudar(id, status) {
+    const texto = val('eg-mot');
+    if (['validacao_reprovada', 'projeto_reprovado', 'cancelado'].includes(status) && texto.length < 3) { erro('Escreva o motivo.'); return; }
+    await ocupado('eg-mot-ok', async () => {
+      try {
+        if (status === 'projeto_enviado' && (val('eg-mot-prot') || val('eg-mot-dt'))) await rpc('eng_atualizar', { p_id: id, p_campos: { protocolo: val('eg-mot-prot'), protocolo_em: val('eg-mot-dt') } });
+        await rpc('eng_mudar_status', { p_id: id, p_status: status, p_texto: texto || null });
+        fecharModal();
+        toast(status === 'validacao_aprovada' ? 'Validação aprovada · OS gerada' : 'Status: ' + (ST[status] || {}).n);
+        await recarregarProjeto(id);
+        if (status === 'validacao_aprovada') { E.ptab = 'os'; E.osLista = null; }
+        if (status === 'cancelado') fechar();
+        pintar();
+      } catch (e) { erro(e.message); }
+    });
+  }
+  async function assumir(id) {
+    try { await rpc('eng_atualizar', { p_id: id, p_campos: { responsavel: true } }); await recarregarProjeto(id); pintar(); toast('Projeto assumido'); } catch (e) { toast(e.message); }
+  }
+  async function reenviar(id) {
+    const t = val('eg-reenv');
+    if (t.length < 3) { erro('Escreva o que foi corrigido.'); return; }
+    await ocupado('eg-reenv-btn', async () => {
+      try { await rpc('eng_reenviar_validacao', { p_id: id, p_texto: t }); toast('Reenviado à engenharia'); await recarregarProjeto(id); pintar(); } catch (e) { erro(e.message); }
+    });
+  }
+  async function comentar(id) {
+    const t = val('eg-com');
+    if (!t) return;
+    const int = !!(document.getElementById('eg-com-int') || {}).checked;
+    await ocupado('eg-com-btn', async () => {
+      try { await rpc('eng_comentar', { p_id: id, p_texto: t, p_interno: int }); await carregarEventos(id); pintarDrawer(); } catch (e) { toast(e.message); }
+    });
+  }
+  async function salvarConc(id) {
+    const campos = { concessionaria: val('eg-c-conc'), uc: val('eg-c-uc'), protocolo: val('eg-c-prot'), protocolo_em: val('eg-c-protem'), parecer_em: val('eg-c-par'), vistoria_em: val('eg-c-vis') };
+    await ocupado('eg-c-salvar', async () => {
+      try { await rpc('eng_atualizar', { p_id: id, p_campos: campos }); toast('Salvo'); await recarregarProjeto(id); pintar(); } catch (e) { erro(e.message); }
+    });
+  }
+  function compModal(id) {
+    const p = (E.projetos || []).find((x) => x.id === id);
+    const c = (p && p.compensacao) || {};
+    const ucs = Array.isArray(c.ucs) ? c.ucs.map((u) => `${u.uc}${u.pct ? ' ' + u.pct : ''}`).join('\n') : '';
+    modal(`<h3>Compensação</h3><p class="rd-sub">Uma UC por linha, com o % ao lado (ex.: 0012345678 40)</p>
+      <div class="rd-fld"><label>UCs beneficiárias</label><textarea id="eg-cp-ucs" rows="4" style="border:1px solid var(--v2-line-strong);border-radius:12px;padding:10px;font:inherit">${esc(ucs)}</textarea></div>
+      <div class="rd-fld" style="margin-top:10px"><label>Observação</label><input id="eg-cp-obs" value="${esc(c.obs || '')}"></div>
+      <div class="rd-err" id="eg-err"></div>
+      <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Cancelar</button><button class="rd-btn pri" id="eg-cp-ok" onclick="EV.salvarComp('${id}')">${ic('check')}Salvar</button></div>`);
+  }
+  async function salvarComp(id, extra) {
+    const p = (E.projetos || []).find((x) => x.id === id);
+    let comp;
+    if (extra === 'remover') comp = null;
+    else if (extra === 'feita') comp = { ...(p.compensacao || {}), status: 'feita', feita_em: new Date().toISOString() };
+    else {
+      const ucs = val('eg-cp-ucs').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const m = l.match(/^(.*?)\s+(\d+(?:[.,]\d+)?)\s*%?$/); return m ? { uc: m[1].trim(), pct: Number(m[2].replace(',', '.')) } : { uc: l, pct: null }; });
+      if (!ucs.length) { erro('Informe pelo menos uma UC.'); return; }
+      comp = { status: 'pendente', ucs, obs: val('eg-cp-obs') || null, pedida_em: (p.compensacao && p.compensacao.pedida_em) || new Date().toISOString() };
+    }
+    try { await rpc('eng_atualizar', { p_id: id, p_campos: { compensacao: comp } }); fecharModal(); await recarregarProjeto(id); pintar(); toast('Compensação atualizada'); } catch (e) { erro(e.message); toast(e.message); }
+  }
+  async function gerarOS(id, revisao) {
+    if (revisao && !confirm('Gerar uma nova revisão da OS com os dados atuais do projeto? A anterior fica guardada.')) return;
+    try {
+      const num = await rpc('eng_gerar_os', { p_id: id, p_equipe: val('eg-os-eq') || null });
+      toast((revisao ? 'Nova revisão: ' : 'OS gerada: ') + num);
+      E.osLista = null;
+      await recarregarProjeto(id);
+      E.ptab = 'os';
+      pintar();
+    } catch (e) { toast(e.message); }
+  }
+  async function recalcular(id) {
+    const p = (E.projetos || []).find((x) => x.id === id);
+    if (!p) return;
+    try {
+      await carregarCatalogo(true);
+      // o projeto guarda o equipamento do envio; atualiza a ficha com a do catálogo atual
+      const sn = JSON.parse(JSON.stringify(p.snapshot || {}));
+      ['modulo', 'inversor'].forEach((k) => {
+        if (!sn[k]) return;
+        const c = E.catalogo.find((x) => x.id === sn[k].id);
+        if (c) Object.assign(sn[k], { ficha: c.ficha, ficha_conferida: c.ficha_conferida, nome: c.nome, marca: c.marca });
+      });
+      if (!sn.modulo && sn.kit) {
+        const k = (E.kits || []).find((x) => x.id === sn.kit.id);
+        if (k && kitLigado(k)) {
+          const cm = E.catalogo.find((x) => x.id === k.modulo_id), ci = E.catalogo.find((x) => x.id === k.inversor_id);
+          if (cm && ci) {
+            sn.modulo = { id: cm.id, tipo: cm.tipo, nome: cm.nome, marca: cm.marca, potencia_wp: cm.potencia_wp, qtd: k.modulo_qtd, ficha: cm.ficha, ficha_conferida: cm.ficha_conferida };
+            sn.inversor = { id: ci.id, tipo: ci.tipo, nome: ci.nome, marca: ci.marca, potencia_wp: ci.potencia_wp, qtd: k.inversor_qtd, ficha: ci.ficha, ficha_conferida: ci.ficha_conferida };
+          }
+        }
+      }
+      const d = dimensionar({ ...p, snapshot: sn });
+      d.equipamentos = { modulo: sn.modulo || null, inversor: sn.inversor || null };
+      await rpc('eng_salvar_dim', { p_id: id, p_dim: d, p_status: d.status, p_motivo: d.status === 'ok' ? null : d.motivo });
+      await recarregarProjeto(id);
+      // o snapshot do projeto não muda (é o retrato do envio); o resultado guarda os equipamentos usados
+      pintar();
+      toast(d.status === 'ok' ? 'Recalculado: tudo ok' : 'Recalculado: precisa revisão');
+    } catch (e) { toast(e.message); }
+  }
+
+  // Abre a calculadora antiga já preenchida com o projeto.
+  function calculadora(id) {
+    const p = (E.projetos || []).find((x) => x.id === id);
+    if (!p || !state.eng) return;
+    const d = p.dim || {};
+    const sn = p.snapshot || {};
+    const m = (d.equipamentos && d.equipamentos.modulo) || sn.modulo || {}, inv = (d.equipamentos && d.equipamentos.inversor) || sn.inversor || {};
+    const fm = m.ficha || {}, fi = inv.ficha || {};
+    state.eng.inputs = d.inputs ? { ...d.inputs } : {
+      modBrand: m.marca || '', modModel: m.nome || '', invBrand: inv.marca || '', invModel: inv.nome || '',
+      moduleCount: m.qtd, inverterCount: inv.qtd, irradiation: hspDe(p), systemLosses: PERDAS,
+      inverterPower: num(fi.potencia), overload: num(fi.overload), mpptCount: num(fi.mppts), connectorsPerMppt: fi.entradas || '',
+      mpptMinV: num(fi.v_min_mppt), inverterMaxV: num(fi.v_max), mpptMaxA: num(fi.i_max_mppt),
+      modulePower: num(fm.potencia), moduleVmp: num(fm.vmp), moduleImp: num(fm.imp), moduleVoc: num(fm.voc), moduleIsc: num(fm.isc), tempCoef: num(fm.coef_voc), minTemp: TEMP_MIN,
+    };
+    Object.keys(state.eng.inputs).forEach((k) => { if (typeof state.eng.inputs[k] === 'number' && !Number.isFinite(state.eng.inputs[k])) delete state.eng.inputs[k]; });
+    state.eng.lastResult = null;
+    state.eng.currentProjectId = p.id;
+    state.eng.currentProjectName = `${pnum(p)} · ${p.cliente_nome || ''}`;
+    fechar();
+    if (typeof setTab === 'function') setTab('calculadora');
+  }
+
+  // Rodapé da calculadora quando ela foi aberta a partir de um projeto.
+  function engCalcRodapeProjeto() {
+    if (!state.eng || !state.eng.currentProjectId || !(E.projetos || []).some((p) => p.id === state.eng.currentProjectId)) return '';
+    return `<div class="mt-6 bg-neutral-900/60 border border-neutral-800 p-3">
+      <button onclick="EV.salvarDaCalculadora()" class="w-full px-5 py-3 bg-neutral-800 border border-neutral-700 hover:border-sky-500 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-1.5"><i data-lucide="save" class="w-4 h-4"></i> Salvar no projeto ${esc(state.eng.currentProjectName || '')}</button>
+      <p class="text-[10px] text-neutral-600 mt-2 text-center">O resultado vira o dimensionamento do projeto (marcado como ajustado pelo engenheiro).</p></div>`;
+  }
+  async function salvarDaCalculadora() {
+    const r = state.eng && state.eng.lastResult;
+    const id = state.eng && state.eng.currentProjectId;
+    if (!r || !id) { toast('Valide o dimensionamento antes de salvar.'); return; }
+    const p = (E.projetos || []).find((x) => x.id === id);
+    const i = r.inputs;
+    const potCA = i.inverterPower * i.inverterCount;
+    const usados = r.distribution.filter((d) => d.numStrings > 0);
+    const minS = Math.min(...usados.map((d) => d.modulesPerString)), maxPar = Math.max(...usados.map((d) => d.numStrings));
+    const lig = p && p.snapshot && p.snapshot.instalacao && p.snapshot.instalacao.tipo_ligacao;
+    const rede = p && p.snapshot && p.snapshot.inversor && p.snapshot.inversor.ficha && p.snapshot.inversor.ficha.rede;
+    const ov = (r.potenciaPico * 1000 / potCA - 1) * 100;
+    const d = {
+      manual: true, tipo: 'string', status: 'ok', checks: [
+        { nome: 'Tensão máxima no frio (' + i.minTemp + ' °C)', calc: 'Voc corrigido da maior string', limite: `≤ ${nf(i.inverterMaxV)} V`, valor: `${nf(r.maxVStringGlobal, 1)} V`, ok: r.maxVStringGlobal <= i.inverterMaxV },
+        { nome: 'Tensão mínima de MPPT', calc: 'Vmp da menor string', limite: `≥ ${nf(i.mpptMinV)} V`, valor: `${nf(i.moduleVmp * minS, 1)} V`, ok: i.moduleVmp * minS >= i.mpptMinV },
+        { nome: 'Corrente por MPPT', calc: 'Isc × strings em paralelo', limite: `≤ ${nf(i.mpptMaxA, 1)} A`, valor: `${nf(i.moduleIsc * maxPar, 1)} A`, ok: i.moduleIsc * maxPar <= i.mpptMaxA },
+        { nome: 'Overload', calc: `${nf(r.potenciaPico, 2)} kWp ÷ ${nf(potCA / 1000, 2)} kW`, limite: `≤ ${nf(i.overload)} %`, valor: `${nf(ov, 1)} %`, ok: ov <= i.overload },
+      ],
+      hsp: i.irradiation, kwp: r.potenciaPico, potCA, distribution: r.distribution, geracaoMedia: r.geracaoMedia, monthlyGeneration: r.monthlyGeneration,
+      vocCorrected: r.vocCorrected, inputs: i, inversores: i.inverterCount, protecoes: protecoes(i.inverterPower, rede || (lig && lig.startsWith('tri') ? lig : 'mono_220')),
+      fichas_conferidas: true, em: new Date().toISOString(),
+    };
+    try {
+      await rpc('eng_salvar_dim', { p_id: id, p_dim: d, p_status: 'ok', p_motivo: null });
+      toast('Dimensionamento salvo no projeto');
+      state.eng.currentProjectId = null;
+      if (typeof setTab === 'function') setTab('funil');
+      await recarregarProjeto(id);
+      abrir(id, 'dim');
+    } catch (e) { toast(e.message); }
+  }
+
+  // ------------------------------------------------------------ impressão da OS
+  const LOGO_SVG = '<svg viewBox="0 0 620 425" aria-hidden="true"><path fill="#008FD4" d="M162 0H345Q375 0 388 24L620 425H435Q405 425 392 402L310 258L336 213H285Z"/><path fill="#FAA519" d="M150 213H285L310 258L228 402Q215 425 186 425H0L107 238Q121 213 150 213Z"/></svg>';
+  async function imprimirOS(osId) {
+    let os = null;
+    Object.values(E.os).some((l) => (os = l.find((o) => o.id === osId)));
+    if (!os) { const { data } = await sb().from('eng_os').select('*').eq('id', osId).maybeSingle(); os = data; }
+    if (!os) { toast('OS não encontrada.'); return; }
+    const w = window.open('', '_blank');
+    if (!w) { toast('O navegador bloqueou a janela. Libere pop-ups para a plataforma.'); return; }
+    w.document.write(htmlOS(os));
+    w.document.close();
+  }
+
+  function htmlOS(os) {
+    const D = os.dados || {}, sn = D.snapshot || {}, c = sn.cliente || {}, inst = sn.instalacao || {}, d = D.dim || {};
+    const mod = (d.equipamentos && d.equipamentos.modulo) || sn.modulo, inv = (d.equipamentos && d.equipamentos.inversor) || sn.inversor;
+    const e = (s) => esc(s == null || s === '' ? '—' : s);
+    const fm = (mod && mod.ficha) || {}, fi = (inv && inv.ficha) || {};
+    const micro = ehMicro(inv);
+    const rev = os.revisao > 1 ? ` · Revisão ${os.revisao}` : '';
+    const dist = d.distribution || [];
+    const vocFrio = num(d.vocCorrected);
+    const strings = dist.map((m, i) => m.numStrings ? `<div class="mp"><div class="t"><span>MPPT ${i + 1}</span><span>${m.numStrings} string(s)</span></div>${Array.from({ length: m.numStrings }, () => `<div class="mods">${'<i></i>'.repeat(m.modulesPerString)}</div>`).join('')}<div>${m.modulesPerString} módulos em série · Voc no frio <b>${nf(vocFrio * m.modulesPerString, 1)} V</b> · Vmp <b>${nf(num(fm.vmp) * m.modulesPerString, 1)} V</b></div></div>` : '').join('');
+    const arranjo = micro && d.micro
+      ? `<div>${d.micro.qtd} microinversores × ${d.micro.porMicro} módulos${mod && mod.qtd % d.micro.porMicro ? ` (o último com ${mod.qtd % d.micro.porMicro})` : ''}</div>`
+      : (strings ? `<div class="mppt">${strings}</div>${d.inversores > 1 ? `<div class="src">Arranjo igual em cada um dos ${d.inversores} inversores.</div>` : ''}` : '<div class="note">Arranjo não calculado. Ver o projeto na plataforma.</div>');
+    const checks = (d.checks || []).map((k) => `<tr><td>${esc(k.nome)}</td><td>${esc(k.calc)}</td><td class="n">${esc(k.limite)}</td><td class="n ${k.ok ? 'ok' : 'bad'}">${esc(k.valor === 'ok' ? '' : k.valor)} ${k.ok ? '✓' : '✗'}</td></tr>`).join('');
+    const pr = d.protecoes;
+    const fotos = (sn.docs || []).filter((a) => ['foto_padrao', 'foto_disjuntor', 'foto_fachada', 'foto_medidor'].includes(a.tipo));
+    const strTxt = dist.filter((m) => m.numStrings).map((m, i) => ({ i, m }));
+    const medicoes = micro ? '' : `<h2>Medições</h2><table><thead><tr><th>String</th><th style="width:22%">Voc medido (V)</th><th style="width:22%">Esperado (25 °C)</th><th style="width:16%">Polaridade</th></tr></thead><tbody>
+      ${dist.map((m, i) => m.numStrings ? Array.from({ length: m.numStrings }, (_, j) => `<tr><td>MPPT ${i + 1}${m.numStrings > 1 ? ' · string ' + (j + 1) : ''} · ${m.modulesPerString} módulos</td><td><div class="line"></div></td><td>${nf(num(fm.voc) * m.modulesPerString, 1)} V</td><td><span class="sq"></span> ok</td></tr>`).join('') : '').join('')}</tbody></table>`;
+    void strTxt;
+    const logo = `<div class="logo">${LOGO_SVG}<span><b style="color:#008FD4">Ágil</b><b style="color:#FAA519">Solar</b></span></div>`;
+    const endereco = [c.endereco, c.numero, c.complemento, c.bairro, [c.cidade, c.uf].filter(Boolean).join(' - '), c.cep].filter(Boolean).join(' · ');
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(os.numero)}${rev} · ${esc(c.nome || '')}</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#008FD4;--orange:#FAA519;--ink:#0F1B26;--ink2:#4A5561;--gray:#808284;--line:#D9E0E6;--soft:#F4F7FA}
+*{box-sizing:border-box}body{margin:0;background:#DDE3E9;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-size:10.5px;line-height:1.45}
+.bar{position:sticky;top:0;z-index:5;background:#0F1B26;color:#fff;padding:10px 18px;display:flex;gap:12px;align-items:center;font-size:13px}.bar button{margin-left:auto;background:var(--orange);color:#3D2600;border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:800;cursor:pointer}
+.page{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:13mm 14mm 12mm;box-shadow:0 8px 30px rgba(15,27,38,.15);display:flex;flex-direction:column}
+.hd{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:3px solid var(--blue)}
+.logo{display:flex;align-items:center;gap:8px}.logo svg{height:34px;width:auto}.logo span{font-size:21px;letter-spacing:-.02em;display:flex;gap:4px}.logo b{font-weight:800}
+.ttl{flex:1;text-align:center}.ttl h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.02em;text-transform:uppercase}.ttl p{margin:2px 0 0;color:var(--ink2);font-size:10px}
+.num{text-align:right}.num b{display:block;font-size:17px;font-weight:800;color:var(--blue)}.num span{display:block;color:var(--ink2);font-size:9.5px}
+.meta{display:flex;gap:8px;margin:9px 0 2px;flex-wrap:wrap}.tag{display:inline-flex;font-weight:700;font-size:9.5px;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--ink2);border:1px solid var(--line)}
+.tag.ok{background:rgba(31,169,113,.12);color:#12704A;border-color:rgba(31,169,113,.3)}.tag.bad{background:rgba(209,67,67,.1);color:#9B2C2C;border-color:rgba(209,67,67,.3)}
+h2{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:13px 0 6px;display:flex;align-items:center;gap:8px}h2::after{content:"";flex:1;height:1px;background:var(--line)}
+h2 em{font-style:normal;background:var(--blue);color:#fff;border-radius:4px;padding:1px 6px;font-size:9px;letter-spacing:.04em}
+.gr{display:grid;gap:5px 14px}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1fr 1fr}
+.f span{display:block;font-size:8.5px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em}.f b{font-weight:700;font-size:10.5px}
+.box{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+table{width:100%;border-collapse:collapse}th{text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);font-weight:700;padding:5px 7px;border-bottom:1.5px solid var(--ink)}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{text-align:right;white-space:nowrap;font-weight:700}.ok{color:#12704A;font-weight:800}.bad{color:#B42318;font-weight:800}
+.src{font-size:8.5px;color:var(--gray);font-weight:600;margin-top:3px}
+.mppt{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mp{border:1px dashed #9FB0BF;border-radius:8px;padding:7px 9px}.mp .t{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--gray);display:flex;justify-content:space-between}
+.mods{display:flex;gap:3px;margin:6px 0 5px;flex-wrap:wrap}.mods i{width:15px;height:22px;border-radius:2px;background:#0B7FC0}
+.chk{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.chk div{display:flex;gap:7px;align-items:flex-start;padding:5px 0;border-bottom:1px dashed var(--line)}
+.sq{display:inline-block;width:11px;height:11px;border:1.5px solid var(--ink);border-radius:2px;flex-shrink:0;vertical-align:middle;margin-top:1px}
+.ph{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.ph div{border:1px dashed var(--line);border-radius:7px;height:62px;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;color:var(--gray);text-align:center;padding:4px}
+.sig{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}.sig div{border-top:1px solid var(--ink);padding-top:4px;text-align:center;font-size:9px;color:var(--ink2)}.sig b{display:block;color:var(--ink);font-size:9.5px}
+.line{border-bottom:1px solid #9FB0BF;height:17px}.note{background:#FEF4E3;border:1px solid #F6D9A5;border-radius:8px;padding:7px 10px;color:#6B4300;font-size:9.5px;margin-top:6px}
+.ft{margin-top:auto;padding-top:8px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:8.5px;color:var(--gray)}
+@media print{body{background:#fff}.bar{display:none}.page{margin:0;box-shadow:none;page-break-after:always}@page{size:A4;margin:0}}
+</style></head><body>
+<div class="bar"><b>${esc(os.numero)}${rev}</b> · ${esc(c.nome || '')}<button onclick="print()">Imprimir / salvar PDF</button></div>
+<section class="page">
+ <div class="hd">${logo}<div class="ttl"><h1>Ordem de serviço · instalação fotovoltaica</h1><p>Documento gerado pela Plataforma Ágil Solar</p></div>
+  <div class="num"><b>${esc(os.numero)}</b><span>Emitida em ${dataHora(os.created_at)}</span><span>Projeto P-${String(D.projeto_numero || 0).padStart(4, '0')}${rev}</span></div></div>
+ <div class="meta"><span class="tag ok">Validação aprovada</span>${d.checks ? `<span class="tag ${D.dim_status === 'ok' ? 'ok' : 'bad'}">${d.manual ? 'Dimensionamento do engenheiro' : 'Dimensionamento automático'} · ${(d.checks || []).filter((k) => k.ok).length}/${(d.checks || []).length} verificações ok</span>` : ''}<span class="tag">Franquia: ${e(sn.franquia_nome)}</span><span class="tag">Vendedor: ${e(c.vendedor_nome || c.vendedor_email)}</span>${os.equipe ? `<span class="tag">Equipe: ${esc(os.equipe)}</span>` : ''}</div>
+ <h2>Cliente e local da instalação</h2>
+ <div class="gr g4">
+  <div class="f"><span>Cliente</span><b>${e(c.nome)}</b></div><div class="f"><span>CPF/CNPJ</span><b>${e(c.documento)}</b></div><div class="f"><span>Telefone</span><b>${e(c.telefone)}</b></div><div class="f"><span>Cidade</span><b>${e([c.cidade, c.uf].filter(Boolean).join(' - '))}</b></div>
+  <div class="f" style="grid-column:span 2"><span>Endereço</span><b>${e(endereco)}</b></div><div class="f"><span>Concessionária</span><b>${e(D.concessionaria || inst.concessionaria)}</b></div><div class="f"><span>UC</span><b>${e(D.uc || inst.numero_instalacao)}</b></div>
+  <div class="f"><span>Ligação</span><b>${e(LIG[inst.tipo_ligacao])}</b></div><div class="f"><span>Telhado</span><b>${e(inst.telhado)}</b></div><div class="f"><span>Distância módulos → inversor</span><b>${inst.distancia_m ? esc(inst.distancia_m) + ' m' : '—'}</b></div><div class="f"><span>Localização do padrão</span><b>${e(c.padrao_localizacao)}</b></div>
+ </div>
+ <h2>Equipamentos <em>do kit da venda</em></h2>
+ <table><thead><tr><th style="width:44%">Item</th><th>Especificação</th><th style="text-align:right">Qtd</th></tr></thead><tbody>
+  <tr><td><b>${e(mod && mod.nome)}</b><div class="src">${e(mod && mod.marca)}</div></td><td>${mod ? `${nf(fm.potencia)} Wp · Voc ${nf(fm.voc, 1)} V · Vmp ${nf(fm.vmp, 1)} V · Isc ${nf(fm.isc, 2)} A · Imp ${nf(fm.imp, 2)} A` : 'Ver projeto'}</td><td class="n">${mod ? mod.qtd + ' un' : '—'}</td></tr>
+  <tr><td><b>${e(inv && inv.nome)}</b><div class="src">${e(inv && inv.marca)}${micro ? ' · microinversor' : ''}</div></td><td>${inv ? (micro ? `${nf(fi.potencia)} W · ${nf(fi.modulos_por_micro)} módulos por micro` : `${nf(fi.potencia)} W · ${nf(fi.mppts)} MPPT · ${nf(fi.v_max)} V máx · ${nf(fi.i_max_mppt, 1)} A/MPPT`) + ' · ' + esc((REDES_INV.find((x) => x[0] === fi.rede) || [, ''])[1]) : 'Ver projeto'}</td><td class="n">${inv ? inv.qtd + ' un' : '—'}</td></tr>
+  <tr><td><b>Estrutura, cabos e conectores</b><div class="src">Vêm no kit do distribuidor</div></td><td>${e(sn.venda && sn.venda.kit_nome)} · conferir com a nota fiscal</td><td class="n">kit</td></tr>
+ </tbody></table>
+ <div class="gr g4" style="margin-top:8px">
+  <div class="box f"><span>Potência CC</span><b style="font-size:14px">${nf(d.kwp || D.kwp, 2)} kWp</b></div><div class="box f"><span>Potência CA</span><b style="font-size:14px">${d.potCA ? nf(d.potCA / 1000, 2) + ' kW' : '—'}</b></div>
+  <div class="box f"><span>Overload</span><b style="font-size:14px">${d.potCA ? nf(((d.kwp * 1000) / d.potCA - 1) * 100, 1) + ' %' : '—'}</b></div><div class="box f"><span>Geração estimada</span><b style="font-size:14px">${d.geracaoMedia ? nf(d.geracaoMedia) + ' kWh/mês' : '—'}</b></div>
+ </div>
+ <h2>Arranjo dos módulos <em>calculado</em></h2>${arranjo}
+ ${checks ? `<h2>Verificações do dimensionamento</h2><table><thead><tr><th>Verificação</th><th>Cálculo</th><th style="text-align:right">Limite</th><th style="text-align:right">Resultado</th></tr></thead><tbody>${checks}</tbody></table>` : ''}
+ ${pr ? `<h2>Cabos e proteções <em>sugerido</em></h2><table><thead><tr><th>Trecho</th><th>Cabo</th><th>Proteção</th></tr></thead><tbody>
+  ${micro ? '' : `<tr><td>Strings → inversor (CC)</td><td>${CABO_CC} mm² solar, vermelho e preto</td><td>Chave seccionadora CC do inversor</td></tr>`}
+  <tr><td>${micro ? 'Micros' : 'Inversor'} → quadro (CA)</td><td>${String(pr.cabo).replace('.', ',')} mm² · ${pr.condutores}</td><td>Disjuntor ${pr.polos} ${pr.disjuntor} A curva C${d.inversores > 1 ? ' (por inversor)' : ''} · DPS CA classe II</td></tr>
+  <tr><td>Aterramento</td><td>6 mm² verde/amarelo</td><td>Estrutura e ${micro ? 'micros' : 'inversor'} ligados ao aterramento do padrão</td></tr></tbody></table>
+  <div class="note">Cabos e proteções saem de uma regra simples (corrente nominal ${nf(pr.corrente, 1)} A × 1,25). Conferido pelo engenheiro na aprovação.</div>` : ''}
+ <div class="ft"><span>${esc(os.numero)}${rev} · ${esc(c.nome || '')}</span><span>Página 1 de 2</span></div>
+</section>
+<section class="page">
+ <div class="hd">${logo}<div class="ttl" style="text-align:left;margin-left:10px"><h1 style="font-size:12px">${esc(os.numero)} · execução</h1><p>${e(c.nome)} · ${e([c.cidade, c.uf].filter(Boolean).join(' - '))}</p></div><div class="num"><span>Equipe</span><b style="font-size:13px;color:var(--ink)">${e(os.equipe)}</b></div></div>
+ <h2>Informações da vistoria <em>do Comercial</em></h2>
+ <div class="ph">${['Padrão de entrada', 'Disjuntor', 'Fachada', 'Medidor'].map((l, i) => { const t = ['foto_padrao', 'foto_disjuntor', 'foto_fachada', 'foto_medidor'][i]; return `<div>${l}<br>${fotos.some((a) => a.tipo === t) ? 'foto na plataforma' : 'sem foto'}</div>`; }).join('')}</div>
+ <div class="gr g2" style="margin-top:7px"><div class="f"><span>Localização do padrão</span><b>${e(c.padrao_localizacao)}</b></div><div class="f"><span>Observações</span><b>${e(inst.obs)}</b></div></div>
+ <h2>Checklist da execução</h2>
+ <div class="chk">${['Conferir o material com a nota fiscal', 'Estrutura fixada e vedada (sem telha quebrada)', micro ? 'Micros fixados conforme o arranjo' : 'Módulos montados conforme o arranjo', 'Conectores MC4 crimpados e testados', micro ? 'Tensão de cada módulo medida' : 'Polaridade e Voc de cada string medidos', micro ? 'Cabo tronco CA e terminação instalados' : 'Inversor fixado em local ventilado e à sombra', 'Disjuntor CA e DPS instalados no quadro', 'Aterramento ligado', 'Sistema ligado e gerando', 'Monitoramento (Wi-Fi) configurado com o cliente', 'Local limpo e sobras recolhidas', 'Cliente orientado sobre o app e o religamento'].map((x) => `<div><span class="sq"></span>${x}</div>`).join('')}</div>
+ ${medicoes}
+ <h2>Fotos obrigatórias</h2><div class="ph"><div>Módulos instalados</div><div>Estrutura / fixação</div><div>${micro ? 'Micros e etiquetas' : 'Inversor e etiqueta'}</div><div>Quadro com disjuntor e DPS</div></div>
+ <h2>Ocorrências</h2><div class="line"></div><div class="line"></div><div class="line"></div>
+ <div class="gr g3" style="margin-top:12px"><div class="f"><span>Data da execução</span><div class="line"></div></div><div class="f"><span>Início</span><div class="line"></div></div><div class="f"><span>Término</span><div class="line"></div></div></div>
+ <div class="sig"><div><b>${e(D.responsavel_nome)}</b>Engenheiro responsável · CREA</div><div><b>Responsável pela equipe</b>Nome legível</div><div><b>${e(c.nome)}</b>Cliente · recebi o sistema funcionando</div></div>
+ <div class="ft"><span>Gerada pela Plataforma Ágil Solar · alteração no projeto gera uma nova revisão desta OS</span><span>Página 2 de 2</span></div>
+</section></body></html>`;
+  }
+
+  // ------------------------------------------------------------ ficha do cliente (Comercial)
+  function projetosDoCliente(clienteId) { return (E.projetos || []).filter((p) => p.cliente_id === clienteId && p.status !== 'cancelado'); }
+
+  function engFichaChip(client) {
+    const p = state.engPorCliente && state.engPorCliente[client.id];
+    if (!p) return '';
+    const s = ST[p.status];
+    return `<button class="v2-chip dot ${({ info: 't-blue', bad: 't-red', ok: 't-green', at: 't-orange' })[s.tone] || 't-gray'}" onclick="crmSet360Tab('engenharia')" title="Projeto na engenharia">Eng: ${esc(s.n)}</button>`;
+  }
+
+  // selo pequeno no card do funil / lista de clientes do Comercial
+  function engSeloCard(client) {
+    const p = client && state.engPorCliente && state.engPorCliente[client.id];
+    if (!p) return '';
+    const s = ST[p.status];
+    return `<span class="v2-chip v2-vischip ${({ info: 't-blue', bad: 't-red', ok: 't-green', at: 't-orange' })[s.tone] || 't-gray'}" title="Engenharia: ${esc(s.n)} há ${dias(p.status_desde)} dia(s)">${ic('ruler')}${esc(s.n)}</span>`;
+  }
+
+  function renderEngFichaTab(client) {
+    if (!E.projetos) {
+      carregarProjetos().then(() => { if (typeof _crm360Tab !== 'undefined' && _crm360Tab === 'engenharia' && typeof renderCrm360 === 'function') renderCrm360(); }).catch((e) => console.warn('[eng] ficha', e));
+      return `<div class="rd eg"><div class="rd-loading">${ic('loader-2')}Carregando...</div></div>`;
+    }
+    const ps = projetosDoCliente(client.id);
+    const vendas = (typeof _crm360ClientRows === 'function' ? _crm360ClientRows().vendas : []) || [];
+    const enviadas = new Set(ps.map((p) => p.venda_id));
+    const livres = vendas.filter((v) => !enviadas.has(v.id));
+    const pode = podeEnviar();
+    return `<div class="rd eg">
+      ${ps.map((p) => `<div class="rd-card rd-mb eg-fproj" onclick="EV.abrir('${p.id}')"><div class="rd-ch"><div><b>${pnum(p)} · ${esc(kitCurto(p))}</b><div class="rd-muted">Enviado em ${dataBR(p.created_at)} por ${esc(p.enviado_por_nome || '—')} · ${dias(p.status_desde)} dia(s) neste status</div></div><div style="display:flex;gap:6px;flex-wrap:wrap">${stPill(p)}${compPill(p)}</div></div>
+        ${p.status === 'validacao_reprovada' ? `<div class="rd-tip" style="color:var(--v2-red)">${ic('undo-2')}A engenharia devolveu este projeto. Abra para ver o motivo e reenviar.</div>` : ''}
+        <div class="eg-steps mini">${LINHA.map((sid) => { const n = NIVEL[sid], nv = NIVEL[p.status]; return `<div class="${n < nv ? 'done' : n === nv ? (ST[p.status].tone === 'bad' ? 'bad' : 'cur') : ''}"><i></i></div>`; }).join('')}</div></div>`).join('')}
+      ${livres.length ? `<div class="rd-card"><h3>${ic('send')}Enviar à engenharia</h3><p class="rd-sub">${livres.length} venda(s) ainda não enviada(s).</p>
+          ${pode ? `<button class="rd-btn pri" onclick="EV.envioModal('${client.id}')">${ic('send')}Enviar à engenharia</button>` : '<div class="rd-muted">Quem envia é o gestor da franquia.</div>'}</div>`
+        : ps.length ? '' : `<div class="rd-card rd-empty"><div class="ic">${ic('ruler')}</div><b>Nada na engenharia</b>Registre a venda e anexe os documentos (aba Arquivos) para enviar o projeto.</div>`}
+    </div>`;
+  }
+
+  async function envioModal(clienteId) {
+    const client = (state.clientes || []).find((c) => c.id === clienteId);
+    const vendas = ((typeof _crm360ClientRows === 'function' ? _crm360ClientRows().vendas : []) || []).filter((v) => !projetosDoCliente(clienteId).some((p) => p.venda_id === v.id));
+    if (!client || !vendas.length) return;
+    modal(`<div class="rd-loading">${ic('loader-2')}Conferindo documentos e kit...</div>`);
+    let falta = [];
+    let kits = [];
+    try {
+      falta = (await rpc('eng_docs_faltando', { p_cliente: clienteId })) || [];
+      const nomes = [...new Set(vendas.map((v) => v.kit_nome).filter(Boolean))];
+      const props = vendas.map((v) => v.proposta_id).filter(Boolean);
+      const [kp, pp] = await Promise.all([
+        nomes.length ? sb().from('produtos').select('id, name, modulo_id, inversor_id, modulo_qtd, inversor_qtd').in('name', nomes) : { data: [] },
+        props.length ? sb().from('propostas').select('id, source_product_id').in('id', props) : { data: [] },
+      ]);
+      kits = kp.data || [];
+      const extras = (pp.data || []).map((x) => x.source_product_id).filter((id) => id && !kits.some((k) => k.id === id));
+      if (extras.length) { const r = await sb().from('produtos').select('id, name, modulo_id, inversor_id, modulo_qtd, inversor_qtd').in('id', extras); kits = kits.concat(r.data || []); }
+      E._propKit = Object.fromEntries((pp.data || []).map((x) => [x.id, x.source_product_id]));
+    } catch (e) { console.warn('[eng] conferência do envio', e); }
+    E._envio = { clienteId, kits, vendas };
+    const inst = (client.documentos_dados && client.documentos_dados.instalacao) || {};
+    const ok = !falta.length;
+    modal(`<h3>Enviar à engenharia</h3><p class="rd-sub">${esc(client.nome)}</p>
+      <div class="eg-conf">
+        <div class="${ok ? 'ok' : 'bad'}">${ic(ok ? 'check' : 'x')}<div><b>Documentos</b><span>${ok ? 'Todos os obrigatórios anexados' : 'Faltam: ' + esc(falta.join(', '))}</span></div></div>
+        <div id="eg-env-kit"></div>
+      </div>
+      <div class="rd-fgrid">
+        <div class="rd-fld full"><label>Venda</label><select id="eg-env-venda" onchange="EV.envioKit()">${vendas.map((v) => `<option value="${v.id}">${esc(v.kit_nome || 'Venda')} · ${dataBR(v.created_at)}</option>`).join('')}</select></div>
+        <div class="rd-fld"><label>Tipo de ligação *</label><select id="eg-env-lig"><option value="">— escolha —</option>${LIGACOES.map(([v, l]) => `<option value="${v}" ${client.tipo_ligacao === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="rd-fld"><label>UC (nº da instalação)</label><input id="eg-env-uc" value="${esc(inst.numero_instalacao || '')}"></div>
+        <div class="rd-fld"><label>Concessionária</label><input id="eg-env-conc" value="${esc(inst.concessionaria || '')}"></div>
+        <div class="rd-fld"><label>Telhado</label><input id="eg-env-tel" value="${esc(inst.telhado || '')}" placeholder="Ex.: cerâmico, face norte"></div>
+        <div class="rd-fld"><label>Distância módulos → inversor (m)</label><input id="eg-env-dist" inputmode="decimal" placeholder="Ex.: 15"></div>
+        <div class="rd-fld full"><label>Observações para a engenharia</label><input id="eg-env-obs" placeholder="Opcional"></div>
+      </div>
+      <p class="rd-tip">${ic('lock')}Depois do envio, os documentos e o kit ficam congelados. Mudanças aparecem para a engenharia como alerta.</p>
+      <div class="rd-err" id="eg-err"></div>
+      <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Cancelar</button><button class="rd-btn pri" id="eg-env-ok" ${ok ? '' : 'disabled'} onclick="EV.enviar()">${ic('send')}Enviar</button></div>`, true);
+    envioKit();
+  }
+  function envioKit() {
+    const box = document.getElementById('eg-env-kit');
+    if (!box || !E._envio) return;
+    const v = E._envio.vendas.find((x) => x.id === val('eg-env-venda'));
+    const pid = v && E._propKit && E._propKit[v.proposta_id];
+    const k = E._envio.kits.find((x) => x.id === pid) || E._envio.kits.find((x) => v && String(x.name).trim().toUpperCase() === String(v.kit_nome || '').trim().toUpperCase());
+    const ligado = k && k.modulo_id && k.inversor_id;
+    box.className = ligado ? 'ok' : 'at';
+    box.innerHTML = `${ic(ligado ? 'check' : 'triangle-alert')}<div><b>Kit</b><span>${!k ? 'Kit fora do catálogo: a engenharia escolhe os equipamentos (fica para revisão)' : ligado ? `${k.modulo_qtd}× módulo + ${k.inversor_qtd}× inversor ligados: dimensionamento automático` : 'Kit sem vínculo técnico: a engenharia dimensiona na mão'}</span></div>`;
+    icons();
+  }
+  async function enviar() {
+    const env = E._envio;
+    if (!env) return;
+    const lig = val('eg-env-lig');
+    if (!lig) { erro('Escolha o tipo de ligação.'); return; }
+    const dist = val('eg-env-dist');
+    if (dist && !(num(dist) > 0)) { erro('Distância inválida.'); return; }
+    const inst = { tipo_ligacao: lig, numero_instalacao: val('eg-env-uc') || null, concessionaria: val('eg-env-conc') || null, telhado: val('eg-env-tel') || null, distancia_m: dist ? num(dist) : null, obs: val('eg-env-obs') || null };
+    await ocupado('eg-env-ok', async () => {
+      try {
+        const id = await rpc('eng_enviar_projeto', { p_cliente: env.clienteId, p_venda: val('eg-env-venda'), p_instalacao: inst });
+        fecharModal();
+        toast('Projeto enviado à engenharia');
+        await recarregarProjeto(id);
+        if (typeof crmFetchAtividades === 'function') crmFetchAtividades(env.clienteId);
+        if (typeof renderCrm360 === 'function') renderCrm360();
+      } catch (e) { erro(e.message); }
+    });
+  }
+
+  // ------------------------------------------------------------ exposição
+  const EV = {
+    recarregar: async () => { E.projetos = null; E.catalogo = null; E.osLista = null; if (E.ctx === 'eng' && E.tab === 'catalogo') await carregarCatalogo(true); if (E.container) carregarTela(E.container, E.tab === 'catalogo'); },
+    buscar: (q) => { E.busca = q; clearTimeout(EV._t); EV._t = setTimeout(() => { pintar(); const i = E.container && E.container.querySelector('.rd-bar input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200); },
+    franquia: (v) => { E.fr = v; pintar(); },
+    view: (v) => { E.view = v; lsSet('eng_view', v); pintar(); },
+    vazios: (v) => { E.vazios = !!v; lsSet('eng_vazios', v ? '1' : '0'); pintar(); },
+    comp: (v) => { E.soComp = !!v; pintar(); },
+    soCompensacao: () => { E.soComp = true; E.view = 'lista'; E.fst = ''; if (typeof setTab === 'function') setTab('funil'); },
+    verStatus: (s) => { E.fst = s; E.view = 'lista'; if (E.tab !== 'funil' && E.ctx === 'eng' && typeof setTab === 'function') setTab('funil'); else pintar(); },
+    abrir, fechar, aba: (k) => { E.ptab = k; pintarDrawer(); }, mudar, confirmarMudar, assumir, reenviar, comentar, salvarConc,
+    compModal, salvarComp, compFeita: (id) => salvarComp(id, 'feita'), compRemover: (id) => { if (confirm('Remover a compensação deste projeto?')) salvarComp(id, 'remover'); },
+    gerarOS, imprimirOS, recalcular, calculadora, salvarDaCalculadora,
+    fichaModal, fichaTipo, salvarFicha, kitModal, salvarKit, vincularTodos, fecharModal,
+    envioModal, envioKit, enviar,
+    dimensionar, sugerirVinculo,
+  };
+  window.EV = EV;
+  window.renderEngRoute = renderEngRoute;
+  window.renderEngProjetosComercial = renderEngProjetosComercial;
+  window.engFichaChip = engFichaChip;
+  window.engSeloCard = engSeloCard;
+  window.renderEngFichaTab = renderEngFichaTab;
+  window.engCalcRodapeProjeto = engCalcRodapeProjeto;
+  window.engCarregarProjetos = carregarProjetos;
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('eg-scrim')) { e.stopPropagation(); fecharModal(); return; }
+    if (document.getElementById('eg-drawer')) { e.stopPropagation(); fechar(); }
+  }, true);
+})();
