@@ -115,3 +115,6 @@ body.eg-lock { overflow: hidden; }
   .eg-barra > span { width: 130px; }
   .eg-acts select { width: 100%; }
 }
+
+.eg-mais { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 10px 2px 0; }
+.eg-mais .rd-muted { margin-right: auto; }

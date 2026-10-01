@@ -60,6 +60,7 @@
     ev: {}, os: {}, tab: 'visao', ctx: 'eng', container: null,
     view: lsGet('eng_view') || 'kanban', busca: '', fr: '', fst: '', vazios: lsGet('eng_vazios') === '1', soComp: false,
     aberto: null, ptab: 'dim', dimRodando: false,
+    kitBusca: '', kitFiltro: '', kitLimite: 8,
   };
 
   // ------------------------------------------------------------ utilidades
@@ -556,13 +557,38 @@
       </div>
       <div class="rd-card"><div class="rd-ch"><div><h3>${ic('package')}Vínculo dos kits</h3><p class="rd-sub">Quais equipamentos cada kit tem. É daqui que sai o dimensionamento automático.</p></div>
         ${semVinc ? `<button class="rd-btn sm" onclick="EV.vincularTodos()">${ic('wand-sparkles')}Ligar pelo nome do kit</button>` : ''}</div>
-        <table class="rd-t cards"><thead><tr><th>Kit</th><th>Módulos</th><th>Inversor</th><th>Vínculo</th></tr></thead><tbody>
-        ${kits.map((k) => `<tr class="click" onclick="EV.kitModal('${k.id}')"><td class="first"><div class="rd-name" style="font-size:13px">${esc(k.name)}</div></td>
+        <div class="rd-bar" style="margin:4px 0 10px">
+          <label class="rd-sel" style="flex:1;min-width:200px">${ic('search')}<input id="eg-kit-busca" placeholder="Buscar kit, módulo ou inversor" value="${esc(E.kitBusca)}" oninput="EV.kitBuscar(this.value)" style="width:100%"></label>
+          <div class="rd-chips">${[['', 'Todos'], ['sem', 'Sem vínculo'], ['inv', 'Inversor'], ['micro', 'Micro']].map(([v, l]) => `<button class="rd-chip ${E.kitFiltro === v ? 'on' : ''}" onclick="EV.kitFiltrar('${v}')">${l}</button>`).join('')}</div>
+        </div>
+        <div id="eg-kits">${kitsLista()}</div></div>`;
+  }
+
+  // Lista do vínculo dos kits: filtrada pela busca e mostrada aos poucos.
+  const KITS_PASSO = 8;
+  function kitsLista() {
+    const q = String(E.kitBusca || '').trim().toLowerCase();
+    const todos = (E.kits || []).filter((k) => k.ativo !== false);
+    const lista = todos.filter((k) => {
+      if (E.kitFiltro === 'sem' && kitLigado(k)) return false;
+      const inv = (E.catalogo || []).find((c) => c.id === k.inversor_id);
+      if (E.kitFiltro === 'micro' && !(inv ? ehMicro(inv) : /MICRO/i.test(k.name))) return false;
+      if (E.kitFiltro === 'inv' && (inv ? ehMicro(inv) : /MICRO/i.test(k.name))) return false;
+      return !q || `${k.name} ${nomeEq(k.modulo_id)} ${nomeEq(k.inversor_id)}`.toLowerCase().includes(q);
+    });
+    const vis = lista.slice(0, E.kitLimite);
+    if (!lista.length) return `<div class="rd-empty">Nenhum kit encontrado.</div>`;
+    return `<table class="rd-t cards"><thead><tr><th>Kit</th><th>Módulos</th><th>Inversor</th><th>Vínculo</th></tr></thead><tbody>
+        ${vis.map((k) => `<tr class="click" onclick="EV.kitModal('${k.id}')"><td class="first"><div class="rd-name" style="font-size:13px">${esc(k.name)}</div></td>
           <td data-l="Módulos">${k.modulo_id ? `${k.modulo_qtd || '?'}× ${esc(nomeEq(k.modulo_id))}` : '—'}</td>
           <td data-l="Inversor">${k.inversor_id ? `${k.inversor_qtd || '?'}× ${esc(nomeEq(k.inversor_id))}` : '—'}</td>
           <td data-l="Vínculo">${kitLigado(k) ? pill('Ligado', 'ok') : pill('Sem vínculo', 'bad')}</td></tr>`).join('')}
-        </tbody></table></div>`;
+        </tbody></table>
+        <div class="eg-mais"><span class="rd-muted">Mostrando ${vis.length} de ${lista.length}</span>
+          ${lista.length > vis.length ? `<button class="rd-btn sm" onclick="EV.kitMais()">${ic('chevron-down')}Mostrar mais ${Math.min(KITS_PASSO, lista.length - vis.length)}</button>` : ''}
+          ${E.kitLimite > KITS_PASSO ? `<button class="rd-btn sm ghost" onclick="EV.kitMenos()">${ic('chevron-up')}Recolher</button>` : ''}</div>`;
   }
+  function pintarKits() { const box = document.getElementById('eg-kits'); if (box) { box.innerHTML = kitsLista(); icons(); } }
 
   // ------------------------------------------------------------ modal genérico
   function modal(html, largo) {
@@ -1340,6 +1366,10 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     compModal, salvarComp, compFeita: (id) => salvarComp(id, 'feita'), compRemover: (id) => { if (confirm('Remover a compensação deste projeto?')) salvarComp(id, 'remover'); },
     gerarOS, imprimirOS, recalcular, calculadora, salvarDaCalculadora,
     fichaModal, fichaTipo, salvarFicha, kitModal, salvarKit, vincularTodos, fecharModal,
+    kitBuscar: (q) => { E.kitBusca = q; E.kitLimite = KITS_PASSO; clearTimeout(EV._tk); EV._tk = setTimeout(pintarKits, 150); },
+    kitFiltrar: (v) => { E.kitFiltro = v; E.kitLimite = KITS_PASSO; pintar(); },
+    kitMais: () => { E.kitLimite += KITS_PASSO; pintarKits(); },
+    kitMenos: () => { E.kitLimite = KITS_PASSO; pintarKits(); },
     envioModal, envioKit, enviar,
     dimensionar, sugerirVinculo,
   };
