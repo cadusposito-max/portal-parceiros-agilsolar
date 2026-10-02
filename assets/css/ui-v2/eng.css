@@ -207,6 +207,35 @@ html[data-theme="dark"] .eg-dselo.sub { color: #5BD3A1; }
 .eg-tlarq span { display: inline-flex; align-items: center; gap: 4px; background: var(--v2-card); border-radius: 999px; padding: 3px 9px; font-size: 11.5px; font-weight: 700; }
 .eg-tlarq svg.lucide { width: 12px; height: 12px; color: var(--v2-red); }
 
+/* anexos da engenharia (aba Concessionária) */
+.eg-anxs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.eg-anx { background: var(--v2-soft); border-radius: 14px; padding: 12px; border: 1.5px dashed transparent; display: flex; flex-direction: column; gap: 6px; outline: 0; transition: border-color .15s, background .15s; min-width: 0; }
+.eg-anx:focus { border-color: var(--v2-blue); }
+.eg-anx.drag { border-color: var(--v2-blue); background: var(--v2-blue-50); }
+.eg-anx .hd { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 2px; }
+.eg-anx .hd > svg.lucide { width: 18px; height: 18px; color: var(--v2-blue); margin-top: 1px; }
+.eg-anx .hd > div { flex: 1; min-width: 0; }
+.eg-anx .hd b { display: block; font-size: 13.5px; }
+.eg-anx .hd small { display: block; font-size: 11.5px; color: var(--v2-gray); }
+.eg-anx .hd .q { font-size: 12px; font-weight: 800; background: var(--v2-card); border-radius: 999px; min-width: 24px; height: 22px; display: grid; place-items: center; padding: 0 7px; }
+.eg-anx .vz { font-size: 12px; color: var(--v2-gray); padding: 8px 0; }
+.eg-anxi { display: flex; align-items: center; gap: 8px; background: var(--v2-card); border-radius: 10px; padding: 6px; cursor: pointer; border: 1px solid transparent; min-width: 0; }
+.eg-anxi:hover { border-color: var(--v2-blue); }
+.eg-anxi .th { width: 34px; height: 34px; border-radius: 7px; background: var(--v2-hover) center / cover no-repeat; flex: none; display: grid; place-items: center; }
+.eg-anxi .th.ic svg.lucide { width: 16px; height: 16px; color: var(--v2-red); }
+.eg-anxi .nm { flex: 1; min-width: 0; }
+.eg-anxi .nm b { display: block; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eg-anxi .nm small { display: block; font-size: 11px; color: var(--v2-gray); }
+.eg-anxi button { width: 28px; height: 28px; border-radius: 8px; border: 0; background: none; color: var(--v2-ink-2); display: grid; place-items: center; cursor: pointer; padding: 0; flex: none; }
+.eg-anxi button:hover { background: var(--v2-hover); color: var(--v2-ink); }
+.eg-anxi button.del:hover { color: var(--v2-red); }
+.eg-anxi button svg.lucide { width: 15px; height: 15px; }
+.eg-anxbtn { align-self: flex-start; margin-top: 2px; cursor: pointer; position: relative; }
+.eg-anxbtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.eg-anxbtn.dis { pointer-events: none; opacity: .7; }
+.eg-anx .dica { font-size: 11px; color: var(--v2-gray); }
+@media (max-width: 900px) { .eg-anxs { grid-template-columns: 1fr; } }
+
 /* visualizador */
 .eg-vw { position: fixed; inset: 0; z-index: 190; background: rgba(4,8,12,.95); display: flex; flex-direction: column; color: #fff; }
 .eg-vw .hd { display: flex; align-items: center; gap: 8px; padding: 12px 18px; }

@@ -1155,7 +1155,7 @@
     icons();
     const np = d.querySelector('.eg-panel');
     if (np && y) np.scrollTop = y;
-    if (E.ptab === 'docs') assinarDocs(p);
+    if (E.ptab === 'docs' || E.ptab === 'conc') assinarDocs(p);
   }
 
   function acoesEng(p) {
@@ -1280,6 +1280,10 @@
   const SLOT_LABEL = { frontal: 'frontal', traseira: 'traseira', aberta: 'aberta', fechada: 'fechada' };
   const extDe = (a) => { const m = String(a.nome || a.storage_path || '').match(/\.([a-z0-9]{2,5})$/i); if (m) return m[1].toLowerCase(); const t = String(a.mime || ''); return t.includes('pdf') ? 'pdf' : t.includes('png') ? 'png' : t.includes('jpeg') || t.includes('jpg') ? 'jpeg' : t.includes('webp') ? 'webp' : 'bin'; };
   const ehImg = (a) => ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extDe(a));
+  // anexos da própria engenharia (cliente_arquivos tipo 'engenharia' + slot); não entram nos documentos do envio
+  const ANEXOS = [['parecer', 'Parecer de acesso', 'file-check-2', 'PDF ou print da concessionária'], ['art_boleto', 'Boleto da ART', 'receipt', 'Boleto e comprovante de pagamento'], ['conc_outros', 'Outros', 'folder', 'Protocolo, ART assinada, ofícios']];
+  const SLOTS_TEC = ANEXOS.map(([k]) => k);
+  const ehTec = (a) => a.tipo === 'engenharia' && SLOTS_TEC.includes(a.slot);
   const ehPdf = (a) => extDe(a) === 'pdf';
   const nomeArq = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
   const pastaNome = (p) => nomeArq(pnum(p) + ' - ' + (p.cliente_nome || 'Cliente') + ' - ' + nomeFranquia(p));
@@ -1288,7 +1292,7 @@
   function docsProjeto(p) {
     const snap = ((p.snapshot && p.snapshot.docs) || []).map((a) => ({ ...a, novo: false }));
     const ids = new Set(snap.map((a) => a.id));
-    const novos = ((E.docsNovos || {})[p.id] || []).filter((a) => !ids.has(a.id)).map((a) => ({ ...a, novo: true }));
+    const novos = ((E.docsNovos || {})[p.id] || []).filter((a) => !ids.has(a.id) && !ehTec(a)).map((a) => ({ ...a, novo: true }));
     const ord = (a) => { const i = DOC_ORDEM.indexOf(a.tipo); return i < 0 ? 99 : i; };
     const todos = snap.sort((a, b) => ord(a) - ord(b) || String(a.em).localeCompare(String(b.em))).concat(novos.sort((a, b) => ord(a) - ord(b)));
     const porTipo = {};
@@ -1361,19 +1365,25 @@
     let mudou = false;
     if (p.cliente_id && E.docsNovos[p.id] === undefined) {
       E.docsNovos[p.id] = [];
-      const { data, error } = await sb().from('cliente_arquivos').select('id, tipo, slot, storage_path, nome_original, mime, created_at').eq('cliente_id', p.cliente_id).order('created_at');
-      if (!error) { E.docsNovos[p.id] = (data || []).map((a) => ({ id: a.id, tipo: a.tipo, slot: a.slot, storage_path: a.storage_path, nome: a.nome_original, mime: a.mime, em: a.created_at })); mudou = true; }
+      const { data, error } = await sb().from('cliente_arquivos').select('id, tipo, slot, storage_path, nome_original, mime, created_at, uploaded_by_nome').eq('cliente_id', p.cliente_id).order('created_at');
+      if (!error) { E.docsNovos[p.id] = (data || []).map((a) => ({ id: a.id, tipo: a.tipo, slot: a.slot, storage_path: a.storage_path, nome: a.nome_original, mime: a.mime, em: a.created_at, autor: a.uploaded_by_nome })); mudou = true; }
     }
     const velho = Date.now() - 50 * 60000;
-    const falta = docsProjeto(p).map((a) => a.storage_path).filter((x) => x && (!E.urls[x] || E.urlsEm[x] < velho));
+    const falta = docsProjeto(p).concat(anexosProjeto(p)).map((a) => a.storage_path).filter((x) => x && (!E.urls[x] || E.urlsEm[x] < velho));
     if (falta.length) {
       const { data, error } = await sb().storage.from('crm-arquivos').createSignedUrls(falta, 3600);
       if (error) console.warn('[eng] assinar docs', error);
       (data || []).forEach((x) => { if (x.signedUrl && x.path) { E.urls[x.path] = x.signedUrl; E.urlsEm[x.path] = Date.now(); mudou = true; } });
     }
-    if (mudou && E.aberto === p.id && E.ptab === 'docs') pintarDrawer();
+    if (mudou && E.aberto === p.id && ['docs', 'conc'].includes(E.ptab)) pintarDrawer();
   }
-  const docDoAberto = (id) => { const p = (E.projetos || []).find((x) => x.id === E.aberto); if (!p) return {}; const docs = docsProjeto(p); return { p, docs, a: docs.find((d) => d.id === id) }; };
+  const docDoAberto = (id) => {
+    const p = (E.projetos || []).find((x) => x.id === E.aberto);
+    if (!p) return {};
+    const anx = anexosProjeto(p);
+    const docs = id && anx.some((d) => d.id === id) ? anx : docsProjeto(p);
+    return { p, docs, a: docs.find((d) => d.id === id) };
+  };
   function salvarBlob(blob, nome) {
     const u = URL.createObjectURL(blob);
     const l = document.createElement('a');
@@ -1508,7 +1518,7 @@
     if (e.key === 'ArrowLeft') visorIr(-1);
   }
   function visorIr(d) {
-    const { docs } = docDoAberto(null);
+    const { docs } = docDoAberto(E.visor);
     if (!docs || !docs.length) return;
     const i = docs.findIndex((a) => a.id === E.visor);
     E.visor = docs[(i + d + docs.length) % docs.length].id;
@@ -1525,9 +1535,9 @@
       : ehImg(a) ? '<img src="' + esc(u) + '" alt="' + esc(a.rotulo) + '">'
       : ehPdf(a) ? '<iframe src="' + esc(u) + '#view=FitH" title="' + esc(a.rotulo) + '"></iframe>'
       : '<div class="msg">' + ic('file') + 'Sem pré-visualização para .' + esc(extDe(a)) + '. Use Baixar.</div>';
-    v.innerHTML = '<div class="hd"><div class="g"><b>' + String(a.n).padStart(2, '0') + ' · ' + esc(a.rotulo) + (a.novo ? ' <span class="novo">NOVO</span>' : '') + '</b><small>' + (i + 1) + ' de ' + docs.length + ' · ' + esc(a.nome || '') + ' · ' + dataBR(a.em) + '</small></div>'
+    v.innerHTML = '<div class="hd"><div class="g"><b>' + (a.tec ? '' : String(a.n).padStart(2, '0') + ' · ') + esc(a.rotulo) + (a.novo ? ' <span class="novo">NOVO</span>' : '') + '</b><small>' + (i + 1) + ' de ' + docs.length + ' · ' + esc(a.nome || '') + ' · ' + dataBR(a.em) + '</small></div>'
       + '<button class="rd-btn" onclick="EV.docBaixar(\'' + a.id + '\',this)">' + ic('download') + 'Baixar</button>'
-      + (eng ? '<button class="rd-btn ' + ((E.prob || {})[a.id] ? 'danger pri' : '') + '" onclick="EV.docProb(\'' + a.id + '\')">' + ic('flag') + ((E.prob || {})[a.id] ? 'Marcado' : 'Problema') + '</button>' : '')
+      + (eng && !a.tec ? '<button class="rd-btn ' + ((E.prob || {})[a.id] ? 'danger pri' : '') + '" onclick="EV.docProb(\'' + a.id + '\')">' + ic('flag') + ((E.prob || {})[a.id] ? 'Marcado' : 'Problema') + '</button>' : '')
       + (u ? '<a class="rd-btn" href="' + esc(u) + '" target="_blank" rel="noopener" title="Abrir em nova aba">' + ic('external-link') + '</a>' : '')
       + '<button class="rd-btn" onclick="EV.docFechar()" title="Fechar (Esc)">' + ic('x') + '</button></div>'
       + '<div class="st"><button class="nav" onclick="EV.docIr(-1)" title="Anterior (←)">' + ic('chevron-left') + '</button><div class="pl">' + palco + '</div><button class="nav" onclick="EV.docIr(1)" title="Próximo (→)">' + ic('chevron-right') + '</button></div>'
@@ -1535,6 +1545,94 @@
     icons();
     const on = v.querySelector('.fs .on');
     if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
+
+  function anexosProjeto(p) {
+    return ((E.docsNovos || {})[p.id] || []).filter(ehTec).map((a) => {
+      const def = ANEXOS.find(([k]) => k === a.slot) || [];
+      return { ...a, tec: true, n: 0, rotulo: def[1] || 'Anexo', arquivo: nomeArq(pastaNome(p) + ' - ' + (def[1] || 'Anexo') + ' - ' + String(a.nome || '').replace(/\.[^.]+$/, '')) + '.' + extDe(a) };
+    });
+  }
+  function anexosHTML(p) {
+    const eng = central();
+    const todos = anexosProjeto(p);
+    const carregando = (E.docsNovos || {})[p.id] === undefined;
+    const urls = E.urls || {};
+    const bloco = ([slot, nome, icone, dica]) => {
+      const its = todos.filter((a) => a.slot === slot);
+      const enviando = E.anxEnviando === p.id + ':' + slot;
+      const item = (a) => '<div class="eg-anxi" onclick="EV.docVer(\'' + a.id + '\')">'
+        + (ehImg(a) && urls[a.storage_path] ? '<span class="th" style="background-image:url(\'' + esc(urls[a.storage_path]) + '\')"></span>' : '<span class="th ic">' + ic(ehPdf(a) ? 'file-text' : 'file') + '</span>')
+        + '<span class="nm"><b>' + esc(a.nome || 'arquivo') + '</b><small>' + dataBR(a.em) + (a.autor ? ' · ' + esc(String(a.autor).split(' ')[0]) : '') + '</small></span>'
+        + '<button title="Baixar" onclick="event.stopPropagation();EV.docBaixar(\'' + a.id + '\',this)">' + ic('download') + '</button>'
+        + (eng ? '<button class="del" title="Excluir" onclick="event.stopPropagation();EV.anxExcluir(\'' + p.id + '\',\'' + a.id + '\')">' + ic('trash-2') + '</button>' : '') + '</div>';
+      return '<div class="eg-anx" ' + (eng ? 'tabindex="0" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="EV.anxDrop(event,\'' + p.id + '\',\'' + slot + '\')" onpaste="EV.anxColar(event,\'' + p.id + '\',\'' + slot + '\')"' : '') + '>'
+        + '<div class="hd">' + ic(icone) + '<div><b>' + nome + '</b><small>' + dica + '</small></div><span class="q">' + its.length + '</span></div>'
+        + (its.length ? its.map(item).join('') : '<div class="vz">' + (carregando ? 'Carregando...' : 'Nenhum arquivo') + '</div>')
+        + (eng ? '<label class="rd-btn sm eg-anxbtn ' + (enviando ? 'dis' : '') + '">' + ic(enviando ? 'loader-2' : 'paperclip') + (enviando ? 'Enviando...' : 'Anexar') + '<input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" onchange="EV.anxArquivos(\'' + p.id + '\',\'' + slot + '\',this.files);this.value=\'\'"></label><div class="dica">ou arraste aqui · clique no quadro e Ctrl+V para colar um print</div>' : '')
+        + '</div>';
+    };
+    return '<div class="rd-card rd-mb"><h3>' + ic('paperclip') + 'Anexos da engenharia</h3><p class="rd-sub">' + (eng ? 'Ficam no cliente (pasta Engenharia). A franquia vê, mas não apaga.' : 'Enviados pela engenharia.') + '</p>'
+      + '<div class="eg-anxs">' + ANEXOS.map(bloco).join('') + '</div></div>';
+  }
+  const ANX_TIPOS = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+  async function anxArquivos(pid, slot, files) {
+    const p = (E.projetos || []).find((x) => x.id === pid);
+    const lista = Array.from(files || []);
+    if (!p || !lista.length || !central()) return;
+    if (!p.cliente_id) { toast('Projeto sem cliente vinculado.'); return; }
+    E.anxEnviando = pid + ':' + slot;
+    pintarDrawer();
+    const nomes = [];
+    for (const f of lista) {
+      try {
+        const mime = f.type || (/\.pdf$/i.test(f.name) ? 'application/pdf' : '');
+        if (!ANX_TIPOS.includes(mime)) throw new Error('"' + f.name + '": use PDF ou imagem (JPG, PNG).');
+        if (f.size > 20 * 1024 * 1024) throw new Error('"' + f.name + '" passa de 20 MB.');
+        const ext = (String(f.name).match(/\.([a-z0-9]{2,5})$/i) || [, mime === 'application/pdf' ? 'pdf' : mime.split('/')[1]])[1].toLowerCase();
+        const base = String(f.name || 'arquivo').replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).toLowerCase() || 'arquivo';
+        const path = 'franquias/' + p.franquia_id + '/clientes/' + p.cliente_id + '/engenharia/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + base + '.' + ext;
+        const up = await sb().storage.from('crm-arquivos').upload(path, f, { contentType: mime });
+        if (up.error) throw up.error;
+        const { error } = await sb().from('cliente_arquivos').insert([{ cliente_id: p.cliente_id, franquia_id: p.franquia_id, tipo: 'engenharia', slot, storage_path: path, nome_original: f.name || null, mime, tamanho_bytes: f.size, uploaded_by_nome: (state.profile && state.profile.nome) || (state.currentUser && state.currentUser.email) || null }]);
+        if (error) { try { await sb().storage.from('crm-arquivos').remove([path]); } catch (_) { /* sem limpeza */ } throw error; }
+        nomes.push(f.name);
+      } catch (e) { console.error('[eng] anexo', e); toast(e.message || 'Falha ao anexar ' + f.name); }
+    }
+    E.anxEnviando = null;
+    if (nomes.length) {
+      const nome = (ANEXOS.find(([k]) => k === slot) || [, 'Anexo'])[1];
+      try { await rpc('eng_comentar', { p_id: pid, p_texto: 'Anexado: ' + nome + ' · ' + nomes.join(', '), p_interno: false }); await carregarEventos(pid); } catch (_) { /* o anexo já foi */ }
+      toast(nomes.length === 1 ? nome + ' anexado' : nomes.length + ' arquivos anexados');
+    }
+    (E.docsNovos = E.docsNovos || {})[pid] = undefined;
+    await assinarDocs(p);
+    pintarDrawer();
+  }
+  function anxDrop(ev, pid, slot) {
+    ev.preventDefault();
+    ev.currentTarget.classList.remove('drag');
+    anxArquivos(pid, slot, ev.dataTransfer && ev.dataTransfer.files);
+  }
+  function anxColar(ev, pid, slot) {
+    const its = Array.from((ev.clipboardData && ev.clipboardData.items) || []).filter((i) => i.kind === 'file');
+    if (!its.length) return;
+    ev.preventDefault();
+    const hoje = new Date().toISOString().slice(0, 10);
+    const files = its.map((i, n) => { const f = i.getAsFile(); const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg'); return new File([f], 'print-' + slot.replace('_', '-') + '-' + hoje + (n ? '-' + (n + 1) : '') + '.' + ext, { type: f.type }); });
+    anxArquivos(pid, slot, files);
+  }
+  async function anxExcluir(pid, id) {
+    const p = (E.projetos || []).find((x) => x.id === pid);
+    const a = p && anexosProjeto(p).find((x) => x.id === id);
+    if (!a || !confirm('Excluir "' + (a.nome || 'arquivo') + '"?')) return;
+    const { data, error } = await sb().from('cliente_arquivos').delete().eq('id', id).select('id');
+    if (error || !data || !data.length) { toast('Não foi possível excluir.'); return; }
+    try { await sb().storage.from('crm-arquivos').remove([a.storage_path]); } catch (_) { /* objeto fica órfão */ }
+    try { await rpc('eng_comentar', { p_id: pid, p_texto: 'Anexo excluído: ' + a.rotulo + ' · ' + (a.nome || ''), p_interno: true }); await carregarEventos(pid); } catch (_) { /* segue */ }
+    (E.docsNovos = E.docsNovos || {})[pid] = undefined;
+    await assinarDocs(p);
+    pintarDrawer();
   }
 
   function abaConc(p) {
@@ -1552,6 +1650,7 @@
         <div class="rd-fld"><label>Vistoria / troca do medidor</label><input id="eg-c-vis" type="date" ${dis} value="${esc(p.vistoria_em || '')}"></div>
       </div>
       ${eng ? `<div class="rd-err" id="eg-err"></div><div class="rd-mfoot"><button class="rd-btn pri" id="eg-c-salvar" onclick="EV.salvarConc('${p.id}')">${ic('check')}Salvar</button></div>` : ''}</div>
+    ${anexosHTML(p)}
     <div class="rd-card"><div class="rd-ch"><div><h3>${ic('zap')}Compensação</h3><p class="rd-sub">Quando o cliente quer compensar créditos em outras UCs depois do projeto enviado</p></div>${compPill(p)}</div>
       ${comp ? `<div class="rd-line"><div class="nm">UCs beneficiárias</div><div class="val" style="white-space:normal;text-align:right">${esc(ucsTxt || '—')}</div></div>${comp.obs ? `<div class="rd-line"><div class="nm">Observação</div><div class="val" style="white-space:normal">${esc(comp.obs)}</div></div>` : ''}` : '<div class="rd-muted">Sem compensação.</div>'}
       ${eng ? `<div class="rd-mfoot">${comp && comp.status !== 'feita' ? `<button class="rd-btn" onclick="EV.compFeita('${p.id}')">${ic('check')}Marcar como feita</button>` : ''}${comp ? `<button class="rd-btn ghost danger" onclick="EV.compRemover('${p.id}')">Remover</button>` : ''}<button class="rd-btn ${comp ? '' : 'pri'}" onclick="EV.compModal('${p.id}')">${ic(comp ? 'pencil' : 'plus')}${comp ? 'Editar' : 'Solicitar compensação'}</button></div>` : ''}
@@ -1962,6 +2061,7 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     franquia: (v) => { E.fr = v; pintar(); },
     view: (v) => { E.view = v; lsSet('eng_view', v); pintar(); },
     filtro: (k) => { E[k] = !E[k]; pintar(); },
+    anxArquivos, anxDrop, anxColar, anxExcluir,
     docZip, docPasta, docBaixar, docProb, docReprovar, docPedir, docVer, docFechar: fecharVisor, docIr: visorIr,
     docProbLimpar: () => { E.prob = {}; pintarDrawer(); },
     trilho: (id) => { E.trilhoAberto[id] = true; pintar(); },
