@@ -2186,6 +2186,31 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
   window.engFichaChip = engFichaChip;
   window.engSeloCard = engSeloCard;
   window.renderEngFichaTab = renderEngFichaTab;
+  // Reprovação em aberto do cliente: { pid, em, autor, motivo, docs: [{ id, rotulo, tipo, slot }] } ou null.
+  // Se ainda não tem projetos/eventos, carrega e repinta a aba Arquivos.
+  E.reprovaCarregando = {};
+  const repintarArquivos = () => { if (typeof crmArqRender === 'function') crmArqRender(); };
+  window.engReprovaCliente = function (clienteId) {
+    if (!E.projetos) {
+      if (!E.reprovaCarregando._proj) { E.reprovaCarregando._proj = true; carregarProjetos().then(repintarArquivos).catch(() => {}); }
+      return null;
+    }
+    const p = E.projetos.find((x) => x.cliente_id === clienteId && x.status === 'validacao_reprovada');
+    if (!p) return null;
+    if (E.ev[p.id] === undefined) {
+      if (!E.reprovaCarregando[p.id]) { E.reprovaCarregando[p.id] = true; carregarEventos(p.id).then(repintarArquivos).catch(() => {}); }
+      return null;
+    }
+    const ev = eventoReprova(p);
+    if (!ev) return null;
+    let docs = ev.meta && Array.isArray(ev.meta.docs) ? ev.meta.docs : [];
+    if (!docs.length && String(ev.texto || '').startsWith(PREFIXO_PEDIDO)) {
+      const todos = docsProjeto(p);
+      docs = String(ev.texto).slice(PREFIXO_PEDIDO.length).split(',').map((r) => r.trim()).filter(Boolean)
+        .map((r) => { const d = todos.find((x) => x.rotulo === r); return { id: d ? d.id : null, rotulo: r, tipo: d ? d.tipo : null, slot: d ? d.slot : null }; });
+    }
+    return { pid: p.id, em: ev.created_at, autor: ev.autor_nome, motivo: ev.texto, docs };
+  };
   window.engCarregarProjetos = carregarProjetos;
 
   document.addEventListener('keydown', (e) => {

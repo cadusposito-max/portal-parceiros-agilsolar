@@ -484,3 +484,24 @@ html[data-ui="v2"] body .eg-bin .eg-fc select.eg-fv { width: 210px; height: 26px
   .eg-dg { grid-template-columns: minmax(0, 1fr) 18px 110px; }
   .eg-dg .w.ca, .eg-dg .box:not(.inv):not(.mic) { display: none; }
 }
+
+/* aba Arquivos da ficha: reprovação da engenharia em aberto */
+.crm-arq-rep { background: rgba(209,67,67,.1); border-radius: 16px; padding: 14px 16px; box-shadow: inset 0 0 0 1.5px rgba(209,67,67,.4); display: flex; flex-direction: column; gap: 10px; }
+.crm-arq-rep.ok { background: rgba(250,165,25,.1); box-shadow: inset 0 0 0 1.5px rgba(250,165,25,.45); }
+.crm-arq-rep .h { display: flex; gap: 10px; align-items: flex-start; }
+.crm-arq-rep .h > svg.lucide { width: 20px; height: 20px; color: var(--v2-red); flex: none; }
+.crm-arq-rep.ok .h > svg.lucide { color: var(--v2-orange-text); }
+.crm-arq-rep .h b { display: block; font-size: 14px; color: var(--v2-red); }
+.crm-arq-rep.ok .h b { color: var(--v2-orange-text); }
+.crm-arq-rep .h span { display: block; font-size: 12px; color: var(--v2-ink-2); }
+.crm-arq-rep .l { display: flex; flex-wrap: wrap; gap: 6px; }
+.crm-arq-rep .l span { display: inline-flex; align-items: center; gap: 6px; background: var(--v2-card); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; font-weight: 700; color: var(--v2-ink); }
+.crm-arq-rep .l span svg.lucide { width: 14px; height: 14px; color: var(--v2-red); }
+.crm-arq-rep .l span em { font-style: normal; font-size: 11px; color: var(--v2-red); }
+.crm-arq-rep .l span.ok svg.lucide, .crm-arq-rep .l span.ok em { color: var(--v2-green); }
+.crm-arq-rep-go { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 11px; border: 0; background: var(--v2-orange); color: var(--v2-orange-ink); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.crm-arq-rep-go svg.lucide { width: 15px; height: 15px; }
+html[data-ui="v2"] body .crm-arq-reprovado { box-shadow: inset 0 0 0 1.5px rgba(209,67,67,.55) !important; background: rgba(209,67,67,.07) !important; }
+html[data-ui="v2"] body .crm-arq-trocado { box-shadow: inset 0 0 0 1.5px rgba(31,169,113,.45) !important; }
+.crm-arq-t-rep { color: var(--v2-red) !important; font-weight: 700; }
+.crm-arq-t-ok { color: var(--v2-green) !important; font-weight: 700; }

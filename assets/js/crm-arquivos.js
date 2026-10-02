@@ -49,6 +49,7 @@ const CRM_ARQ_PASTAS_EXTRAS = [
 
 let _crmArq = { clienteId: null, rows: [], urls: {}, loading: false, erro: null, enviando: null, abertos: new Set() };
 let _crmArqUploadCtx = null;
+let _crmArqRep = {}; // tipo -> { trocado, rotulos } da reprovação da engenharia em aberto
 
 function _crmArqItens() {
   return CRM_DOCS_CHECKLIST.flatMap((g) => g.itens);
@@ -149,6 +150,16 @@ function renderCrmArquivosTab(client) {
 
   const rows = _crmArq.rows;
   const prog = _crmArqProgresso(rows, client);
+  // reprovação da engenharia em aberto: cada arquivo reprovado fica "trocado" quando chega um novo do mesmo tipo
+  const rep = typeof engReprovaCliente === 'function' ? engReprovaCliente(client.id) : null;
+  _crmArqRep = {};
+  if (rep) rep.docs.forEach((d) => {
+    if (!d.tipo) return;
+    const novo = rows.find((r) => r.tipo === d.tipo && (!d.slot || r.slot === d.slot) && r.id !== d.id && new Date(r.created_at) > new Date(rep.em));
+    d.trocado = !!novo;
+    const atual = _crmArqRep[d.tipo];
+    _crmArqRep[d.tipo] = { trocado: atual ? atual.trocado && d.trocado : d.trocado, rotulos: ((atual && atual.rotulos) || []).concat(d.rotulo) };
+  });
   const pct = Math.round((prog.feitos / prog.total) * 100);
   const completo = prog.feitos === prog.total;
 
@@ -166,8 +177,18 @@ function renderCrmArquivosTab(client) {
 
   const extras = CRM_ARQ_PASTAS_EXTRAS.map((p) => _crmArqItemHTML(p, rows, client, false)).join('');
 
+  const faltaTrocar = rep ? rep.docs.filter((d) => !d.trocado) : [];
+  const banner = !rep ? '' : `
+      <div class="crm-arq-rep ${faltaTrocar.length ? '' : 'ok'}">
+        <div class="h"><i data-lucide="${faltaTrocar.length ? 'undo-2' : 'circle-check'}"></i>
+          <div><b>${faltaTrocar.length ? 'A engenharia devolveu arquivos deste cliente' : 'Arquivos trocados: falta reenviar à engenharia'}</b>
+          <span>${escapeHTML(new Date(rep.em).toLocaleDateString('pt-BR'))}${rep.autor ? ' · ' + escapeHTML(rep.autor) : ''}${rep.docs.length ? '' : ' · ' + escapeHTML(rep.motivo || '')}</span></div></div>
+        ${rep.docs.length ? `<div class="l">${rep.docs.map((d) => `<span class="${d.trocado ? 'ok' : ''}"><i data-lucide="${d.trocado ? 'check' : 'x'}"></i>${escapeHTML(d.rotulo)}<em>${d.trocado ? 'trocado' : 'trocar'}</em></span>`).join('')}</div>` : ''}
+        <button class="crm-arq-rep-go" onclick="crmSet360Tab('engenharia')"><i data-lucide="send"></i>${faltaTrocar.length ? 'Ver na aba Engenharia' : 'Reenviar à engenharia'}</button>
+      </div>`;
   return `
     <div class="space-y-5">
+      ${banner}
       <div class="border ${completo ? 'border-green-900/50 bg-green-950/10' : 'border-neutral-800 bg-black/40'} p-3.5">
         <div class="flex items-center gap-3 flex-wrap">
           <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><i data-lucide="paperclip" class="w-3.5 h-3.5"></i> Documentos para engenharia</p>
@@ -208,7 +229,11 @@ function _crmArqItemHTML(item, rows, client, obrigatorio) {
   }
 
   const parcial = !feito && (doTipo.length > 0);
-  const statusIcon = feito
+  const rep = (_crmArqRep || {})[item.tipo];
+  if (rep) resumo = rep.trocado ? 'trocado · aguardando reenvio' : 'reprovado pela engenharia';
+  const statusIcon = rep && !rep.trocado
+    ? '<i data-lucide="x-circle" class="w-4 h-4 shrink-0" style="color:var(--v2-red,#ef4444)"></i>'
+    : feito
     ? '<i data-lucide="check-circle-2" class="w-4 h-4 text-green-500 shrink-0"></i>'
     : parcial
       ? '<i data-lucide="circle-dashed" class="w-4 h-4 text-yellow-500 shrink-0"></i>'
@@ -224,14 +249,14 @@ function _crmArqItemHTML(item, rows, client, obrigatorio) {
        </button>`;
 
   return `
-    <div class="border ${feito && obrigatorio ? 'border-neutral-800' : parcial ? 'border-yellow-900/50' : 'border-neutral-800'} bg-black/40"
+    <div class="border ${feito && obrigatorio ? 'border-neutral-800' : parcial ? 'border-yellow-900/50' : 'border-neutral-800'} bg-black/40 ${rep ? (rep.trocado ? 'crm-arq-trocado' : 'crm-arq-reprovado') : ''}"
          ondragover="event.preventDefault(); this.classList.add('border-orange-500')"
          ondragleave="this.classList.remove('border-orange-500')"
          ondrop="crmArqDrop(event, '${item.tipo}')">
       <div onclick="crmArqToggle('${item.tipo}')" class="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer select-none">
         ${statusIcon}
         <p class="flex-1 min-w-0 text-[11px] font-bold uppercase tracking-wide ${feito ? 'text-neutral-300' : 'text-white'}">${escapeHTML(item.label)}</p>
-        <span class="hidden sm:block text-[10px] font-mono truncate max-w-[180px] ${feito ? 'text-neutral-500' : parcial ? 'text-yellow-500/80' : 'text-neutral-600'}">${resumo}</span>
+        <span class="hidden sm:block text-[10px] font-mono truncate max-w-[180px] ${rep ? (rep.trocado ? 'crm-arq-t-ok' : 'crm-arq-t-rep') : feito ? 'text-neutral-500' : parcial ? 'text-yellow-500/80' : 'text-neutral-600'}">${resumo}</span>
         ${anexarBtn}
         <i data-lucide="${aberto ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4 text-neutral-600 shrink-0"></i>
       </div>
