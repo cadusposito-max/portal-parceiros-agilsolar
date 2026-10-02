@@ -171,7 +171,7 @@ body.eg-lock { overflow: hidden; }
 .eg-pj b { font-size: 13.5px; }
 
 /* calculadora · bancada */
-.eg-bench { display: grid; grid-template-columns: 364px minmax(0, 1fr); gap: 12px; align-items: start; }
+.eg-bench { display: grid; grid-template-columns: 384px minmax(0, 1fr); gap: 12px; align-items: start; }
 .eg-pn { background: var(--v2-card); border-radius: 16px; box-shadow: var(--v2-shadow); padding: 10px 12px; margin-bottom: 10px; min-width: 0; }
 .eg-pn h4 { margin: 0 0 8px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--v2-ink-2); display: flex; gap: 6px; align-items: center; }
 .eg-pn h4 > svg.lucide { width: 15px; height: 15px; color: var(--v2-blue); }
@@ -180,15 +180,19 @@ body.eg-lock { overflow: hidden; }
 .eg-bin select:focus, .eg-bin input:focus { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
 .eg-eqsel { display: grid; grid-template-columns: minmax(0, 1fr) 58px; gap: 6px; margin-bottom: 8px; }
 .eg-qtd { text-align: center; font-weight: 800 !important; }
-.eg-fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; }
-.eg-fc { display: flex; align-items: center; gap: 4px; min-width: 0; margin: 0; }
-.eg-fc span { flex: 1; min-width: 0; color: var(--v2-ink-2); font-weight: 600; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.eg-fc em { font-style: normal; color: var(--v2-gray); font-size: 10px; min-width: 22px; flex: none; white-space: nowrap; }
-.eg-bin .eg-fc input { width: 58px; flex: none; height: 26px; border-radius: 7px; padding: 0 6px; text-align: right; font-weight: 700; border-color: transparent; background: var(--v2-soft); }
-.eg-bin .eg-fc input:hover { border-color: var(--v2-line-strong); }
-.eg-bin .eg-fc input.mod { border-color: var(--v2-orange); background: var(--v2-orange-50); }
+.eg-fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
+.eg-fc { display: flex; align-items: center; gap: 2px; min-width: 0; margin: 0; background: var(--v2-soft); border: 1px solid transparent; border-radius: 9px; height: 32px; padding: 0 6px 0 10px; transition: background .15s, border-color .15s; }
+.eg-fc:hover { border-color: var(--v2-line); }
+.eg-fc.mod { background: var(--v2-orange-50); border-color: rgba(250,165,25,.35); }
+.eg-fc span { flex: 1; min-width: 0; color: var(--v2-ink-2); font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eg-fc em { font-style: normal; color: var(--v2-gray); font-size: 10.5px; min-width: 22px; flex: none; white-space: nowrap; text-align: left; }
+html[data-ui="v2"] body .eg-bin .eg-fc input.eg-fv:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]) { width: 52px; flex: none; height: 26px !important; padding: 0 4px !important; text-align: right; font-weight: 800; font-size: 13px; background: transparent !important; border: 1px solid transparent !important; border-radius: 7px !important; box-shadow: none !important; color: var(--v2-ink) !important; }
+html[data-ui="v2"] body .eg-bin .eg-fc input.eg-fv:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):hover { border-color: var(--v2-line-strong) !important; }
+html[data-ui="v2"] body .eg-bin .eg-fc input.eg-fv:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus { background: var(--v2-card) !important; border-color: var(--v2-blue) !important; }
+html[data-ui="v2"] body .eg-bin .eg-fc input.eg-fv:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])::placeholder { color: var(--v2-gray); font-weight: 600; }
+.eg-fc.mod .eg-fv { color: var(--v2-orange-text) !important; }
 .eg-fc.full { grid-column: 1 / -1; }
-.eg-bin .eg-fc select { width: 160px; height: 26px; flex: none; }
+html[data-ui="v2"] body .eg-bin .eg-fc select.eg-fv { width: 210px; height: 26px !important; flex: none; padding: 0 24px 0 6px !important; text-align-last: right; background: transparent !important; border-color: transparent !important; font-weight: 700; text-align: right; }
 .eg-lc4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .eg-lc2 { display: grid; grid-template-columns: 1fr 1.25fr; gap: 6px; margin-top: 6px; }
 .eg-lc4 label, .eg-lc2 label { font-size: 11px; font-weight: 600; color: var(--v2-ink-2); display: flex; flex-direction: column; gap: 3px; min-width: 0; margin: 0; }

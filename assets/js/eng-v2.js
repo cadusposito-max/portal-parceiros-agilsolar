@@ -677,9 +677,9 @@
     const eq = calcEquip(k), f = eq.ficha || {}, orig = base.ficha || {};
     const cel = FICHA[tipo].map(([campo, longo, u]) => {
       const mudou = C().manual[k][campo] !== undefined && String(C().manual[k][campo]).replace(',', '.') !== String(orig[campo] ?? '');
-      return `<label class="eg-fc" title="${esc(longo)}"><span>${esc(CURTO[campo] || longo)}</span><input class="${mudou ? 'mod' : ''}" value="${esc(String(f[campo] ?? '').replace('.', ','))}" placeholder="—" oninput="EV.cFicha('${k}','${campo}',this)"><em>${esc(u && !u.startsWith('ex') ? u : '')}</em></label>`;
+      return `<label class="eg-fc ${mudou ? 'mod' : ''}" title="${esc(longo)}"><span>${esc(CURTO[campo] || longo)}</span><input class="eg-fv" value="${esc(String(f[campo] ?? '').replace('.', ','))}" placeholder="—" oninput="EV.cFicha('${k}','${campo}',this)"><em>${esc(u && !u.startsWith('ex') ? u : '')}</em></label>`;
     }).join('');
-    const rede = tipo === 'modulo' ? '' : `<label class="eg-fc full"><span>Rede de saída</span><select onchange="EV.cFicha('${k}','rede',this)">${REDES_INV.map(([v, l]) => `<option value="${v}" ${f.rede === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+    const rede = tipo === 'modulo' ? '' : `<label class="eg-fc full"><span>Rede de saída</span><select class="eg-fv" onchange="EV.cFicha('${k}','rede',this)">${REDES_INV.map(([v, l]) => `<option value="${v}" ${f.rede === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
     return `<div class="eg-fgrid">${cel}${rede}</div>`;
   }
 
@@ -1637,7 +1637,7 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
       const base = calcBase(k);
       c.manual[k][campo] = el.value;
       const orig = String(((base && base.ficha) || {})[campo] ?? '');
-      el.classList.toggle('mod', String(el.value).replace(',', '.') !== orig);
+      (el.closest('.eg-fc') || el).classList.toggle('mod', String(el.value).replace(',', '.') !== orig);
       const st = document.getElementById('eg-st-' + k);
       if (st) { st.innerHTML = calcStatusTag(k); icons(); }
       if (['mppts', 'entradas'].includes(campo)) c.arranjo = null;
