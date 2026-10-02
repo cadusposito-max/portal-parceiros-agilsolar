@@ -211,6 +211,16 @@ html[data-theme="dark"] .eg-dchk > div { color: #5BD3A1; }
 .eg-tli { width: 28px; height: 28px; border-radius: 9px; background: var(--v2-blue-50); color: var(--v2-blue-text); display: grid; place-items: center; flex: none; }
 .eg-tli svg.lucide { width: 15px; height: 15px; }
 .eg-tl > div.al .eg-tli { background: var(--v2-card); color: var(--v2-orange-text); }
+.eg-tl > div.rb { background: rgba(209,67,67,.09); border-radius: 12px; padding: 10px; border: 0; margin: 4px 0; }
+.eg-tli.t-ok { background: rgba(31,169,113,.15); color: #12704A; }
+.eg-tli.t-bad { background: rgba(209,67,67,.15); color: var(--v2-red); }
+.eg-tli.t-at { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+.eg-tli.t-os { background: rgba(124,92,214,.16); color: #6A4CC4; }
+.eg-tli.t-gray { background: var(--v2-hover); color: var(--v2-ink-2); }
+html[data-theme="dark"] .eg-tli.t-ok { color: #5BD3A1; }
+html[data-theme="dark"] .eg-tli.t-bad { color: #F08A8A; }
+html[data-theme="dark"] .eg-tli.t-os { color: #B4A2F0; }
+.eg-tl > div.rb .eg-tli { background: var(--v2-card); }
 
 /* conferência do envio */
 .eg-conf { display: grid; gap: 8px; margin-top: 12px; }

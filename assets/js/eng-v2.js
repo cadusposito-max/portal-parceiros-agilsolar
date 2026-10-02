@@ -1523,6 +1523,15 @@
   }
 
   const EV_ICON = { envio: 'send', status: 'git-commit-horizontal', comentario: 'message-square', dimensionamento: 'zap', os: 'clipboard-list', alerta: 'triangle-alert', edicao: 'pencil', compensacao: 'zap' };
+  // cor do evento na timeline: status pela cor do destino; OS roxo; alerta e compensação laranja; comentário e edição neutros
+  function tomEvento(e) {
+    if (e.tipo === 'status' || e.tipo === 'envio') { const t = e.para_status === 'cancelado' ? 'gray' : ((ST[e.para_status] || {}).tone || 'info'); return { t, i: t === 'bad' ? 'circle-x' : t === 'ok' ? 'circle-check' : e.tipo === 'envio' ? 'send' : 'git-commit-horizontal' }; }
+    if (e.tipo === 'dimensionamento') { const ruim = /revis|não|nao|falh|erro/i.test(e.texto || ''); return { t: ruim ? 'bad' : 'ok', i: 'zap' }; }
+    if (e.tipo === 'os') return { t: 'os', i: 'clipboard-list' };
+    if (e.tipo === 'alerta') return { t: 'at', i: 'triangle-alert' };
+    if (e.tipo === 'compensacao') return { t: 'at', i: 'zap' };
+    return { t: 'gray', i: EV_ICON[e.tipo] || 'dot' };
+  }
   function abaTL(p) {
     const ev = [...(E.ev[p.id] || [])].reverse();
     const eng = central();
@@ -1535,7 +1544,7 @@
         <textarea id="eg-com" rows="2" placeholder="Escreva um comentário"></textarea>
         <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:6px">${eng ? '<label class="rd-check"><input type="checkbox" id="eg-com-int">Interno</label>' : ''}<button class="rd-btn sm pri" id="eg-com-btn" onclick="EV.comentar('${p.id}')">${ic('send')}Comentar</button></div>
       </div>
-      <div class="eg-tl">${ev.map((e) => `<div class="${e.tipo === 'alerta' ? 'al' : ''} ${e.interno ? 'int' : ''}"><span class="eg-tli">${ic(EV_ICON[e.tipo] || 'dot')}</span><div>${txt(e)}<div class="rd-muted">${esc(e.autor_nome || '')} · ${dataHora(e.created_at)}${e.interno ? ' · interno' : ''}</div></div></div>`).join('') || '<div class="rd-muted">Sem eventos.</div>'}</div></div>`;
+      <div class="eg-tl">${ev.map((e) => `<div class="${e.tipo === 'alerta' ? 'al' : ''} ${tomEvento(e).t === 'bad' ? 'rb' : ''} ${e.interno ? 'int' : ''}"><span class="eg-tli t-${tomEvento(e).t}">${ic(tomEvento(e).i)}</span><div>${txt(e)}<div class="rd-muted">${esc(e.autor_nome || '')} · ${dataHora(e.created_at)}${e.interno ? ' · interno' : ''}</div></div></div>`).join('') || '<div class="rd-muted">Sem eventos.</div>'}</div></div>`;
   }
 
   // ------------------------------------------------------------ ações
