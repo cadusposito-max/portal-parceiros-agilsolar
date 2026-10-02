@@ -256,6 +256,7 @@ const CLIENT_ORIGEM_LEGADO = {
   proposta: 'NÃO INFORMADO',
   crm: 'NÃO INFORMADO',
   om: 'O&M',
+  meta: 'META ADS', // leads dos formulários de anúncio, criados pela edge function meta-leads
 };
 function clientOrigemLabel(origem) {
   const v = String(origem || '').trim().toLowerCase();
