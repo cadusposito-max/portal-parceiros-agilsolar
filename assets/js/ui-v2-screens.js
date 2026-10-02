@@ -589,7 +589,7 @@
     // pequenas (Enviadas, Vistas, Aceitas) perdiam as propostas mais antigas e a soma.
     const porEtapa = {};
     filtered.forEach((p) => { const st = propostaStatus(p); (porEtapa[st] = porEtapa[st] || []).push(p); });
-    const limiteCol = _propostasRenderLimit * 2;
+    const limiteCol = _propostasRenderLimit; // 10 por coluna; "Carregar mais" soma 10 em cada
     const visible = vista === 'kanban'
       ? Object.keys(PROP_ST).flatMap((st) => (porEtapa[st] || []).slice(0, limiteCol))
       : filtered.slice(0, _propostasRenderLimit);
@@ -1041,7 +1041,7 @@
   window.uiV2Screens = {
     filtrosAbertos: false,
     toggleFiltros() { this.filtrosAbertos = !this.filtrosAbertos; document.querySelectorAll('.v2-admfilters').forEach((el) => el.classList.toggle('open', this.filtrosAbertos)); },
-    maisPropostas() { _propostasRenderLimit += 12; if (has('renderContent')) renderContent(); },
+    maisPropostas() { _propostasRenderLimit += 10; if (has('renderContent')) renderContent(); },
     vendasLimite: 40,
     maisVendas() { this.vendasLimite += 40; if (has('renderContent')) renderContent(); },
     copiarLink(id) {
