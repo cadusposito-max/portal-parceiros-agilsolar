@@ -1106,7 +1106,7 @@
   async function abrir(id, aba) {
     if (E.aberto !== id) E.prob = {};
     E.aberto = id;
-    E.ptab = aba || (E.ctx === 'eng' && central() ? 'dim' : 'resumo');
+    E.ptab = aba || (E.ctx === 'eng' && central() ? 'dim' : 'tl');
     pintarDrawer();
     try {
       if (!E.projetos || !E.projetos.some((p) => p.id === id)) await recarregarProjeto(id);
@@ -1134,7 +1134,7 @@
     const y = painel ? painel.scrollTop : 0;
     if (!p) { d.innerHTML = `<div class="eg-panel rd eg"><div class="rd-loading">${ic('loader-2')}Abrindo o projeto...</div></div>`; icons(); return; }
     const eng = central();
-    const abas = [['resumo', 'layout-list', 'Resumo'], ['dim', 'zap', 'Dimensionamento'], ['docs', 'folder-open', 'Documentos'], ['conc', 'landmark', 'Concessionária'], ['os', 'clipboard-list', 'Ordem de serviço'], ['tl', 'history', 'Timeline']];
+    const abas = [['tl', 'history', 'Timeline'], ['dim', 'zap', 'Dimensionamento'], ['docs', 'folder-open', 'Documentos'], ['conc', 'landmark', 'Concessionária'], ['os', 'clipboard-list', 'Ordem de serviço'], ['resumo', 'layout-list', 'Resumo']];
     const nivel = NIVEL[p.status];
     const ruim = ST[p.status] && ST[p.status].tone === 'bad';
     const corpo = ({ resumo: abaResumo, dim: abaDim, docs: abaDocs, conc: abaConc, os: abaOS, tl: abaTL })[E.ptab] || abaResumo;
@@ -1305,6 +1305,10 @@
 
   function abaDocs(p) {
     const docs = docsProjeto(p);
+    const pd = pendencias(p);
+    const repIds = new Set(pd ? pd.docs.map((d) => d.id).filter(Boolean) : []);
+    const subIds = new Set(pd ? pd.docs.map((d) => d.novoId).filter(Boolean) : []);
+    const selo = (a) => repIds.has(a.id) ? '<span class="eg-dselo rep">' + ic('circle-x') + 'Reprovado ' + dataBR(pd.ev.created_at) + '</span>' : subIds.has(a.id) ? '<span class="eg-dselo sub">' + ic('refresh-cw') + 'Substitui o reprovado</span>' : '';
     const urls = E.urls || {};
     const eng = central();
     const prob = E.prob || {};
@@ -1322,25 +1326,30 @@
     }).join('');
     const flag = (a, cls) => eng ? '<button class="' + cls + ' ' + (prob[a.id] ? 'on' : '') + '" title="' + (prob[a.id] ? 'Desmarcar' : 'Marcar com problema') + '" onclick="event.stopPropagation();EV.docProb(\'' + a.id + '\')">' + ic('flag') + '</button>' : '';
     const baixar = (a, cls) => '<button class="' + cls + '" title="Baixar ' + esc(a.arquivo) + '" onclick="event.stopPropagation();EV.docBaixar(\'' + a.id + '\',this)">' + ic('download') + '</button>';
-    const miniatura = (a) => '<div class="eg-dth ' + (prob[a.id] ? 'bad' : '') + '" onclick="EV.docVer(\'' + a.id + '\')">'
+    const miniatura = (a) => '<div class="eg-dth ' + (prob[a.id] ? 'bad' : '') + (repIds.has(a.id) ? ' rep' : '') + '" onclick="EV.docVer(\'' + a.id + '\')">'
       + '<div class="img" ' + (urls[a.storage_path] ? 'style="background-image:url(\'' + esc(urls[a.storage_path]) + '\')"' : '') + '><span class="n">' + String(a.n).padStart(2, '0') + '</span>' + (a.novo ? '<span class="novo">NOVO · ' + dataBR(a.em) + '</span>' : '') + '</div>'
       + '<div class="hv">' + baixar(a, 'ico') + flag(a, 'ico') + '</div>'
-      + '<div class="lb"><b>' + esc(a.rotulo) + '</b><small>' + dataBR(a.em) + ' · ' + extDe(a).toUpperCase() + '</small>' + (prob[a.id] ? '<em>marcado com problema</em>' : '') + '</div></div>';
-    const arquivo = (a) => '<div class="eg-dpdf ' + (prob[a.id] ? 'bad' : '') + '" onclick="EV.docVer(\'' + a.id + '\')"><div class="pg ' + (ehPdf(a) ? '' : 'out') + '">' + ic(ehPdf(a) ? 'file-text' : 'file') + '<span>' + esc(extDe(a).toUpperCase()) + '</span></div>'
-      + '<div class="nm"><b>' + String(a.n).padStart(2, '0') + ' · ' + esc(a.rotulo) + '</b><small>' + esc(a.nome || '') + ' · ' + dataBR(a.em) + '</small>' + (a.novo ? '<span class="novo">NOVO</span>' : '') + (prob[a.id] ? '<em>marcado com problema</em>' : '') + '</div>'
+      + '<div class="lb"><b>' + esc(a.rotulo) + '</b><small>' + dataBR(a.em) + ' · ' + extDe(a).toUpperCase() + '</small>' + selo(a) + (prob[a.id] ? '<em>marcado agora (ainda não enviado)</em>' : '') + '</div></div>';
+    const arquivo = (a) => '<div class="eg-dpdf ' + (prob[a.id] ? 'bad' : '') + (repIds.has(a.id) ? ' rep' : '') + '" onclick="EV.docVer(\'' + a.id + '\')"><div class="pg ' + (ehPdf(a) ? '' : 'out') + '">' + ic(ehPdf(a) ? 'file-text' : 'file') + '<span>' + esc(extDe(a).toUpperCase()) + '</span></div>'
+      + '<div class="nm"><b>' + String(a.n).padStart(2, '0') + ' · ' + esc(a.rotulo) + '</b><small>' + esc(a.nome || '') + ' · ' + dataBR(a.em) + '</small>' + (a.novo ? '<span class="novo">NOVO</span>' : '') + selo(a) + (prob[a.id] ? '<em>marcado agora (ainda não enviado)</em>' : '') + '</div>'
       + '<div class="a"><button title="Ver aqui" onclick="event.stopPropagation();EV.docVer(\'' + a.id + '\')">' + ic('eye') + '</button>' + baixar(a, '') + flag(a, '') + '</div></div>';
     const grupo = (titulo, lista, tom) => lista.length ? '<div class="rd-card rd-mb ' + (tom || '') + '"><div class="eg-dsec"><b>' + titulo + '</b><i></i><span>' + lista.length + '</span></div>'
       + (lista.some(ehImg) ? '<div class="eg-dgrid">' + lista.filter(ehImg).map(miniatura).join('') + '</div>' : '')
       + (lista.some((a) => !ehImg(a)) ? '<div class="eg-dpdfs" ' + (lista.some(ehImg) ? 'style="margin-top:10px"' : '') + '>' + lista.filter((a) => !ehImg(a)).map(arquivo).join('') + '</div>' : '') + '</div>' : '';
     const nProb = Object.keys(prob).length;
-    const validacao = NIVEL[p.status] <= 1;
+    const validacao = NIVEL[p.status] <= 1 && p.status !== 'validacao_reprovada';
+    const pend = pendencias(p);
     const enviadoEm = (p.snapshot && p.snapshot.enviado_em) || p.created_at;
-    return '<div class="rd-card rd-mb"><div class="eg-dtop"><div class="g"><h3>' + ic('folder-check') + 'Documentos do projeto</h3><p class="rd-sub">' + docs.length + ' arquivo(s) · congelados no envio em ' + dataBR(enviadoEm) + ' · a franquia não consegue apagar enquanto o projeto está em andamento</p></div>'
+    const banner = !pend ? '' : '<div class="eg-dpend ' + (pend.aguardando ? '' : 'ok') + '"><div class="h">' + ic(pend.aguardando ? 'circle-alert' : 'circle-check')
+      + '<div><b>' + (pend.reprovou ? 'Validação reprovada' : 'Documentos pedidos à franquia') + ' em ' + dataHora(pend.ev.created_at) + '</b><span>por ' + esc(pend.ev.autor_nome || 'engenharia') + ' · '
+      + (pend.aguardando ? pend.aguardando + ' aguardando novo arquivo' + (pend.docs.length - pend.aguardando ? ' · ' + (pend.docs.length - pend.aguardando) + ' já chegou' : '') : 'todos os arquivos novos chegaram: confira e valide') + '</span></div></div>'
+      + '<div class="l">' + pend.docs.map((d) => '<button class="' + (d.chegou ? 'ok' : '') + '" ' + (d.novoId || d.id ? 'onclick="EV.docVer(\'' + (d.novoId || d.id) + '\')"' : 'disabled') + '>' + ic(d.chegou ? 'check' : 'clock') + '<b>' + esc(d.rotulo) + '</b><span>' + (d.chegou ? 'novo em ' + dataBR(d.novoEm) : 'aguardando') + '</span></button>').join('') + '</div></div>';
+    return banner + '<div class="rd-card rd-mb"><div class="eg-dtop"><div class="g"><h3>' + ic('folder-check') + 'Documentos do projeto</h3><p class="rd-sub">' + docs.length + ' arquivo(s) · congelados no envio em ' + dataBR(enviadoEm) + ' · a franquia não consegue apagar enquanto o projeto está em andamento</p></div>'
       + '<div class="eg-dacts"><button class="rd-btn" onclick="EV.docPasta()">' + ic('copy') + 'Copiar nome da pasta</button><button class="rd-btn pri" id="eg-dzip" ' + (docs.length ? '' : 'disabled') + ' onclick="EV.docZip()">' + ic('download') + 'Baixar tudo (.zip)</button></div></div>'
       + '<div class="eg-dpasta">' + ic('folder') + '<span class="rd-muted">Pasta no Drive:</span><b>' + esc(pastaNome(p)) + '</b><span class="rd-muted eg-dex">arquivos saem renomeados: <b>' + esc((docs[0] && docs[0].arquivo) || '01 Conta de energia.pdf') + '</b></span></div>'
       + '<div class="eg-dchk">' + chk + '</div></div>'
       + (docs.length ? grupo('Fotos', fotos) + grupo('Documentos', outros) + grupo('Chegou depois do envio', novos, 'eg-ddep') : '<div class="rd-card rd-empty">Nenhum documento no envio.</div>')
-      + (eng && nProb ? '<div class="eg-drep">' + ic('flag') + '<div class="t"><b>' + nProb + ' arquivo(s) com problema:</b> ' + esc(Object.values(prob).join(', ')) + '</div><button class="rd-btn sm" onclick="EV.docProbLimpar()">Limpar</button>'
+      + (eng && nProb ? '<div class="eg-drep">' + ic('flag') + '<div class="t"><b>' + nProb + ' marcado(s), ainda não enviado(s):</b> ' + esc(Object.values(prob).map((x) => x.rotulo).join(', ')) + '</div><button class="rd-btn sm" onclick="EV.docProbLimpar()">Limpar</button>'
         + (validacao ? '<button class="rd-btn sm pri danger" onclick="EV.docReprovar(\'' + p.id + '\')">' + ic('undo-2') + 'Reprovar pedindo esses</button>' : '<button class="rd-btn sm pri" onclick="EV.docPedir(\'' + p.id + '\')">' + ic('message-square') + 'Pedir à franquia</button>') + '</div>' : '');
   }
 
@@ -1427,14 +1436,54 @@
     const { a } = docDoAberto(id);
     if (!a) return;
     E.prob = E.prob || {};
-    if (E.prob[id]) delete E.prob[id]; else E.prob[id] = a.rotulo;
+    if (E.prob[id]) delete E.prob[id]; else E.prob[id] = { rotulo: a.rotulo, tipo: a.tipo, slot: a.slot || null };
     if (document.getElementById('eg-vw')) pintarVisor();
     pintarDrawer();
   }
-  const textoProb = () => 'Corrigir/reenviar: ' + Object.values(E.prob || {}).join(', ');
-  function docReprovar(id) { mudar(id, 'validacao_reprovada', textoProb()); }
+  const PREFIXO_PEDIDO = 'Corrigir/reenviar: ';
+  const textoProb = () => PREFIXO_PEDIDO + Object.values(E.prob || {}).map((x) => x.rotulo).join(', ');
+  const docsProbLista = () => Object.entries(E.prob || {}).map(([id, x]) => ({ id, rotulo: x.rotulo, tipo: x.tipo, slot: x.slot }));
+  // envia a lista de arquivos junto; se o banco ainda não tem o parâmetro p_docs, manda sem
+  async function rpcDocs(nome, args, docs) {
+    if (!docs || !docs.length) return rpc(nome, args);
+    try { return await rpc(nome, { ...args, p_docs: docs }); } catch (e) {
+      if (!/p_docs|could not find|schema cache|does not exist/i.test(e.message || '')) throw e;
+      console.warn('[eng] ' + nome + ' sem p_docs (migration eng_docs_reprovados pendente)');
+      return rpc(nome, args);
+    }
+  }
+  function docReprovar(id) { mudar(id, 'validacao_reprovada', textoProb(), docsProbLista()); }
   async function docPedir(id) {
-    try { await rpc('eng_comentar', { p_id: id, p_texto: textoProb(), p_interno: false }); E.prob = {}; await carregarEventos(id); pintarDrawer(); toast('Pedido enviado à franquia (timeline)'); } catch (e) { toast(e.message); }
+    try {
+      await rpcDocs('eng_comentar', { p_id: id, p_texto: textoProb(), p_interno: false }, docsProbLista());
+      E.prob = {};
+      await carregarEventos(id);
+      pintarDrawer();
+      toast('Pedido enviado à franquia');
+    } catch (e) { toast(e.message); }
+  }
+
+  // último pedido de documentos (reprovação ou comentário da engenharia) e a situação de cada arquivo
+  function pendencias(p) {
+    const evs = (E.ev[p.id] || []).filter((e) => (e.meta && Array.isArray(e.meta.docs) && e.meta.docs.length)
+      || (String(e.texto || '').startsWith(PREFIXO_PEDIDO) && (e.tipo === 'comentario' || ['validacao_reprovada', 'projeto_reprovado'].includes(e.para_status))));
+    const ev = evs[evs.length - 1];
+    if (!ev) return null;
+    const todos = docsProjeto(p);
+    let lista = ev.meta && Array.isArray(ev.meta.docs) && ev.meta.docs.length ? ev.meta.docs : null;
+    if (!lista) { // evento antigo: só tem o texto com os rótulos
+      lista = String(ev.texto).slice(PREFIXO_PEDIDO.length).split(',').map((r) => r.trim()).filter(Boolean)
+        .map((r) => { const a = todos.find((d) => d.rotulo === r && new Date(d.em) <= new Date(ev.created_at)); return a ? { id: a.id, rotulo: r, tipo: a.tipo, slot: a.slot } : { id: null, rotulo: r, tipo: null }; });
+    }
+    const quando = new Date(ev.created_at);
+    const docs = lista.map((x) => {
+      const novo = todos.find((d) => d.id !== x.id && x.tipo && d.tipo === x.tipo && (!x.slot || d.slot === x.slot) && new Date(d.em) > quando);
+      return { ...x, chegou: !!novo, novoId: novo ? novo.id : null, novoEm: novo ? novo.em : null };
+    });
+    const aguardando = docs.filter((d) => !d.chegou).length;
+    // some quando tudo chegou e a validação já passou
+    if (!aguardando && NIVEL[p.status] >= 1 && p.status !== 'projeto_reprovado') return null;
+    return { ev, docs, aguardando, reprovou: ev.tipo === 'status' };
   }
 
   // visualizador: fotos e PDFs na própria tela, com setas
@@ -1539,18 +1588,20 @@
       if (e.tipo === 'status' || e.tipo === 'envio') return `<b>${e.de_status ? esc((ST[e.de_status] || {}).n || e.de_status) + ' → ' : ''}${esc((ST[e.para_status] || {}).n || e.para_status || '')}</b>${e.texto && e.tipo !== 'envio' ? `<div>${esc(e.texto)}</div>` : e.tipo === 'envio' ? '<div>Enviado à engenharia</div>' : ''}`;
       return `<b>${esc(e.texto || '')}</b>`;
     };
+    const arqs = (e) => (e.meta && Array.isArray(e.meta.docs) && e.meta.docs.length ? `<div class="eg-tlarq">${e.meta.docs.map((d) => `<span>${ic('file-x')}${esc(d.rotulo)}</span>`).join('')}</div>` : '');
     return `<div class="rd-card"><h3>${ic('history')}Timeline</h3><p class="rd-sub">Ninguém edita nem apaga. ${eng ? 'Comentário interno não aparece para a franquia.' : ''}</p>
       <div class="eg-com">
         <textarea id="eg-com" rows="2" placeholder="Escreva um comentário"></textarea>
         <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:6px">${eng ? '<label class="rd-check"><input type="checkbox" id="eg-com-int">Interno</label>' : ''}<button class="rd-btn sm pri" id="eg-com-btn" onclick="EV.comentar('${p.id}')">${ic('send')}Comentar</button></div>
       </div>
-      <div class="eg-tl">${ev.map((e) => `<div class="${e.tipo === 'alerta' ? 'al' : ''} ${tomEvento(e).t === 'bad' ? 'rb' : ''} ${e.interno ? 'int' : ''}"><span class="eg-tli t-${tomEvento(e).t}">${ic(tomEvento(e).i)}</span><div>${txt(e)}<div class="rd-muted">${esc(e.autor_nome || '')} · ${dataHora(e.created_at)}${e.interno ? ' · interno' : ''}</div></div></div>`).join('') || '<div class="rd-muted">Sem eventos.</div>'}</div></div>`;
+      <div class="eg-tl">${ev.map((e) => `<div class="${e.tipo === 'alerta' ? 'al' : ''} ${tomEvento(e).t === 'bad' ? 'rb' : ''} ${e.interno ? 'int' : ''}"><span class="eg-tli t-${tomEvento(e).t}">${ic(tomEvento(e).i)}</span><div>${txt(e)}${arqs(e)}<div class="rd-muted">${esc(e.autor_nome || '')} · ${dataHora(e.created_at)}${e.interno ? ' · interno' : ''}</div></div></div>`).join('') || '<div class="rd-muted">Sem eventos.</div>'}</div></div>`;
   }
 
   // ------------------------------------------------------------ ações
-  async function mudar(id, status, motivo) {
+  async function mudar(id, status, motivo, docs) {
     const p = (E.projetos || []).find((x) => x.id === id);
     if (!p) return;
+    E.mudarDocs = docs && docs.length ? docs : null;
     const exige = ['validacao_reprovada', 'projeto_reprovado', 'cancelado'].includes(status);
     const s = ST[status];
     modal(`<h3>${status === 'cancelado' ? 'Cancelar projeto' : 'Mover para ' + esc(s.n)}</h3><p class="rd-sub">${esc(p.cliente_nome || '')} · ${pnum(p)}</p>
@@ -1568,7 +1619,8 @@
     await ocupado('eg-mot-ok', async () => {
       try {
         if (status === 'projeto_enviado' && (val('eg-mot-prot') || val('eg-mot-dt'))) await rpc('eng_atualizar', { p_id: id, p_campos: { protocolo: val('eg-mot-prot'), protocolo_em: val('eg-mot-dt') } });
-        await rpc('eng_mudar_status', { p_id: id, p_status: status, p_texto: texto || null });
+        await rpcDocs('eng_mudar_status', { p_id: id, p_status: status, p_texto: texto || null }, E.mudarDocs);
+        if (E.mudarDocs) { E.prob = {}; E.mudarDocs = null; }
         fecharModal();
         toast(status === 'validacao_aprovada' ? 'Validação aprovada · OS gerada' : 'Status: ' + (ST[status] || {}).n);
         await recarregarProjeto(id);

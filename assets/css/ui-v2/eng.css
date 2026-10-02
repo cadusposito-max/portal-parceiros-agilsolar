@@ -179,6 +179,34 @@ html[data-theme="dark"] .eg-dchk > div { color: #5BD3A1; }
 .eg-drep .t b { color: var(--v2-ink); }
 @media (max-width: 760px) { .eg-dchk { grid-template-columns: repeat(2, minmax(0, 1fr)); } .eg-dpasta .eg-dex { margin-left: 0; } .eg-dpdfs { grid-template-columns: 1fr; } }
 
+/* pendências de documentos (reprovação / pedido) */
+.eg-dpend { background: rgba(209,67,67,.1); border-radius: 18px; padding: 14px 16px; margin-bottom: 12px; box-shadow: inset 0 0 0 1.5px rgba(209,67,67,.35); }
+.eg-dpend.ok { background: rgba(31,169,113,.1); box-shadow: inset 0 0 0 1.5px rgba(31,169,113,.35); }
+.eg-dpend .h { display: flex; gap: 10px; align-items: flex-start; }
+.eg-dpend .h > svg.lucide { width: 20px; height: 20px; color: var(--v2-red); flex: none; margin-top: 1px; }
+.eg-dpend.ok .h > svg.lucide { color: var(--v2-green); }
+.eg-dpend .h b { display: block; font-size: 14px; }
+.eg-dpend .h span { display: block; font-size: 12.5px; color: var(--v2-ink-2); margin-top: 1px; }
+.eg-dpend .l { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.eg-dpend .l button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 12.5px; cursor: pointer; box-shadow: var(--v2-shadow); }
+.eg-dpend .l button:disabled { cursor: default; }
+.eg-dpend .l button svg.lucide { width: 14px; height: 14px; color: var(--v2-red); }
+.eg-dpend .l button span { color: var(--v2-red); font-weight: 700; font-size: 11.5px; }
+.eg-dpend .l button.ok svg.lucide, .eg-dpend .l button.ok span { color: var(--v2-green); }
+.eg-dselo { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 10.5px; font-weight: 800; border-radius: 6px; padding: 2px 6px; }
+.eg-dselo svg.lucide { width: 11px; height: 11px; stroke-width: 2.6; }
+.eg-dselo.rep { background: rgba(209,67,67,.15); color: var(--v2-red); }
+.eg-dselo.sub { background: rgba(31,169,113,.15); color: #12704A; }
+html[data-theme="dark"] .eg-dselo.rep { color: #F08A8A; }
+html[data-theme="dark"] .eg-dselo.sub { color: #5BD3A1; }
+.eg-dth.rep .img { opacity: .55; }
+.eg-dth.rep { border-color: rgba(209,67,67,.45); }
+.eg-dpdf.rep { border-color: rgba(209,67,67,.45); }
+.eg-dpdf .nm .eg-dselo { margin-left: 4px; }
+.eg-tlarq { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.eg-tlarq span { display: inline-flex; align-items: center; gap: 4px; background: var(--v2-card); border-radius: 999px; padding: 3px 9px; font-size: 11.5px; font-weight: 700; }
+.eg-tlarq svg.lucide { width: 12px; height: 12px; color: var(--v2-red); }
+
 /* visualizador */
 .eg-vw { position: fixed; inset: 0; z-index: 190; background: rgba(4,8,12,.95); display: flex; flex-direction: column; color: #fff; }
 .eg-vw .hd { display: flex; align-items: center; gap: 8px; padding: 12px 18px; }
