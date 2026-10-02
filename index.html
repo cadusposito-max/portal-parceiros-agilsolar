@@ -11,7 +11,7 @@
     font-src    'self' https://fonts.gstatic.com;
     img-src     'self' data: blob: https://placehold.co https://tzwjxgprhorqrmpqudgg.supabase.co https:;
     connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co wss://tzwjxgprhorqrmpqudgg.supabase.co https://challenges.cloudflare.com https://*.i.posthog.com https://power.larc.nasa.gov https://*.api.groner.app https://brasilapi.com.br;
-    frame-src   https://challenges.cloudflare.com;
+    frame-src   https://challenges.cloudflare.com https://tzwjxgprhorqrmpqudgg.supabase.co blob:;
     object-src  'none';
     base-uri    'self';
     worker-src  'none';
@@ -58,7 +58,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/admin.css?v=20260929-p31" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/rede.css?v=20261001-rec" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261002-kanban2" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261002-docs" data-ui-v2 media="not all">
   <!-- Tailwind PRÉ-COMPILADO (antes era o cdn.tailwindcss.com, que compilava CSS dentro do navegador e
        deixava a plataforma pesada em PC fraco). Fica depois dos outros CSS, na mesma posição em que o CDN
        injetava o <style>. Usou classe Tailwind nova? Regerar — comando no tailwind.config.js. -->
@@ -1261,7 +1261,7 @@
 
   local('config.js',           '20261001-eng');
   local('analytics.js',        '20260615-om-central-propostas');
-  local('utils.js',            '20260930-leve');
+  local('utils.js',            '20261002-zip');
   local('api.js',              '20261001-eng');
   local('auth.js',             '20260925-f5-lugar');
   local('comunicados.js',      '20260615-om-central-propostas');
@@ -1287,7 +1287,7 @@
   local('vistoria.js',         '20260929-p22');
   local('vistoria-os.js',      '20260930-leve');
   local('engenharia.js',       '20261001-eng');
-  local('eng-v2.js',           '20261002-kanban');
+  local('eng-v2.js',           '20261002-docs');
   local('rede.js',             '20261001-rec');
   local('app.js',              '20261001-eng');
   local('ui-v2.js',            '20260929-rel6');

@@ -1104,6 +1104,7 @@
 
   // ------------------------------------------------------------ ficha do projeto (painel lateral)
   async function abrir(id, aba) {
+    if (E.aberto !== id) E.prob = {};
     E.aberto = id;
     E.ptab = aba || (E.ctx === 'eng' && central() ? 'dim' : 'resumo');
     pintarDrawer();
@@ -1115,7 +1116,7 @@
     } catch (e) { console.error('[eng] abrir projeto', e); toast('Não foi possível abrir o projeto: ' + e.message); }
     pintarDrawer();
   }
-  function fechar() { E.aberto = null; const d = document.getElementById('eg-drawer'); if (d) d.remove(); document.body.classList.remove('eg-lock'); }
+  function fechar() { fecharVisor(); E.aberto = null; const d = document.getElementById('eg-drawer'); if (d) d.remove(); document.body.classList.remove('eg-lock'); }
 
   function pintarDrawer() {
     if (!E.aberto) return;
@@ -1272,25 +1273,219 @@
 
   // documentos congelados no envio (com o que chegou depois)
   const DOC_LABEL = { rg_cnh: 'RG / CNH', conta_energia: 'Conta de energia', foto_padrao: 'Foto do padrão', foto_disjuntor: 'Foto do disjuntor', foto_fachada: 'Fachada', localizacao_padrao: 'Localização do padrão', foto_medidor: 'Medidor', caixa_medicao: 'Caixa de medição', procuracao: 'Procuração', comprovante_taxa: 'Comprovante da taxa', engenharia: 'Engenharia', inspecao: 'Inspeção', outros: 'Outros' };
-  function abaDocs(p) {
-    const docs = (p.snapshot && p.snapshot.docs) || [];
-    const urls = E.urls || {};
-    const faltou = docsFaltando(p);
-    return `<div class="rd-card"><h3>${ic('folder-check')}Documentos enviados</h3><p class="rd-sub">Congelados no envio. A franquia não consegue apagar estes arquivos enquanto o projeto está em andamento.</p>
-      ${faltou.length ? `<div class="rd-note" style="background:var(--v2-orange-50);color:var(--v2-orange-text)">${ic('triangle-alert')}<span><b>Enviado sem:</b> ${esc(faltou.join(', '))}. Se precisar, reprove a validação pedindo esses documentos.</span></div>` : ''}
-      ${docs.length ? docs.map((a) => `<div class="eg-doc">${ic(String(a.mime || '').startsWith('image') ? 'image' : 'file-text')}<div style="flex:1;min-width:0"><b>${esc(DOC_LABEL[a.tipo] || a.tipo)}${a.slot ? ' · ' + esc(a.slot) : ''}</b><div class="rd-muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.nome || '')} · ${dataBR(a.em)}</div></div>
-        ${urls[a.storage_path] ? `<a class="rd-btn sm" href="${esc(urls[a.storage_path])}" target="_blank" rel="noopener">${ic('eye')}Abrir</a>` : '<span class="rd-muted">...</span>'}</div>`).join('') : '<div class="rd-muted">Nenhum documento.</div>'}
-      ${p.cliente_id ? `<p class="rd-tip">${ic('info')}Documentos anexados depois do envio aparecem na timeline como alerta.</p>` : ''}</div>`;
+  // ------------------------------------------------------------ documentos
+  // ordem da pasta (zip numerado) e checklist dos obrigatórios
+  const DOC_ORDEM = ['conta_energia', 'rg_cnh', 'procuracao', 'comprovante_taxa', 'foto_padrao', 'foto_disjuntor', 'foto_fachada', 'localizacao_padrao', 'foto_medidor', 'caixa_medicao', 'engenharia', 'inspecao', 'outros'];
+  const DOC_OBRIG = [['conta_energia', 'Conta de energia'], ['rg_cnh', 'RG / CNH'], ['procuracao', 'Procuração'], ['comprovante_taxa', 'Taxa de projeto'], ['foto_padrao', 'Foto do padrão'], ['foto_disjuntor', 'Foto do disjuntor'], ['foto_fachada', 'Fachada'], ['localizacao_padrao', 'Localização do padrão'], ['foto_medidor', 'Medidor'], ['caixa_medicao', 'Caixa de medição']];
+  const SLOT_LABEL = { frontal: 'frontal', traseira: 'traseira', aberta: 'aberta', fechada: 'fechada' };
+  const extDe = (a) => { const m = String(a.nome || a.storage_path || '').match(/\.([a-z0-9]{2,5})$/i); if (m) return m[1].toLowerCase(); const t = String(a.mime || ''); return t.includes('pdf') ? 'pdf' : t.includes('png') ? 'png' : t.includes('jpeg') || t.includes('jpg') ? 'jpeg' : t.includes('webp') ? 'webp' : 'bin'; };
+  const ehImg = (a) => ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extDe(a));
+  const ehPdf = (a) => extDe(a) === 'pdf';
+  const nomeArq = (s) => String(s || '').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+  const pastaNome = (p) => nomeArq(pnum(p) + ' - ' + (p.cliente_nome || 'Cliente') + ' - ' + nomeFranquia(p));
+
+  // lista do projeto: documentos do envio + os que chegaram depois, já numerados e com nome de arquivo
+  function docsProjeto(p) {
+    const snap = ((p.snapshot && p.snapshot.docs) || []).map((a) => ({ ...a, novo: false }));
+    const ids = new Set(snap.map((a) => a.id));
+    const novos = ((E.docsNovos || {})[p.id] || []).filter((a) => !ids.has(a.id)).map((a) => ({ ...a, novo: true }));
+    const ord = (a) => { const i = DOC_ORDEM.indexOf(a.tipo); return i < 0 ? 99 : i; };
+    const todos = snap.sort((a, b) => ord(a) - ord(b) || String(a.em).localeCompare(String(b.em))).concat(novos.sort((a, b) => ord(a) - ord(b)));
+    const porTipo = {};
+    todos.forEach((a) => { porTipo[a.tipo] = (porTipo[a.tipo] || 0) + 1; });
+    const vistos = {};
+    return todos.map((a, i) => {
+      vistos[a.tipo] = (vistos[a.tipo] || 0) + 1;
+      const base = DOC_LABEL[a.tipo] || a.tipo;
+      const sufixo = a.slot ? ' ' + (SLOT_LABEL[a.slot] || a.slot) : (porTipo[a.tipo] > 1 ? ' ' + vistos[a.tipo] : '');
+      const rotulo = base + sufixo;
+      return { ...a, n: i + 1, rotulo, arquivo: nomeArq(String(i + 1).padStart(2, '0') + ' ' + rotulo + (a.novo ? ' (depois do envio)' : '')) + '.' + extDe(a) };
+    });
   }
+
+  function abaDocs(p) {
+    const docs = docsProjeto(p);
+    const urls = E.urls || {};
+    const eng = central();
+    const prob = E.prob || {};
+    const snapDocs = docs.filter((a) => !a.novo), novos = docs.filter((a) => a.novo);
+    const fotos = snapDocs.filter(ehImg), outros = snapDocs.filter((a) => !ehImg(a));
+    const loc = p.snapshot && p.snapshot.cliente && p.snapshot.cliente.padrao_localizacao;
+    const chk = DOC_OBRIG.map(([tipo, rotulo]) => {
+      const q = snapDocs.filter((a) => a.tipo === tipo);
+      const depois = novos.some((a) => a.tipo === tipo);
+      let ok = q.length > 0, extra = q.length > 1 ? '×' + q.length : '';
+      if (tipo === 'caixa_medicao') { const sl = new Set(q.map((a) => a.slot).filter(Boolean)).size; ok = sl >= 4; extra = q.length ? sl + '/4' : ''; }
+      if (tipo === 'localizacao_padrao' && !ok && loc) { ok = true; extra = 'texto'; }
+      const cls = ok ? '' : depois ? 'dep' : 'no';
+      return '<div class="' + cls + '" title="' + esc(ok ? rotulo + ' recebido' : depois ? rotulo + ': chegou depois do envio' : rotulo + ': não veio no envio') + '">' + ic(ok ? 'check' : depois ? 'clock' : 'x') + '<span>' + esc(rotulo) + '</span>' + (extra ? '<b>' + esc(extra) + '</b>' : '') + '</div>';
+    }).join('');
+    const flag = (a, cls) => eng ? '<button class="' + cls + ' ' + (prob[a.id] ? 'on' : '') + '" title="' + (prob[a.id] ? 'Desmarcar' : 'Marcar com problema') + '" onclick="event.stopPropagation();EV.docProb(\'' + a.id + '\')">' + ic('flag') + '</button>' : '';
+    const baixar = (a, cls) => '<button class="' + cls + '" title="Baixar ' + esc(a.arquivo) + '" onclick="event.stopPropagation();EV.docBaixar(\'' + a.id + '\',this)">' + ic('download') + '</button>';
+    const miniatura = (a) => '<div class="eg-dth ' + (prob[a.id] ? 'bad' : '') + '" onclick="EV.docVer(\'' + a.id + '\')">'
+      + '<div class="img" ' + (urls[a.storage_path] ? 'style="background-image:url(\'' + esc(urls[a.storage_path]) + '\')"' : '') + '><span class="n">' + String(a.n).padStart(2, '0') + '</span>' + (a.novo ? '<span class="novo">NOVO · ' + dataBR(a.em) + '</span>' : '') + '</div>'
+      + '<div class="hv">' + baixar(a, 'ico') + flag(a, 'ico') + '</div>'
+      + '<div class="lb"><b>' + esc(a.rotulo) + '</b><small>' + dataBR(a.em) + ' · ' + extDe(a).toUpperCase() + '</small>' + (prob[a.id] ? '<em>marcado com problema</em>' : '') + '</div></div>';
+    const arquivo = (a) => '<div class="eg-dpdf ' + (prob[a.id] ? 'bad' : '') + '" onclick="EV.docVer(\'' + a.id + '\')"><div class="pg ' + (ehPdf(a) ? '' : 'out') + '">' + ic(ehPdf(a) ? 'file-text' : 'file') + '<span>' + esc(extDe(a).toUpperCase()) + '</span></div>'
+      + '<div class="nm"><b>' + String(a.n).padStart(2, '0') + ' · ' + esc(a.rotulo) + '</b><small>' + esc(a.nome || '') + ' · ' + dataBR(a.em) + '</small>' + (a.novo ? '<span class="novo">NOVO</span>' : '') + (prob[a.id] ? '<em>marcado com problema</em>' : '') + '</div>'
+      + '<div class="a"><button title="Ver aqui" onclick="event.stopPropagation();EV.docVer(\'' + a.id + '\')">' + ic('eye') + '</button>' + baixar(a, '') + flag(a, '') + '</div></div>';
+    const grupo = (titulo, lista, tom) => lista.length ? '<div class="rd-card rd-mb ' + (tom || '') + '"><div class="eg-dsec"><b>' + titulo + '</b><i></i><span>' + lista.length + '</span></div>'
+      + (lista.some(ehImg) ? '<div class="eg-dgrid">' + lista.filter(ehImg).map(miniatura).join('') + '</div>' : '')
+      + (lista.some((a) => !ehImg(a)) ? '<div class="eg-dpdfs" ' + (lista.some(ehImg) ? 'style="margin-top:10px"' : '') + '>' + lista.filter((a) => !ehImg(a)).map(arquivo).join('') + '</div>' : '') + '</div>' : '';
+    const nProb = Object.keys(prob).length;
+    const validacao = NIVEL[p.status] <= 1;
+    const enviadoEm = (p.snapshot && p.snapshot.enviado_em) || p.created_at;
+    return '<div class="rd-card rd-mb"><div class="eg-dtop"><div class="g"><h3>' + ic('folder-check') + 'Documentos do projeto</h3><p class="rd-sub">' + docs.length + ' arquivo(s) · congelados no envio em ' + dataBR(enviadoEm) + ' · a franquia não consegue apagar enquanto o projeto está em andamento</p></div>'
+      + '<div class="eg-dacts"><button class="rd-btn" onclick="EV.docPasta()">' + ic('copy') + 'Copiar nome da pasta</button><button class="rd-btn pri" id="eg-dzip" ' + (docs.length ? '' : 'disabled') + ' onclick="EV.docZip()">' + ic('download') + 'Baixar tudo (.zip)</button></div></div>'
+      + '<div class="eg-dpasta">' + ic('folder') + '<span class="rd-muted">Pasta no Drive:</span><b>' + esc(pastaNome(p)) + '</b><span class="rd-muted eg-dex">arquivos saem renomeados: <b>' + esc((docs[0] && docs[0].arquivo) || '01 Conta de energia.pdf') + '</b></span></div>'
+      + '<div class="eg-dchk">' + chk + '</div></div>'
+      + (docs.length ? grupo('Fotos', fotos) + grupo('Documentos', outros) + grupo('Chegou depois do envio', novos, 'eg-ddep') : '<div class="rd-card rd-empty">Nenhum documento no envio.</div>')
+      + (eng && nProb ? '<div class="eg-drep">' + ic('flag') + '<div class="t"><b>' + nProb + ' arquivo(s) com problema:</b> ' + esc(Object.values(prob).join(', ')) + '</div><button class="rd-btn sm" onclick="EV.docProbLimpar()">Limpar</button>'
+        + (validacao ? '<button class="rd-btn sm pri danger" onclick="EV.docReprovar(\'' + p.id + '\')">' + ic('undo-2') + 'Reprovar pedindo esses</button>' : '<button class="rd-btn sm pri" onclick="EV.docPedir(\'' + p.id + '\')">' + ic('message-square') + 'Pedir à franquia</button>') + '</div>' : '');
+  }
+
+  // URLs assinadas (1 h; renova com 50 min) e arquivos que chegaram depois do envio
   async function assinarDocs(p) {
-    const docs = (p.snapshot && p.snapshot.docs) || [];
     E.urls = E.urls || {};
-    const falta = docs.map((a) => a.storage_path).filter((x) => x && !E.urls[x]);
-    if (!falta.length) return;
-    const { data, error } = await sb().storage.from('crm-arquivos').createSignedUrls(falta, 3600);
-    if (error) { console.warn('[eng] assinar docs', error); return; }
-    (data || []).forEach((x) => { if (x.signedUrl && x.path) E.urls[x.path] = x.signedUrl; });
-    if (E.aberto === p.id && E.ptab === 'docs') pintarDrawer();
+    E.docsNovos = E.docsNovos || {};
+    E.urlsEm = E.urlsEm || {};
+    let mudou = false;
+    if (p.cliente_id && E.docsNovos[p.id] === undefined) {
+      E.docsNovos[p.id] = [];
+      const { data, error } = await sb().from('cliente_arquivos').select('id, tipo, slot, storage_path, nome_original, mime, created_at').eq('cliente_id', p.cliente_id).order('created_at');
+      if (!error) { E.docsNovos[p.id] = (data || []).map((a) => ({ id: a.id, tipo: a.tipo, slot: a.slot, storage_path: a.storage_path, nome: a.nome_original, mime: a.mime, em: a.created_at })); mudou = true; }
+    }
+    const velho = Date.now() - 50 * 60000;
+    const falta = docsProjeto(p).map((a) => a.storage_path).filter((x) => x && (!E.urls[x] || E.urlsEm[x] < velho));
+    if (falta.length) {
+      const { data, error } = await sb().storage.from('crm-arquivos').createSignedUrls(falta, 3600);
+      if (error) console.warn('[eng] assinar docs', error);
+      (data || []).forEach((x) => { if (x.signedUrl && x.path) { E.urls[x.path] = x.signedUrl; E.urlsEm[x.path] = Date.now(); mudou = true; } });
+    }
+    if (mudou && E.aberto === p.id && E.ptab === 'docs') pintarDrawer();
+  }
+  const docDoAberto = (id) => { const p = (E.projetos || []).find((x) => x.id === E.aberto); if (!p) return {}; const docs = docsProjeto(p); return { p, docs, a: docs.find((d) => d.id === id) }; };
+  function salvarBlob(blob, nome) {
+    const u = URL.createObjectURL(blob);
+    const l = document.createElement('a');
+    l.href = u; l.download = nome;
+    document.body.appendChild(l); l.click(); l.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 4000);
+  }
+  async function baixarArq(a) {
+    const u = (E.urls || {})[a.storage_path];
+    if (!u) throw new Error('Link do arquivo ainda carregando');
+    const r = await fetch(u);
+    if (!r.ok) throw new Error('Falha ao baixar ' + a.rotulo);
+    return r.blob();
+  }
+  async function docBaixar(id, btn) {
+    const { a } = docDoAberto(id);
+    if (!a) return;
+    if (btn) btn.disabled = true;
+    try { salvarBlob(await baixarArq(a), a.arquivo); } catch (e) { toast(e.message); } finally { if (btn) btn.disabled = false; }
+  }
+  async function docZip() {
+    const { p, docs } = docDoAberto(null);
+    if (!p || !docs.length) return;
+    const b = document.getElementById('eg-dzip');
+    const h = b && b.innerHTML;
+    const status = (t) => { if (b) { b.disabled = true; b.innerHTML = ic('loader-2') + t; icons(); } };
+    try {
+      status('Preparando...');
+      await assinarDocs(p);
+      await carregarLib('jszip');
+      const zip = new JSZip();
+      let feitos = 0;
+      const fila = docs.slice();
+      const trabalhador = async () => {
+        while (fila.length) {
+          const a = fila.shift();
+          zip.file(a.arquivo, await baixarArq(a));
+          feitos += 1;
+          status('Baixando ' + feitos + ' de ' + docs.length + '...');
+        }
+      };
+      await Promise.all([trabalhador(), trabalhador(), trabalhador(), trabalhador()]);
+      status('Compactando...');
+      salvarBlob(await zip.generateAsync({ type: 'blob' }), pastaNome(p) + '.zip');
+      toast(docs.length + ' arquivo(s) baixados em ' + pastaNome(p) + '.zip');
+    } catch (e) {
+      console.error('[eng] zip', e);
+      toast('Não foi possível gerar o zip: ' + e.message);
+    } finally {
+      const bb = document.getElementById('eg-dzip');
+      if (bb) { bb.disabled = false; bb.innerHTML = h; icons(); }
+    }
+  }
+  async function docPasta() {
+    const { p } = docDoAberto(null);
+    if (!p) return;
+    try { await navigator.clipboard.writeText(pastaNome(p)); toast('Copiado: ' + pastaNome(p)); } catch (_) { prompt('Copie o nome da pasta:', pastaNome(p)); }
+  }
+  function docProb(id) {
+    const { a } = docDoAberto(id);
+    if (!a) return;
+    E.prob = E.prob || {};
+    if (E.prob[id]) delete E.prob[id]; else E.prob[id] = a.rotulo;
+    if (document.getElementById('eg-vw')) pintarVisor();
+    pintarDrawer();
+  }
+  const textoProb = () => 'Corrigir/reenviar: ' + Object.values(E.prob || {}).join(', ');
+  function docReprovar(id) { mudar(id, 'validacao_reprovada', textoProb()); }
+  async function docPedir(id) {
+    try { await rpc('eng_comentar', { p_id: id, p_texto: textoProb(), p_interno: false }); E.prob = {}; await carregarEventos(id); pintarDrawer(); toast('Pedido enviado à franquia (timeline)'); } catch (e) { toast(e.message); }
+  }
+
+  // visualizador: fotos e PDFs na própria tela, com setas
+  function docVer(id) {
+    E.visor = id;
+    let v = document.getElementById('eg-vw');
+    if (!v) {
+      v = document.createElement('div');
+      v.id = 'eg-vw';
+      v.className = 'eg-vw';
+      v.addEventListener('mousedown', (e) => { if (e.target === v || e.target.classList.contains('st')) fecharVisor(); });
+      document.body.appendChild(v);
+      window.addEventListener('keydown', teclaVisor, true); // captura: o Esc fecha só o visualizador, não o painel
+    }
+    pintarVisor();
+  }
+  function fecharVisor() { E.visor = null; const v = document.getElementById('eg-vw'); if (v) v.remove(); window.removeEventListener('keydown', teclaVisor, true); }
+  function teclaVisor(e) {
+    if (!document.getElementById('eg-vw')) return;
+    if (e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); fecharVisor(); }
+    if (e.key === 'ArrowRight') visorIr(1);
+    if (e.key === 'ArrowLeft') visorIr(-1);
+  }
+  function visorIr(d) {
+    const { docs } = docDoAberto(null);
+    if (!docs || !docs.length) return;
+    const i = docs.findIndex((a) => a.id === E.visor);
+    E.visor = docs[(i + d + docs.length) % docs.length].id;
+    pintarVisor();
+  }
+  function pintarVisor() {
+    const v = document.getElementById('eg-vw');
+    const { docs, a } = docDoAberto(E.visor);
+    if (!v || !a) { fecharVisor(); return; }
+    const u = (E.urls || {})[a.storage_path];
+    const i = docs.indexOf(a);
+    const eng = central();
+    const palco = !u ? '<div class="msg">' + ic('loader-2') + 'Carregando...</div>'
+      : ehImg(a) ? '<img src="' + esc(u) + '" alt="' + esc(a.rotulo) + '">'
+      : ehPdf(a) ? '<iframe src="' + esc(u) + '#view=FitH" title="' + esc(a.rotulo) + '"></iframe>'
+      : '<div class="msg">' + ic('file') + 'Sem pré-visualização para .' + esc(extDe(a)) + '. Use Baixar.</div>';
+    v.innerHTML = '<div class="hd"><div class="g"><b>' + String(a.n).padStart(2, '0') + ' · ' + esc(a.rotulo) + (a.novo ? ' <span class="novo">NOVO</span>' : '') + '</b><small>' + (i + 1) + ' de ' + docs.length + ' · ' + esc(a.nome || '') + ' · ' + dataBR(a.em) + '</small></div>'
+      + '<button class="rd-btn" onclick="EV.docBaixar(\'' + a.id + '\',this)">' + ic('download') + 'Baixar</button>'
+      + (eng ? '<button class="rd-btn ' + ((E.prob || {})[a.id] ? 'danger pri' : '') + '" onclick="EV.docProb(\'' + a.id + '\')">' + ic('flag') + ((E.prob || {})[a.id] ? 'Marcado' : 'Problema') + '</button>' : '')
+      + (u ? '<a class="rd-btn" href="' + esc(u) + '" target="_blank" rel="noopener" title="Abrir em nova aba">' + ic('external-link') + '</a>' : '')
+      + '<button class="rd-btn" onclick="EV.docFechar()" title="Fechar (Esc)">' + ic('x') + '</button></div>'
+      + '<div class="st"><button class="nav" onclick="EV.docIr(-1)" title="Anterior (←)">' + ic('chevron-left') + '</button><div class="pl">' + palco + '</div><button class="nav" onclick="EV.docIr(1)" title="Próximo (→)">' + ic('chevron-right') + '</button></div>'
+      + '<div class="fs">' + docs.map((d) => { const du = (E.urls || {})[d.storage_path]; return '<button class="' + (d.id === a.id ? 'on' : '') + ' ' + ((E.prob || {})[d.id] ? 'bad' : '') + '" title="' + esc(d.rotulo) + '" onclick="EV.docVer(\'' + d.id + '\')" ' + (ehImg(d) && du ? 'style="background-image:url(\'' + esc(du) + '\')"' : '') + '>' + (ehImg(d) && du ? '' : '<span>' + esc(extDe(d).toUpperCase()) + '</span>') + '</button>'; }).join('') + '</div>';
+    icons();
+    const on = v.querySelector('.fs .on');
+    if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
 
   function abaConc(p) {
@@ -1344,7 +1539,7 @@
   }
 
   // ------------------------------------------------------------ ações
-  async function mudar(id, status) {
+  async function mudar(id, status, motivo) {
     const p = (E.projetos || []).find((x) => x.id === id);
     if (!p) return;
     const exige = ['validacao_reprovada', 'projeto_reprovado', 'cancelado'].includes(status);
@@ -1352,7 +1547,7 @@
     modal(`<h3>${status === 'cancelado' ? 'Cancelar projeto' : 'Mover para ' + esc(s.n)}</h3><p class="rd-sub">${esc(p.cliente_nome || '')} · ${pnum(p)}</p>
       ${status === 'validacao_aprovada' ? `<div class="rd-note">${ic('clipboard-list')}<span>A OS é gerada automaticamente.${p.dim_status !== 'ok' ? ' <b>O dimensionamento automático não passou</b>: aprove só se conferiu na calculadora.' : ''}</span></div>` : ''}
       ${status === 'validacao_reprovada' ? `<div class="rd-note">${ic('info')}<span>Volta para a franquia corrigir. O motivo aparece para o gestor.</span></div>` : ''}
-      <div class="rd-fld"><label>${exige ? 'Motivo (obrigatório)' : 'Observação (opcional)'}</label><input id="eg-mot" placeholder="${exige ? 'Ex.: conta de luz ilegível' : ''}"></div>
+      <div class="rd-fld"><label>${exige ? 'Motivo (obrigatório)' : 'Observação (opcional)'}</label><input id="eg-mot" placeholder="${exige ? 'Ex.: conta de luz ilegível' : ''}" value="${esc(motivo || '')}"></div>
       ${status === 'projeto_enviado' ? `<div class="rd-fgrid"><div class="rd-fld"><label>Nº do protocolo</label><input id="eg-mot-prot" value="${esc(p.protocolo || '')}"></div><div class="rd-fld"><label>Data do protocolo</label><input id="eg-mot-dt" type="date" value="${esc(p.protocolo_em || new Date().toISOString().slice(0, 10))}"></div></div>` : ''}
       <div class="rd-err" id="eg-err"></div>
       <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Voltar</button><button class="rd-btn ${exige ? 'danger' : 'pri'}" id="eg-mot-ok" onclick="EV.confirmarMudar('${id}','${status}')">${ic('check')}Confirmar</button></div>`);
@@ -1706,6 +1901,8 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     franquia: (v) => { E.fr = v; pintar(); },
     view: (v) => { E.view = v; lsSet('eng_view', v); pintar(); },
     filtro: (k) => { E[k] = !E[k]; pintar(); },
+    docZip, docPasta, docBaixar, docProb, docReprovar, docPedir, docVer, docFechar: fecharVisor, docIr: visorIr,
+    docProbLimpar: () => { E.prob = {}; pintarDrawer(); },
     trilho: (id) => { E.trilhoAberto[id] = true; pintar(); },
     concTodos: () => { E.concTodos = true; pintar(); },
     soCompensacao: () => { E.soComp = true; E.view = 'lista'; E.fst = ''; if (typeof setTab === 'function') setTab('funil'); },

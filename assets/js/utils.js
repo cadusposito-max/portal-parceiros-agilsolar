@@ -465,6 +465,7 @@ const LIBS_SOB_DEMANDA = {
            src: ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'] },
   chart: { pronta: () => typeof Chart !== 'undefined', src: ['https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'] },
   exifr: { pronta: () => !!window.exifr, src: ['https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js'] },
+  jszip: { pronta: () => typeof JSZip !== 'undefined', src: ['https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'] },
 };
 const _libsCarregando = {};
 function carregarLib(nome) {
