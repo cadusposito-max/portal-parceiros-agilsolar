@@ -45,17 +45,19 @@
   const TEMP_MIN = 5;          // °C para o Voc no frio
   const PERDAS = 20;           // % de perdas do sistema (padrão da calculadora)
   const CABO_CC = 4;           // mm² (os kits saem com cabo de 4 mm)
-  const LIMITE_QUEDA = 3;      // %
+  const LIMITE_QUEDA = 3;      // % (CC)
+  const LIMITE_QUEDA_CA = 4;   // % NBR 5410 6.2.7.2: circuito terminal
+  const TEMP_AMB = 30;         // °C de referência da NBR 5410 (FCT = 1)
 
   // Campos da ficha técnica.
   const FICHA = {
     modulo: [['potencia', 'Potência', 'Wp'], ['voc', 'Voc', 'V'], ['vmp', 'Vmp', 'V'], ['isc', 'Isc', 'A'], ['imp', 'Imp', 'A'], ['coef_voc', 'Coef. de temperatura do Voc', '%/°C'], ['coef_pmax', 'Coef. de temperatura da Pmáx', '%/°C']],
-    inversor: [['potencia', 'Potência CA', 'W'], ['overload', 'Overload máximo', '%'], ['mppts', 'Nº de MPPTs', ''], ['entradas', 'Entradas por MPPT', 'ex.: 2 ou 2,1'], ['v_max', 'Tensão CC máxima', 'V'], ['v_min_mppt', 'Tensão mínima de MPPT', 'V'], ['v_mppt_max', 'Tensão máxima de MPPT (operação)', 'V'], ['i_max_mppt', 'Corrente máx. de curto-circuito por MPPT', 'A']],
-    micro: [['potencia', 'Potência CA', 'W'], ['modulos_por_micro', 'Módulos por micro', ''], ['v_max_entrada', 'Tensão máxima por entrada', 'V'], ['i_max_entrada', 'Corrente máxima por entrada', 'A'], ['p_max_entrada', 'Potência máxima por entrada', 'W']],
+    inversor: [['potencia', 'Potência CA', 'W'], ['overload', 'Overload máximo', '%'], ['mppts', 'Nº de MPPTs', ''], ['entradas', 'Entradas por MPPT', 'ex.: 2 ou 2,1'], ['v_max', 'Tensão CC máxima', 'V'], ['v_min_mppt', 'Tensão mínima de MPPT', 'V'], ['v_mppt_max', 'Tensão máxima de MPPT (operação)', 'V'], ['i_max_mppt', 'Corrente máx. de curto-circuito por MPPT', 'A'], ['i_saida_ca', 'Corrente máx. de saída CA', 'A'], ['disj_max', 'Disjuntor máx. indicado pelo fabricante', 'A']],
+    micro: [['potencia', 'Potência CA', 'W'], ['modulos_por_micro', 'Módulos por micro', ''], ['v_max_entrada', 'Tensão máxima por entrada', 'V'], ['i_max_entrada', 'Corrente máxima por entrada', 'A'], ['p_max_entrada', 'Potência máxima por entrada', 'W'], ['i_saida_ca', 'Corrente máx. de saída CA', 'A'], ['disj_max', 'Disjuntor máx. indicado pelo fabricante', 'A']],
   };
-  const OPCIONAIS = ['p_max_entrada', 'i_max_entrada', 'overload', 'coef_pmax', 'v_mppt_max']; // overload vazio = 50 %
+  const OPCIONAIS = ['p_max_entrada', 'i_max_entrada', 'overload', 'coef_pmax', 'v_mppt_max', 'i_saida_ca', 'disj_max']; // overload vazio = 50 %
   // rótulos curtos para a ficha compacta da calculadora
-  const CURTO = { potencia: 'Potência', voc: 'Voc', vmp: 'Vmp', isc: 'Isc', imp: 'Imp', coef_voc: 'Coef. Voc', coef_pmax: 'Coef. Pmáx', overload: 'Overload', mppts: 'MPPTs', entradas: 'Entr./MPPT', v_max: 'V CC máx.', v_min_mppt: 'V mín. MPPT', v_mppt_max: 'V máx. MPPT', i_max_mppt: 'Isc/MPPT', modulos_por_micro: 'Mód./micro', v_max_entrada: 'V máx. entr.', i_max_entrada: 'I máx. entr.', p_max_entrada: 'P máx. entr.' };
+  const CURTO = { potencia: 'Potência', voc: 'Voc', vmp: 'Vmp', isc: 'Isc', imp: 'Imp', coef_voc: 'Coef. Voc', coef_pmax: 'Coef. Pmáx', overload: 'Overload', mppts: 'MPPTs', entradas: 'Entr./MPPT', v_max: 'V CC máx.', v_min_mppt: 'V mín. MPPT', v_mppt_max: 'V máx. MPPT', i_max_mppt: 'Isc/MPPT', modulos_por_micro: 'Mód./micro', v_max_entrada: 'V máx. entr.', i_max_entrada: 'I máx. entr.', p_max_entrada: 'P máx. entr.', i_saida_ca: 'I saída CA', disj_max: 'Disj. máx.' };
   const TEMP_CELULA = 70;    // °C de célula para o Vmp quente
 
   const E = {
@@ -179,14 +181,50 @@
     return (f && num(f.hsp_medio) > 0) ? num(f.hsp_medio) : 5.4;
   }
 
-  // Proteções CA sugeridas (regra simples: corrente nominal × 1,25).
-  function protecoes(potW, rede) {
+  // Proteções CA pela NBR 5410 (cobre, isolação PVC 70 °C), por inversor:
+  //   Ib = corrente de saída da ficha (ou P / V); In = 1º disjuntor padrão >= Ib (fator 1,0);
+  //   Iz = capacidade da Tabela 36 × FCT (Tabela 40) × FCA (Tabela 42); seção mínima 2,5 mm²;
+  //   cabo sobe até Iz >= In e queda CA <= 4 %. Disjuntor DIN (I2 = 1,45 In) cumpre I2 <= 1,45 Iz.
+  const DISJUNTORES = [6, 10, 13, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100, 125];
+  const SECOES = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50];
+  const IZ_TAB = { // [2 condutores carregados, 3 carregados] por seção
+    B1: { 1.5: [17.5, 15.5], 2.5: [24, 21], 4: [32, 28], 6: [41, 36], 10: [57, 50], 16: [76, 68], 25: [101, 89], 35: [125, 110], 50: [151, 134] },
+    B2: { 1.5: [16.5, 15], 2.5: [23, 20], 4: [30, 27], 6: [38, 34], 10: [52, 46], 16: [69, 62], 25: [90, 80], 35: [111, 99], 50: [133, 118] },
+    C: { 1.5: [19.5, 17.5], 2.5: [27, 24], 4: [36, 32], 6: [46, 41], 10: [63, 57], 16: [85, 76], 25: [112, 96], 35: [138, 119], 50: [168, 144] },
+  };
+  const METODOS = [['B1', 'B1 · eletroduto embutido'], ['B2', 'B2 · multipolar em eletroduto'], ['C', 'C · cabo aparente na parede']];
+  const FCT_PVC = [[10, 1.22], [15, 1.17], [20, 1.12], [25, 1.06], [30, 1], [35, 0.94], [40, 0.87], [45, 0.79], [50, 0.71], [55, 0.61], [60, 0.5]];
+  const fctDe = (t) => (FCT_PVC.find(([tt]) => tt >= t) || [, 0.5])[1]; // arredonda a temperatura para cima
+  const fcaDe = (n) => (n <= 1 ? 1 : n === 2 ? 0.8 : n === 3 ? 0.7 : n === 4 ? 0.65 : n === 5 ? 0.6 : n === 6 ? 0.57 : n === 7 ? 0.54 : n === 8 ? 0.52 : n <= 11 ? 0.5 : n <= 15 ? 0.45 : n <= 19 ? 0.41 : 0.38);
+  const peDe = (sec) => (sec <= 16 ? sec : sec <= 35 ? 16 : sec / 2);
+  // o = { iSaida, disjMax, dist (m, inversor -> quadro), tamb, circ, metodo }
+  function protecoes(potW, rede, o = {}) {
     const v = rede === 'tri_380' ? 380 : 220;
     const tri = rede === 'tri_220' || rede === 'tri_380';
-    const i = tri ? potW / (Math.sqrt(3) * v) : potW / v;
-    const disj = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100, 125].find((d) => d >= i * 1.25) || 125;
-    const cabo = disj <= 20 ? 2.5 : disj <= 25 ? 4 : disj <= 32 ? 6 : disj <= 50 ? 10 : disj <= 63 ? 16 : disj <= 80 ? 25 : 35;
-    return { corrente: i, disjuntor: disj, polos: tri ? 'tripolar' : 'bipolar', cabo, condutores: tri ? '3F + N + PE' : 'F + N + PE' };
+    const iCalc = tri ? potW / (Math.sqrt(3) * v) : potW / v;
+    const iFicha = num(o.iSaida);
+    const ib = iFicha > 0 ? iFicha : iCalc;
+    const disj = DISJUNTORES.find((d) => d >= ib) || DISJUNTORES[DISJUNTORES.length - 1];
+    const disjMax = num(o.disjMax) > 0 ? num(o.disjMax) : null;
+    const tamb = numOu(o.tamb, TEMP_AMB);
+    const circ = Math.max(1, Math.round(numOu(o.circ, 1)));
+    const metodo = IZ_TAB[o.metodo] ? o.metodo : 'B1';
+    const fct = fctDe(tamb), fca = fcaDe(circ);
+    const dist = num(o.dist) > 0 ? num(o.dist) : 0;
+    const quedaDe = (sec) => { const dv = (tri ? Math.sqrt(3) : 2) * 0.0172 * dist * ib / sec; return { dv, pct: (dv / v) * 100 }; };
+    const izDe = (sec) => IZ_TAB[metodo][sec][tri ? 1 : 0] * fct * fca;
+    let cabo = SECOES.find((sec) => sec >= 2.5 && izDe(sec) >= disj && (!dist || quedaDe(sec).pct <= LIMITE_QUEDA_CA));
+    let porCapacidade = SECOES.find((sec) => sec >= 2.5 && izDe(sec) >= disj);
+    const estourou = !cabo;
+    if (!cabo) cabo = SECOES[SECOES.length - 1];
+    const queda = dist ? { dist, ...quedaDe(cabo) } : null;
+    return {
+      corrente: ib, ib, iCalc, iFicha: iFicha > 0 ? iFicha : null, tensao: v,
+      disjuntor: disj, disjMax, polos: tri ? 'tripolar' : 'bipolar',
+      cabo, pe: peDe(cabo), iz: izDe(cabo), izTab: IZ_TAB[metodo][cabo][tri ? 1 : 0], fct, fca, tamb, circ, metodo,
+      carregados: tri ? 3 : 2, subiuPorQueda: !!(porCapacidade && cabo > porCapacidade), estourou, queda,
+      condutores: tri ? '3F + N + PE' : 'F + N + PE',
+    };
   }
 
   // Dimensionamento do projeto: confere o kit e chama o cálculo comum.
@@ -205,7 +243,7 @@
   // Cálculo comum (dimensionamento automático e calculadora). O motor é o
   // engCompute da calculadora antiga; com arranjo personalizado, as
   // verificações são refeitas sobre o arranjo informado.
-  // o = { mod, inv (com qtd e ficha), hsp, perdas, tmin, tmax, lig, dist, bitola, arranjo? }
+  // o = { mod, inv (com qtd e ficha), hsp, perdas, tmin, tmax, lig, dist, bitola, arranjo?, ca? { dist, tamb, circ, metodo } }
   function calcularSistema(o) {
     const { mod, inv } = o;
     const hsp = num(o.hsp) > 0 ? num(o.hsp) : 5.4;
@@ -286,6 +324,11 @@
       res.inputs = inputs;
     }
     add('Tipo de ligação', `${inv.nome} (${(REDES_INV.find((x) => x[0] === f.rede) || [, 'rede não informada'])[1]}) com ${LIG[lig] || 'ligação não informada'}`, 'compatível', ligacaoOk(f.rede, lig) ? 'ok' : 'não', !!lig && ligacaoOk(f.rede, lig));
+    const ca = o.ca || {};
+    const pr = protecoes(potCA / inv.qtd, f.rede, { iSaida: f.i_saida_ca, disjMax: f.disj_max, dist: ca.dist, tamb: ca.tamb, circ: ca.circ, metodo: ca.metodo });
+    add('Disjuntor CA (NBR 5410)', `Ib ${nf(pr.ib, 1)} A ≤ In ${pr.disjuntor} A ≤ Iz ${nf(pr.iz, 1)} A · cabo ${String(pr.cabo).replace('.', ',')} mm²`, `≤ ${nf(pr.iz, 1)} A`, `${pr.disjuntor} A`, pr.ib <= pr.disjuntor && pr.disjuntor <= pr.iz && !pr.estourou, pr.disjuntor, pr.iz);
+    if (pr.disjMax) add('Disjuntor x fabricante', 'Disjuntor máximo indicado na ficha', `≤ ${nf(pr.disjMax, 0)} A`, `${pr.disjuntor} A`, pr.disjuntor <= pr.disjMax, pr.disjuntor, pr.disjMax);
+    if (pr.queda) add('Queda de tensão CA', `${nf(pr.queda.dist, 0)} m · cabo ${String(pr.cabo).replace('.', ',')} mm² · ${nf(pr.ib, 1)} A`, `≤ ${LIMITE_QUEDA_CA} %`, `${nf(pr.queda.pct, 2)} %`, pr.queda.pct <= LIMITE_QUEDA_CA, pr.queda.pct, LIMITE_QUEDA_CA);
     let queda = null, quedaInfo = null;
     if (tipo === 'string' && Number.isFinite(dist) && dist > 0) {
       const dv = (0.0172 * 2 * dist / bitola) * imp;
@@ -303,7 +346,7 @@
       geracaoMedia: res.geracaoMedia, monthlyGeneration: res.monthlyGeneration,
       vocCorrected: vocFrio, inputs: res.inputs || null,
       tmax, vmpQuente, maxSerie, maxPar, quedaInfo, modEl: { voc, vmp, isc, imp, pmod },
-      protecoes: protecoes(potCA / inv.qtd, f.rede), inversores: inv.qtd,
+      protecoes: pr, inversores: inv.qtd,
       equipamentos: { modulo: mod, inversor: inv },
       fichas_conferidas: !!fichasConferidas, em: new Date().toISOString(),
     };
@@ -642,7 +685,7 @@
     const hspF = num(state.franquiaHsp);
     return {
       modId: '', invId: '', nmod: 9, ninv: 1, hsp: hspF > 0 ? hspF : 5.4, perdas: PERDAS, tmin: TEMP_MIN, tmax: TEMP_CELULA,
-      lig: 'mono_220', dist: 15, bitola: CABO_CC, manual: { mod: {}, inv: {} },
+      lig: 'mono_220', dist: 15, bitola: CABO_CC, distCA: 10, tamb: TEMP_AMB, circ: 1, metodo: 'B1', manual: { mod: {}, inv: {} },
       projId: null, res: null, sujo: false, arranjo: null, editArranjo: false,
     };
   }
@@ -708,6 +751,7 @@
             <div class="eg-lc4"><label>HSP${inp('hsp', c.hsp)}</label><label>Perdas %${inp('perdas', c.perdas)}</label><label>T. mín. °C${inp('tmin', c.tmin)}</label><label>T. célula °C${inp('tmax', c.tmax)}</label></div>
             <div class="eg-lc2"><label>Ligação<select onchange="EV.cSet('lig',this.value)">${LIGACOES.map(([v, l]) => `<option value="${v}" ${c.lig === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
               <label>Distância CC (m) · bitola<span class="eg-dist">${inp('dist', c.dist)}<select onchange="EV.cSet('bitola',this.value)">${[4, 6, 10].map((b) => `<option value="${b}" ${num(c.bitola) === b ? 'selected' : ''}>${b} mm²</option>`).join('')}</select></span></label></div>
+            <div class="eg-lc4" style="margin-top:6px"><label title="Do inversor até o quadro">Dist. CA (m)${inp('distCA', c.distCA)}</label><label title="Temperatura ambiente do cabo CA (FCT, Tabela 40)">T. amb. °C${inp('tamb', c.tamb)}</label><label title="Circuitos no mesmo eletroduto (FCA, Tabela 42)">Circuitos${inp('circ', c.circ)}</label><label title="Método de instalação (Tabela 33)">Método<select onchange="EV.cSet('metodo',this.value)">${METODOS.map(([v, l]) => `<option value="${v}" title="${l}" ${c.metodo === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
           </div>
           <button class="rd-btn blue eg-validar" onclick="EV.cValidar()">${ic('shield-check')}Validar</button>
           <div class="eg-sujo" id="eg-c-sujo" ${c.sujo ? '' : 'hidden'}>${ic('refresh-cw')}Valores mudaram: valide de novo</div>
@@ -760,10 +804,12 @@
           <div class="eg-pn"><h4>${ic('sun')}Geração mensal (kWh)</h4>
             <div class="eg-gm">${r.monthlyGeneration.map((g, i) => `<i style="height:${(g / mx) * 100}%" title="${MES[i]}: ${nf(g)} kWh"></i>`).join('')}</div>
             <div class="eg-gmt">${r.monthlyGeneration.map((g, i) => `<span><small>${MES[i]}</small>${nf(g)}</span>`).join('')}</div></div>
-          <div class="eg-pn"><h4>${ic('shield')}Proteções e cabos <span class="rd-tag man">sugerido</span></h4>
-            <div class="eg-ln"><span>Corrente CA nominal</span><b>${nf(pr.corrente, 1)} A${r.inversores > 1 ? ' / inv.' : ''}</b></div>
-            <div class="eg-ln"><span>Disjuntor CA</span><b>${pr.disjuntor} A ${pr.polos} curva C</b></div>
-            <div class="eg-ln"><span>Cabo CA</span><b>${String(pr.cabo).replace('.', ',')} mm² · ${pr.condutores}</b></div>
+          <div class="eg-pn"><h4>${ic('shield')}Proteções e cabos<span class="rd-muted" style="font-weight:600;font-size:11px">NBR 5410${r.inversores > 1 ? ' · por inversor' : ''}</span></h4>
+            <div class="eg-ln"><span>Ib · corrente de projeto</span><b>${nf(pr.ib, 1)} A <small class="rd-muted">${pr.iFicha ? 'da ficha' : nf(r.potCA / r.inversores) + ' W ÷ ' + (pr.carregados === 3 ? '√3 × ' : '') + pr.tensao + ' V'}</small></b></div>
+            <div class="eg-ln"><span>In · disjuntor CA</span><b>${pr.disjuntor} A ${pr.polos} curva C${pr.disjMax ? ` <small class="rd-muted">fabric. ≤ ${nf(pr.disjMax)} A</small>` : ''}</b></div>
+            <div class="eg-ln"><span>Iz · capacidade do cabo</span><b>${nf(pr.iz, 1)} A <small class="rd-muted">${nf(pr.izTab, 1)} × FCT ${nf(pr.fct, 2)} × FCA ${nf(pr.fca, 2)}</small></b></div>
+            <div class="eg-ln"><span>Cabo CA</span><b>${String(pr.cabo).replace('.', ',')} mm² · PE ${String(pr.pe).replace('.', ',')} mm² <small class="rd-muted">${pr.metodo} · ${pr.carregados} carregados</small></b></div>
+            ${pr.queda ? `<div class="eg-ln"><span>Queda CA · ${nf(pr.queda.dist)} m</span><b style="color:${pr.queda.pct <= LIMITE_QUEDA_CA ? '#12704A' : 'var(--v2-red)'}">${nf(pr.queda.dv, 2)} V · ${nf(pr.queda.pct, 2)} %${pr.subiuPorQueda ? ' <small class="rd-muted">cabo subiu pela queda</small>' : ''}</b></div>` : ''}
             <div class="eg-ln"><span>DPS CA</span><b>classe II</b></div>
             ${r.tipo === 'micro' ? '' : `<div class="eg-ln"><span>Cabo CC</span><b>${String(r.bitola).replace('.', ',')} mm² solar</b></div>
             <div class="eg-ln"><span>DPS CC</span><b>≥ ${nf(Math.ceil(maxVoc / 100) * 100)} V · classe II</b></div>
@@ -835,7 +881,7 @@
     const c = C();
     const mod = calcEquip('mod'), inv = calcEquip('inv');
     if (!mod || !inv) { toast('Escolha o módulo e o inversor.'); return; }
-    c.res = calcularSistema({ mod, inv, hsp: c.hsp, perdas: c.perdas, tmin: c.tmin, tmax: c.tmax, lig: c.lig, dist: c.dist, bitola: c.bitola, arranjo: c.arranjo });
+    c.res = calcularSistema({ mod, inv, hsp: c.hsp, perdas: c.perdas, tmin: c.tmin, tmax: c.tmax, lig: c.lig, dist: c.dist, bitola: c.bitola, arranjo: c.arranjo, ca: { dist: c.distCA, tamb: c.tamb, circ: c.circ, metodo: c.metodo } });
     c.sujo = false;
     c.editArranjo = false;
     pintar();
