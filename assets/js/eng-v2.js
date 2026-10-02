@@ -805,15 +805,13 @@
             <div class="eg-gm">${r.monthlyGeneration.map((g, i) => `<i style="height:${(g / mx) * 100}%" title="${MES[i]}: ${nf(g)} kWh"></i>`).join('')}</div>
             <div class="eg-gmt">${r.monthlyGeneration.map((g, i) => `<span><small>${MES[i]}</small>${nf(g)}</span>`).join('')}</div></div>
           <div class="eg-pn"><h4>${ic('shield')}Proteções e cabos<span class="rd-muted" style="font-weight:600;font-size:11px">NBR 5410${r.inversores > 1 ? ' · por inversor' : ''}</span></h4>
-            <div class="eg-ln"><span>Ib · corrente de projeto</span><b>${nf(pr.ib, 1)} A <small class="rd-muted">${pr.iFicha ? 'da ficha' : nf(r.potCA / r.inversores) + ' W ÷ ' + (pr.carregados === 3 ? '√3 × ' : '') + pr.tensao + ' V'}</small></b></div>
-            <div class="eg-ln"><span>In · disjuntor CA</span><b>${pr.disjuntor} A ${pr.polos} curva C${pr.disjMax ? ` <small class="rd-muted">fabric. ≤ ${nf(pr.disjMax)} A</small>` : ''}</b></div>
-            <div class="eg-ln"><span>Iz · capacidade do cabo</span><b>${nf(pr.iz, 1)} A <small class="rd-muted">${nf(pr.izTab, 1)} × FCT ${nf(pr.fct, 2)} × FCA ${nf(pr.fca, 2)}</small></b></div>
-            <div class="eg-ln"><span>Cabo CA</span><b>${String(pr.cabo).replace('.', ',')} mm² · PE ${String(pr.pe).replace('.', ',')} mm² <small class="rd-muted">${pr.metodo} · ${pr.carregados} carregados</small></b></div>
-            ${pr.queda ? `<div class="eg-ln"><span>Queda CA · ${nf(pr.queda.dist)} m</span><b style="color:${pr.queda.pct <= LIMITE_QUEDA_CA ? '#12704A' : 'var(--v2-red)'}">${nf(pr.queda.dv, 2)} V · ${nf(pr.queda.pct, 2)} %${pr.subiuPorQueda ? ' <small class="rd-muted">cabo subiu pela queda</small>' : ''}</b></div>` : ''}
-            <div class="eg-ln"><span>DPS CA</span><b>classe II</b></div>
-            ${r.tipo === 'micro' ? '' : `<div class="eg-ln"><span>Cabo CC</span><b>${String(r.bitola).replace('.', ',')} mm² solar</b></div>
-            <div class="eg-ln"><span>DPS CC</span><b>≥ ${nf(Math.ceil(maxVoc / 100) * 100)} V · classe II</b></div>
-            <div class="eg-ln"><span>Fusível de string</span><b>${(r.maxPar || 0) >= 3 ? 'necessário' : 'não precisa'}</b></div>`}</div>
+            <div class="eg-ln"><span>Ib · corrente de projeto<small>${pr.iFicha ? 'corrente de saída da ficha' : nf(r.potCA / r.inversores) + ' W ÷ ' + (pr.carregados === 3 ? '√3 × ' : '') + pr.tensao + ' V'}</small></span><b>${nf(pr.ib, 1)} A</b></div>
+            <div class="eg-ln"><span>In · disjuntor CA<small>1º padrão ≥ Ib${pr.disjMax ? ` · fabricante até ${nf(pr.disjMax)} A` : ''}</small></span><b>${pr.disjuntor} A ${pr.polos} C</b></div>
+            <div class="eg-ln"><span>Iz · capacidade do cabo<small>${nf(pr.izTab, 1)} A × FCT ${nf(pr.fct, 2)} (${nf(pr.tamb)} °C) × FCA ${nf(pr.fca, 2)}</small></span><b>${nf(pr.iz, 1)} A</b></div>
+            <div class="eg-ln"><span>Cabo CA<small>método ${pr.metodo} · ${pr.carregados} carregados · PE ${String(pr.pe).replace('.', ',')} mm²</small></span><b>${String(pr.cabo).replace('.', ',')} mm²</b></div>
+            ${pr.queda ? `<div class="eg-ln"><span>Queda CA · ${nf(pr.queda.dist)} m<small>${pr.subiuPorQueda ? 'cabo aumentado pela queda' : 'limite ' + LIMITE_QUEDA_CA + ' % (NBR 5410)'}</small></span><b style="color:${pr.queda.pct <= LIMITE_QUEDA_CA ? '#12704A' : 'var(--v2-red)'}">${nf(pr.queda.pct, 2)} %</b></div>` : ''}
+            <div class="eg-ln"><span>DPS classe II</span><b>CA${r.tipo === 'micro' ? '' : ` · CC ≥ ${nf(Math.ceil(maxVoc / 100) * 100)} V`}</b></div>
+            ${r.tipo === 'micro' ? '' : `<div class="eg-ln"><span>Fusível de string</span><b>${(r.maxPar || 0) >= 3 ? 'necessário' : 'não precisa'}</b></div>`}</div>
         </div>
       </div>`;
   }
