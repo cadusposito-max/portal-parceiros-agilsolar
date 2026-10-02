@@ -63,7 +63,7 @@
   const E = {
     projetos: null, loading: null, catalogo: null, kits: null, osLista: null,
     ev: {}, os: {}, tab: 'visao', ctx: 'eng', container: null,
-    view: lsGet('eng_view') || 'kanban', busca: '', fr: '', fst: '', vazios: lsGet('eng_vazios') === '1', soComp: false,
+    view: lsGet('eng_view') || 'kanban', busca: '', fr: '', fst: '', soComp: false, soAtraso: false, soAlerta: false, trilhoAberto: {}, concTodos: false,
     aberto: null, ptab: 'dim', dimRodando: false,
     kitBusca: '', kitFiltro: '', kitLimite: 8,
   };
@@ -397,11 +397,15 @@
   const alertaPill = (p) => (p.alerta && central() ? `<span class="eg-alerta" title="Algo mudou depois do envio">${ic('triangle-alert')}</span>` : '');
   const kitCurto = (p) => String((p.snapshot && p.snapshot.venda && p.snapshot.venda.kit_nome) || '').replace(/^KIT\s+/i, '');
 
-  function filtrados() {
+  // semChips: ignora os filtros rápidos do funil (para contar cada um)
+  function filtrados(semChips) {
     const q = E.busca.trim().toLowerCase();
+    const chips = !semChips && E.tab === 'funil' || (!semChips && E.ctx === 'com');
     return (E.projetos || []).filter((p) => p.status !== 'cancelado'
       && (!E.fr || p.franquia_id === E.fr)
-      && (!E.soComp || (p.compensacao && p.compensacao.status !== 'feita'))
+      && (!chips || !E.soComp || (p.compensacao && p.compensacao.status !== 'feita'))
+      && (!chips || !E.soAtraso || atrasado(p))
+      && (!chips || !E.soAlerta || p.alerta)
       && (!q || `${p.cliente_nome || ''} ${pnum(p)} ${p.cidade || ''} ${p.uc || ''} ${p.protocolo || ''}`.toLowerCase().includes(q)));
   }
 
@@ -472,6 +476,7 @@
     pintarDrawer();
     icons();
     window.scrollTo(0, y);
+    ajustarKanban();
   }
 
   // ------------------------------------------------------------ visão geral
@@ -513,12 +518,13 @@
   }
   const alertaLinha = (p, tone, icone, sub) => `<button class="rd-alert" onclick="EV.abrir('${p.id}')"><span class="ic ${tone}">${ic(icone)}</span><span><b>${esc(p.cliente_nome || 'Cliente')} · ${pnum(p)}</b><span>${sub}</span></span></button>`;
 
-  function barra(semVisao) {
+  function barra(semVisao, chips) {
     const frs = franquiasDosProjetos();
     const leitura = E.ctx === 'com';
     return `<div class="rd-bar">
       <label class="rd-sel">${ic('search')}<input placeholder="Buscar cliente, projeto, UC" value="${esc(E.busca)}" oninput="EV.buscar(this.value)"></label>
       ${frs.length > 1 ? `<label class="rd-sel">${ic('store')}<select onchange="EV.franquia(this.value)"><option value="">Todas as franquias</option>${frs.map(([id, n]) => `<option value="${id}" ${E.fr === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>` : ''}
+      ${chips || ''}
       <span class="rd-grow"></span>
       ${semVisao ? '' : `<div class="rd-tabs eg-seg">${[['kanban', 'kanban', 'Kanban'], ['lista', 'list', 'Lista']].map(([v, i, l]) => `<button class="rd-tab ${E.view === v ? 'on' : ''}" onclick="EV.view('${v}')">${ic(i)}${l}</button>`).join('')}</div>`}
       <button class="rd-btn ghost" onclick="EV.recarregar()" title="Atualizar">${ic('refresh-cw')}<span class="rd-hide-m">Atualizar</span></button>
@@ -527,33 +533,73 @@
   }
 
   // ------------------------------------------------------------ funil
+  // fases do kanban (agrupam os status; nomes curtos nas colunas)
+  const FASES = [
+    ['Validação', [['validacao', 'Validação'], ['validacao_reprovada', 'Reprovada'], ['validacao_aprovada', 'Aprovada · OS']]],
+    ['Projeto', [['elaborar_projeto', 'Elaborar projeto']]],
+    ['Concessionária', [['projeto_enviado', 'Projeto enviado'], ['projeto_reprovado', 'Reprovado'], ['projeto_reenviado', 'Reenviado'], ['projeto_aprovado', 'Aprovado · obra']]],
+    ['Vistoria', [['solicitacao_vistoria', 'Solicitar vistoria'], ['vistoria_solicitada', 'Vistoria solicitada']]],
+    ['Fim', [['projeto_concluido', 'Concluído']]],
+  ];
+  const CONCLUIDOS_MAX = 5;
+  function chipsFunil() {
+    const todos = filtrados(true);
+    const chip = (k, icone, rotulo, n) => `<button class="eg-fchip ${E[k] ? 'on' : ''} ${k}" onclick="EV.filtro('${k}')">${ic(icone)}${rotulo}<span class="n">${n}</span></button>`;
+    return chip('soAtraso', 'alarm-clock', 'Fora do prazo', todos.filter(atrasado).length)
+      + chip('soComp', 'zap', 'Compensação pendente', todos.filter((p) => p.compensacao && p.compensacao.status !== 'feita').length)
+      + (central() ? chip('soAlerta', 'triangle-alert', 'Mudou após envio', todos.filter((p) => p.alerta).length) : '');
+  }
   function telaFunil() {
     const base = filtrados();
     const leitura = E.ctx === 'com';
     const topo = leitura ? `<div class="rd-note">${ic('eye')}<span>Acompanhamento dos projetos da sua franquia na engenharia. Quem muda o status é a engenharia; aqui você vê o andamento, responde pendências e comenta.</span></div>` : '';
-    const extra = `<div class="eg-filtros">
-      ${E.view === 'kanban' ? `<label class="rd-check"><input type="checkbox" ${E.vazios ? 'checked' : ''} onchange="EV.vazios(this.checked)">Ocultar status vazios</label>` : ''}
-      <label class="rd-check"><input type="checkbox" ${E.soComp ? 'checked' : ''} onchange="EV.comp(this.checked)">Só com compensação pendente</label>
-    </div>`;
     if (!(E.projetos || []).length) {
       return `${topo}${barra()}<div class="rd-card rd-empty"><div class="ic">${ic('ruler')}</div><b>Nenhum projeto ainda</b>${leitura ? 'Os projetos aparecem aqui quando o gestor envia uma venda à engenharia pela ficha do cliente (aba Engenharia).' : 'Os projetos chegam quando uma franquia envia uma venda à engenharia.'}</div>`;
     }
-    if (E.view === 'lista') return topo + barra() + extra + lista(base);
-    const cols = STATUS.filter((s) => !E.vazios || base.some((p) => p.status === s.id));
-    return `${topo}${barra()}${extra}<div class="eg-kanban">${cols.map((s) => {
-      const its = base.filter((p) => p.status === s.id).sort((a, b) => new Date(a.status_desde) - new Date(b.status_desde));
-      return `<div class="eg-col" style="--c:${COR[s.tone]}"><div class="eg-colh"><div><b>${esc(s.n)}</b><small>${esc(s.d)}${s.sla ? ` · prazo ${s.sla}d` : ''}</small></div><span>${its.length}</span></div>${its.map(card).join('') || '<div class="eg-vazio">—</div>'}</div>`;
-    }).join('')}</div>`;
+    if (E.view === 'lista') return topo + barra(false, chipsFunil()) + lista(base);
+    return `${topo}${barra(false, chipsFunil())}<div class="eg-kb" id="eg-kb"><div class="eg-kfs">${FASES.map(([fase, cols]) => {
+      const tot = base.filter((p) => cols.some(([id]) => id === p.status)).length;
+      return `<div class="eg-kf"><div class="eg-kfh"><span>${esc(fase)}</span><i></i><b>${tot}</b></div><div class="eg-kcols">${cols.map(([id, nome]) => {
+        const s = ST[id];
+        const its = base.filter((p) => p.status === id).sort((a, b) => new Date(a.status_desde) - new Date(b.status_desde));
+        const trilho = !its.length && !E.trilhoAberto[id];
+        const vis = id === 'projeto_concluido' ? its.slice().reverse().slice(0, E.concTodos ? its.length : CONCLUIDOS_MAX) : its;
+        return `<div class="eg-kc ${trilho ? 'rail' : ''}" style="--c:${COR[s.tone]}" ${trilho ? `onclick="EV.trilho('${id}')" title="${esc(s.n)} · nenhum projeto"` : ''}>
+          <div class="eg-kch" title="${esc(s.n + ' · ' + s.d)}"><span class="dot"></span><b>${esc(nome)}</b>${s.sla ? `<small>${s.sla}d</small>` : ''}<span class="cnt">${its.length}</span></div>
+          <div class="eg-kcb">${vis.map(card).join('')}${its.length > vis.length ? `<button class="eg-kmais" onclick="EV.concTodos()">Ver todos os ${its.length} concluídos</button>` : ''}</div></div>`;
+      }).join('')}</div></div>`;
+    }).join('')}</div></div>`;
   }
+
+  // o quadro vai até o fim da tela e a rolagem fica nas colunas
+  function ajustarKanban() {
+    const kb = document.getElementById('eg-kb');
+    if (!kb) return;
+    if (window.innerWidth <= 760) { kb.style.height = ''; return; }
+    const topo = kb.getBoundingClientRect().top + window.scrollY;
+    let h = Math.max(340, window.innerHeight - topo - 18);
+    kb.style.height = h + 'px';
+    const sobra = document.documentElement.scrollHeight - window.innerHeight;
+    if (sobra > 0 && h - sobra >= 340) kb.style.height = (h - sobra) + 'px';
+  }
+  window.addEventListener('resize', () => ajustarKanban());
 
   function card(p) {
     const s = ST[p.status];
-    const ultimoMotivo = (s.tone === 'bad' && p._motivo) ? `<div class="eg-motivo">${esc(p._motivo)}</div>` : '';
-    return `<button class="eg-card" onclick="EV.abrir('${p.id}')">
-      <div class="eg-cnm">${esc(p.cliente_nome || 'Cliente')}${alertaPill(p)}</div>
-      <div class="eg-cmt">${pnum(p)} · ${esc(nomeFranquia(p))} · ${nf(p.kwp, 2)} kWp<br>${esc(kitCurto(p).slice(0, 44))}</div>
+    const ultimoMotivo = (s.tone === 'bad' && p._motivo) ? `<div class="eg-kmot">${esc(p._motivo)}</div>` : '';
+    const d = dias(p.status_desde);
+    const late = atrasado(p);
+    const pct = s.sla ? Math.min(100, (d / s.sla) * 100) : 0;
+    const cor = late ? 'var(--v2-red)' : pct >= 70 ? 'var(--v2-orange)' : 'var(--v2-green)';
+    const tags = `${dimPill(p)}${docsPill(p)}${compPill(p)}`;
+    const borda = late ? 'var(--v2-red)' : (p.alerta && central()) ? 'var(--v2-orange)' : 'transparent';
+    return `<button class="eg-kcard" style="--edge:${borda}" onclick="EV.abrir('${p.id}')">
+      <div class="top"><div class="nm">${esc(p.cliente_nome || 'Cliente')}${alertaPill(p)}</div><span class="eg-kav ${p.responsavel_nome ? '' : 'no'}" title="${esc(p.responsavel_nome || 'Sem responsável')}">${esc(p.responsavel_nome ? ini(p.responsavel_nome) : '—')}</span></div>
+      <div class="sys"><b>${nf(p.kwp, 2)} kWp</b><i></i><span>${ic('store')}${esc(nomeFranquia(p))}</span><i></i>${pnum(p)}</div>
+      ${kitCurto(p) ? `<div class="kit">${esc(kitCurto(p))}</div>` : ''}
       ${ultimoMotivo}
-      <div class="eg-cft">${dimPill(p)}${docsPill(p)}${compPill(p)}${p.status === 'projeto_concluido' ? '' : `<span class="eg-dias ${atrasado(p) ? 'late' : ''}">${ic('clock')}${dias(p.status_desde)}d</span>`}<span class="eg-av" title="${esc(p.responsavel_nome || 'Sem responsável')}">${esc(p.responsavel_nome ? ini(p.responsavel_nome) : '—')}</span></div>
+      ${tags ? `<div class="tags">${tags}</div>` : ''}
+      ${s.sla && p.status !== 'projeto_concluido' ? `<div class="prazo ${late ? 'late' : ''}"><div class="tr"><i style="width:${pct}%;background:${cor}"></i></div><span>${ic(late ? 'alarm-clock' : 'clock')}${d}d de ${s.sla}d</span></div>` : ''}
     </button>`;
   }
 
@@ -1659,8 +1705,9 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     buscar: (q) => { E.busca = q; clearTimeout(EV._t); EV._t = setTimeout(() => { pintar(); const i = E.container && E.container.querySelector('.rd-bar input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200); },
     franquia: (v) => { E.fr = v; pintar(); },
     view: (v) => { E.view = v; lsSet('eng_view', v); pintar(); },
-    vazios: (v) => { E.vazios = !!v; lsSet('eng_vazios', v ? '1' : '0'); pintar(); },
-    comp: (v) => { E.soComp = !!v; pintar(); },
+    filtro: (k) => { E[k] = !E[k]; pintar(); },
+    trilho: (id) => { E.trilhoAberto[id] = true; pintar(); },
+    concTodos: () => { E.concTodos = true; pintar(); },
     soCompensacao: () => { E.soComp = true; E.view = 'lista'; E.fst = ''; if (typeof setTab === 'function') setTab('funil'); },
     verStatus: (s) => { E.fst = s; E.view = 'lista'; if (E.tab !== 'funil' && E.ctx === 'eng' && typeof setTab === 'function') setTab('funil'); else pintar(); },
     abrir, fechar, aba: (k) => { E.ptab = k; pintarDrawer(); }, mudar, confirmarMudar, assumir, reenviar, comentar, salvarConc,
