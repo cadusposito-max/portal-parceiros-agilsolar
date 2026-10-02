@@ -1175,6 +1175,11 @@
       projeto_concluido: [],
       cancelado: [],
     }[s] || [];
+    if (s === 'validacao_reprovada') {
+      const pd = pendencias(p);
+      const n = pd ? pd.docs.length : 0, ok = pd ? pd.docs.length - pd.aguardando : 0;
+      prox.push('<span class="eg-espera">' + ic('hourglass') + 'Com a franquia para correção' + (n ? ' · ' + ok + ' de ' + n + ' arquivo(s) já trocado(s)' : '') + '</span>');
+    }
     const meu = p.responsavel_nome ? `<span class="rd-muted">Responsável: <b>${esc(p.responsavel_nome)}</b></span>` : `<button class="rd-btn sm ghost" onclick="EV.assumir('${p.id}')">${ic('hand')}Assumir</button>`;
     return `<div class="eg-acts">${prox.join('')}
       <span class="rd-grow"></span>${meu}
@@ -1182,17 +1187,68 @@
     </div>`;
   }
 
-  function acoesFranquia(p) {
-    if (p.status !== 'validacao_reprovada') return '';
-    const ult = ultimoMotivo(p);
-    const pode = state.isAdmin || state.isGestor;
-    return `<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red);display:block">
-      <b>${ic('undo-2')} Validação reprovada pela engenharia</b><div style="color:var(--v2-ink);margin:6px 0 10px">${esc(ult || 'Veja o motivo na timeline.')}</div>
-      ${pode ? `<div class="rd-fld"><label>O que foi corrigido</label><input id="eg-reenv" placeholder="Ex.: anexei a conta de luz legível"></div>
-      <div class="rd-err" id="eg-err"></div>
-      <div style="margin-top:8px"><button class="rd-btn pri sm" id="eg-reenv-btn" onclick="EV.reenviar('${p.id}')">${ic('send')}Corrigi, reenviar à engenharia</button></div>` : '<div class="rd-muted">O gestor da franquia corrige e reenvia.</div>'}
-    </div>`;
+  // ------------------------------------------------------------ correção pela franquia (validação reprovada)
+  // Aparece na ficha do cliente (aba Engenharia) e no painel do projeto. Cada arquivo reprovado tem
+  // "Anexar novo" (sobe no mesmo tipo/slot) e o reenvio avisa se ainda falta trocar algum.
+  E.corrCarregando = {};
+  function carregarCorrecao(p) {
+    if (E.corrCarregando[p.id]) return;
+    E.corrCarregando[p.id] = true;
+    Promise.all([E.ev[p.id] ? null : carregarEventos(p.id), assinarDocs(p)])
+      .then(() => repintarCorrecao())
+      .catch((e) => console.warn('[eng] correção', e));
   }
+  function repintarCorrecao() {
+    pintarDrawer();
+    if (typeof _crm360Tab !== 'undefined' && _crm360Tab === 'engenharia' && typeof renderCrm360 === 'function') renderCrm360();
+  }
+  function eventoReprova(p) {
+    const ev = (E.ev[p.id] || []).filter((e) => e.tipo === 'status' && e.para_status === 'validacao_reprovada');
+    return ev[ev.length - 1] || null;
+  }
+  function correcaoHTML(p, ctx) {
+    if (p.status !== 'validacao_reprovada') return '';
+    if (E.ev[p.id] === undefined || (E.docsNovos || {})[p.id] === undefined) carregarCorrecao(p);
+    const evr = eventoReprova(p);
+    const pend = pendencias(p);
+    const pode = !!(state.isAdmin || state.isGestor || central());
+    const docs = pend ? pend.docs : [];
+    const falta = docs.filter((d) => !d.chegou).length;
+    const linha = (d) => '<div class="eg-corr-i ' + (d.chegou ? 'ok' : '') + '">' + ic(d.chegou ? 'circle-check' : 'circle-x')
+      + '<div class="t"><b>' + esc(d.rotulo) + '</b><small>' + (d.chegou ? 'Arquivo novo enviado em ' + dataBR(d.novoEm) : 'Reprovado: envie um arquivo novo') + '</small></div>'
+      + (pode && d.tipo ? '<label class="rd-btn sm ' + (d.chegou ? '' : 'pri') + ' eg-anxbtn ' + (E.corrEnviando === p.id + ':' + d.tipo + ':' + (d.slot || '') ? 'dis' : '') + '">' + ic(d.chegou ? 'refresh-cw' : 'upload') + (d.chegou ? 'Trocar de novo' : 'Anexar novo')
+        + '<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onchange="EV.corrAnexar(\'' + p.id + '\',\'' + d.tipo + '\',\'' + (d.slot || '') + '\',\'' + esc(d.rotulo).replace(/'/g, '') + '\',this.files);this.value=\'\'"></label>' : '')
+      + '</div>';
+    const irArquivos = ctx === 'fx' ? 'crmSet360Tab(\'arquivos\')' : 'EV.fechar();if(typeof crmSet360Tab===\'function\')crmSet360Tab(\'arquivos\')';
+    return '<div class="eg-corr" onclick="event.stopPropagation()">'
+      + '<div class="h">' + ic('undo-2') + '<div><b>A engenharia devolveu este projeto para correção</b><span>' + (evr ? 'Em ' + dataHora(evr.created_at) + ' por ' + esc(evr.autor_nome || 'engenharia') : '') + '</span></div></div>'
+      + (evr && evr.texto ? '<div class="mot"><small>Motivo</small>' + esc(evr.texto) + '</div>' : '')
+      + (docs.length ? '<div class="lst"><div class="lt">' + (falta ? 'Arquivos para trocar (' + falta + ' de ' + docs.length + ' pendente' + (falta > 1 ? 's' : '') + ')' : 'Todos os arquivos foram trocados') + '</div>' + docs.map(linha).join('') + '</div>' : '')
+      + '<div class="out">Precisa anexar outro documento? <button class="eg-link" onclick="' + irArquivos + '">Abrir a aba Arquivos do cliente</button></div>'
+      + (pode ? '<div class="env"><div class="rd-fld"><label>O que foi corrigido</label><input id="eg-reenv-' + ctx + '" placeholder="Ex.: troquei o RG por uma foto legível"></div>'
+          + '<div class="rd-err" id="eg-reenv-err-' + ctx + '"></div>'
+          + '<button class="rd-btn pri eg-corr-go" id="eg-reenv-btn-' + ctx + '" onclick="EV.reenviar(\'' + p.id + '\',\'' + ctx + '\')">' + ic('send') + 'Reenviar à engenharia</button></div>'
+        : '<div class="rd-muted">Quem reenvia é o gestor da franquia.</div>')
+      + '</div>';
+  }
+  async function corrAnexar(pid, tipo, slot, rotulo, files) {
+    const p = (E.projetos || []).find((x) => x.id === pid);
+    const f = files && files[0];
+    if (!p || !f) return;
+    E.corrEnviando = pid + ':' + tipo + ':' + (slot || '');
+    repintarCorrecao();
+    try {
+      await subirArquivoCliente(p, tipo, slot || null, f);
+      try { await rpc('eng_comentar', { p_id: pid, p_texto: 'Arquivo novo para correção: ' + rotulo + ' · ' + f.name, p_interno: false }); await carregarEventos(pid); } catch (_) { /* o arquivo já foi */ }
+      toast(rotulo + ': arquivo novo anexado');
+    } catch (e) { console.error('[eng] correção anexo', e); toast(e.message || 'Falha ao anexar'); }
+    E.corrEnviando = null;
+    (E.docsNovos = E.docsNovos || {})[pid] = undefined;
+    await assinarDocs(p);
+    repintarCorrecao();
+  }
+
+  function acoesFranquia(p) { return correcaoHTML(p, 'dw'); }
   function ultimoMotivo(p) {
     const ev = (E.ev[p.id] || []).filter((e) => e.tipo === 'status' && e.para_status === p.status && e.texto);
     return ev.length ? ev[ev.length - 1].texto : null;
@@ -1576,6 +1632,20 @@
       + '<div class="eg-anxs">' + ANEXOS.map(bloco).join('') + '</div></div>';
   }
   const ANX_TIPOS = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+  // sobe um arquivo para cliente_arquivos (mesmo bucket e caminho da aba Arquivos)
+  async function subirArquivoCliente(p, tipo, slot, f) {
+    if (!p.cliente_id) throw new Error('Projeto sem cliente vinculado.');
+    const mime = f.type || (/\.pdf$/i.test(f.name) ? 'application/pdf' : '');
+    if (!ANX_TIPOS.includes(mime)) throw new Error('"' + f.name + '": use PDF ou imagem (JPG, PNG).');
+    if (f.size > 20 * 1024 * 1024) throw new Error('"' + f.name + '" passa de 20 MB.');
+    const ext = (String(f.name).match(/\.([a-z0-9]{2,5})$/i) || [, mime === 'application/pdf' ? 'pdf' : mime.split('/')[1]])[1].toLowerCase();
+    const base = String(f.name || 'arquivo').replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).toLowerCase() || 'arquivo';
+    const path = 'franquias/' + p.franquia_id + '/clientes/' + p.cliente_id + '/' + tipo + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + base + '.' + ext;
+    const up = await sb().storage.from('crm-arquivos').upload(path, f, { contentType: mime });
+    if (up.error) throw up.error;
+    const { error } = await sb().from('cliente_arquivos').insert([{ cliente_id: p.cliente_id, franquia_id: p.franquia_id, tipo, slot: slot || null, storage_path: path, nome_original: f.name || null, mime, tamanho_bytes: f.size, uploaded_by_nome: (state.profile && state.profile.nome) || (state.currentUser && state.currentUser.email) || null }]);
+    if (error) { try { await sb().storage.from('crm-arquivos').remove([path]); } catch (_) { /* sem limpeza */ } throw error; }
+  }
   async function anxArquivos(pid, slot, files) {
     const p = (E.projetos || []).find((x) => x.id === pid);
     const lista = Array.from(files || []);
@@ -1585,19 +1655,7 @@
     pintarDrawer();
     const nomes = [];
     for (const f of lista) {
-      try {
-        const mime = f.type || (/\.pdf$/i.test(f.name) ? 'application/pdf' : '');
-        if (!ANX_TIPOS.includes(mime)) throw new Error('"' + f.name + '": use PDF ou imagem (JPG, PNG).');
-        if (f.size > 20 * 1024 * 1024) throw new Error('"' + f.name + '" passa de 20 MB.');
-        const ext = (String(f.name).match(/\.([a-z0-9]{2,5})$/i) || [, mime === 'application/pdf' ? 'pdf' : mime.split('/')[1]])[1].toLowerCase();
-        const base = String(f.name || 'arquivo').replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).toLowerCase() || 'arquivo';
-        const path = 'franquias/' + p.franquia_id + '/clientes/' + p.cliente_id + '/engenharia/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + base + '.' + ext;
-        const up = await sb().storage.from('crm-arquivos').upload(path, f, { contentType: mime });
-        if (up.error) throw up.error;
-        const { error } = await sb().from('cliente_arquivos').insert([{ cliente_id: p.cliente_id, franquia_id: p.franquia_id, tipo: 'engenharia', slot, storage_path: path, nome_original: f.name || null, mime, tamanho_bytes: f.size, uploaded_by_nome: (state.profile && state.profile.nome) || (state.currentUser && state.currentUser.email) || null }]);
-        if (error) { try { await sb().storage.from('crm-arquivos').remove([path]); } catch (_) { /* sem limpeza */ } throw error; }
-        nomes.push(f.name);
-      } catch (e) { console.error('[eng] anexo', e); toast(e.message || 'Falha ao anexar ' + f.name); }
+      try { await subirArquivoCliente(p, 'engenharia', slot, f); nomes.push(f.name); } catch (e) { console.error('[eng] anexo', e); toast(e.message || 'Falha ao anexar ' + f.name); }
     }
     E.anxEnviando = null;
     if (nomes.length) {
@@ -1732,11 +1790,23 @@
   async function assumir(id) {
     try { await rpc('eng_atualizar', { p_id: id, p_campos: { responsavel: true } }); await recarregarProjeto(id); pintar(); toast('Projeto assumido'); } catch (e) { toast(e.message); }
   }
-  async function reenviar(id) {
-    const t = val('eg-reenv');
-    if (t.length < 3) { erro('Escreva o que foi corrigido.'); return; }
-    await ocupado('eg-reenv-btn', async () => {
-      try { await rpc('eng_reenviar_validacao', { p_id: id, p_texto: t }); toast('Reenviado à engenharia'); await recarregarProjeto(id); pintar(); } catch (e) { erro(e.message); }
+  async function reenviar(id, ctx) {
+    ctx = ctx || 'dw';
+    const t = val('eg-reenv-' + ctx);
+    const err = (m) => { const el = document.getElementById('eg-reenv-err-' + ctx); if (el) el.textContent = m; };
+    if (t.length < 3) { err('Escreva o que foi corrigido.'); const i = document.getElementById('eg-reenv-' + ctx); if (i) i.focus(); return; }
+    const p = (E.projetos || []).find((x) => x.id === id);
+    const pd = p && pendencias(p);
+    const faltam = pd ? pd.docs.filter((d) => !d.chegou).map((d) => d.rotulo) : [];
+    if (faltam.length && !confirm('Ainda não foi trocado: ' + faltam.join(', ') + '.\n\nReenviar à engenharia mesmo assim?')) return;
+    await ocupado('eg-reenv-btn-' + ctx, async () => {
+      try {
+        await rpc('eng_reenviar_validacao', { p_id: id, p_texto: t });
+        toast('Reenviado à engenharia');
+        await recarregarProjeto(id);
+        pintar();
+        repintarCorrecao();
+      } catch (e) { err(e.message); }
     });
   }
   async function comentar(id) {
@@ -1967,8 +2037,7 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     const pode = podeEnviar();
     return `<div class="rd eg">
       ${ps.map((p) => `<div class="rd-card rd-mb eg-fproj" onclick="EV.abrir('${p.id}')"><div class="rd-ch"><div><b>${pnum(p)} · ${esc(kitCurto(p))}</b><div class="rd-muted">Enviado em ${dataBR(p.created_at)} por ${esc(p.enviado_por_nome || '—')} · ${dias(p.status_desde)} dia(s) neste status</div></div><div style="display:flex;gap:6px;flex-wrap:wrap">${stPill(p)}${compPill(p)}</div></div>
-        ${p.status === 'validacao_reprovada' ? `<div class="rd-tip" style="color:var(--v2-red)">${ic('undo-2')}A engenharia devolveu este projeto. Abra para ver o motivo e reenviar.</div>` : ''}
-        <div class="eg-steps mini">${LINHA.map((sid) => { const n = NIVEL[sid], nv = NIVEL[p.status]; return `<div class="${n < nv ? 'done' : n === nv ? (ST[p.status].tone === 'bad' ? 'bad' : 'cur') : ''}"><i></i></div>`; }).join('')}</div></div>`).join('')}
+        <div class="eg-steps mini">${LINHA.map((sid) => { const n = NIVEL[sid], nv = NIVEL[p.status]; return `<div class="${n < nv ? 'done' : n === nv ? (ST[p.status].tone === 'bad' ? 'bad' : 'cur') : ''}"><i></i></div>`; }).join('')}</div></div>${correcaoHTML(p, 'fx')}`).join('')}
       ${livres.length ? `<div class="rd-card"><h3>${ic('send')}Enviar à engenharia</h3><p class="rd-sub">${livres.length} venda(s) ainda não enviada(s).</p>
           ${pode ? `<button class="rd-btn pri" onclick="EV.envioModal('${client.id}')">${ic('send')}Enviar à engenharia</button>` : '<div class="rd-muted">Quem envia é o gestor da franquia.</div>'}</div>`
         : ps.length ? '' : `<div class="rd-card rd-empty"><div class="ic">${ic('ruler')}</div><b>Nada na engenharia</b>Registre a venda e anexe os documentos (aba Arquivos) para enviar o projeto.</div>`}
@@ -2061,7 +2130,7 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     franquia: (v) => { E.fr = v; pintar(); },
     view: (v) => { E.view = v; lsSet('eng_view', v); pintar(); },
     filtro: (k) => { E[k] = !E[k]; pintar(); },
-    anxArquivos, anxDrop, anxColar, anxExcluir,
+    anxArquivos, anxDrop, anxColar, anxExcluir, corrAnexar,
     docZip, docPasta, docBaixar, docProb, docReprovar, docPedir, docVer, docFechar: fecharVisor, docIr: visorIr,
     docProbLimpar: () => { E.prob = {}; pintarDrawer(); },
     trilho: (id) => { E.trilhoAberto[id] = true; pintar(); },
