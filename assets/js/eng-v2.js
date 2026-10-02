@@ -496,7 +496,7 @@
     return `${barra(true)}
       <div class="rd-grid rd-k5 rd-mb">
         <div class="rd-kpi hero"><div class="l">${ic('inbox')}Em validação</div><div class="v">${fila.length}</div><div class="h">Chegaram das franquias</div></div>
-        <div class="rd-kpi"><div class="l" style="color:#12704A">${ic('circle-check')}Auto aprovados</div><div class="v">${okc}</div><div class="h">Só falta conferir e aprovar</div></div>
+        <div class="rd-kpi"><div class="l" style="color:var(--eg-verde)">${ic('circle-check')}Auto aprovados</div><div class="v">${okc}</div><div class="h">Só falta conferir e aprovar</div></div>
         <div class="rd-kpi"><div class="l" style="color:var(--v2-red)">${ic('circle-alert')}Precisam de revisão</div><div class="v">${fila.length - okc}</div><div class="h">Equipamento, ficha ou cálculo</div></div>
         <div class="rd-kpi"><div class="l">${ic('alarm-clock')}Fora do prazo</div><div class="v">${atr.length}</div><div class="h">Prazo de cada status</div></div>
         <div class="rd-kpi"><div class="l">${ic('timer')}Envio → concluído</div><div class="v">${media == null ? '—' : media + ' dias'}</div><div class="h">${conc.length} concluído(s)</div></div>
@@ -825,7 +825,7 @@
     const pr = r.protecoes || {};
     const q = r.quedaInfo;
     const maxVoc = r.tipo === 'micro' ? r.vocCorrected : (r.maxSerie || 0) * r.vocCorrected;
-    return `<div class="rd-note eg-stat" style="${falhou.length ? 'background:rgba(209,67,67,.1);color:var(--v2-red)' : 'background:rgba(31,169,113,.12);color:#12704A'}">${ic(falhou.length ? 'circle-alert' : 'circle-check')}<span><b>${falhou.length ? 'Não passou' : 'Dimensionamento válido'}</b> · <span style="color:var(--v2-ink)">${falhou.length ? esc(falhou.map((k) => k.nome).join(', ')) : 'Todas as verificações dentro do limite' + (r.arranjo_personalizado ? ' (arranjo personalizado)' : '')}</span></span>
+    return `<div class="rd-note eg-stat" style="${falhou.length ? 'background:rgba(209,67,67,.1);color:var(--v2-red)' : 'background:rgba(31,169,113,.12);color:var(--eg-verde)'}">${ic(falhou.length ? 'circle-alert' : 'circle-check')}<span><b>${falhou.length ? 'Não passou' : 'Dimensionamento válido'}</b> · <span style="color:var(--v2-ink)">${falhou.length ? esc(falhou.map((k) => k.nome).join(', ')) : 'Todas as verificações dentro do limite' + (r.arranjo_personalizado ? ' (arranjo personalizado)' : '')}</span></span>
         ${proj ? `<button class="rd-btn sm pri" id="eg-c-salvar" style="margin-left:auto" ${falhou.length || c.sujo ? 'disabled title="Valide um dimensionamento que passe em tudo"' : ''} onclick="EV.cSalvar()">${ic('save')}Salvar no projeto ${pnum(proj)}</button>` : ''}</div>
       <div class="eg-pn"><h4>${ic('git-branch')}Arranjo${r.arranjo_personalizado ? ' <span class="rd-tag man">personalizado</span>' : ''}${r.tipo === 'string' && !c.editArranjo ? `<button class="eg-link" onclick="EV.cArranjoEditar(true)">${ic('settings-2')}Personalizar</button>` : ''}</h4>
         ${c.editArranjo ? arranjoEditor(r) : (r.tipo === 'micro' ? diagramaMicro(r) : diagramaString(r))}
@@ -839,12 +839,12 @@
           ${q ? `<div class="eg-pn"><h4>${ic('cable')}Cabos e queda de tensão CC</h4>
             <div class="eg-ln"><span>Comprimento (ida e volta)</span><b>${nf(q.dist * 2)} m</b></div><div class="eg-ln"><span>Bitola</span><b>${String(q.bitola).replace('.', ',')} mm² cobre</b></div>
             <div class="eg-ln"><span>Resistência</span><b>${nf(q.R, 3)} Ω</b></div><div class="eg-ln"><span>Corrente (Imp)</span><b>${nf(q.imp, 2)} A</b></div>
-            <div class="eg-ln"><span>Queda</span><b>${nf(q.dv, 2)} V</b></div><div class="eg-ln"><span>Queda %</span><b style="color:${q.pct <= 1 ? '#12704A' : q.pct <= LIMITE_QUEDA ? 'var(--v2-orange-text)' : 'var(--v2-red)'}">${nf(q.pct, 2)} % · ${q.pct <= 1 ? 'ideal' : q.pct <= LIMITE_QUEDA ? 'atenção' : 'crítico'}</b></div></div>` : ''}
+            <div class="eg-ln"><span>Queda</span><b>${nf(q.dv, 2)} V</b></div><div class="eg-ln"><span>Queda %</span><b style="color:${q.pct <= 1 ? 'var(--eg-verde)' : q.pct <= LIMITE_QUEDA ? 'var(--v2-orange-text)' : 'var(--v2-red)'}">${nf(q.pct, 2)} % · ${q.pct <= 1 ? 'ideal' : q.pct <= LIMITE_QUEDA ? 'atenção' : 'crítico'}</b></div></div>` : ''}
         </div>
         <div class="eg-pn"><h4>${ic('list-checks')}Verificações<span class="rd-muted" style="font-weight:600;font-size:11px">uso do limite</span></h4>
           ${r.checks.map((k) => { const u = usoLimite(k); const cor = !k.ok ? 'var(--v2-red)' : u > 90 ? 'var(--v2-orange)' : 'var(--v2-green)';
             return `<div class="eg-ck"><span class="ic ${k.ok ? 'ok' : 'bad'}">${ic(k.ok ? 'check' : 'x')}</span><div class="nm"><b>${esc(k.nome)}</b><small>${esc(k.calc)}</small></div>
-              <div class="v" style="color:${k.ok ? '#12704A' : 'var(--v2-red)'}">${k.valor === 'ok' ? 'compatível' : k.valor === 'não' ? 'incompatível' : esc(k.valor)}${k.valor === 'ok' || k.valor === 'não' ? '' : `<small>${esc(k.limite)}</small>`}</div>
+              <div class="v" style="color:${k.ok ? 'var(--eg-verde)' : 'var(--v2-red)'}">${k.valor === 'ok' ? 'compatível' : k.valor === 'não' ? 'incompatível' : esc(k.valor)}${k.valor === 'ok' || k.valor === 'não' ? '' : `<small>${esc(k.limite)}</small>`}</div>
               <div class="fb">${u == null ? '' : `<div class="bar"><i style="width:${Math.min(u, 100)}%;background:${cor}"></i></div><small>${nf(u)}%</small>`}</div></div>`; }).join('')}</div>
         <div>
           <div class="eg-pn"><h4>${ic('sun')}Geração mensal (kWh)</h4>
@@ -855,7 +855,7 @@
             <div class="eg-ln"><span>In · disjuntor CA<small>1º padrão ≥ Ib${pr.disjMax ? ` · fabricante até ${nf(pr.disjMax)} A` : ''}</small></span><b>${pr.disjuntor} A ${pr.polos} C</b></div>
             <div class="eg-ln"><span>Iz · capacidade do cabo<small>${nf(pr.izTab, 1)} A × FCT ${nf(pr.fct, 2)} (${nf(pr.tamb)} °C) × FCA ${nf(pr.fca, 2)}</small></span><b>${nf(pr.iz, 1)} A</b></div>
             <div class="eg-ln"><span>Cabo CA<small>método ${pr.metodo} · ${pr.carregados} carregados · PE ${String(pr.pe).replace('.', ',')} mm²</small></span><b>${String(pr.cabo).replace('.', ',')} mm²</b></div>
-            ${pr.queda ? `<div class="eg-ln"><span>Queda CA · ${nf(pr.queda.dist)} m<small>${pr.subiuPorQueda ? 'cabo aumentado pela queda' : 'limite ' + LIMITE_QUEDA_CA + ' % (NBR 5410)'}</small></span><b style="color:${pr.queda.pct <= LIMITE_QUEDA_CA ? '#12704A' : 'var(--v2-red)'}">${nf(pr.queda.pct, 2)} %</b></div>` : ''}
+            ${pr.queda ? `<div class="eg-ln"><span>Queda CA · ${nf(pr.queda.dist)} m<small>${pr.subiuPorQueda ? 'cabo aumentado pela queda' : 'limite ' + LIMITE_QUEDA_CA + ' % (NBR 5410)'}</small></span><b style="color:${pr.queda.pct <= LIMITE_QUEDA_CA ? 'var(--eg-verde)' : 'var(--v2-red)'}">${nf(pr.queda.pct, 2)} %</b></div>` : ''}
             <div class="eg-ln"><span>DPS classe II</span><b>CA${r.tipo === 'micro' ? '' : ` · CC ≥ ${nf(Math.ceil(maxVoc / 100) * 100)} V`}</b></div>
             ${r.tipo === 'micro' ? '' : `<div class="eg-ln"><span>Fusível de string</span><b>${(r.maxPar || 0) >= 3 ? 'necessário' : 'não precisa'}</b></div>`}</div>
         </div>
@@ -1287,9 +1287,9 @@
     if (!d) return `<div class="rd-card rd-empty"><div class="ic">${ic('loader-2')}</div><b>Dimensionamento ainda não calculado</b>${eng ? 'Calculando...' : 'A engenharia calcula quando abre o projeto.'}</div>`;
     const ok = p.dim_status === 'ok';
     const banner = ok
-      ? `<div class="rd-note" style="background:rgba(31,169,113,.12);color:#12704A">${ic('circle-check')}<span><b>${d.manual ? 'Dimensionamento ajustado pelo engenheiro' : 'Dimensionamento automático aprovado'}</b><br><span style="color:var(--v2-ink)">${d.manual ? 'Feito na calculadora e salvo no projeto.' : 'A plataforma leu o kit da venda, puxou as fichas técnicas e rodou o cálculo da calculadora. Todas as verificações passaram.'}${d.fichas_conferidas === false ? ' Atenção: alguma ficha técnica ainda não foi conferida.' : ''}</span></span></div>`
+      ? `<div class="rd-note" style="background:rgba(31,169,113,.12);color:var(--eg-verde)">${ic('circle-check')}<span><b>${d.manual ? 'Dimensionamento ajustado pelo engenheiro' : 'Dimensionamento automático aprovado'}</b><br><span style="color:var(--v2-ink)">${d.manual ? 'Feito na calculadora e salvo no projeto.' : 'A plataforma leu o kit da venda, puxou as fichas técnicas e rodou o cálculo da calculadora. Todas as verificações passaram.'}${d.fichas_conferidas === false ? ' Atenção: alguma ficha técnica ainda não foi conferida.' : ''}</span></span></div>`
       : `<div class="rd-note" style="background:rgba(209,67,67,.1);color:var(--v2-red)">${ic('circle-alert')}<span><b>Não deu para dimensionar sozinho</b><br><span style="color:var(--v2-ink)">${esc(p.dim_motivo || d.motivo || '')}</span></span></div>`;
-    const checks = (d.checks || []).map((c) => `<tr><td class="first"><b>${esc(c.nome)}</b><div class="rd-muted">${esc(c.calc)}</div></td><td data-l="Limite" class="r">${esc(c.limite)}</td><td data-l="Resultado" class="r" style="color:${c.ok ? '#12704A' : 'var(--v2-red)'};font-weight:800">${esc(c.valor === 'ok' ? '' : c.valor)} ${c.ok ? '✓' : '✗'}</td></tr>`).join('');
+    const checks = (d.checks || []).map((c) => `<tr><td class="first"><b>${esc(c.nome)}</b><div class="rd-muted">${esc(c.calc)}</div></td><td data-l="Limite" class="r">${esc(c.limite)}</td><td data-l="Resultado" class="r" style="color:${c.ok ? 'var(--eg-verde)' : 'var(--v2-red)'};font-weight:800">${esc(c.valor === 'ok' ? '' : c.valor)} ${c.ok ? '✓' : '✗'}</td></tr>`).join('');
     const pr = d.protecoes;
     return `${banner}
       <div class="rd-grid rd-two">
@@ -1942,14 +1942,14 @@
 .ttl{flex:1;text-align:center}.ttl h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.02em;text-transform:uppercase}.ttl p{margin:2px 0 0;color:var(--ink2);font-size:10px}
 .num{text-align:right}.num b{display:block;font-size:17px;font-weight:800;color:var(--blue)}.num span{display:block;color:var(--ink2);font-size:9.5px}
 .meta{display:flex;gap:8px;margin:9px 0 2px;flex-wrap:wrap}.tag{display:inline-flex;font-weight:700;font-size:9.5px;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--ink2);border:1px solid var(--line)}
-.tag.ok{background:rgba(31,169,113,.12);color:#12704A;border-color:rgba(31,169,113,.3)}.tag.bad{background:rgba(209,67,67,.1);color:#9B2C2C;border-color:rgba(209,67,67,.3)}
+.tag.ok{background:rgba(31,169,113,.12);color:var(--eg-verde);border-color:rgba(31,169,113,.3)}.tag.bad{background:rgba(209,67,67,.1);color:#9B2C2C;border-color:rgba(209,67,67,.3)}
 h2{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:13px 0 6px;display:flex;align-items:center;gap:8px}h2::after{content:"";flex:1;height:1px;background:var(--line)}
 h2 em{font-style:normal;background:var(--blue);color:#fff;border-radius:4px;padding:1px 6px;font-size:9px;letter-spacing:.04em}
 .gr{display:grid;gap:5px 14px}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1fr 1fr}
 .f span{display:block;font-size:8.5px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em}.f b{font-weight:700;font-size:10.5px}
 .box{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 table{width:100%;border-collapse:collapse}th{text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);font-weight:700;padding:5px 7px;border-bottom:1.5px solid var(--ink)}
-td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{text-align:right;white-space:nowrap;font-weight:700}.ok{color:#12704A;font-weight:800}.bad{color:#B42318;font-weight:800}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{text-align:right;white-space:nowrap;font-weight:700}.ok{color:var(--eg-verde);font-weight:800}.bad{color:#B42318;font-weight:800}
 .src{font-size:8.5px;color:var(--gray);font-weight:600;margin-top:3px}
 .mppt{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mp{border:1px dashed #9FB0BF;border-radius:8px;padding:7px 9px}.mp .t{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--gray);display:flex;justify-content:space-between}
 .mods{display:flex;gap:3px;margin:6px 0 5px;flex-wrap:wrap}.mods i{width:15px;height:22px;border-radius:2px;background:#0B7FC0}

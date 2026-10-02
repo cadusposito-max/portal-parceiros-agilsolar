@@ -44,14 +44,14 @@ html[data-ui="v2"] .rd { color: var(--v2-ink); font-size: 14px; }
 .rd-card { background: var(--v2-card); border-radius: var(--v2-r-panel); box-shadow: var(--v2-shadow); padding: 18px 20px; min-width: 0; }
 .rd-card h3 { margin: 0 0 2px; font-size: 16px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; color: var(--v2-ink); }
 .rd-card h3 svg.lucide { color: var(--v2-blue); }
-.rd-sub { color: var(--v2-ink-2); font-size: 13px; margin: 0 0 14px; }
+.rd-sub { color: var(--v2-ink-2); font-size: 13px; font-weight: 500; margin: 0 0 14px; }
 .rd-ch { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
 
 .rd-kpi { background: var(--v2-card); border-radius: var(--v2-r-card); box-shadow: var(--v2-shadow); padding: 16px 18px; min-width: 0; }
-.rd-kpi .l { font-size: 11px; font-weight: 700; color: var(--v2-gray); text-transform: uppercase; letter-spacing: .07em; display: flex; align-items: center; gap: 6px; }
+.rd-kpi .l { font-size: 11px; font-weight: 800; color: var(--v2-ink-2); text-transform: uppercase; letter-spacing: .07em; display: flex; align-items: center; gap: 6px; }
 .rd-kpi .l svg.lucide { width: 14px; height: 14px; }
 .rd-kpi .v { font-size: 24px; font-weight: 800; letter-spacing: -.02em; margin: 8px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rd-kpi .h { font-size: 12.5px; color: var(--v2-ink-2); line-height: 1.45; }
+.rd-kpi .h { font-size: 12.5px; font-weight: 600; color: var(--v2-ink-2); line-height: 1.45; }
 .rd-kpi.hero { background: var(--v2-blue); color: #fff; }
 .rd-kpi.hero .l, .rd-kpi.hero .h { color: #fff; font-weight: 600; }
 .rd-kpi.hero .rd-delta { background: rgba(255,255,255,.2); color: #fff; }
@@ -96,7 +96,7 @@ table.rd-t { width: 100%; border-collapse: separate; border-spacing: 0; }
 .rd-t tbody tr.click:hover td { background: var(--v2-soft); }
 .rd-t tfoot td { font-weight: 800; border-top: 2px solid var(--v2-line-strong); border-bottom: 0; padding-top: 14px; }
 .rd-name { font-weight: 700; }
-.rd-muted { font-size: 12px; color: var(--v2-ink-2); }
+.rd-muted { font-size: 12px; font-weight: 500; color: var(--v2-ink-2); }
 .rd-neg { color: var(--v2-red) !important; }
 .rd-pos { color: #12704A; }
 html[data-theme="dark"] .rd-pos { color: #7BE0B5; }
@@ -142,7 +142,7 @@ html[data-theme="dark"] .rd-pos { color: #7BE0B5; }
 .rd-cnpj .rz { font-weight: 800; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .rd-cnpj .num { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--v2-ink-2); margin-top: 2px; }
 .rd-kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
-.rd-kv .l { font-size: 10.5px; color: var(--v2-gray); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.rd-kv .l { font-size: 10.5px; color: var(--v2-ink-2); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .rd-kv .v { font-weight: 600; font-size: 13px; margin-top: 2px; word-break: break-word; }
 .rd-share { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 12px; color: var(--v2-ink-2); }
 .rd-share .rd-meter { flex: 1; }
@@ -177,7 +177,7 @@ html[data-theme="dark"] .rd-pos { color: #7BE0B5; }
 .rd-chart .gl { stroke: var(--v2-line); }
 .rd-chart .vl { fill: var(--v2-ink-2); font-size: 10.5px; font-weight: 700; }
 .rd-chart .vl.on { fill: var(--v2-blue-text); }
-.rd-tip { font-size: 12px; color: var(--v2-ink-2); display: flex; gap: 6px; align-items: flex-start; margin-top: 10px; line-height: 1.45; }
+.rd-tip { font-size: 12px; font-weight: 500; color: var(--v2-ink-2); display: flex; gap: 6px; align-items: flex-start; margin-top: 10px; line-height: 1.45; }
 .rd-tip svg.lucide { width: 15px; height: 15px; flex: none; margin-top: 1px; color: var(--v2-blue); }
 .rd-note { display: flex; gap: 10px; align-items: flex-start; background: var(--v2-blue-50); color: var(--v2-blue-text); padding: 12px 14px; border-radius: 16px; font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
 .rd-note svg.lucide { flex: none; margin-top: 1px; }
@@ -226,3 +226,7 @@ html[data-theme="dark"] .rd-pos { color: #7BE0B5; }
   .rd-modal { padding: 18px; }
   .rd-scrim { padding: 12px 8px; }
 }
+
+/* textos pequenos legíveis: cinza com mais contraste dentro dos ambientes Rede/Engenharia */
+.rd { --v2-gray: #676A6D; }
+html[data-theme="dark"] .rd { --v2-gray: #97A3AF; }
