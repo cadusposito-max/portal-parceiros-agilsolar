@@ -261,6 +261,7 @@ function pbEmbedSetup(client) {
   syncEquipInputsFromState();
   updatePBTabsUI();
   updatePBPersonalizadaRoleBadge();
+  if (typeof pbDimSetup === 'function') pbDimSetup(client); // porta Dimensionar × Escolher kit
   setPBProposalMode(PB_PROPOSAL_MODES.PROMOCIONAL); // atualiza modo + renderiza kits
 }
 
@@ -410,6 +411,7 @@ function updatePBModeUI() {
   if (emptyEl && hidePromo) emptyEl.classList.add('hidden');
 
   updatePBPersonalizadaRoleBadge();
+  if (typeof pbDimSync === 'function') pbDimSync();
   lucide.createIcons();
 }
 
@@ -902,7 +904,8 @@ function renderModalProducts() {
 
   if (!container || !emptyEl) return;
 
-  if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL) {
+  // Personalizada ou porta "Dimensionar" aberta: a lista de kits fica escondida.
+  if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL || state.pbPorta === 'dim') {
     container.classList.add('hidden');
     emptyEl.classList.add('hidden');
     return;

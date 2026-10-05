@@ -59,6 +59,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/rede.css?v=20261002-legivel" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261002-legivel2" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261005-dim2" data-ui-v2 media="not all">
   <!-- Tailwind PRÉ-COMPILADO (antes era o cdn.tailwindcss.com, que compilava CSS dentro do navegador e
        deixava a plataforma pesada em PC fraco). Fica depois dos outros CSS, na mesma posição em que o CDN
        injetava o <style>. Usou classe Tailwind nova? Regerar — comando no tailwind.config.js. -->
@@ -664,6 +665,19 @@
         </div>
         <p id="pb-mode-helper" class="text-[10px] text-neutral-500 font-medium">Promocional selecionado. Fluxo atual de kits prontos.</p>
       </div>
+
+      <!-- ===== PORTA: DIMENSIONAR × ESCOLHER KIT (só no PROMOCIONAL · pb-dimensionar.js) ===== -->
+      <div id="pb-porta" class="pbd-porta hidden">
+        <button type="button" data-pb-porta="dim" class="pbd-porta-btn">
+          <i data-lucide="calculator"></i>
+          <span><span class="pbd-porta-t block">Dimensionar sistema</span><span class="pbd-porta-s block">Calculo pelo consumo do cliente</span></span>
+        </button>
+        <button type="button" data-pb-porta="kit" class="pbd-porta-btn">
+          <i data-lucide="list"></i>
+          <span><span class="pbd-porta-t block">Escolher kit</span><span class="pbd-porta-s block">Já sei o kit (lista de sempre)</span></span>
+        </button>
+      </div>
+      <div id="pb-dim-panel" class="pbd hidden"></div>
 
       <!-- ===== TOOLBAR (só aparece no modo PROMOCIONAL) ===== -->
       <div id="pb-promocional-toolbar" class="p-3 md:p-4 bg-neutral-900/60 border-b border-neutral-800/60 flex flex-wrap gap-3">
@@ -1275,7 +1289,8 @@
   local('crm-metas.js',        '20260716-crm-loop');
   local('analise.js',          '20260918-tooltip-analise');
   local('produtos.js',         '20261001-eng');
-  local('proposta-builder.js', '20261001-eng');
+  local('pb-dimensionar.js',   '20261005-dim2');
+  local('proposta-builder.js', '20261005-dim');
   local('orcamento-dre.js',    '20260930-clara');
   local('vendas.js',           '20260930-venda');
   local('admin.js',            '20261001-eng');
