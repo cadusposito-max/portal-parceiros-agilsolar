@@ -1,75 +1,102 @@
 /* =====================================================================
-   Precificação interna por proposta — SÓ ADMIN
+   Precificação interna por proposta — admin e gestor da unidade
    ---------------------------------------------------------------------
-   - Mesmo modelo da planilha "CALCULADORA PRECIFICAÇÃO":
-       imposto   = (venda − kit) × imposto%
-       comissão  = venda × comissão%      royalties = venda × royalties%
-       lucro     = venda − (kit + custos diretos + imposto + comissão + royalties)
-       lucro líq = lucro − deduções       margem    = lucro líq / venda
-   - % vêm de fin_config (get_dre_percentuais); custos digitados pelo admin.
-   - Gravado no banco por proposta (proposta_precificacao). Tabela sem policy:
-     leitura/escrita só pelas RPCs *_proposta_precificacao, que exigem admin.
-   - Cenários antigos salvos em localStorage (versão anterior) são carregados
-     como rascunho até o admin salvar.
+   - Cada custo é uma linha em % (sobre a venda ou sobre venda − kit) ou em
+     R$ fixo. Os valores partem do CENTRO DE CUSTO da unidade dona da proposta
+     (Financeiro → Config, RPC get_centro_custo); royalties e fundo de
+     publicidade vêm do contrato (Rede) e só o admin mexe.
+       lucro     = receita − (kit + linhas + despesas extras)
+       lucro líq = lucro − deduções       margem = lucro líq / receita
+   - O que muda aqui vale só para esta proposta (proposta_precificacao,
+     overrides = { versao: 2, linhas, margem_alvo }). Linha diferente do
+     padrão da unidade ganha a etiqueta "ajustado".
+   - Precificações antigas (versão 1: custos em R$ + overrides em R$) abrem
+     com os mesmos números, convertidos para linhas em R$.
+   - Gestor só abre propostas da própria unidade (RPCs exigem). Aplicar o
+     preço na proposta continua só admin.
    - Autocontido: usa apenas utilitários globais: escapeHTML, formatCurrency,
      state, supabaseClient, lucide.
    ===================================================================== */
 (function () {
   'use strict';
 
-  // % padrão (espelham fin_config). Fallback quando a RPC não está disponível.
-  const PCT_FALLBACK = { imposto: 18, comissao: 10, royalties: 4.5, deducoes: 0, margem_min: 15, margem_alvo: 22 };
+  // Fallback quando o centro de custo não pode ser lido (espelha fin_config).
+  const PCT_FALLBACK = { imposto: 13.8, comissao: 6, royalties: 3.5, publicidade: 1, deducoes: 0, margem_min: 15, margem_alvo: 22 };
 
-  // Linhas de custo direto editáveis (ordem de exibição).
-  const CUSTO_LINES = [
-    { key: 'kit',        rotulo: 'Kit fotovoltaico' },
-    { key: 'projeto',    rotulo: 'Projeto c/ ART' },
-    { key: 'instalacao', rotulo: 'Instalação' },
-    { key: 'eletrica',   rotulo: 'Elétrica' },
-    { key: 'placas',     rotulo: 'Placas de advertência' },
-    { key: 'ajuda',      rotulo: 'Ajuda de custo instalação' },
-    { key: 'vistoria',   rotulo: 'Vistoria' },
-    { key: 'outros',     rotulo: 'Outros custos' },
+  // Linhas de custo, na ordem da demonstração. `contrato` = vem da Rede (só admin edita).
+  const LINHAS = [
+    { key: 'imposto',     rotulo: 'Impostos' },
+    { key: 'projeto',     rotulo: 'Projeto c/ ART' },
+    { key: 'instalacao',  rotulo: 'Instalação' },
+    { key: 'eletrica',    rotulo: 'Elétrica' },
+    { key: 'placas',      rotulo: 'Placas de advertência' },
+    { key: 'ajuda',       rotulo: 'Ajuda de custo instalação' },
+    { key: 'vistoria',    rotulo: 'Vistoria' },
+    { key: 'outros',      rotulo: 'Outros custos' },
+    { key: 'comissao',    rotulo: 'Comissão de venda' },
+    { key: 'royalties',   rotulo: 'Royalties', contrato: true },
+    { key: 'publicidade', rotulo: 'Fundo de publicidade', contrato: true },
   ];
+  const DEDUCOES = { key: 'deducoes', rotulo: 'Deduções' };
+  const TODAS = LINHAS.concat([DEDUCOES]);
+  const BASES = { v: 'Venda', vk: 'Venda − kit' };
+  const LEGADO_RS = ['projeto', 'instalacao', 'eletrica', 'placas', 'ajuda', 'vistoria', 'outros'];
 
-  let cur = null;       // { propostaId, receita, custos:{}, extras:[], pct:{} }
-  let _pctCache = null; // cache dos % (uma busca por sessão)
+  let cur = null; // { propostaId, receita, kit, extras:[], linhas:{}, padrao:{}, margem_min, margem_alvo, ... }
 
   const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
   const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
   const money = (v) => formatCurrency(Number(v) || 0);
+  const pctFmt = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
   const lsKey = (id) => 'orc_dre_' + id;
+  const podeContrato = () => !!(state && state.isAdmin);
+  const linha = (t, v, b) => ({ t: t === 'brl' ? 'brl' : 'pct', v: num(v), b: b === 'vk' ? 'vk' : 'v' });
+  const clone = (o) => JSON.parse(JSON.stringify(o));
 
-  // ---- Percentuais (backend com fallback) -----------------------------
-  // Só cai no fallback quando a chave não existe — 0% configurado continua 0%.
-  const pctOr = (v, fb) => (v === null || v === undefined || v === '' || isNaN(parseFloat(v))) ? fb : parseFloat(v);
+  // ---- Centro de custo da unidade (com fallback) ------------------------
+  function padraoFallback() {
+    const p = PCT_FALLBACK, out = {};
+    out.imposto = linha('pct', p.imposto, 'vk');
+    out.comissao = linha('pct', p.comissao, 'v');
+    out.royalties = linha('pct', p.royalties, 'v');
+    out.publicidade = linha('pct', p.publicidade, 'v');
+    out.deducoes = linha('pct', p.deducoes, 'v');
+    LEGADO_RS.forEach((k) => { out[k] = linha('brl', 0, 'v'); });
+    return { linhas: out, margem_min: p.margem_min, margem_alvo: p.margem_alvo, nome: null, fallback: true };
+  }
 
-  async function loadPct() {
-    if (_pctCache) return _pctCache;
-    let p = Object.assign({}, PCT_FALLBACK);
-    let ok = false;
+  async function loadCentroCusto(franquiaId) {
     try {
-      // supabaseClient é `const` global (config.js) — não vira window.supabaseClient.
-      // Antes o teste era window.supabaseClient, sempre falso: a tela nunca lia os %
-      // do Financeiro e ficava sempre nos padrões 18/10/4,5.
-      if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-        const { data, error } = await supabaseClient.rpc('get_dre_percentuais');
-        if (!error && data) {
-          ok = true;
-          p = {
-            imposto:     pctOr(data.imposto_pct,   PCT_FALLBACK.imposto),
-            comissao:    pctOr(data.comissao_pct,  PCT_FALLBACK.comissao),
-            royalties:   pctOr(data.royalties_pct, PCT_FALLBACK.royalties),
-            deducoes:    pctOr(data.deducoes_pct,  PCT_FALLBACK.deducoes),
-            margem_min:  pctOr(data.margem_min,    PCT_FALLBACK.margem_min),
-            margem_alvo: pctOr(data.margem_alvo,   PCT_FALLBACK.margem_alvo),
-          };
-        }
-      }
-    } catch (_) { /* fallback abaixo */ }
-    p._fallback = !ok;
-    if (ok) _pctCache = p; // não cacheia fallback: tenta de novo na próxima abertura
-    return p;
+      const { data, error } = await supabaseClient.rpc('get_centro_custo', { p_franquia_id: franquiaId || null });
+      if (error || !data) throw error || new Error('vazio');
+      const out = {};
+      TODAS.forEach((l) => {
+        const src = (l.contrato ? (data.contrato || {})[l.key] : (data.linhas || {})[l.key]) || null;
+        out[l.key] = src ? linha(src.t, src.v, src.b) : (l.contrato ? linha('pct', 0, 'v') : linha('brl', 0, 'v'));
+      });
+      return { linhas: out, margem_min: num(data.margem_min), margem_alvo: num(data.margem_alvo), nome: data.franquia_nome || null, fallback: false };
+    } catch (err) {
+      console.warn('[precificacao] centro de custo indisponível; usando padrões', err);
+      return padraoFallback();
+    }
+  }
+
+  // Precificação salva → linhas efetivas desta proposta.
+  // v2: overrides.linhas. v1 (antiga): custos/overrides em R$ — vira linha em R$
+  // com o mesmo valor, para o resultado salvo não mudar.
+  function linhasDoSalvo(saved, padrao) {
+    const linhas = clone(padrao);
+    if (!saved) return linhas;
+    const ov = saved.overrides || {};
+    if (ov.versao === 2 && ov.linhas && typeof ov.linhas === 'object') {
+      TODAS.forEach((l) => { const s = ov.linhas[l.key]; if (s) linhas[l.key] = linha(s.t, s.v, s.b); });
+      return linhas;
+    }
+    const custos = saved.custos || {};
+    LEGADO_RS.forEach((k) => { linhas[k] = linha('brl', num(custos[k]), 'v'); });
+    ['imposto', 'comissao', 'deducoes'].forEach((k) => { if (ov[k] != null) linhas[k] = linha('brl', ov[k], 'v'); });
+    if (ov.royalties != null) { linhas.royalties = linha('brl', ov.royalties, 'v'); linhas.publicidade = linha('brl', 0, 'v'); }
+    return linhas;
   }
 
   // ---- Persistência ---------------------------------------------------
@@ -102,10 +129,7 @@
   }
 
   function seedFromProposta(p) {
-    const receita = precoProposta(p);
-    const custos = {};
-    CUSTO_LINES.forEach((l) => { custos[l.key] = 0; });
-    return { receita: num(receita), custos, extras: [] };
+    return { receita: num(precoProposta(p)), kit: 0, extras: [] };
   }
 
   // Proposta personalizada com lista de itens: custo do kit sugerido a partir do
@@ -128,54 +152,55 @@
   }
 
   // ---- Cálculo --------------------------------------------------------
+  // Valor em R$ de uma linha. % incide sobre a venda (receita bruta, sem extras)
+  // ou sobre venda − kit (como o imposto da planilha).
+  function valorLinha(l, venda, kit) {
+    if (!l) return 0;
+    if (l.t === 'brl') return r2(l.v);
+    const base = l.b === 'vk' ? venda - kit : venda;
+    return r2(base * num(l.v) / 100);
+  }
+
   function compute() {
-    const pct = cur.pct;
-    const receitaBase = num(cur.receita);
+    const venda = num(cur.receita);
+    const kit = num(cur.kit);
     const extrasRec = cur.extras.filter((e) => e.tipo === 'receita').reduce((s, e) => s + num(e.valor), 0);
     const extrasDesp = cur.extras.filter((e) => e.tipo === 'despesa').reduce((s, e) => s + num(e.valor), 0);
-    const receita = receitaBase + extrasRec;
+    const receita = venda + extrasRec;
 
-    const kit = num(cur.custos.kit);
-    const diretos = CUSTO_LINES.reduce((s, l) => s + num(cur.custos[l.key]), 0);
+    const valores = {};
+    TODAS.forEach((l) => { valores[l.key] = valorLinha(cur.linhas[l.key], venda, kit); });
+    const somaLinhas = LINHAS.reduce((s, l) => s + valores[l.key], 0);
+    const deducoes = valores.deducoes;
 
-    // Valores sugeridos (% × base) e valores efetivos (override do gestor, se houver).
-    const ov = cur.overrides || {};
-    const impostoSug   = r2((receitaBase - kit) * pct.imposto / 100);
-    const comissaoSug  = r2(receitaBase * pct.comissao / 100);
-    const royaltiesSug = r2(receitaBase * pct.royalties / 100);
-    const deducoesSug  = r2(receitaBase * pct.deducoes / 100);
-    const imposto   = ov.imposto   != null ? r2(num(ov.imposto))   : impostoSug;
-    const comissao  = ov.comissao  != null ? r2(num(ov.comissao))  : comissaoSug;
-    const royalties = ov.royalties != null ? r2(num(ov.royalties)) : royaltiesSug;
-    const deducoes  = ov.deducoes  != null ? r2(num(ov.deducoes))  : deducoesSug;
-
-    const totalCustos = r2(diretos + imposto + comissao + royalties + extrasDesp);
+    const totalCustos = r2(kit + somaLinhas + extrasDesp);
     const lucro = r2(receita - totalCustos);
     const lucroLiq = r2(lucro - deducoes);
     const margem = receita > 0 ? r2(lucroLiq / receita * 100) : 0;
 
-    // Venda que atinge a margem-alvo. Linha automática entra como % da venda;
-    // linha digitada pelo gestor (override) é valor fixo — antes o alvo usava
-    // sempre os %, e com overrides o "Usar" levava a margem para longe do alvo.
-    // V·(1 − i − c − r − d − m) = diretos + extrasDesp + fixos − kit·i − extrasRec·(1 − m)
-    const auto = (k) => ov[k] == null;
-    const i = auto('imposto') ? pct.imposto / 100 : 0;
-    const c = auto('comissao') ? pct.comissao / 100 : 0;
-    const r = auto('royalties') ? pct.royalties / 100 : 0;
-    const dd = auto('deducoes') ? pct.deducoes / 100 : 0;
-    const m = pct.margem_alvo / 100;
-    const fixos = (auto('imposto') ? 0 : imposto) + (auto('comissao') ? 0 : comissao)
-      + (auto('royalties') ? 0 : royalties) + (auto('deducoes') ? 0 : deducoes);
-    const denom = 1 - i - c - r - dd - m;
+    // Venda que atinge a margem-alvo. Linha em % da venda entra como P, em % de
+    // (venda − kit) como Q, em R$ como fixo F:
+    // V·(1 − P − Q − m) = kit + F − Q·kit + extrasDesp − extrasRec·(1 − m)
+    let P = 0, Q = 0, F = 0;
+    TODAS.forEach((l) => {
+      const x = cur.linhas[l.key]; if (!x) return;
+      if (x.t === 'brl') F += num(x.v);
+      else if (x.b === 'vk') Q += num(x.v) / 100;
+      else P += num(x.v) / 100;
+    });
+    const m = num(cur.margem_alvo) / 100;
+    const denom = 1 - P - Q - m;
     const vendaAlvo = denom > 0
-      ? r2((diretos + extrasDesp + fixos - kit * i - extrasRec * (1 - m)) / denom)
+      ? r2((kit + F - Q * kit + extrasDesp - extrasRec * (1 - m)) / denom)
       : null;
 
-    return {
-      receita, imposto, comissao, royalties, deducoes,
-      impostoSug, comissaoSug, royaltiesSug, deducoesSug,
-      totalCustos, lucro, lucroLiq, margem, vendaAlvo,
-    };
+    return { receita, valores, deducoes, totalCustos, lucro, lucroLiq, margem, vendaAlvo };
+  }
+
+  function ajustado(key) {
+    const a = cur.linhas[key], p = cur.padrao[key];
+    if (!a || !p) return false;
+    return a.t !== p.t || r2(a.v) !== r2(p.v) || (a.t === 'pct' && a.b !== p.b);
   }
 
   // ---- Render ---------------------------------------------------------
@@ -195,17 +220,42 @@
       </div>`;
   }
 
-  // Linha de % sugerido, agora EDITÁVEL: input semeado com a sugestão; vazio = automático.
-  function pctRow(label, key, val, hint) {
-    return `<div class="orc-row px-5 py-2 lg:py-1.5 flex items-center gap-3">
-        <span class="orc-lbl font-bold text-neutral-300 text-sm flex-1">${escapeHTML(label)}${hint ? ` <span class="text-[10px] text-neutral-600 font-bold">${hint}</span>` : ''}</span>
-        <span class="text-[12px] font-black text-red-400 w-4 text-center">−</span>
-        <div class="relative w-36 orc-money">
-          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">R$</span>
-          <input type="number" step="0.01" data-orc-pct="${key}" value="${num(val)}"
+  // Linha de custo: [rótulo + ajustado] [% | R$] [valor] [sobre] [resultado].
+  // Royalties/fundo (contrato) ficam travados para quem não é admin.
+  function linhaRow(def) {
+    const l = cur.linhas[def.key];
+    const travada = def.contrato && !podeContrato();
+    const tag = `<span class="orc-adj" data-orc-adj="${def.key}" style="${ajustado(def.key) ? '' : 'display:none'}">ajustado<button type="button" data-orc-act="reset-linha" data-k="${def.key}" class="orc-adj-x" title="Voltar ao padrão da unidade"><i data-lucide="undo-2" class="w-3 h-3"></i></button></span>`;
+    const nome = `<span class="orc-lbl font-bold text-neutral-300 text-sm">${escapeHTML(def.rotulo)}${def.contrato ? ' <span class="text-[10px] text-neutral-600 font-bold">· contrato</span>' : ''}</span>`;
+    let ctrl;
+    if (travada) {
+      ctrl = `<span class="orc-lock"><i data-lucide="lock" class="w-3 h-3"></i>${l.t === 'pct' ? pctFmt(l.v) + '% · ' + BASES[l.b].toLowerCase() : money(l.v) + ' fixo'}</span>`;
+    } else {
+      const seg = `<span class="orc-seg"><button type="button" data-orc-tipo="pct" data-k="${def.key}" class="${l.t === 'pct' ? 'on' : ''}">%</button><button type="button" data-orc-tipo="brl" data-k="${def.key}" class="${l.t === 'brl' ? 'on' : ''}">R$</button></span>`;
+      const inp = `<div class="relative orc-money orc-money-sm">
+          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">${l.t === 'pct' ? '%' : 'R$'}</span>
+          <input type="number" min="0" step="${l.t === 'pct' ? '0.1' : '0.01'}" data-orc-linha="${def.key}" value="${num(l.v)}"
             class="w-full pl-7 pr-2 py-1.5 lg:py-1 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm">
-        </div>
+        </div>`;
+      const base = l.t === 'pct'
+        ? `<select data-orc-base="${def.key}" class="orc-base">${Object.entries(BASES).map(([k, n]) => `<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`
+        : `<span class="orc-base orc-base-fixo">Fixo</span>`;
+      ctrl = seg + inp + base;
+    }
+    return `<div class="orc-row orc-linha px-5 py-2 lg:py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5" data-orc-row="${def.key}">
+        <div class="flex-1 min-w-[150px] flex items-center flex-wrap gap-1.5">${nome}${tag}</div>
+        <div class="orc-ctrl flex items-center gap-2">${ctrl}</div>
+        <span class="orc-res text-red-400 font-black num text-sm w-28 text-right" data-orc-res="${def.key}">—</span>
       </div>`;
+  }
+
+  function renderLinhas() {
+    const host = document.getElementById('orc-linhas'); if (!host) return;
+    host.innerHTML = LINHAS.map(linhaRow).join('');
+    const ded = document.getElementById('orc-linha-ded');
+    if (ded) ded.innerHTML = linhaRow(DEDUCOES);
+    if (window.lucide) lucide.createIcons();
+    recalc();
   }
 
   function extraRowHtml(e, i) {
@@ -236,9 +286,8 @@
 
     const titulo = escapeHTML(p.kit_nome || 'Proposta personalizada');
     const cliente = escapeHTML(p.cliente_nome || '—');
-
-    // Valores efetivos iniciais (override do gestor, se houver; senão a sugestão %).
-    const d0 = compute();
+    const isAdmin = !!(state && state.isAdmin);
+    const unidade = cur.unidadeNome ? escapeHTML(cur.unidadeNome) : 'da unidade';
 
     const el = document.createElement('div');
     el.id = 'orc-dre-overlay';
@@ -250,7 +299,7 @@
       <div class="orc-box w-full max-w-3xl bg-[#0a0a0a] border border-neutral-800 shadow-2xl my-4 lg:my-0 lg:max-w-none lg:w-[min(96vw,calc(92vh*16/9))] lg:h-[min(92vh,calc(96vw*9/16))] lg:flex lg:flex-col">
         <div class="orc-head sticky top-0 lg:static bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 lg:py-3 flex items-start justify-between gap-3 z-10 lg:shrink-0">
           <div class="min-w-0">
-            <div class="orc-tag text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 flex items-center gap-1.5"><i data-lucide="lock" class="w-3 h-3"></i>Precificação interna · só admin</div>
+            <div class="orc-tag text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 flex items-center gap-1.5"><i data-lucide="lock" class="w-3 h-3"></i>Precificação interna · ${isAdmin ? 'admin' : 'gestão da unidade'}</div>
             <h3 class="orc-title text-lg font-black text-white mt-1 truncate">${titulo}</h3>
             <div class="orc-cli text-[11px] text-neutral-500 font-bold truncate">${cliente}</div>
             <div id="orc-salvo-info" class="text-[10px] font-bold mt-1 ${cur.origem === 'banco' ? 'text-neutral-500' : 'text-yellow-500'}">${
@@ -269,7 +318,10 @@
           <div class="orc-dre border border-neutral-800">
             <div class="orc-dre-h px-5 py-3 lg:py-2.5 border-b border-neutral-800 flex items-center justify-between lg:sticky lg:top-0 lg:bg-[#0a0a0a] lg:z-10">
               <span class="orc-dre-t text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Demonstração do resultado</span>
-              <span class="orc-dre-s text-[9px] font-bold text-neutral-600 uppercase tracking-widest">Valores editáveis</span>
+              <span class="flex items-center gap-2">
+                <span class="orc-dre-s text-[9px] font-bold text-neutral-600 uppercase tracking-widest">Custos ${cur.unidadeNome ? 'de ' + unidade : 'da unidade'}</span>
+                <button type="button" data-orc-act="reset-todas" class="orc-link text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:text-white inline-flex items-center gap-1"><i data-lucide="undo-2" class="w-3 h-3"></i>Voltar ao padrão</button>
+              </span>
             </div>
             <div class="divide-y divide-neutral-800/70">
               <!-- Receita (editável) -->
@@ -278,11 +330,8 @@
                 <span class="text-[12px] font-black text-emerald-400 w-4 text-center">+</span>
                 ${inputMoney('__receita__', cur.receita)}
               </div>
-              ${editRow('Kit fotovoltaico', 'kit', cur.custos.kit)}
-              ${pctRow('Imposto', 'imposto', d0.imposto, `· ${cur.pct.imposto}% (venda − kit)`)}
-              ${CUSTO_LINES.slice(1).map((l) => editRow(l.rotulo, l.key, cur.custos[l.key])).join('')}
-              ${pctRow('Comissão', 'comissao', d0.comissao, `· ${cur.pct.comissao}%`)}
-              ${pctRow('Royalties e fundo', 'royalties', d0.royalties, `· ${cur.pct.royalties}%`)}
+              ${editRow('Kit fotovoltaico', 'kit', cur.kit)}
+              <div id="orc-linhas" class="divide-y divide-neutral-800/70"></div>
 
               <!-- Linhas extras -->
               <div class="orc-extras px-5 py-3 lg:py-2 bg-neutral-950/40">
@@ -293,7 +342,7 @@
                 <div id="orc-dre-extras" class="space-y-2"></div>
               </div>
 
-              ${pctRow('Deduções', 'deducoes', d0.deducoes, cur.pct.deducoes ? `· ${cur.pct.deducoes}%` : '')}
+              <div id="orc-linha-ded"></div>
 
               <div class="orc-row tot px-5 py-3 lg:py-2 flex items-center gap-3 border-t border-neutral-800">
                 <span class="orc-lbl font-black text-white text-sm flex-1">Total de custos</span>
@@ -335,7 +384,9 @@
 
             <!-- Preço para a margem-alvo -->
             <div class="orc-alvo order-3 lg:order-none border border-neutral-800 px-5 py-3 flex flex-wrap items-center gap-3 bg-neutral-950/40">
-              <span class="text-[11px] font-bold text-neutral-400 flex-1 min-w-[180px]">Venda para margem-alvo de <b class="text-white">${num(cur.pct.margem_alvo).toLocaleString('pt-BR')}%</b></span>
+              <span class="text-[11px] font-bold text-neutral-400 flex-1 min-w-[180px]">Venda para margem-alvo de
+                <span class="relative inline-block w-20 orc-money orc-money-sm align-middle"><input type="number" min="0" max="99" step="0.5" data-orc-alvo value="${num(cur.margem_alvo)}"
+                  class="w-full pl-2 pr-6 py-1 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">%</span></span></span>
               <span id="orc-venda-alvo" class="font-black num text-sm text-white">—</span>
               <button type="button" data-orc-act="usar-alvo" class="orc-usar px-3 py-1.5 bg-neutral-900 border border-neutral-800 hover:border-emerald-500/60 text-emerald-400 text-[10px] font-black uppercase tracking-widest">Usar</button>
             </div>
@@ -348,12 +399,12 @@
 
             <!-- Ações -->
             <div class="order-4 lg:order-none flex flex-wrap lg:flex-col lg:items-stretch items-center gap-2">
-              <button type="button" data-orc-act="aplicar" id="orc-aplicar" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="badge-dollar-sign" class="w-4 h-4"></i><span id="orc-aplicar-tx">Aplicar na proposta</span></button>
+              <button type="button" data-orc-act="aplicar" id="orc-aplicar" style="${isAdmin ? '' : 'display:none'}" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="badge-dollar-sign" class="w-4 h-4"></i><span id="orc-aplicar-tx">Aplicar na proposta</span></button>
               <button type="button" data-orc-act="save" class="orc-btn pri px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Salvar</button>
               <button type="button" data-orc-act="reset" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-red-500/60 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i>Apagar e recomeçar</button>
               <button type="button" data-orc-act="close" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest ml-auto lg:ml-0">Fechar</button>
             </div>
-            <p class="orc-nota order-5 lg:order-none lg:mt-auto text-[10px] text-neutral-600 font-bold leading-relaxed">Visível somente para administradores. Impostos, comissão, royalties e deduções vêm dos percentuais do Financeiro (Configurações) e podem ser ajustados nesta proposta — apague o valor do campo para voltar ao automático.${cur.pct._fallback ? ' <span class="orc-aviso text-yellow-500">Percentuais do Financeiro indisponíveis agora; usando os padrões 18% / 10% / 4,5%.</span>' : ''}</p>
+            <p class="orc-nota order-5 lg:order-none lg:mt-auto text-[10px] text-neutral-600 font-bold leading-relaxed">Visível só para admin e para o gestor da unidade. Os custos partem do centro de custo da unidade (Financeiro → Config); royalties e fundo vêm do contrato. Ajustes aqui valem só para esta proposta — linha com "ajustado" saiu do padrão.${isAdmin ? '' : ' Para mudar o preço da proposta, fale com o admin.'}${cur.centroFallback ? ' <span class="orc-aviso text-yellow-500">Centro de custo indisponível agora; usando os percentuais padrão do Financeiro.</span>' : ''}</p>
           </div>
         </div>
       </div>`;
@@ -361,22 +412,20 @@
     document.body.appendChild(el);
     wireEvents(el);
     renderExtras();
-    recalc();
+    renderLinhas();
     if (window.lucide) lucide.createIcons();
   }
 
-  // Atualiza só os totais/auto/KPIs (não re-renderiza inputs → preserva foco).
+  // Atualiza só resultados/totais/KPIs (não re-renderiza inputs → preserva foco).
   function recalc() {
     const d = compute();
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
-    // Linhas %: em modo automático (override null), o input acompanha a sugestão.
-    // Não sobrescreve enquanto o campo está em foco (gestor digitando).
-    const sug = { imposto: d.impostoSug, comissao: d.comissaoSug, royalties: d.royaltiesSug, deducoes: d.deducoesSug };
-    Object.keys(sug).forEach((key) => {
-      if (cur.overrides[key] != null) return;
-      const inp = document.querySelector(`[data-orc-pct="${key}"]`);
-      if (inp && document.activeElement !== inp) inp.value = num(sug[key]);
+    TODAS.forEach((l) => {
+      const res = document.querySelector(`[data-orc-res="${l.key}"]`);
+      if (res) res.textContent = '− ' + money(d.valores[l.key]);
+      const tag = document.querySelector(`[data-orc-adj="${l.key}"]`);
+      if (tag) tag.style.display = ajustado(l.key) ? '' : 'none';
     });
 
     set('orc-tot-custos', '− ' + money(d.totalCustos));
@@ -386,7 +435,7 @@
     set('orc-k-custos', money(d.totalCustos));
     set('orc-k-lucro', money(d.lucroLiq));
 
-    const baixa = d.margem < (cur.pct.margem_min || 0);
+    const baixa = d.margem < (cur.margem_min || 0);
     const mEl = document.getElementById('orc-k-margem');
     if (mEl) {
       mEl.textContent = (Number(d.margem) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
@@ -398,7 +447,7 @@
 
     // "Aplicar" só aparece quando a venda da calculadora difere do preço da proposta
     const aplicar = document.getElementById('orc-aplicar');
-    if (aplicar && cur._proposta) {
+    if (aplicar && cur._proposta && state && state.isAdmin) {
       const igual = r2(cur.receita) === r2(precoProposta(cur._proposta)) || !(r2(cur.receita) > 0);
       aplicar.style.display = igual ? 'none' : '';
       set('orc-aplicar-tx', `Aplicar ${money(r2(cur.receita))} na proposta`);
@@ -450,6 +499,20 @@
     recalc();
   }
 
+  // Troca % ↔ R$ convertendo o valor (o resultado da linha não muda na troca).
+  function trocarTipo(key, tipo) {
+    const l = cur.linhas[key]; if (!l || l.t === tipo) return;
+    const venda = num(cur.receita), kit = num(cur.kit);
+    const atual = valorLinha(l, venda, kit);
+    if (tipo === 'brl') { l.t = 'brl'; l.v = r2(atual); }
+    else {
+      l.t = 'pct';
+      const base = l.b === 'vk' ? venda - kit : venda;
+      l.v = base > 0 ? r2(atual / base * 100) : 0;
+    }
+    renderLinhas();
+  }
+
   function wireEvents(root) {
     // Inputs de custo / receita (recalcula ao vivo)
     root.addEventListener('input', (ev) => {
@@ -457,12 +520,13 @@
       if (t.matches('[data-orc-cost]')) {
         const key = t.getAttribute('data-orc-cost');
         if (key === '__receita__') cur.receita = num(t.value);
-        else cur.custos[key] = num(t.value);
+        else if (key === 'kit') cur.kit = num(t.value);
         recalc();
-      } else if (t.matches('[data-orc-pct]')) {
-        const key = t.getAttribute('data-orc-pct');
-        // Campo vazio volta ao automático (segue o % da empresa); valor digitado vira override.
-        cur.overrides[key] = (t.value === '') ? null : num(t.value);
+      } else if (t.matches('[data-orc-linha]')) {
+        const l = cur.linhas[t.getAttribute('data-orc-linha')];
+        if (l) { l.v = Math.max(0, num(t.value)); recalc(); }
+      } else if (t.matches('[data-orc-alvo]')) {
+        cur.margem_alvo = Math.min(99, Math.max(0, num(t.value)));
         recalc();
       } else if (t.matches('[data-orc-ex-field]')) {
         const wrap = t.closest('[data-orc-extra]'); if (!wrap) return;
@@ -474,7 +538,10 @@
     // Selects de tipo das linhas extras
     root.addEventListener('change', (ev) => {
       const t = ev.target;
-      if (t.matches('[data-orc-ex-field="tipo"]')) {
+      if (t.matches('[data-orc-base]')) {
+        const l = cur.linhas[t.getAttribute('data-orc-base')];
+        if (l) { l.b = t.value === 'vk' ? 'vk' : 'v'; recalc(); }
+      } else if (t.matches('[data-orc-ex-field="tipo"]')) {
         const wrap = t.closest('[data-orc-extra]'); if (!wrap) return;
         const i = parseInt(wrap.getAttribute('data-orc-extra'), 10);
         if (cur.extras[i]) { cur.extras[i].tipo = t.value; recalc(); }
@@ -482,9 +549,22 @@
     });
     // Botões
     root.addEventListener('click', (ev) => {
+      const tipoBtn = ev.target.closest('[data-orc-tipo]');
+      if (tipoBtn) { trocarTipo(tipoBtn.getAttribute('data-k'), tipoBtn.getAttribute('data-orc-tipo')); return; }
       const btn = ev.target.closest('[data-orc-act]'); if (!btn) return;
       const act = btn.getAttribute('data-orc-act');
       if (act === 'close') { closeOverlay(); }
+      else if (act === 'reset-linha') {
+        const k = btn.getAttribute('data-k');
+        const def = TODAS.find((l) => l.key === k);
+        if (def && (!def.contrato || podeContrato()) && cur.padrao[k]) { cur.linhas[k] = clone(cur.padrao[k]); renderLinhas(); }
+      }
+      else if (act === 'reset-todas') {
+        TODAS.forEach((l) => { if ((!l.contrato || podeContrato()) && cur.padrao[l.key]) cur.linhas[l.key] = clone(cur.padrao[l.key]); });
+        cur.margem_alvo = cur.margem_alvo_padrao;
+        const a = document.querySelector('[data-orc-alvo]'); if (a) a.value = num(cur.margem_alvo);
+        renderLinhas();
+      }
       else if (act === 'save') { saveScenario(); }
       else if (act === 'aplicar') { aplicarNaProposta(); }
       else if (act === 'reset') { resetScenario(); }
@@ -520,9 +600,9 @@
       const { error } = await supabaseClient.rpc('save_proposta_precificacao', {
         p_proposta_id:   alvo.propostaId,
         p_receita:       r2(alvo.receita),
-        p_custos:        alvo.custos,
+        p_custos:        { kit: r2(alvo.kit) },
         p_extras:        alvo.extras.map((e) => ({ tipo: e.tipo === 'receita' ? 'receita' : 'despesa', rotulo: String(e.rotulo || ''), valor: r2(e.valor) })),
-        p_overrides:     alvo.overrides,
+        p_overrides:     { versao: 2, linhas: clone(alvo.linhas), margem_alvo: num(alvo.margem_alvo) },
         p_total_custos:  d.totalCustos,
         p_lucro_liquido: d.lucroLiq,
         p_margem_pct:    d.margem,
@@ -562,9 +642,10 @@
     delete _resumoCache[alvo.propostaId];
     preencherSelosPrecificacao(true);
     const seed = seedFromProposta(alvo._proposta);
-    if (alvo.sugestaoKit) seed.custos.kit = alvo.sugestaoKit.valor;
-    alvo.receita = seed.receita; alvo.custos = seed.custos; alvo.extras = seed.extras;
-    alvo.overrides = { imposto: null, comissao: null, royalties: null, deducoes: null };
+    if (alvo.sugestaoKit) seed.kit = alvo.sugestaoKit.valor;
+    alvo.receita = seed.receita; alvo.kit = seed.kit; alvo.extras = seed.extras;
+    alvo.linhas = clone(alvo.padrao);
+    alvo.margem_alvo = alvo.margem_alvo_padrao;
     alvo.origem = 'novo'; alvo.saved = null;
     if (cur !== alvo) return;
     buildOverlay(alvo._proposta);
@@ -588,7 +669,7 @@
         return;
       }
     }
-    const min = (_pctCache && _pctCache.margem_min != null) ? _pctCache.margem_min : PCT_FALLBACK.margem_min;
+    const min = PCT_FALLBACK.margem_min;
     els.forEach((el) => {
       const r = _resumoCache[el.getAttribute('data-prec-selo')];
       if (!r || r.margem_pct == null) { el.innerHTML = ''; return; }
@@ -605,7 +686,7 @@
 
   // ---- API pública ----------------------------------------------------
   async function openOrcamentoDre(propostaId) {
-    if (!(state && state.isAdmin)) return;
+    if (!(state && (state.isAdmin || state.isGestor))) return;
     const p = (state.propostas || []).find((x) => String(x.id) === String(propostaId));
     if (!p) { toastSafe('Proposta não encontrada'); return; }
 
@@ -617,25 +698,31 @@
       toastSafe('Não foi possível carregar a precificação');
       return;
     }
-    const pct = await loadPct();
+    const centro = await loadCentroCusto(p.franquia_id);
     const legacy = dbSaved ? null : loadLocalLegacy(propostaId);
     const saved = dbSaved || legacy;
     const seed = seedFromProposta(p);
     // Calculada sempre (também serve para "Apagar e recomeçar"); só preenche se não há nada salvo.
     let sugestaoKit = null;
     try { sugestaoKit = await sugerirCustoKit(p); } catch (_) { sugestaoKit = null; }
-    if (sugestaoKit && !saved) seed.custos.kit = sugestaoKit.valor;
+    if (sugestaoKit && !saved) seed.kit = sugestaoKit.valor;
+    const ov = (saved && saved.overrides) || {};
     cur = {
       sugestaoKit: sugestaoKit,
       propostaId: propostaId,
       _proposta: p,
-      pct: pct,
+      padrao: centro.linhas,
+      unidadeNome: centro.nome,
+      centroFallback: centro.fallback,
+      margem_min: centro.margem_min,
+      margem_alvo_padrao: centro.margem_alvo,
+      margem_alvo: ov.versao === 2 && ov.margem_alvo != null ? num(ov.margem_alvo) : centro.margem_alvo,
       origem: dbSaved ? 'banco' : (legacy ? 'local' : 'novo'),
       saved: dbSaved,
       receita: saved && saved.receita != null ? num(saved.receita) : seed.receita,
-      custos: Object.assign({}, seed.custos, (saved && saved.custos) || {}),
+      kit: saved && saved.custos && saved.custos.kit != null ? num(saved.custos.kit) : seed.kit,
       extras: Array.isArray(saved && saved.extras) ? saved.extras : [],
-      overrides: Object.assign({ imposto: null, comissao: null, royalties: null, deducoes: null }, (saved && saved.overrides) || {}),
+      linhas: linhasDoSalvo(saved, centro.linhas),
     };
     buildOverlay(p);
   }

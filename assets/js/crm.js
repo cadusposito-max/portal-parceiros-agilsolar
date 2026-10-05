@@ -664,7 +664,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
           ${state.isAdmin ? `<span data-prec-selo="${p.id}"></span>` : ''}
           <span class="text-green-400 font-black text-sm">${formatCurrency(preco || 0)}</span>
           <div class="flex items-center gap-1.5">
-            ${state.isAdmin ? `<button onclick="openOrcamentoDre('${p.id}')" title="Precificação interna (só admin)" class="btn btn-secondary btn-icon"><i data-lucide="calculator"></i></button>` : ''}
+            ${(state.isAdmin || state.isGestor) ? `<button onclick="openOrcamentoDre('${p.id}')" title="Precificação interna (admin e gestor)" class="btn btn-secondary btn-icon"><i data-lucide="calculator"></i></button>` : ''}
             <button onclick="copiarLinkExistente('${p.id}', this); marcarPropostaEnviada('${p.id}')" title="Copiar link (marca como enviada)" class="btn btn-secondary btn-icon"><i data-lucide="copy"></i></button>
             <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
             <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-icon"><i data-lucide="file-down"></i></a>

@@ -2531,6 +2531,7 @@
         <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">Configurações</h1>
         <p class="text-neutral-500 text-sm font-medium mt-1">Parâmetros do módulo e acesso por usuário (admin).</p>
       </div>
+      <div id="fin-cc" class="metric-card p-5 mb-3"></div>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div class="metric-card p-5">
           <div class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300 mb-4">Parâmetros</div>
@@ -2549,8 +2550,102 @@
     royalties_pct:'Royalties e fundo (%) · sobre venda', deducoes_pct:'Deduções (%) · sobre venda',
     margem_alvo:'Margem-alvo (%)', margem_min:'Margem mínima (%)', dias_alerta:'Dias p/ alerta',
   };
+  /* ---- Centro de custo da unidade (fin_centro_custo via get/set_centro_custo) ----
+     Admin escolhe a unidade; gestor edita só a própria. Cada linha em % (sobre a
+     venda ou venda − kit) ou R$ fixo por venda. Royalties/fundo vêm do contrato
+     (Rede, só admin) e aparecem travados. A calculadora da proposta parte daqui. */
+  const FIN_CC_LINHAS = [
+    ['imposto', 'Impostos do CNPJ'], ['comissao', 'Comissão de venda'],
+    ['projeto', 'Projeto c/ ART'], ['instalacao', 'Instalação'], ['eletrica', 'Elétrica'],
+    ['placas', 'Placas de advertência'], ['ajuda', 'Ajuda de custo instalação'], ['vistoria', 'Vistoria'],
+    ['outros', 'Outros custos'], ['deducoes', 'Deduções'],
+  ];
+  const FIN_CC_BASES = { v: 'Venda', vk: 'Venda − kit' };
+  let finCc = null; // { fid, data, linhas:{}, mmin, malvo }
+  const finCcInput = 'fin-acc-focus px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 text-white num font-black text-right text-sm';
+
+  async function renderCentroCusto(fid) {
+    const host = document.getElementById('fin-cc'); if (!host) return;
+    if (!(state.isAdmin || state.isGestor)) { host.remove(); return; }
+    const alvo = state.isAdmin ? (fid || (finCc && finCc.fid) || state.franquiaId) : state.franquiaId;
+    if (!alvo) { host.innerHTML = '<div class="text-[11px] text-neutral-500 font-bold">Seu usuário não está ligado a uma unidade.</div>'; return; }
+    let data;
+    try { data = await finRpc('get_centro_custo', { p_franquia_id: alvo }); } catch (_) { host.innerHTML = '<div class="text-[11px] text-neutral-500 font-bold">Centro de custo indisponível.</div>'; return; }
+    const linhas = {};
+    FIN_CC_LINHAS.forEach(([k]) => { const l = (data.linhas || {})[k] || { t:'brl', v:0, b:'v' }; linhas[k] = { t: l.t === 'brl' ? 'brl' : 'pct', v: Number(l.v) || 0, b: l.b === 'vk' ? 'vk' : 'v' }; });
+    finCc = { fid: alvo, data, linhas, mmin: Number(data.margem_min) || 0, malvo: Number(data.margem_alvo) || 0 };
+    finCcPintar();
+  }
+
+  function finCcPintar() {
+    const host = document.getElementById('fin-cc'); if (!host || !finCc) return;
+    const d = finCc.data;
+    const unidades = (state.franquiasCatalog || []).filter(f => f.ativo !== false);
+    const seletor = state.isAdmin
+      ? `<select onchange="finCcUnidade(this.value)" class="fin-acc-focus px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 text-white text-sm font-bold">${unidades.map(f => `<option value="${f.id}"${f.id === finCc.fid ? ' selected' : ''}>${escapeHTML(f.nome)}</option>`).join('')}</select>`
+      : `<span class="px-3 py-1.5 fin-acc-chip border border-[color:var(--fin-border-30)] text-[10px] font-black uppercase tracking-widest">${escapeHTML(d.franquia_nome || 'Sua unidade')}</span>`;
+    const salvoEm = d.salvo && d.updated_at
+      ? `Salvo em ${new Date(d.updated_at).toLocaleDateString('pt-BR')}${d.updated_by_nome ? ' por ' + escapeHTML(d.updated_by_nome) : ''}`
+      : 'Ainda não salvo · usando os percentuais padrão do Financeiro';
+    const row = (k, nome) => {
+      const l = finCc.linhas[k];
+      const seg = ['pct', 'brl'].map(t => `<button type="button" onclick="finCcTipo('${k}','${t}')" class="px-2.5 py-1 text-[11px] font-black ${l.t === t ? 'fin-acc-chip' : 'text-neutral-500'}">${t === 'pct' ? '%' : 'R$'}</button>`).join('');
+      const base = l.t === 'pct'
+        ? `<select onchange="finCcBase('${k}', this.value)" class="fin-acc-focus px-2 py-1.5 bg-neutral-950 border border-neutral-800 text-white text-[12px] font-bold w-32">${Object.entries(FIN_CC_BASES).map(([b, n]) => `<option value="${b}"${b === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`
+        : `<span class="w-32 text-[11px] text-neutral-500 font-bold">Fixo por venda</span>`;
+      return `<div class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 border-t border-neutral-800/70">
+          <span class="text-[12px] font-bold text-neutral-300 flex-1 min-w-[160px]">${nome}</span>
+          <span class="inline-flex border border-neutral-800">${seg}</span>
+          <input type="number" min="0" step="${l.t === 'pct' ? '0.1' : '0.01'}" value="${l.v}" oninput="finCcValor('${k}', this.value)" class="${finCcInput} w-28">
+          ${base}
+        </div>`;
+    };
+    const contrato = (rot, l) => `<div class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 border-t border-neutral-800/70">
+        <span class="text-[12px] font-bold text-neutral-300 flex-1 min-w-[160px]">${rot} <span class="text-[10px] text-neutral-600">· contrato</span></span>
+        <span class="inline-flex items-center gap-1.5 text-[12px] text-neutral-500 font-bold"><i data-lucide="lock" class="w-3 h-3"></i>${(Number(l && l.v) || 0).toLocaleString('pt-BR')}% sobre a venda${state.isAdmin ? ' · editar em Rede → Unidades' : ''}</span>
+      </div>`;
+    host.innerHTML = `
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div>
+          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Centro de custo da unidade</div>
+          <div class="text-[11px] text-neutral-500 font-medium mt-1">Vale para a precificação de todas as propostas da unidade. Em cada proposta dá para ajustar só aquela.</div>
+          <div class="text-[10px] text-neutral-600 font-bold mt-1">${salvoEm}</div>
+        </div>
+        ${seletor}
+      </div>
+      ${FIN_CC_LINHAS.map(([k, n]) => row(k, n)).join('')}
+      ${contrato('Royalties', (d.contrato || {}).royalties)}
+      ${contrato('Fundo de publicidade', (d.contrato || {}).publicidade)}
+      <div class="flex flex-wrap items-end gap-3 pt-3 border-t border-neutral-800/70">
+        <label class="text-[11px] font-bold text-neutral-400">Margem mínima (%)<input type="number" min="0" max="100" step="0.5" value="${finCc.mmin}" oninput="finCcMargem('mmin', this.value)" class="${finCcInput} w-24 block mt-1"></label>
+        <label class="text-[11px] font-bold text-neutral-400">Margem alvo (%)<input type="number" min="0" max="100" step="0.5" value="${finCc.malvo}" oninput="finCcMargem('malvo', this.value)" class="${finCcInput} w-24 block mt-1"></label>
+        <button type="button" onclick="finCcSalvar()" class="ml-auto px-4 py-2 fin-acc-chip border border-[color:var(--fin-border-30)] text-[10px] font-black uppercase tracking-widest">Salvar centro de custo</button>
+      </div>`;
+    finIcons();
+  }
+  function finCcUnidade(fid) { if (state.isAdmin) renderCentroCusto(fid); }
+  function finCcTipo(k, t) {
+    const l = finCc && finCc.linhas[k]; if (!l || l.t === t) return;
+    l.t = t; l.v = 0; // base de cálculo é a venda de cada proposta: aqui não há como converter
+    finCcPintar();
+  }
+  function finCcBase(k, b) { const l = finCc && finCc.linhas[k]; if (l) l.b = b === 'vk' ? 'vk' : 'v'; }
+  function finCcValor(k, v) { const l = finCc && finCc.linhas[k]; if (l) l.v = Math.max(0, parseFloat(v) || 0); }
+  function finCcMargem(campo, v) { if (finCc) finCc[campo] = parseFloat(v) || 0; }
+  async function finCcSalvar() {
+    if (!finCc) return;
+    const ruim = FIN_CC_LINHAS.find(([k]) => finCc.linhas[k].t === 'pct' && finCc.linhas[k].v > 100);
+    if (ruim) { finToast(`${ruim[1]}: percentual acima de 100`, 'warn'); return; }
+    if (finCc.mmin > 100 || finCc.malvo > 100) { finToast('Margem deve ficar entre 0 e 100', 'warn'); return; }
+    let data;
+    try { data = await finRpc('set_centro_custo', { p_franquia_id: finCc.fid, p_linhas: finCc.linhas, p_margem_min: finCc.mmin, p_margem_alvo: finCc.malvo }); } catch (_) { return; }
+    finCc.data = data; finCcPintar();
+    finToast('Centro de custo salvo', 'ok');
+  }
+
   async function renderFinConfig() {
     const isAdmin = !!state.isAdmin;
+    renderCentroCusto();
     let cfg = {};
     try { cfg = await finRpc('get_fin_config') || {}; } catch (_) {}
     const host = document.getElementById('fin-cfg-list');
@@ -2805,6 +2900,7 @@
     finExportRelatorio,
     // config
     finSalvarConfig, finToggleFinEnabled,
+    finCcUnidade, finCcTipo, finCcBase, finCcValor, finCcMargem, finCcSalvar,
   });
 
 })();
