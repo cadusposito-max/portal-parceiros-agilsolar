@@ -12,10 +12,11 @@ const BANCOS_FINANCIAMENTO = [
   { nome: 'Losango',   url: 'https://www.losango.com.br',                                     cor: 'from-purple-700 to-purple-600', taxa: 'Consulte condicoes',     prazo: 'Ate 72 meses', icon: 'LO' }
 ];
 
+// O modo EQUIPAMENTOS foi desativado (o banco recusa criar); as propostas
+// antigas desse modo continuam abrindo como personalizada.
 const PB_PROPOSAL_MODES = {
   PROMOCIONAL:  'PROMOCIONAL',
-  PERSONALIZADA: 'PERSONALIZADA',
-  EQUIPAMENTOS: 'EQUIPAMENTOS'
+  PERSONALIZADA: 'PERSONALIZADA'
 };
 function canUsePersonalizada() {
   return Boolean(state.isAdmin || state.isGestor);
@@ -355,7 +356,7 @@ function updatePBTabsUI() {
 }
 
 function setPBProposalMode(mode) {
-  const wantsPersonalizada = mode === PB_PROPOSAL_MODES.PERSONALIZADA || mode === PB_PROPOSAL_MODES.EQUIPAMENTOS;
+  const wantsPersonalizada = mode === PB_PROPOSAL_MODES.PERSONALIZADA;
 
   if (wantsPersonalizada && !canUsePersonalizada()) return;
 
@@ -377,7 +378,7 @@ function setPBProposalMode(mode) {
 
 function updatePBModeUI() {
   const mode            = state.pbProposalMode;
-  const isPersonalizada = mode === PB_PROPOSAL_MODES.PERSONALIZADA || mode === PB_PROPOSAL_MODES.EQUIPAMENTOS;
+  const isPersonalizada = mode === PB_PROPOSAL_MODES.PERSONALIZADA;
 
   const btnPromo   = document.getElementById('pb-mode-promocional-btn');
   const btnCustom  = document.getElementById('pb-mode-personalizada-btn');

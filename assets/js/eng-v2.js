@@ -2060,12 +2060,14 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
       const props = vendas.map((v) => v.proposta_id).filter(Boolean);
       const [kp, pp] = await Promise.all([
         nomes.length ? sb().from('produtos').select('id, name, modulo_id, inversor_id, modulo_qtd, inversor_qtd').in('name', nomes) : { data: [] },
-        props.length ? sb().from('propostas').select('id, source_product_id').in('id', props) : { data: [] },
+        props.length ? sb().from('propostas').select('id, source_product_id, kit_snapshot').in('id', props) : { data: [] },
       ]);
       kits = kp.data || [];
       const extras = (pp.data || []).map((x) => x.source_product_id).filter((id) => id && !kits.some((k) => k.id === id));
       if (extras.length) { const r = await sb().from('produtos').select('id, name, modulo_id, inversor_id, modulo_qtd, inversor_qtd').in('id', extras); kits = kits.concat(r.data || []); }
       E._propKit = Object.fromEntries((pp.data || []).map((x) => [x.id, x.source_product_id]));
+      // Foto do kit gravada na proposta: o envio usa ela (eng_enviar_projeto), então o aviso também.
+      E._propFoto = Object.fromEntries((pp.data || []).map((x) => [x.id, x.kit_snapshot]));
     } catch (e) { console.warn('[eng] conferência do envio', e); }
     E._envio = { clienteId, kits, vendas };
     const inst = (client.documentos_dados && client.documentos_dados.instalacao) || {};
@@ -2098,9 +2100,11 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     const v = E._envio.vendas.find((x) => x.id === val('eg-env-venda'));
     const pid = v && E._propKit && E._propKit[v.proposta_id];
     const k = E._envio.kits.find((x) => x.id === pid) || E._envio.kits.find((x) => v && String(x.name).trim().toUpperCase() === String(v.kit_nome || '').trim().toUpperCase());
-    const ligado = k && k.modulo_id && k.inversor_id;
+    const foto = v && E._propFoto && E._propFoto[v.proposta_id];
+    const fotoOk = foto && foto.tipo === 'kit' && foto.modulo && foto.modulo.id && foto.inversor && foto.inversor.id;
+    const ligado = fotoOk || (k && k.modulo_id && k.inversor_id);
     box.className = ligado ? 'ok' : 'at';
-    box.innerHTML = `${ic(ligado ? 'check' : 'triangle-alert')}<div><b>Kit</b><span>${!k ? 'Kit fora do catálogo: a engenharia escolhe os equipamentos (fica para revisão)' : ligado ? `${k.modulo_qtd}× módulo + ${k.inversor_qtd}× inversor ligados: dimensionamento automático` : 'Kit sem vínculo técnico: a engenharia dimensiona na mão'}</span></div>`;
+    box.innerHTML = `${ic(ligado ? 'check' : 'triangle-alert')}<div><b>Kit</b><span>${fotoOk ? `${foto.modulo.qtd}× módulo + ${foto.inversor.qtd}× inversor da proposta vendida: dimensionamento automático` : !k ? 'Kit fora do catálogo: a engenharia escolhe os equipamentos (fica para revisão)' : ligado ? `${k.modulo_qtd}× módulo + ${k.inversor_qtd}× inversor ligados: dimensionamento automático` : 'Kit sem vínculo técnico: a engenharia dimensiona na mão'}</span></div>`;
     icons();
   }
   async function enviar() {

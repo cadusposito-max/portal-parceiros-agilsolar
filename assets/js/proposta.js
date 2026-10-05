@@ -8,12 +8,8 @@ const VIDEOS_YOUTUBE = [
   'https://www.youtube.com/embed/SOotdCvJAkc?si=KHc78sgr9qrvwHDp'
 ];
 
-const TAXAS_CARTAO = {
-  1: 2.99,  2: 4.09,  3: 4.78,  4: 5.47,  5: 6.14,  6: 6.81,
-  7: 7.67,  8: 8.33,  9: 8.98, 10: 9.63, 11: 10.26, 12: 10.90,
-  13: 12.32,14: 12.94,15: 13.56,16: 14.17,17: 14.77, 18: 15.37
-};
-const MAX_PARCELAS = 18;
+// Taxas do cartão, economia, payback e validade: assets/js/proposta-calc.js
+// (mesmo cálculo do proposta-pdf.html).
 
 if (typeof initAnalytics === 'function') {
   initAnalytics({ mode: 'public' });
@@ -87,8 +83,7 @@ function initProposalQuickActions() {
 // VALIDADE DA PROPOSTA — 72h from created_at
 // ==========================================
 function startCountdown(createdAt) {
-  const EXPIRY_HOURS = 72;
-  const expiryDate   = new Date(new Date(createdAt).getTime() + EXPIRY_HOURS * 3_600_000);
+  const expiryDate   = propostaValidade(createdAt);
   const banner       = document.getElementById('urgency-banner');
   const expEl        = document.getElementById('expiry-date');
 
@@ -189,16 +184,12 @@ function gerarOpcoesParcelamento(valorBase) {
   const installmentsContainer = document.getElementById('installments-list');
   installmentsContainer.innerHTML = '';
 
-  for (let i = 1; i <= MAX_PARCELAS; i++) {
-    const taxa               = TAXAS_CARTAO[i] || 0;
-    const valorTotalComRepasse= valorBase / (1 - (taxa / 100));
-    const valorParcela       = valorTotalComRepasse / i;
-
+  propostaParcelasCartao(valorBase).forEach(({ n, parcela }) => {
     const row       = document.createElement('div');
     row.className   = 'flex justify-center items-center p-3 rounded-lg border border-neutral-800 bg-black/40 hover:bg-neutral-800/80 transition-colors';
-    row.innerHTML   = `<span class="text-white font-bold text-sm md:text-base">${i}x de ${formatter.format(valorParcela)}</span>`;
+    row.innerHTML   = `<span class="text-white font-bold text-sm md:text-base">${n}x de ${formatter.format(parcela)}</span>`;
     installmentsContainer.appendChild(row);
-  }
+  });
 }
 
 // ==========================================
@@ -231,10 +222,7 @@ async function carregarProposta() {
     if (typeof captureEvent === 'function') {
       captureEvent('public_proposal_viewed', { source: 'public_page' });
     }
-    const priceForParcelas = (data.proposal_mode === 'PERSONALIZADA' || data.proposal_mode === 'EQUIPAMENTOS')
-      ? (data.custom_total_price || data.kit_price || 0)
-      : (data.kit_price || 0);
-    gerarOpcoesParcelamento(priceForParcelas);
+    gerarOpcoesParcelamento(calcularNumerosProposta(data).preco);
   } catch (err) {
     showError();
   }
@@ -258,38 +246,21 @@ function renderGeracaoWeb() {
 
 function renderData(data) {
   const formatter    = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-  const TARIFA_MEDIA = 0.95;
 
-  const isPersonalizada = data.proposal_mode === 'PERSONALIZADA';
-  const isEquipamentos  = data.proposal_mode === 'EQUIPAMENTOS';
-  const isCustomMode    = isPersonalizada || isEquipamentos;
-  const displayPrice = isCustomMode ? (data.custom_total_price || data.kit_price || 0) : (data.kit_price || 0);
-  const displayPower = isCustomMode ? (data.custom_system_power_kwp || data.kit_power || 0) : (data.kit_power || 0);
-  const displayName  = isCustomMode ? (data.kit_nome || 'Proposta Personalizada') : (data.kit_nome || '');
-  const displayBrand = isCustomMode ? '' : (data.kit_brand || '');
-
-  // Geração: usa valor salvo no banco (imutável, calculado com HSP da franquia na criação)
-  // Fallback para propostas antigas sem geracao_estimada salva
-  const estGeneration = data.geracao_estimada
-    ? Number(data.geracao_estimada)
-    : calcularGeracaoEstimada(displayPower);
-
-  const valorFaturaIdeal = estGeneration * TARIFA_MEDIA;
-  // Arredonda em centavos: anual = 12 × mensal exibida (igual ao proposta-pdf.html).
-  const economiaMensal   = Math.round(valorFaturaIdeal * 0.85 * 100) / 100;
-  const economiaAnual    = economiaMensal * 12;
-  const economia25Anos   = economiaAnual * 25;
-  const arvoresPlantadas = Math.round(displayPower * 3);
-
-  const mesesTotaisPayback= economiaMensal > 0 ? Math.ceil(displayPrice / economiaMensal) : 0;
-  const anosPayback       = Math.floor(mesesTotaisPayback / 12);
-  const mesesRestantes    = mesesTotaisPayback % 12;
-
-  let textoPayback = '';
-  if (anosPayback > 0)                    textoPayback += `${anosPayback} ano${anosPayback > 1 ? 's' : ''}`;
-  if (anosPayback > 0 && mesesRestantes > 0) textoPayback += ' e ';
-  if (mesesRestantes > 0)                 textoPayback += `${mesesRestantes} ${mesesRestantes > 1 ? 'meses' : 'mês'}`;
-  if (textoPayback === '')                textoPayback = 'Menos de 1 mês';
+  // Todos os números vêm do proposta-calc.js (o PDF usa o mesmo cálculo).
+  const num              = calcularNumerosProposta(data);
+  const isCustomMode     = num.personalizada;
+  const displayPrice     = num.preco;
+  const displayPower     = num.potencia;
+  const displayName      = num.nome;
+  const displayBrand     = num.marca;
+  const estGeneration    = num.geracao;
+  const valorFaturaIdeal = num.faturaIdeal;
+  const economiaMensal   = num.economiaMensal;
+  const economiaAnual    = num.economiaAnual;
+  const economia25Anos   = num.economia25Anos;
+  const arvoresPlantadas = num.arvores;
+  const textoPayback     = num.payback;
 
   const clientePrimeiroNome = (data.cliente_nome || 'Cliente').trim().split(' ')[0] || 'Cliente';
 
