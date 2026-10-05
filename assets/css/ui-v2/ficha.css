@@ -271,3 +271,19 @@ html[data-ui="v2"] .v2f-sumlink:hover { background: var(--v2-hover) !important; 
   html[data-ui="v2"] .v2f-savebar { bottom: -24px; margin: 0 -12px -24px; padding: 12px 12px calc(16px + env(safe-area-inset-bottom)); }
   html[data-ui="v2"] .v2f-savebar .v2f-save { flex: 1; }
 }
+
+/* ---- lead do anúncio do Meta: selo no cabeçalho e respostas do formulário ---- */
+html[data-ui="v2"] .v2f .v2-leadmeta svg { width: 14px !important; height: 14px !important; }
+html[data-ui="v2"] .v2f-leadmeta { box-shadow: var(--v2-shadow), inset 3px 0 0 var(--v2-orange); }
+html[data-ui="v2"] .v2f-leadmeta h3 svg { color: var(--v2-orange-text); }
+html[data-ui="v2"] .v2f-lmq { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 4px 16px; padding: 10px 0; border-top: 1px solid var(--v2-line); font-size: 14px; }
+html[data-ui="v2"] .v2f-lmq:first-of-type { border-top: 0; padding-top: 0; }
+html[data-ui="v2"] .v2f-lmq > span { color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2f-lmq > b { font-weight: 700; color: var(--v2-ink); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+html[data-ui="v2"] .v2f-lmq > b em { font-style: normal; font-weight: 500; color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2f-lmq a { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--v2-blue-text); text-decoration: none; }
+html[data-ui="v2"] .v2f-lmq a svg { width: 14px !important; height: 14px !important; }
+html[data-ui="v2"] body .v2f textarea#crm360-observacoes { resize: none; overflow: hidden; min-height: 76px; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2f-lmq { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}

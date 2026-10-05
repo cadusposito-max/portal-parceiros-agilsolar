@@ -70,6 +70,36 @@
   // etapa do projeto na engenharia (eng-v2.js)
   const engChip = (c) => (typeof window.engSeloCard === 'function' ? window.engSeloCard(c) : '');
 
+  // ---- lead dos formulários de anúncio do Meta (origem 'meta', clientes.lead_meta) ----
+  // "Sem contato" = ainda em NOVO, sem follow-up e sem atividade depois da que o
+  // sistema registra na chegada do lead (essa nasce junto com o cliente).
+  const LEAD_META_FOLGA_MS = 60 * 1000;
+  function leadMetaInfo(c) {
+    if (!c || c.origem !== 'meta') return null;
+    const chegou = new Date((c.lead_meta && c.lead_meta.recebido_em) || c.created_at);
+    const ultima = state.crmLastAtividade && state.crmLastAtividade[c.id] ? new Date(state.crmLastAtividade[c.id].last_at) : null;
+    const contatado = normalizeClientStatus(c.status) !== 'NOVO' || !!c.proxima_acao_em
+      || (ultima && ultima - new Date(c.created_at) > LEAD_META_FOLGA_MS);
+    return { chegou: Number.isNaN(chegou.getTime()) ? null : chegou, semContato: !contatado };
+  }
+  function leadMetaHa(d) {
+    const min = Math.max(0, Math.floor((Date.now() - d.getTime()) / 60000));
+    if (min < 60) return `há ${min || 1} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `há ${h} h`;
+    const dias = Math.floor(h / 24);
+    return `há ${dias} dia${dias > 1 ? 's' : ''}`;
+  }
+  // comData: na coluna "Cadastro" da lista o selo ocupa o lugar da data
+  const leadMetaChip = (c, comData) => {
+    const m = leadMetaInfo(c);
+    if (!m) return '';
+    const quando = m.chegou ? (m.semContato ? ` · ${leadMetaHa(m.chegou)}` : comData ? ` · ${dm(m.chegou)}` : '') : '';
+    const dica = m.semContato ? 'Lead do anúncio do Meta, ainda sem contato registrado' : 'Lead do anúncio do Meta';
+    return `<span class="v2-chip v2-vischip v2-leadmeta ${m.semContato ? 't-orange' : 't-blue'}" title="${dica}">${ic('megaphone')}Meta${quando}</span>`;
+  };
+  window.uiV2LeadMeta = { info: leadMetaInfo, chip: leadMetaChip, ha: leadMetaHa };
+
   // Título/subtítulo da barra de cima (lido pelo ui-v2-shell.js)
   function setPageMeta(key, title, sub) {
     window.uiV2PageMeta = { key, title, sub };
@@ -378,10 +408,16 @@
   const searchValue = () => (state.isAdmin ? (state.adminClientesFilters?.search || '') : (state.searchTerm || ''));
   const statusFilter = () => (state.isAdmin ? (state.adminClientesFilters?.status || 'TODOS') : (state.clienteFilter || 'TODOS'));
   const setStatusJs = (s) => (state.isAdmin ? `setAdminClientesFilter('status','${s}')` : `setClienteFilter('${s}')`);
-  function statusPills(source, current) {
+  function statusPills(source, current, extra = '') {
     const counts = { TODOS: source.length };
     source.forEach((c) => { const s = normalizeClientStatus(c.status); counts[s] = (counts[s] || 0) + 1; });
-    return `<div class="v2-pills">${CLIENT_STATUS_OPTIONS.map((s) => `<button class="${current === s ? 'on' : ''}" onclick="${setStatusJs(s)}">${s === 'TODOS' ? 'Todos' : ST_CLI[s][0]}<em>${counts[s] || 0}</em></button>`).join('')}</div>`;
+    return `<div class="v2-pills">${CLIENT_STATUS_OPTIONS.map((s) => `<button class="${current === s ? 'on' : ''}" onclick="${setStatusJs(s)}">${s === 'TODOS' ? 'Todos' : ST_CLI[s][0]}<em>${counts[s] || 0}</em></button>`).join('')}${extra}</div>`;
+  }
+  // "Leads Meta" liga/desliga por cima do filtro de status (só aparece se houver lead do Meta)
+  function leadMetaPill(source) {
+    const n = source.filter((c) => c.origem === 'meta').length;
+    if (!n && !window.uiV2Screens.soLeadMeta) return '';
+    return `<button class="v2-pmeta ${window.uiV2Screens.soLeadMeta ? 'on' : ''}" onclick="uiV2Screens.toggleLeadMeta()" title="Só os leads dos anúncios do Meta">${ic('megaphone')}Leads Meta<em>${n}</em></button>`;
   }
   function searchBox(placeholder) {
     return `<label class="v2-sbox">${ic('search')}<input id="v2-cli-search" type="text" value="${esc(searchValue())}" oninput="handleFunilSearchInput(this.value)" placeholder="${placeholder}" autocomplete="off"></label>`;
@@ -414,7 +450,10 @@
   function renderClientesListV2(container) {
     container.className = 'v2s';
     document.body.dataset.v2screen = 'clientes';
-    const { source, filtered, showSeller } = clientesRows();
+    const rows = clientesRows();
+    const { source, showSeller } = rows;
+    const filtered = window.uiV2Screens.soLeadMeta ? rows.filtered.filter((c) => c.origem === 'meta') : rows.filtered;
+    state.lastFilteredClientes = filtered;
     const cur = statusFilter();
     setPageMeta('comercial:clientes', 'Clientes', `${filtered.length} de ${source.length} · ${scopeLabel(source)}`);
 
@@ -437,7 +476,7 @@
         <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
         <button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Novo cliente</button>
       </div>
-      ${statusPills(source, cur)}
+      ${statusPills(source, cur, leadMetaPill(source))}
       ${adminFiltersRow(source)}
       ${!filtered.length ? vazio : vista === 'kanban' ? clientesKanbanHTML(filtered, showSeller, false) : clientesTabelaHTML(filtered, showSeller)}`;
     if (window.lucide) window.lucide.createIcons();
@@ -452,14 +491,15 @@
       const nVend = (_crmAgg.vendasByCliente || {})[c.id] || 0;
       const valor = has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0;
       const wa = waLink(c);
+      const meta = leadMetaChip(c, true);
       return `<tr onclick="openCrm360('${esc(c.id)}')">
-        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}<span class="show-m" style="margin-top:6px"><span class="v2-chip dot ${st[1]}">${st[0]}</span></span></div></div></td>
+        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}<span class="show-m v2-mstline"><span class="v2-chip dot ${st[1]}">${st[0]}</span>${meta}</span></div></div></td>
         <td class="hide-m">${esc(c.cidade || '—')}${Number(c.hsp) > 0 ? `<small class="muted" style="display:block;font-size:12px">HSP ${esc(String(c.hsp).replace('.', ','))}</small>` : ''}</td>
         <td class="hide-m"><button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Alterar status">${st[0]}</button></td>
         <td class="hide-m">${nProp ? `${nProp} proposta${nProp > 1 ? 's' : ''}` : '<span class="muted">—</span>'}${nVend ? `<small style="display:block;font-size:12px;color:#1FA971;font-weight:700">${nVend} venda${nVend > 1 ? 's' : ''}</small>` : ''}</td>
         <td class="hide-m" style="font-weight:800">${valor ? moneyC(valor) : '<span class="muted" style="font-weight:500">—</span>'}</td>
         ${showSeller ? `<td class="hide-m"><span class="v2-who" style="font-weight:600;font-size:13px">${avPessoa('round o sm')}${esc(vendNome(c.vendedor_email))}</span></td>` : ''}
-        <td class="hide-m muted">${esc(formatDate(c.created_at))}</td>
+        <td class="hide-m muted">${meta || esc(formatDate(c.created_at))}</td>
         <td><div class="v2-acts">
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
           <button class="v2-sq hide-m" onclick="event.stopPropagation(); openProposalBuilder('${esc(c.id)}')" title="Nova proposta">${ic('file-plus-2')}</button>
@@ -485,7 +525,9 @@
       meta.push(`<span>${ic('file-text')}${nProp} proposta${nProp === 1 ? '' : 's'}</span>`);
       if (nVend) meta.push(`<span style="color:#1FA971">${ic('trophy')}${nVend}</span>`);
       if (showSeller && c.vendedor_email) meta.push(`<span>${ic('user')}${esc(vendNome(c.vendedor_email).split(' ')[0])}</span>`);
+      const leadMeta = leadMetaChip(c, false);
       return `<article class="v2-kcard ${editavel ? '' : 'ro'}" ${editavel ? `draggable="true" ondragstart="crmDragStart(event, '${esc(c.id)}')"` : ''} onclick="openCrm360('${esc(c.id)}')">
+        ${leadMeta ? `<div class="v2-kmeta">${leadMeta}</div>` : ''}
         <div class="t"><div><b>${esc(c.nome || 'Cliente')}${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado">${ic('alarm-clock')}</span>` : ''}</b><small>${esc([c.cidade, c.telefone].filter(Boolean).join(' · ') || '—')}</small></div>
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}</div>
         <div class="meta">${meta.join('')}</div>
@@ -1040,6 +1082,8 @@
 
   window.uiV2Screens = {
     filtrosAbertos: false,
+    soLeadMeta: false,
+    toggleLeadMeta() { this.soLeadMeta = !this.soLeadMeta; if (has('renderContent')) renderContent(); },
     toggleFiltros() { this.filtrosAbertos = !this.filtrosAbertos; document.querySelectorAll('.v2-admfilters').forEach((el) => el.classList.toggle('open', this.filtrosAbertos)); },
     maisPropostas() { _propostasRenderLimit += 10; if (has('renderContent')) renderContent(); },
     vendasLimite: 40,

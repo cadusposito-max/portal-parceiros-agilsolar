@@ -99,6 +99,32 @@
     </div>`;
   }
   const fmtData = (iso) => { const d = new Date(iso); return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
+  // Respostas do formulário do anúncio do Meta (clientes.lead_meta, gravado pela
+  // edge function meta-leads). Só leitura: é o que o cliente respondeu.
+  function leadMetaCardHTML(client) {
+    const lm = client && client.origem === 'meta' ? client.lead_meta : null;
+    if (!lm) return '';
+    const fone = (d) => (d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : d);
+    const linha = (p, r) => `<div class="v2f-lmq"><span>${esc(p)}</span><b>${r}</b></div>`;
+    const chegou = lm.recebido_em ? new Date(lm.recebido_em) : null;
+    const plataforma = { ig: 'Instagram', fb: 'Facebook', instagram: 'Instagram', facebook: 'Facebook' }[String(lm.plataforma || '').toLowerCase()] || '';
+    const quando = chegou && !Number.isNaN(chegou.getTime())
+      ? `${chegou.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${chegou.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+      : '';
+    const linhas = [
+      ...(Array.isArray(lm.perguntas) ? lm.perguntas : []).map((q) => linha(q.p, esc(q.r))),
+      ...(Array.isArray(lm.outros_telefones) ? lm.outros_telefones : []).map((d) => linha('Outro telefone informado',
+        `${esc(fone(String(d)))} <a href="https://wa.me/55${esc(String(d))}" target="_blank" rel="noopener noreferrer">${ic('message-circle')}chamar</a>`)),
+      lm.cidade ? linha('Cidade informada', esc(lm.cidade)) : '',
+      lm.email ? linha('E-mail', esc(lm.email)) : '',
+      lm.campanha || lm.anuncio ? linha('Campanha · anúncio', `<em>${esc([lm.campanha, lm.anuncio].filter(Boolean).join(' · '))}</em>`) : '',
+    ].join('');
+    return `<div class="v2f-card v2f-leadmeta">
+              <h3>${ic('megaphone')}Respostas do formulário do anúncio${quando || plataforma ? `<span class="v2f-h3sub">${esc([quando, plataforma].filter(Boolean).join(' · '))}</span>` : ''}</h3>
+              ${linhas || '<div class="v2f-lmq"><span>O formulário não tinha perguntas extras.</span></div>'}
+            </div>`;
+  }
+
   function vistoriaDescricao(antes, depois) {
     const st = depois.vistoria_status;
     const resp = depois.vistoria_responsavel ? ` · responsável: ${depois.vistoria_responsavel}` : '';
@@ -337,6 +363,7 @@
     // os dados do cliente ficam na aba "Dados"; as outras abas usam a largura toda
     const grade = _crm360Tab === 'dados'
       ? `<div class="v2f-dadosaba">
+            ${leadMetaCardHTML(client)}
             <div class="v2f-card"><h3>${ic('user-cog')}Contato e endereço</h3><div class="v2f-fields v2f-fields4">${camposDados}
             </div></div>
             <div class="v2f-dadosrow">${cardProx}${vistoriaCardHTML(client)}</div>
@@ -352,7 +379,7 @@
             <div class="tx">
               <h2>${esc(client.nome || 'Cliente')}
                 <button class="v2-chip dot ${ST_CLS[status] || 't-gray'} v2f-stchip" onclick="openClientStatusMenu(event, '${esc(client.id)}')" title="Alterar status">${ST[status] || status}${ic('chevron-down')}</button>
-                ${omFlag ? '<span class="v2-chip t-blue">O&amp;M</span>' : ''}${has('engFichaChip') ? engFichaChip(client) : ''}</h2>
+                ${omFlag ? '<span class="v2-chip t-blue">O&amp;M</span>' : ''}${has('engFichaChip') ? engFichaChip(client) : ''}${window.uiV2LeadMeta ? window.uiV2LeadMeta.chip(client, true) : ''}</h2>
               <div class="sub">
                 <span>${ic('phone')}${esc(client.telefone || '—')}</span>
                 <span>${ic('map-pin')}${esc(client.cidade || 'sem cidade')}${Number(client.hsp) > 0 ? ` · HSP ${esc(String(client.hsp).replace('.', ','))}` : ''}</span>
@@ -390,6 +417,13 @@
     // (os campos só existem na aba "Dados")
     const cidadeInput = document.getElementById('crm360-cidade');
     if (cidadeInput && has('attachCidadeAutocomplete')) attachCidadeAutocomplete(cidadeInput, (mun) => { _crm360Cidade = mun; });
+    // observações crescem com o texto (sem ficar arrastando o canto da caixa)
+    const obs = document.getElementById('crm360-observacoes');
+    if (obs) {
+      const ajustar = () => { obs.style.height = 'auto'; obs.style.height = `${obs.scrollHeight + 2}px`; };
+      obs.addEventListener('input', ajustar);
+      requestAnimationFrame(ajustar);
+    }
     const telInput = document.getElementById('crm360-telefone');
     if (telInput && has('formatarTelefone')) telInput.addEventListener('input', formatarTelefone);
     if (has('ligarMascara')) {

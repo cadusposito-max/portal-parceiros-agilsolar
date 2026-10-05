@@ -546,3 +546,14 @@ html[data-ui="v2"] .v2-fscrim, html[data-ui="v2"] .v2-fsheet, html[data-ui="v2"]
   html[data-ui="v2"] body .v2-fsheet .v2-picker input { height: 42px; padding: 0 12px; font-size: 14px; }
   html[data-ui="v2"] body .v2-fsheet .go { flex-shrink: 0; margin-top: 16px; height: 50px; border: 0; border-radius: 14px !important; background: var(--v2-blue); color: #fff; font-size: 15px; font-weight: 800; font-family: inherit; cursor: pointer; box-shadow: 0 6px 16px rgba(0,143,212,.25); }
 }
+
+/* ---- lead do anúncio do Meta (selo na lista, no kanban e o filtro) ---- */
+html[data-ui="v2"] .v2s .v2-leadmeta { font-size: 11.5px; padding: 3px 9px; gap: 5px; }
+html[data-ui="v2"] .v2s .v2-mstline { margin-top: 6px; }
+html[data-ui="v2"] .v2s .v2-mstline .v2-leadmeta { margin-left: 6px; }
+html[data-ui="v2"] .v2s .v2-kcard .v2-kmeta { margin-bottom: -4px; }
+html[data-ui="v2"] .v2s .v2-pills .v2-pmeta { margin-left: 6px; }
+html[data-ui="v2"] .v2s .v2-pills .v2-pmeta svg { width: 15px !important; height: 15px !important; color: var(--v2-orange-text); }
+html[data-ui="v2"] .v2s .v2-pills .v2-pmeta.on { background: var(--v2-orange); color: var(--v2-orange-ink); }
+html[data-ui="v2"] .v2s .v2-pills .v2-pmeta.on svg { color: var(--v2-orange-ink); }
+html[data-ui="v2"] .v2s .v2-pills .v2-pmeta.on em { background: rgba(61,38,0,.12); color: var(--v2-orange-ink); }
