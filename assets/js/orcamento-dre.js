@@ -95,9 +95,14 @@
     return 'Salvo em ' + quando + (saved.updated_by_nome ? ' por ' + saved.updated_by_nome : '');
   }
 
-  function seedFromProposta(p) {
+  // Preço que está na proposta (link do cliente, PDF, card do vendedor).
+  function precoProposta(p) {
     const isPersonalizada = p.proposal_mode === 'PERSONALIZADA' || p.proposal_mode === 'EQUIPAMENTOS';
-    const receita = isPersonalizada ? (p.custom_total_price || p.kit_price) : p.kit_price;
+    return num(isPersonalizada ? (p.custom_total_price || p.kit_price) : p.kit_price);
+  }
+
+  function seedFromProposta(p) {
+    const receita = precoProposta(p);
     const custos = {};
     CUSTO_LINES.forEach((l) => { custos[l.key] = 0; });
     return { receita: num(receita), custos, extras: [] };
@@ -335,8 +340,15 @@
               <button type="button" data-orc-act="usar-alvo" class="orc-usar px-3 py-1.5 bg-neutral-900 border border-neutral-800 hover:border-emerald-500/60 text-emerald-400 text-[10px] font-black uppercase tracking-widest">Usar</button>
             </div>
 
+            <!-- Preço que o cliente e o vendedor veem (só muda com "Aplicar") -->
+            <div class="orc-alvo orc-preco order-3 lg:order-none border border-neutral-800 px-5 py-3 flex flex-wrap items-center gap-3 bg-neutral-950/40">
+              <span class="text-[11px] font-bold text-neutral-400 flex-1 min-w-[180px]">Preço na proposta hoje <b class="text-white">(o que cliente e vendedor veem)</b></span>
+              <span id="orc-preco-atual" class="font-black num text-sm text-white">${money(precoProposta(p))}</span>
+            </div>
+
             <!-- Ações -->
             <div class="order-4 lg:order-none flex flex-wrap lg:flex-col lg:items-stretch items-center gap-2">
+              <button type="button" data-orc-act="aplicar" id="orc-aplicar" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="badge-dollar-sign" class="w-4 h-4"></i><span id="orc-aplicar-tx">Aplicar na proposta</span></button>
               <button type="button" data-orc-act="save" class="orc-btn pri px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Salvar</button>
               <button type="button" data-orc-act="reset" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-red-500/60 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i>Apagar e recomeçar</button>
               <button type="button" data-orc-act="close" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest ml-auto lg:ml-0">Fechar</button>
@@ -383,6 +395,50 @@
     const liqEl = document.getElementById('orc-tot-lucroliq');
     if (liqEl) liqEl.className = 'font-black num text-sm w-36 text-right pr-1 ' + (d.lucroLiq < 0 ? 'text-red-400' : 'text-emerald-400');
     set('orc-venda-alvo', d.vendaAlvo == null ? 'inviável com esses %' : money(d.vendaAlvo));
+
+    // "Aplicar" só aparece quando a venda da calculadora difere do preço da proposta
+    const aplicar = document.getElementById('orc-aplicar');
+    if (aplicar && cur._proposta) {
+      const igual = r2(cur.receita) === r2(precoProposta(cur._proposta)) || !(r2(cur.receita) > 0);
+      aplicar.style.display = igual ? 'none' : '';
+      set('orc-aplicar-tx', `Aplicar ${money(r2(cur.receita))} na proposta`);
+    }
+  }
+
+  // Leva a "Receita bruta" da calculadora para o preço da proposta (mesmo link).
+  let _aplicando = false;
+  async function aplicarNaProposta() {
+    if (!cur || !cur._proposta || _aplicando) return;
+    const alvo = cur;
+    const de = precoProposta(alvo._proposta);
+    const para = r2(alvo.receita);
+    if (!(para > 0) || para === r2(de)) return;
+    if (!confirm(`Mudar o preço da proposta de ${money(de)} para ${money(para)}?\n\nO cliente (no mesmo link), o PDF e o vendedor passam a ver o novo valor. A mudança fica registrada na timeline do cliente.`)) return;
+    _aplicando = true;
+    try {
+      const { data, error } = await supabaseClient.rpc('aplicar_preco_proposta', { p_proposta_id: alvo.propostaId, p_valor: para });
+      if (error) throw error;
+      // mantém a proposta em memória igual ao banco (card, ficha, calculadora)
+      const isPers = alvo._proposta.proposal_mode === 'PERSONALIZADA' || alvo._proposta.proposal_mode === 'EQUIPAMENTOS';
+      alvo._proposta.kit_price = para;
+      if (isPers) { alvo._proposta.custom_total_price = para; alvo._proposta.kit_list_price = para; }
+      else if (!(num(alvo._proposta.kit_list_price) >= para)) alvo._proposta.kit_list_price = para;
+      if (cur === alvo) {
+        const atual = document.getElementById('orc-preco-atual');
+        if (atual) atual.textContent = money(para);
+        recalc();
+      }
+      await saveScenario(); // o cenário salvo passa a bater com o preço aplicado
+      toastSafe(data && data.alterado === false ? 'A proposta já estava com esse preço' : `Preço da proposta atualizado para ${money(para)}`);
+      if (typeof fetchPropostas === 'function') await fetchPropostas();
+      if (typeof renderCrm360 === 'function' && typeof _crm360ClientId !== 'undefined' && _crm360ClientId) renderCrm360();
+      preencherSelosPrecificacao();
+    } catch (err) {
+      console.error('[precificacao] aplicar', err);
+      toastSafe((err && err.message) || 'Não foi possível aplicar o preço na proposta');
+    } finally {
+      _aplicando = false;
+    }
   }
 
   function usarVendaAlvo() {
@@ -430,6 +486,7 @@
       const act = btn.getAttribute('data-orc-act');
       if (act === 'close') { closeOverlay(); }
       else if (act === 'save') { saveScenario(); }
+      else if (act === 'aplicar') { aplicarNaProposta(); }
       else if (act === 'reset') { resetScenario(); }
       else if (act === 'usar-alvo') { usarVendaAlvo(); }
       else if (act === 'add-extra') { cur.extras.push({ tipo: 'despesa', rotulo: '', valor: 0 }); renderExtras(); recalc(); }
