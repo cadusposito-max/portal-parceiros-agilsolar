@@ -407,7 +407,8 @@
   }
   const searchValue = () => (state.isAdmin ? (state.adminClientesFilters?.search || '') : (state.searchTerm || ''));
   const statusFilter = () => (state.isAdmin ? (state.adminClientesFilters?.status || 'TODOS') : (state.clienteFilter || 'TODOS'));
-  const setStatusJs = (s) => (state.isAdmin ? `setAdminClientesFilter('status','${s}')` : `setClienteFilter('${s}')`);
+  // etapa e "Leads Meta" são escolhas da mesma fileira: uma de cada vez
+  const setStatusJs = (s) => `uiV2Screens.soLeadMeta=false;${state.isAdmin ? `setAdminClientesFilter('status','${s}')` : `setClienteFilter('${s}')`}`;
   function statusPills(source, current, extra = '') {
     const counts = { TODOS: source.length };
     source.forEach((c) => { const s = normalizeClientStatus(c.status); counts[s] = (counts[s] || 0) + 1; });
@@ -476,7 +477,7 @@
         <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
         <button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Novo cliente</button>
       </div>
-      ${statusPills(source, cur, leadMetaPill(source))}
+      ${statusPills(source, window.uiV2Screens.soLeadMeta ? null : cur, leadMetaPill(source))}
       ${adminFiltersRow(source)}
       ${!filtered.length ? vazio : vista === 'kanban' ? clientesKanbanHTML(filtered, showSeller, false) : clientesTabelaHTML(filtered, showSeller)}`;
     if (window.lucide) window.lucide.createIcons();
@@ -1083,7 +1084,13 @@
   window.uiV2Screens = {
     filtrosAbertos: false,
     soLeadMeta: false,
-    toggleLeadMeta() { this.soLeadMeta = !this.soLeadMeta; if (has('renderContent')) renderContent(); },
+    // ligar "Leads Meta" solta a etapa (Todos); desligar volta pra Todos
+    toggleLeadMeta() {
+      this.soLeadMeta = !this.soLeadMeta;
+      if (state.isAdmin) { if (has('ensureAdminClientesFiltersState')) ensureAdminClientesFiltersState(); state.adminClientesFilters.status = 'TODOS'; }
+      else state.clienteFilter = 'TODOS';
+      if (has('renderContent')) renderContent();
+    },
     toggleFiltros() { this.filtrosAbertos = !this.filtrosAbertos; document.querySelectorAll('.v2-admfilters').forEach((el) => el.classList.toggle('open', this.filtrosAbertos)); },
     maisPropostas() { _propostasRenderLimit += 10; if (has('renderContent')) renderContent(); },
     vendasLimite: 40,
