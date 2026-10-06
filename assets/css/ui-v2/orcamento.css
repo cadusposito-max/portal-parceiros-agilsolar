@@ -36,6 +36,7 @@ html[data-ui="v2"] #orcamento-builder-slot .pbd-porta-s { display: none; }
 html[data-ui="v2"] #orcamento-builder-slot .pbd-porta-t { font-size: 13px; }
 html[data-ui="v2"] #orcamento-builder-slot .pbd-porta-btn svg { width: 18px; height: 18px; }
 html[data-ui="v2"] #orcamento-builder-slot #pb-equip-submit { display: none; }
+html[data-ui="v2"] body #orcamento-builder-slot #pb-pers-head { grid-column: 1; grid-row: 1; padding-right: 0; }
 html[data-ui="v2"] body #orcamento-builder-slot [data-orcamento-kit] { cursor: pointer; min-width: 0; }
 html[data-ui="v2"] body #orcamento-builder-slot .orcamento-kit-selecionado {
   border-color: var(--v2-blue) !important; box-shadow: inset 0 0 0 1px var(--v2-blue); background: var(--v2-blue-50) !important;
@@ -60,6 +61,7 @@ html[data-ui="v2"] .pb-share-next { display: flex; flex-wrap: wrap; justify-cont
 @media (max-width: 1000px) {
   html[data-ui="v2"] body #orcamento-builder-slot #pb-mode-bar { grid-column: 1 / -1; grid-row: 2; padding-top: 0; justify-content: flex-end; }
   html[data-ui="v2"] body #orcamento-builder-slot #pb-porta { grid-column: 1 / -1; padding-right: 14px; }
+  html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel:has(#pb-pers-head:not(.hidden)) #pb-mode-bar { grid-column: 2; grid-row: 1; padding-top: 14px; }
 }
 @media (max-width: 760px) {
   html[data-ui="v2"] .orcamento-header { flex-wrap: wrap; gap: 10px; padding: 14px; }

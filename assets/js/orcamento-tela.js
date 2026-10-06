@@ -152,8 +152,9 @@ function orcamentoAtualizarResumo() {
   if (personalizada) {
     const draft = _pbDraft();
     const tot = calcularTotaisPersonalizada(draft);
-    valido = canUsePersonalizada() && tot.total > 0 && _pbPotenciaEfetiva(draft, tot) > 0 && tot.itens.length > 0;
-    texto = tot.total > 0 ? `${draft.descricao || 'Proposta personalizada'} · ${formatCurrency(tot.total)}` : 'Adicione os itens da proposta';
+    const pendencia = pbPersonalizadaPendencia(draft, tot);
+    valido = canUsePersonalizada() && !pendencia;
+    texto = pendencia || `${String(draft.descricao || '').trim() || _pbNomeSugerido(_pbPotenciaEfetiva(draft, tot))} · ${formatCurrency(tot.total)}`;
   } else if (kit) {
     const dist = typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(kit) : '';
     texto = `${kit.name}${dist ? ' · ' + dist : ''} · ${formatCurrency(kit.price)}`;
