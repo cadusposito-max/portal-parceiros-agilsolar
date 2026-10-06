@@ -6,6 +6,7 @@
 let _orcamentoClientId = null;
 let _orcamentoKitId = null;
 let _orcamentoOrigemFicha = null;
+let _orcamentoOrigemPicker = null;
 let _orcamentoGerando = false;
 
 function orcamentoAberto() {
@@ -13,12 +14,12 @@ function orcamentoAberto() {
 }
 
 function orcamentoSnapshot() {
-  return { id: _orcamentoClientId, ficha: _orcamentoOrigemFicha };
+  return { id: _orcamentoClientId, ficha: _orcamentoOrigemFicha, picker: _orcamentoOrigemPicker };
 }
 
 function orcamentoRestaurar(saved) {
   if (!saved?.id) return;
-  openOrcamento(saved.id);
+  openOrcamento(saved.id, saved.picker);
   if (orcamentoAberto()) _orcamentoOrigemFicha = saved.ficha || null;
 }
 
@@ -28,12 +29,13 @@ function _orcamentoEstacionar() {
   if (panel && parking && panel.parentElement !== parking) parking.appendChild(panel);
 }
 
-function openOrcamento(clientId) {
+function openOrcamento(clientId, pickerTab = null) {
   const client = (state.clientes || []).find((c) => c.id === clientId);
   if (!client || !canOperateClientProposalFlow(client)) return;
   if (_orcamentoGerando) return;
   if (!orcamentoAberto()) {
-    _orcamentoOrigemFicha = typeof _crm360ClientId !== 'undefined' && _crm360ClientId
+    _orcamentoOrigemPicker = ['novo', 'existente'].includes(pickerTab) ? pickerTab : null;
+    _orcamentoOrigemFicha = !_orcamentoOrigemPicker && typeof _crm360ClientId !== 'undefined' && _crm360ClientId
       ? { id: _crm360ClientId, tab: _crm360Tab }
       : null;
   }
@@ -49,15 +51,18 @@ function closeOrcamento(render = true) {
   if (typeof closeProposalSharePanel === 'function') closeProposalSharePanel();
   _orcamentoClientId = null;
   _orcamentoKitId = null;
+  _orcamentoOrigemFicha = null;
+  _orcamentoOrigemPicker = null;
   document.body.classList.remove('orcamento-aberto');
   if (render) renderContent();
 }
 
 function orcamentoVoltar() {
   const ficha = _orcamentoOrigemFicha;
+  const picker = _orcamentoOrigemPicker;
   closeOrcamento();
   if (ficha) openCrm360(ficha.id, ficha.tab);
-  else openNovaPropostaPicker();
+  else if (picker) openNovaPropostaPicker(picker);
 }
 
 function orcamentoVerFicha() {

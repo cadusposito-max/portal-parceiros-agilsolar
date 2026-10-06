@@ -1322,8 +1322,8 @@ function propostasFiltroSelectHTML(chave, valorAtual, opcoes, rotuloTodos, icone
 
 // O mesmo cadastro de clientes é o primeiro passo de "Nova proposta".
 // Os campos e eventos continuam no formulário original; a busca fica na outra aba.
-function openNovaPropostaPicker() {
-  openClientModal({ forProposal: true, onSaved: (client) => openProposalBuilder(client.id) });
+function openNovaPropostaPicker(initialTab = 'novo') {
+  openClientModal({ forProposal: true, onSaved: (client) => openProposalBuilder(client.id, 'novo') });
   const overlay = document.getElementById('client-modal-overlay');
   const form = document.getElementById('client-form');
   const heading = overlay.querySelector('h2');
@@ -1364,7 +1364,7 @@ function openNovaPropostaPicker() {
   const input = document.getElementById('np-picker-search');
   if (input) input.addEventListener('input', () => renderNovaPropostaPickerList(input.value));
   renderNovaPropostaPickerList('');
-  setNovaPropostaPickerTab('novo');
+  setNovaPropostaPickerTab(initialTab);
   lucide.createIcons();
 }
 
@@ -1416,8 +1416,9 @@ function findNovaPropostaClienteTelefone(telefone) {
 
 function selectNovaPropostaCliente(clientId) {
   if (!getNovaPropostaClientes().some((client) => String(client.id) === String(clientId))) return;
+  const pickerTab = document.getElementById('np-tab-existente')?.getAttribute('aria-selected') === 'true' ? 'existente' : 'novo';
   closeClientModal();
-  openProposalBuilder(clientId);
+  openProposalBuilder(clientId, pickerTab);
 }
 
 function renderNovaPropostaDuplicateWarning(dup, warnEl, btnSave) {

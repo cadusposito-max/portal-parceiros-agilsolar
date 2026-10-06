@@ -6,7 +6,7 @@
 let _catalogoDistrib = { carregado: false, erro: null, distribuidoras: [], ofertas: [], equipamentos: [] };
 let _catalogoDistribPromise = null;
 let _catalogoDistribUsuario = null;
-// As preferências guardam marcas, nunca um modelo/potência fixo.
+// O módulo guarda marca e potência do painel; o inversor guarda só a marca.
 let _pbFornecimento = { distribuidora: '', modulo: '', inversor: '' };
 
 async function carregarCatalogoDistribuidoras(force = false) {
@@ -67,6 +67,19 @@ function pbMarcasEquipamentos(equipamentos, tipo) {
     .sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
+function pbDescricaoModulo(equipamento) {
+  const marca = pbMarcaEquipamento(equipamento?.marca);
+  const potencia = Number(equipamento?.potencia_wp);
+  if (!marca) return '';
+  return Number.isFinite(potencia) && potencia > 0
+    ? `${marca} · ${potencia.toLocaleString('pt-BR', { maximumFractionDigits: 20 })} W` : marca;
+}
+
+function pbModulosEquipamentos(equipamentos) {
+  return [...new Set(equipamentos.filter((e) => e.tipo === 'modulo').map(pbDescricaoModulo).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+}
+
 function pbMarcaDoComponente(id, tipo) {
   const equipamento = _catalogoDistrib.equipamentos.find((e) => String(e.id) === String(id) && e.tipo === tipo && e.ativo !== false);
   return pbMarcaEquipamento(equipamento?.marca);
@@ -76,7 +89,10 @@ function pbKitCompativel(kit) {
   if (!kit || kit.ativo === false) return false;
   const f = _pbFornecimento;
   if (f.distribuidora && String(kit.distribuidora_id || '') !== f.distribuidora) return false;
-  if (f.modulo && pbMarcaDoComponente(kit.modulo_id, 'modulo') !== f.modulo) return false;
+  if (f.modulo) {
+    const modulo = _catalogoDistrib.equipamentos.find((e) => String(e.id) === String(kit.modulo_id) && e.tipo === 'modulo' && e.ativo !== false);
+    if (pbDescricaoModulo(modulo) !== f.modulo) return false;
+  }
   if (f.inversor && pbMarcaDoComponente(kit.inversor_id, 'inversor') !== f.inversor) return false;
   if (kit.distribuidora_id) {
     if (!_catalogoDistrib.carregado) return false;
@@ -102,7 +118,7 @@ function pbFornecimentoMount() {
     panel.innerHTML = `<div class="pbd-sec"><i data-lucide="boxes"></i> Equipamentos e distribuidora</div>
       <p id="pb-fornecimento-hint" class="pbd-hint"></p>
       <div class="pbd-fornecimento-fields">
-        <label class="pbd-mes"><span>Marca do módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Marca do módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
+        <label class="pbd-mes"><span>Módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
         <label class="pbd-mes"><span>Marca do inversor / microinversor</span><select id="pb-filtro-inversor" class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor" onchange="pbFornecimentoEscolher('inversor',this.value)"></select></label>
         <label class="pbd-mes"><span>Distribuidora do kit</span><select id="pb-filtro-distribuidora" class="pbd-input v2-select" data-titulo="Distribuidora do kit" onchange="pbFornecimentoEscolher('distribuidora',this.value)"></select></label>
       </div><p id="pb-fornecimento-aviso" class="pbd-hint" aria-live="polite"></p>`;
@@ -121,15 +137,15 @@ function pbFornecimentoRender() {
   if (slot && panel.parentElement !== slot) slot.appendChild(panel);
   panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL');
   document.getElementById('pb-fornecimento-hint').textContent = state.pbPorta === 'dim'
-    ? 'Escolha as marcas e a distribuidora. O consumo define a potência e o kit recomendado.'
-    : 'Filtre os kits pelas marcas e pela distribuidora.';
+    ? 'Escolha o módulo, a marca do inversor e a distribuidora. O consumo define a potência do sistema e o kit recomendado.'
+    : 'Filtre os kits pelo módulo, pela marca do inversor e pela distribuidora.';
   const disponiveis = catalogoEquipamentosDaDistribuidora(_pbFornecimento.distribuidora);
   ['modulo', 'inversor'].forEach((tipo) => {
     const select = document.getElementById(`pb-filtro-${tipo}`);
-    const marcas = pbMarcasEquipamentos(disponiveis, tipo);
-    if (_pbFornecimento[tipo] && !marcas.includes(_pbFornecimento[tipo])) _pbFornecimento[tipo] = '';
-    select.innerHTML = '<option value="">Sem preferência</option>' + marcas.map((marca) =>
-      `<option value="${escapeHTML(marca)}">${escapeHTML(marca)}</option>`).join('');
+    const opcoes = tipo === 'modulo' ? pbModulosEquipamentos(disponiveis) : pbMarcasEquipamentos(disponiveis, tipo);
+    if (_pbFornecimento[tipo] && !opcoes.includes(_pbFornecimento[tipo])) _pbFornecimento[tipo] = '';
+    select.innerHTML = '<option value="">Sem preferência</option>' + opcoes.map((opcao) =>
+      `<option value="${escapeHTML(opcao)}">${escapeHTML(opcao)}</option>`).join('');
     select.value = _pbFornecimento[tipo];
     select.disabled = !_catalogoDistrib.carregado;
   });

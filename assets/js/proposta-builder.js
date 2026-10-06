@@ -227,7 +227,7 @@ function resetPBEquipDraft() {
 // O construtor vive na tela própria de orçamento (orcamento-tela.js): este
 // wrapper só valida e abre a tela. Todos os call sites (card do cliente,
 // popup "Nova proposta", ficha, dashboard) passam por aqui.
-function openProposalBuilder(clientId) {
+function openProposalBuilder(clientId, pickerTab = null) {
   const client = state.clientes.find(c => c.id === clientId);
 
   if (!client) {
@@ -239,7 +239,7 @@ function openProposalBuilder(clientId) {
     return;
   }
 
-  openOrcamento(clientId);
+  openOrcamento(clientId, pickerTab);
 }
 
 // Prepara o painel embutido (#pb-embedded-panel) para o cliente do orçamento.
