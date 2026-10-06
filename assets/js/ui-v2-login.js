@@ -6,10 +6,13 @@
 // que nascem com a classe "hidden" do Tailwind: fora do v2 ficam invisíveis e
 // o login antigo não muda. Os textos em CAIXA ALTA viram frase só no v2 e
 // voltam ao original quando o v2 é desligado.
+// Carrega LOGO DEPOIS do HTML do login/splash (index.html), e não no fim da
+// fila de scripts: senão a tela aparece meio montada (sem ícones, texto
+// encavalado) até os ~2 MB de JS terminarem. Por isso não depende do ui-v2.js
+// para saber se o v2 está ligado — lê o data-ui direto (mesmo teste do uiV2.isActive).
 // ==========================================
 
 (function () {
-  if (!window.uiV2) return;
   const scr = document.getElementById('login-screen');
   if (!scr) return;
 
@@ -87,7 +90,7 @@
 
   let obs = null;
   function aplicar() {
-    const on = window.uiV2.isActive();
+    const on = document.documentElement.getAttribute('data-ui') === 'v2';
     if (on) {
       montar();
       ajustarTextos();
