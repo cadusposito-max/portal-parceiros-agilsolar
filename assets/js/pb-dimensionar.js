@@ -8,10 +8,11 @@
 //
 // Dimensionamento: consumo a compensar = média − taxa mínima da ligação
 // (30/50/100 kWh, sempre cobrada) — só informativo nos números do resultado.
-// Kits sugeridos (do tipo escolhido: inversor ou micro), comparando a geração
-// estimada com a MÉDIA de consumo, como a busca da lista faz (mesma conta,
-// com o HSP do cliente): "Recomendado" = menor kit que gera acima da média;
-// a outra opção = maior kit que gera abaixo dela.
+// Kits sugeridos (do tipo escolhido: inversor ou micro, e dentro dos filtros
+// de equipamento/distribuidora), comparando a geração estimada com a MÉDIA de
+// consumo (mesma conta da lista, com o HSP do cliente): entram todos os kits
+// que geram de 95% a 130% da média; "Recomendado" = o mais barato deles que
+// gera pelo menos a média. Os outros vêm listados do mais barato pro mais caro.
 
 const PBD_MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const PBD_MESES_NOME = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -29,6 +30,10 @@ const PBD_TIPOS = [
   { v: 'kitsInversor', label: 'Inversor' },
   { v: 'kitsMicro',    label: 'Microinversor' },
 ];
+// Faixa de geração (em relação à média) dos kits listados no resultado.
+const PBD_FAIXA_MIN = 0.95;
+const PBD_FAIXA_MAX = 1.30;
+const PBD_LISTA_VISIVEIS = 3;  // o resto fica atrás do "Ver mais"
 const PBD_PORTA_KEY = 'pb_porta';
 
 let _pbd = null;              // estado do dimensionamento do cliente em atendimento
@@ -42,6 +47,7 @@ function _pbdNovoEstado(client) {
     media: '',
     ligacao: 'mono',
     hsp: null,                // { anual, mensal[12] } da cidade do cliente
+    verMais: false,           // lista de kits aberta além dos primeiros
   };
 }
 
@@ -101,6 +107,7 @@ function pbDimMount() {
     if (b.dataset.pbdModo)    { _pbd.modo = b.dataset.pbdModo === 'media' ? 'media' : 'mes'; pbDimRender(); return; }
     if (b.dataset.pbdLigacao) { _pbd.ligacao = b.dataset.pbdLigacao; pbDimRender(); return; }
     if (b.dataset.pbdTipo)    { pbDimSetTipo(b.dataset.pbdTipo); return; }
+    if (b.dataset.pbdVerMais) { _pbd.verMais = true; _pbdRenderResultado(); return; }
     if (b.dataset.pbdVerTodos) { pbDimVerTodos(Number(b.dataset.pbdVerTodos)); }
   });
   panel.addEventListener('input', (e) => {
@@ -215,25 +222,31 @@ function _pbdGeracao(kit) {
   return calcularGeracaoEstimada(Number(kit.power) || 0, kit.categoria, _pbdHspCliente()) || 0;
 }
 
-// Dois kits da categoria em volta da média: o menor que gera acima dela
-// (recomendado) e o maior que gera abaixo. Empate de geração: o mais barato.
+// Kits da categoria perto da média ({ k: kit, g: geração }). Recomendado = o
+// mais barato da faixa que gera pelo menos a média; sem nenhum assim na faixa,
+// o mais barato que cobre (acima dela); se nenhum kit cobre, o que gera mais.
+// menorQueCobre mostra a economia quando o recomendado não é o menor kit que cobre.
 function _pbdRecomendar(categoria, media) {
   const kits = (state.data || [])
     .filter((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0
       && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)))
     .map((k) => ({ k, g: _pbdGeracao(k) }));
-  const melhor = (lista, maiorPrimeiro) => lista
-    .sort((a, b) => (maiorPrimeiro ? b.g - a.g : a.g - b.g) || (Number(a.k.price) - Number(b.k.price)))[0]?.k || null;
-  return {
-    acima: melhor(kits.filter((x) => x.g >= media), false),
-    abaixo: melhor(kits.filter((x) => x.g < media), true),
-  };
+  const porPreco = (a, b) => (Number(a.k.price) - Number(b.k.price)) || (b.g - a.g);
+  const faixa = kits.filter((x) => x.g >= media * PBD_FAIXA_MIN && x.g <= media * PBD_FAIXA_MAX).sort(porPreco);
+  const cobre = kits.filter((x) => x.g >= media);
+  const menorQueCobre = cobre.slice().sort((a, b) => (a.g - b.g) || porPreco(a, b))[0] || null;
+  const recomendado = faixa.find((x) => x.g >= media)
+    || cobre.slice().sort(porPreco)[0]
+    || kits.slice().sort((a, b) => (b.g - a.g) || porPreco(a, b))[0]
+    || null;
+  return { recomendado, outros: faixa.filter((x) => x !== recomendado), menorQueCobre };
 }
 
 function pbDimSetTipo(categoria) {
   if (!PBD_TIPOS.some((t) => t.v === categoria) || state.pbCategory === categoria) return;
   if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) return;
   state.pbCategory = categoria;
+  if (_pbd) _pbd.verMais = false;
   if (typeof updatePBTabsUI === 'function') updatePBTabsUI();
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbDimRender();
@@ -307,17 +320,33 @@ function _pbdRenderResultado() {
 
   const tipo = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
   const tipoNome = tipo === 'kitsMicro' ? 'com microinversor' : 'com inversor';
-  const { acima, abaixo } = _pbdRecomendar(tipo, c.media);
-
-  const cards = [];
-  if (acima) cards.push(_pbdKitCard(acima, c.media, 'Recomendado · acima da média', true));
-  if (abaixo) cards.push(_pbdKitCard(abaixo, c.media, 'Opção menor · abaixo da média', false));
+  const { recomendado, outros, menorQueCobre } = _pbdRecomendar(tipo, c.media);
 
   let kitsHtml;
-  if (cards.length) {
-    kitsHtml = `<div class="pbd-sec">Kit recomendado</div><div class="pbd-kits">${cards.join('')}</div>`;
-    if (!acima) {
-      kitsHtml += `<p class="pbd-hint" style="margin-top:8px">Nenhum kit ${tipoNome} da tabela gera acima da média de consumo.</p>`;
+  if (recomendado) {
+    const cobre = recomendado.g >= c.media;
+    const economia = cobre && menorQueCobre && menorQueCobre !== recomendado
+      ? Number(menorQueCobre.k.price) - Number(recomendado.k.price) : 0;
+    const nota = economia > 0
+      ? `${formatCurrency(economia)} mais barato que o kit de ${_pbdKwp(Number(menorQueCobre.k.power))} kWp (o menor que cobre a média)` : '';
+    const tag = cobre ? 'Recomendado · mais barato que cobre a média' : 'Mais próximo · abaixo da média';
+    kitsHtml = `<div class="pbd-sec">Kit recomendado</div><div class="pbd-kits">${_pbdKitCard(recomendado.k, c.media, tag, true, nota)}</div>`;
+    if (!cobre) {
+      kitsHtml += `<p class="pbd-hint" style="margin-top:8px">Nenhum kit ${tipoNome} da tabela gera a média de consumo.</p>`;
+    }
+
+    const de = _pbdInt(c.media * PBD_FAIXA_MIN);
+    const ate = _pbdInt(c.media * PBD_FAIXA_MAX);
+    if (outros.length) {
+      const visiveis = _pbd.verMais ? outros : outros.slice(0, PBD_LISTA_VISIVEIS);
+      const escondidos = outros.length - visiveis.length;
+      kitsHtml += `
+        <div class="pbd-sec">Outros kits perto desse consumo · ${outros.length}</div>
+        <p class="pbd-hint">Geram de ${de} a ${ate} kWh/mês (95% a 130% da média) · do mais barato pro mais caro</p>
+        <div class="pbd-lista">${visiveis.map((x) => _pbdKitLinha(x, c.media)).join('')}</div>
+        ${escondidos > 0 ? `<button type="button" class="pbd-mais" data-pbd-ver-mais="1">Ver mais ${escondidos} ${escondidos === 1 ? 'kit' : 'kits'}</button>` : ''}`;
+    } else {
+      kitsHtml += `<p class="pbd-hint" style="margin-top:8px">Nenhum outro kit ${tipoNome} gera de ${de} a ${ate} kWh/mês.</p>`;
     }
     kitsHtml += `<button type="button" class="pbd-link" data-pbd-ver-todos="${Math.round(c.media)}">Ver todos os kits perto dessa geração →</button>`;
   } else {
@@ -329,17 +358,23 @@ function _pbdRenderResultado() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function _pbdKitCard(kit, media, tag, top) {
+function _pbdDistribuidora(kit) {
+  return typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(kit) : '';
+}
+
+function _pbdKitCard(kit, media, tag, top, nota = '') {
   const g = _pbdGeracao(kit);
   const cobre = Math.round(g / media * 100);
   const temDe = Number(kit.list_price) > Number(kit.price);
   const id = escapeHTML(String(kit.id));
+  const dist = _pbdDistribuidora(kit);
   return `
     <div data-orcamento-kit="${id}" class="pbd-kit${top ? ' is-top' : ''}">
       <span class="pbd-kit-tag">${tag}</span>
       <div class="pbd-kit-n">${escapeHTML(kit.name)}</div>
       <div class="pbd-kit-d">${escapeHTML(String(kit.power))} kWp · ~${_pbdInt(g)} kWh/mês · ${cobre}% da média de consumo</div>
-      ${typeof pbKitDistribuidoraNome === 'function' && pbKitDistribuidoraNome(kit) ? `<div class="pbd-kit-d">Distribuidora: ${escapeHTML(pbKitDistribuidoraNome(kit))}</div>` : ''}
+      ${dist ? `<div class="pbd-kit-d">Distribuidora: ${escapeHTML(dist)}</div>` : ''}
+      ${nota ? `<div class="pbd-kit-nota">${escapeHTML(nota)}</div>` : ''}
       <div class="pbd-kit-f">
         <div>
           ${temDe ? `<div class="pbd-kit-de">De: ${formatCurrency(kit.list_price)}</div>` : ''}
@@ -349,6 +384,23 @@ function _pbdKitCard(kit, media, tag, top) {
           <i data-lucide="file-text"></i> GERAR PROPOSTA
         </button>
       </div>
+    </div>`;
+}
+
+// Linha compacta da lista "Outros kits" (mesmo data-orcamento-kit/data-kit-id
+// do cartão: a tela do orçamento seleciona e marca do mesmo jeito).
+function _pbdKitLinha(x, media) {
+  const kit = x.k;
+  const id = escapeHTML(String(kit.id));
+  const dist = _pbdDistribuidora(kit);
+  return `
+    <div data-orcamento-kit="${id}" class="pbd-row">
+      <div class="pbd-row-tx">
+        <div class="pbd-row-n">${escapeHTML(kit.name)}${x.g < media ? '<span class="pbd-row-tag">abaixo da média</span>' : ''}</div>
+        <div class="pbd-row-d">${escapeHTML(String(kit.power))} kWp · ~${_pbdInt(x.g)} kWh/mês · ${Math.round(x.g / media * 100)}% da média${dist ? ` · ${escapeHTML(dist)}` : ''}</div>
+      </div>
+      <div class="pbd-row-p">${formatCurrency(kit.price)}</div>
+      <button type="button" data-kit-id="${id}" onclick="copyProposalLinkById(this.dataset.kitId, event)" class="btn btn-secondary btn-sm" aria-label="Selecionar kit"><i data-lucide="check"></i> Selecionar kit</button>
     </div>`;
 }
 

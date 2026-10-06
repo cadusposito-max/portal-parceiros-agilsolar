@@ -114,7 +114,34 @@ html[data-ui="v2"] body #pb-embedded-panel .pbd-porta-btn.is-on {
 #pb-embedded-panel .pbd-kit-d { font-size: 12px; color: var(--v2-ink-2); }
 #pb-embedded-panel .pbd-kit-f { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--v2-line); }
 #pb-embedded-panel .pbd-kit-de { font-size: 11px; color: var(--v2-ink-2); text-decoration: line-through; }
-#pb-embedded-panel .pbd-kit-p { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+#pb-embedded-panel .pbd-kit-p { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#pb-embedded-panel .pbd-kit-nota { font-size: 12px; font-weight: 700; color: #12764E; }
+html[data-ui="v2"][data-theme="dark"] #pb-embedded-panel .pbd-kit-nota { color: #4FD49A; }
+
+/* lista "Outros kits perto desse consumo" */
+#pb-embedded-panel .pbd-lista { display: grid; gap: 6px; }
+#pb-embedded-panel .pbd-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--v2-line-strong); border-radius: 14px; background: var(--v2-card);
+}
+#pb-embedded-panel .pbd-row:hover { background: var(--v2-hover); }
+#pb-embedded-panel .pbd-row-n { font-weight: 800; font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; }
+#pb-embedded-panel .pbd-row-d { font-size: 12px; color: var(--v2-ink-2); margin-top: 2px; }
+#pb-embedded-panel .pbd-row-tag {
+  display: inline-block; margin-left: 6px; vertical-align: 1px; font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px; background: var(--v2-bg); color: var(--v2-ink-2); white-space: nowrap;
+}
+#pb-embedded-panel .pbd-row-p { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+#pb-embedded-panel .pbd-row button { white-space: nowrap; }
+#pb-embedded-panel .pbd-mais {
+  width: 100%; margin-top: 6px; padding: 8px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--v2-blue-text); border-radius: 12px;
+}
+#pb-embedded-panel .pbd-mais:hover { background: var(--v2-blue-50); }
+@media (max-width: 640px) {
+  #pb-embedded-panel .pbd-row { grid-template-columns: minmax(0, 1fr) auto; }
+  #pb-embedded-panel .pbd-row button { grid-column: 1 / -1; }
+}
 
 #pb-embedded-panel .pbd-aviso {
   border-radius: 14px;
