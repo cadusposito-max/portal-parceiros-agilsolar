@@ -44,7 +44,31 @@ function openOrcamento(clientId, pickerTab = null) {
   _orcamentoClientId = clientId;
   renderContent();
   window.scrollTo({ top: 0 });
+  orcamentoAtualizarCatalogo();
 }
+
+// Kits e catálogo (equipamentos/distribuidoras) mudam pelo admin a qualquer
+// hora: recarrega ao abrir o orçamento e ao voltar para a aba, para os filtros
+// nunca oferecerem equipamento desativado (sem precisar de F5).
+let _orcamentoCatalogoEm = 0;
+async function orcamentoAtualizarCatalogo() {
+  _orcamentoCatalogoEm = Date.now();
+  try {
+    await Promise.all([
+      typeof fetchProducts === 'function' ? fetchProducts() : null,
+      typeof carregarCatalogoDistribuidoras === 'function' ? carregarCatalogoDistribuidoras(true) : null,
+    ]);
+  } catch (err) {
+    console.warn('[orçamento] Falha ao atualizar kits/catálogo.', err);
+  }
+  if (orcamentoAberto() && typeof pbFornecimentoSync === 'function') pbFornecimentoSync();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && orcamentoAberto() && Date.now() - _orcamentoCatalogoEm > 15000) {
+    orcamentoAtualizarCatalogo();
+  }
+});
 
 function closeOrcamento(render = true) {
   _orcamentoEstacionar();

@@ -144,9 +144,14 @@ function pbFornecimentoRender() {
     ? 'Escolha o módulo, a marca do inversor e a distribuidora. O consumo define a potência do sistema e o kit recomendado.'
     : 'Filtre os kits pelo módulo, pela marca do inversor e pela distribuidora.';
   const disponiveis = catalogoEquipamentosDaDistribuidora(_pbFornecimento.distribuidora);
+  // Só oferece módulo/marca que está em algum kit ativo do tipo escolhido
+  // (inversor ou micro): escolher uma opção nunca deixa a lista vazia à toa.
+  const kitsTipo = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false && Number(k.price) > 0);
+  const emKits = new Set(kitsTipo.flatMap((k) => [String(k.modulo_id), String(k.inversor_id)]));
+  const usados = kitsTipo.length ? disponiveis.filter((e) => emKits.has(String(e.id))) : disponiveis;
   ['modulo', 'inversor'].forEach((tipo) => {
     const select = document.getElementById(`pb-filtro-${tipo}`);
-    const opcoes = tipo === 'modulo' ? pbModulosEquipamentos(disponiveis) : pbMarcasEquipamentos(disponiveis, tipo);
+    const opcoes = tipo === 'modulo' ? pbModulosEquipamentos(usados) : pbMarcasEquipamentos(usados, tipo);
     if (_pbFornecimento[tipo] && !opcoes.includes(_pbFornecimento[tipo])) _pbFornecimento[tipo] = '';
     select.innerHTML = '<option value="">Sem preferência</option>' + opcoes.map((opcao) =>
       `<option value="${escapeHTML(opcao)}">${escapeHTML(opcao)}</option>`).join('');

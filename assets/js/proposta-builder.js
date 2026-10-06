@@ -307,6 +307,7 @@ function renderFinanciamento() {
 function setPBTab(category) {
   state.pbCategory = category;
   updatePBTabsUI();
+  if (typeof pbFornecimentoRender === 'function') pbFornecimentoRender(); // opções do filtro dependem do tipo
   renderModalProducts();
 }
 

@@ -248,6 +248,7 @@ function pbDimSetTipo(categoria) {
   state.pbCategory = categoria;
   if (_pbd) _pbd.verMais = false;
   if (typeof updatePBTabsUI === 'function') updatePBTabsUI();
+  if (typeof pbFornecimentoRender === 'function') pbFornecimentoRender(); // opções do filtro dependem do tipo
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbDimRender();
 }
