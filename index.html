@@ -44,7 +44,7 @@
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 
 
-  <link rel="stylesheet" href="assets/css/main.css?v=20260925-fontes">
+  <link rel="stylesheet" href="assets/css/main.css?v=20261006-lch">
   <link rel="stylesheet" href="assets/css/theme-light.css?v=20260925-layout-c" id="theme-light-css" disabled>
   <!-- Visual novo (v2) — BETA só para admins. Desligado por padrão (media="not all"); tudo nele é
        escopado em html[data-ui="v2"] e quem liga/desliga é assets/js/ui-v2.js. -->
@@ -64,6 +64,8 @@
   <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261006-pers" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261006-pers2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261006-listas" data-ui-v2 media="not all">
+  <!-- Launcher (escolha de ambiente): carrega sempre, usa os tokens do v2 com fallback claro -->
+  <link rel="stylesheet" href="assets/css/ui-v2/launcher.css?v=20261006-lch">
   <!-- Tailwind PRÉ-COMPILADO (antes era o cdn.tailwindcss.com, que compilava CSS dentro do navegador e
        deixava a plataforma pesada em PC fraco). Fica depois dos outros CSS, na mesma posição em que o CDN
        injetava o <style>. Usou classe Tailwind nova? Regerar — comando no tailwind.config.js. -->
@@ -267,134 +269,91 @@
 <!-- Monta o login do visual novo (logo, ícones, textos) JÁ, antes da fila de scripts do fim -->
 <script src="assets/js/ui-v2-login.js?v=20261006-cedo"></script>
 
-<!-- LAUNCHER — tela inicial de escolha de ambiente (só p/ quem tem 2+ ambientes) -->
-<div id="launcher-screen" class="fixed inset-0 z-[95] bg-[#050505] launch-bg overflow-y-auto hidden opacity-0 transition-opacity duration-500">
+<!-- LAUNCHER — tela inicial de escolha de ambiente (só p/ quem tem 2+ ambientes).
+     Visual em assets/css/ui-v2/launcher.css; quem mostra/esconde é showLauncher() no app.js. -->
+<div id="launcher-screen" class="lch fixed inset-0 z-[95] overflow-y-auto hidden opacity-0 transition-opacity duration-500">
+  <div class="lch-faixa" aria-hidden="true"></div>
 
-  <!-- Topo: usuário + sair -->
-  <header class="w-full border-b border-neutral-900/80">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-      <span class="hidden sm:inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-neutral-500">
-        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> Plataforma Ágil Solar
-      </span>
-      <div class="flex items-center gap-2.5">
-        <!-- User pill — mesmo padrão do header do app -->
-        <div id="launcher-user-avatar"
-          class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 to-yellow-500 flex items-center justify-center text-black font-black text-xs avatar-pulse select-none overflow-hidden shrink-0"></div>
-        <div class="flex flex-col leading-tight">
-          <span id="launcher-user-name" class="text-white text-[11px] font-black uppercase tracking-widest leading-tight"></span>
-          <span id="launcher-user-role" class="text-neutral-600 text-[9px] font-bold uppercase tracking-widest">Vendedor</span>
-        </div>
-        <!-- Logout (botão power vermelho, igual ao header) -->
-        <button onclick="handleLogout()" title="Sair do Sistema"
-          class="ml-1 p-2.5 border transition-all duration-300 bg-black border-neutral-800 text-red-500/60 hover:text-red-400 hover:bg-red-500/8 hover:border-red-500/40 shrink-0">
-          <i data-lucide="power" class="w-4 h-4"></i>
-        </button>
+  <!-- Topo: logo + usuário + sair -->
+  <header class="lch-topo">
+    <span class="lch-logo" aria-label="Ágil Solar">
+      <svg viewBox="0 0 620 425" aria-hidden="true"><path class="lch-logo-a" d="M162 0H345Q375 0 388 24L620 425H435Q405 425 392 402L310 258L336 213H285Z"/><path fill="#FAA519" d="M150 213H285L310 258L228 402Q215 425 186 425H0L107 238Q121 213 150 213Z"/></svg>
+      <b><span class="lch-logo-a">Ágil</span><span style="color:#FAA519">Solar</span></b>
+    </span>
+    <div class="lch-user">
+      <div id="launcher-user-avatar" class="lch-avatar"></div>
+      <div class="lch-user-txt">
+        <span id="launcher-user-name" class="lch-user-nome"></span>
+        <span id="launcher-user-role" class="lch-user-papel">Vendedor</span>
       </div>
+      <button type="button" onclick="handleLogout()" title="Sair do sistema" aria-label="Sair do sistema" class="lch-sair">
+        <i data-lucide="power"></i>
+      </button>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
-    <!-- Logo + saudação -->
-    <section class="pt-12 sm:pt-16 pb-8 sm:pb-12 text-center">
-      <img src="assets/img/logo.png" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png"
-           onerror="this.src='https://placehold.co/300x90?text=Agil+Solar'" alt="Ágil Solar"
-           class="logo-glow w-44 sm:w-56 h-auto object-contain mx-auto mb-8 stg stg-1">
-      <p class="text-orange-500 text-[11px] sm:text-xs font-black uppercase tracking-[0.3em] mb-3 stg stg-2">Bem-vindo de volta</p>
-      <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight stg stg-2 min-h-[4.5rem] sm:min-h-[4rem] flex items-center justify-center">
-        <span id="launcher-tw">Para onde você quer ir?</span><span id="launcher-caret" class="launcher-caret" aria-hidden="true"></span>
-      </h1>
-      <p class="text-neutral-500 text-sm sm:text-base font-medium mt-4 max-w-md mx-auto stg stg-3">
-        Escolha o ambiente em que você vai trabalhar hoje.
-      </p>
+  <main class="lch-main">
+    <section class="lch-hero stg stg-1">
+      <p id="launcher-saudacao" class="lch-saudacao">Olá</p>
+      <h1 class="lch-titulo">Onde você vai trabalhar hoje?</h1>
+      <p class="lch-sub">Escolha um ambiente. Dá pra trocar a qualquer momento pelo menu.</p>
     </section>
 
-    <!-- Grade de módulos: auto-fill deixa espaço pra novos ambientes -->
-    <section class="grid gap-4 sm:gap-5" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));">
-
-      <!-- COMERCIAL (ativo) -->
-      <button type="button" onclick="enterEnvironment('comercial')" class="mod-card is-active text-left p-6 stg stg-3">
-        <div class="flex items-start justify-between mb-8">
-          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
-            <i data-lucide="trending-up" class="w-6 h-6 text-orange-500"></i>
-          </div>
-          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Ativo
-          </span>
+    <!-- Grade de ambientes: auto-fill deixa espaço pra novos ambientes.
+         data-env = chave do ambiente (usada no selo "Último acesso"). -->
+    <section class="lch-grade">
+      <button type="button" data-env="comercial" onclick="enterEnvironment('comercial')" class="lch-card stg stg-2">
+        <div class="lch-card-topo">
+          <span class="lch-ico"><i data-lucide="trending-up"></i></span>
+          <span class="lch-ultimo">Último acesso</span>
         </div>
-        <h2 class="text-xl font-black text-white uppercase tracking-wide">Comercial</h2>
-        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Propostas, vendas, clientes e dashboard de performance.</p>
-        <div class="flex items-center gap-2 mt-5 text-orange-500 text-xs font-black uppercase tracking-widest">
-          Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i>
-        </div>
+        <h2>Comercial</h2>
+        <p>Propostas, vendas, clientes e dashboard de performance.</p>
+        <span class="lch-entrar">Entrar <i data-lucide="arrow-right"></i></span>
       </button>
 
-      <!-- O&M (ativo) -->
-      <button type="button" id="launcher-card-om" onclick="enterEnvironment('om')" class="mod-card is-active text-left p-6 stg stg-4">
-        <div class="flex items-start justify-between mb-8">
-          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
-            <i data-lucide="wrench" class="w-6 h-6 text-orange-500"></i>
-          </div>
-          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-orange-400 bg-orange-400/10 border border-orange-400/20 px-2 py-1">
-            <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Novo
-          </span>
+      <button type="button" id="launcher-card-om" data-env="om" onclick="enterEnvironment('om')" class="lch-card stg stg-3">
+        <div class="lch-card-topo">
+          <span class="lch-ico"><i data-lucide="wrench"></i></span>
+          <span class="lch-ultimo">Último acesso</span>
         </div>
-        <h2 class="text-xl font-black text-white uppercase tracking-wide">O&amp;M</h2>
-        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Operação e manutenção: ordens de serviço e propostas técnicas.</p>
-        <div class="flex items-center gap-2 mt-5 text-orange-500 text-xs font-black uppercase tracking-widest">
-          Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i>
-        </div>
+        <h2>O&amp;M</h2>
+        <p>Operação e manutenção: ordens de serviço e propostas técnicas.</p>
+        <span class="lch-entrar">Entrar <i data-lucide="arrow-right"></i></span>
       </button>
 
-      <!-- FINANCEIRO (ativo — visível só com acesso) -->
-      <button type="button" id="launcher-card-financeiro" onclick="enterEnvironment('financeiro')" class="mod-card is-active text-left p-6 stg stg-4">
-        <div class="flex items-start justify-between mb-8">
-          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
-            <i data-lucide="wallet" class="w-6 h-6 text-teal-400"></i>
-          </div>
-          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-teal-400 bg-teal-400/10 border border-teal-400/20 px-2 py-1">
-            <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Novo
-          </span>
+      <button type="button" id="launcher-card-financeiro" data-env="financeiro" onclick="enterEnvironment('financeiro')" class="lch-card stg stg-3">
+        <div class="lch-card-topo">
+          <span class="lch-ico"><i data-lucide="wallet"></i></span>
+          <span class="lch-ultimo">Último acesso</span>
         </div>
-        <h2 class="text-xl font-black text-white uppercase tracking-wide">Financeiro</h2>
-        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Faturamento, recebíveis, comissões e controle financeiro.</p>
-        <div class="flex items-center gap-2 mt-5 text-teal-400 text-xs font-black uppercase tracking-widest">Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i></div>
+        <h2>Financeiro</h2>
+        <p>Faturamento, recebíveis, comissões e controle financeiro.</p>
+        <span class="lch-entrar">Entrar <i data-lucide="arrow-right"></i></span>
       </button>
 
-      <!-- VISTORIA (ativo — visível só com acesso) -->
-      <button type="button" id="launcher-card-vistoria" onclick="enterEnvironment('vistoria')" class="mod-card is-active text-left p-6 stg stg-5">
-        <div class="flex items-start justify-between mb-8">
-          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
-            <i data-lucide="clipboard-check" class="w-6 h-6 text-red-500"></i>
-          </div>
-          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-red-400 bg-red-400/10 border border-red-400/20 px-2 py-1">
-            <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Novo
-          </span>
+      <button type="button" id="launcher-card-vistoria" data-env="vistoria" onclick="enterEnvironment('vistoria')" class="lch-card stg stg-4">
+        <div class="lch-card-topo">
+          <span class="lch-ico"><i data-lucide="clipboard-check"></i></span>
+          <span class="lch-ultimo">Último acesso</span>
         </div>
-        <h2 class="text-xl font-black text-white uppercase tracking-wide">Vistoria</h2>
-        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Operação de campo: agenda, checklists, fotos e laudos de inspeção.</p>
-        <div class="flex items-center gap-2 mt-5 text-red-400 text-xs font-black uppercase tracking-widest">Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i></div>
+        <h2>Vistoria</h2>
+        <p>Operação de campo: agenda, checklists, fotos e laudos de inspeção.</p>
+        <span class="lch-entrar">Entrar <i data-lucide="arrow-right"></i></span>
       </button>
 
-      <!-- ENGENHARIA (ativo — visível só com acesso) -->
-      <button type="button" id="launcher-card-engenharia" onclick="enterEnvironment('engenharia')" class="mod-card is-active text-left p-6 stg stg-5">
-        <div class="flex items-start justify-between mb-8">
-          <div class="ico-wrap w-12 h-12 grid place-items-center border border-neutral-800 bg-black/40">
-            <i data-lucide="ruler" class="w-6 h-6 text-sky-400"></i>
-          </div>
-          <span class="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-sky-400 bg-sky-400/10 border border-sky-400/20 px-2 py-1">
-            <i data-lucide="sparkles" class="w-2.5 h-2.5"></i> Novo
-          </span>
+      <button type="button" id="launcher-card-engenharia" data-env="engenharia" onclick="enterEnvironment('engenharia')" class="lch-card stg stg-4">
+        <div class="lch-card-topo">
+          <span class="lch-ico"><i data-lucide="ruler"></i></span>
+          <span class="lch-ultimo">Último acesso</span>
         </div>
-        <h2 class="text-xl font-black text-white uppercase tracking-wide">Engenharia</h2>
-        <p class="text-neutral-500 text-sm font-medium mt-1.5 leading-relaxed">Calculadora de dimensionamento, strings/MPPT, proteções e geração estimada.</p>
-        <div class="flex items-center gap-2 mt-5 text-sky-400 text-xs font-black uppercase tracking-widest">Entrar <i data-lucide="arrow-right" class="seta-cta w-4 h-4"></i></div>
+        <h2>Engenharia</h2>
+        <p>Dimensionamento, strings/MPPT, proteções e geração estimada.</p>
+        <span class="lch-entrar">Entrar <i data-lucide="arrow-right"></i></span>
       </button>
-
     </section>
 
-    <footer class="mt-12 text-center">
-      <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-700">Plataforma Ágil Solar</p>
-    </footer>
+    <footer class="lch-rodape">Plataforma Ágil Solar</footer>
   </main>
 </div>
 
@@ -1303,7 +1262,7 @@
   local('eng-v2.js',           '20261005-foto');
   local('proposta-calc.js',    '20261006-cartao');
   local('rede.js',             '20261006-projetos');
-  local('app.js',              '20261006-voltar');
+  local('app.js',              '20261006-lch');
   local('ui-v2.js',            '20260929-rel6');
   local('ui-v2-shell.js',      '20261001-eng');
   local('ui-v2-screens.js',    '20261006-etq');

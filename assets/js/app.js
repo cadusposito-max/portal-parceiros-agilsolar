@@ -838,6 +838,7 @@ function setEnvironment(env) {
   stopDashboardClock();
 
   state.environment = env;
+  launcherGuardarUltimoEnv(env);
   renderTabs();
   renderContent();
   appRouteSync(true);
@@ -866,6 +867,14 @@ function showLauncher() {
   const roleEl = document.getElementById('launcher-user-role');
   if (nameEl) nameEl.textContent = displayName;
   if (roleEl) roleEl.textContent = roleLabel;
+
+  // Saudação: "Boa tarde, Cadu" (só o primeiro nome).
+  const saudEl = document.getElementById('launcher-saudacao');
+  if (saudEl) {
+    const greet = typeof getGreeting === 'function' ? getGreeting() : 'Olá';
+    const first = typeof getFirstName === 'function' ? getFirstName() : displayName.split(' ')[0];
+    saudEl.textContent = first ? `${greet}, ${first}` : greet;
+  }
 
   // Avatar: foto se houver, senão a inicial — mesma lógica de renderHeaderUser().
   const rawAvatarUrl = state.profile?.avatar_url || '';
@@ -896,56 +905,35 @@ function showLauncher() {
   const engCard = document.getElementById('launcher-card-engenharia');
   if (engCard) engCard.classList.toggle('hidden', !state.canEng);
 
+  // Selo "Último acesso" no ambiente que a pessoa abriu por último (neste aparelho).
+  const ultimo = launcherUltimoEnv();
+  screen.querySelectorAll('.lch-card[data-env]').forEach(card => {
+    card.classList.toggle('is-ultimo', card.dataset.env === ultimo);
+  });
+
   screen.classList.remove('hidden');
   // força reflow antes de animar a opacidade
   void screen.offsetWidth;
   screen.classList.remove('opacity-0');
   if (typeof queueAppLucideCreateIcons === 'function') queueAppLucideCreateIcons();
   else if (window.lucide) lucide.createIcons();
-
-  startLauncherTypewriter();
 }
 
-// Efeito "typewriter" na pergunta do hero: digita, segura pra leitura, apaga e troca.
-// Respeita prefers-reduced-motion (mostra a 1ª frase parada).
-let _launcherTwStarted = false;
-function startLauncherTypewriter() {
-  const el = document.getElementById('launcher-tw');
-  if (!el || _launcherTwStarted) return;
-  _launcherTwStarted = true;
-
-  const FRASES = [
-    'Para onde você quer ir?',
-    'Por onde vamos começar?',
-    'Onde você vai trabalhar hoje?',
-    'Qual ambiente quer abrir?',
-    'O que vamos resolver agora?',
-  ];
-
-  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduce) { el.textContent = FRASES[0]; return; }
-
-  const typeSpeed = 55;    // ms por letra ao escrever
-  const delSpeed  = 28;    // ms por letra ao apagar
-  const holdFull  = 3200;  // pausa com a frase escrita (tempo de leitura)
-  const holdEmpty = 450;   // pausa antes da próxima frase
-
-  let i = 0, pos = 0, apagando = false;
-  el.textContent = '';
-  (function tick() {
-    const txt = FRASES[i];
-    if (!apagando) {
-      pos++;
-      el.textContent = txt.slice(0, pos);
-      if (pos === txt.length) { apagando = true; return setTimeout(tick, holdFull); }
-      return setTimeout(tick, typeSpeed);
-    } else {
-      pos--;
-      el.textContent = txt.slice(0, pos);
-      if (pos === 0) { apagando = false; i = (i + 1) % FRASES.length; return setTimeout(tick, holdEmpty); }
-      return setTimeout(tick, delSpeed);
-    }
-  })();
+// Último ambiente aberto, guardado por usuário no localStorage (só conveniência visual:
+// se o navegador bloquear o storage, o selo simplesmente não aparece).
+function _launcherUltimoKey() {
+  const uid = state.currentUser?.id;
+  return uid ? `launcher_ultimo_env:${uid}` : null;
+}
+function launcherUltimoEnv() {
+  const key = _launcherUltimoKey();
+  if (!key) return null;
+  try { return localStorage.getItem(key); } catch (_) { return null; }
+}
+function launcherGuardarUltimoEnv(env) {
+  const key = _launcherUltimoKey();
+  if (!key) return;
+  try { localStorage.setItem(key, env); } catch (_) {}
 }
 
 // Disparado pelo clique nos cards. NÃO usa setEnvironment (que aborta quando o
@@ -965,6 +953,7 @@ function enterEnvironment(env) {
   }
 
   state.environment = env;
+  launcherGuardarUltimoEnv(env);
   if (env === 'om') state.omActiveTab = 'central';
   if (env === 'financeiro') state.finActiveTab = 'visao';
   if (env === 'vistoria') state.vistoriaActiveTab = 'visao';

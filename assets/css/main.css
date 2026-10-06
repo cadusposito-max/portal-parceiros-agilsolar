@@ -1644,70 +1644,13 @@ html[data-theme="light"] {
 @keyframes visToastIn { from{opacity:0;transform:translateY(-12px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
 
 /* ==========================================
-   LAUNCHER — tela inicial de escolha de ambiente
+   ENTRADA EM CASCATA (.stg) — usada no Financeiro. O visual do launcher
+   (tela de escolha de ambiente) fica em ui-v2/launcher.css.
    ========================================== */
-.launch-bg {
-  background-image:
-    radial-gradient(1100px 520px at 50% -8%, rgba(249,115,22,0.10), transparent 60%),
-    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
-  background-size: 100% 100%, 44px 44px, 44px 44px;
-}
-
-.logo-glow { filter: drop-shadow(0 0 22px rgba(249,115,22,0.4)); }
-
-/* Cards de módulo */
-.mod-card {
-  background: linear-gradient(145deg,#111 0%,#0c0c0c 60%,#080808 100%);
-  border: 1px solid #1f1f1f;
-  transition: transform .35s cubic-bezier(.34,1.56,.64,1), border-color .35s ease, box-shadow .35s ease;
-  position: relative;
-  overflow: hidden;
-}
-.mod-card.is-active { cursor: pointer; }
-.mod-card.is-active:hover {
-  transform: translateY(-4px);
-  border-color: rgba(249,115,22,.55);
-  box-shadow: 0 16px 40px -12px rgba(0,0,0,.8), 0 0 0 1px rgba(249,115,22,.15);
-}
-.mod-card.is-active:active { transform: translateY(-1px) scale(.99); }
-
-/* faixa luminosa que cruza no hover */
-.mod-card.is-active::after {
-  content:''; position:absolute; top:-50%; left:-80%; width:35%; height:200%;
-  background: linear-gradient(to right, transparent 0%, rgba(255,255,255,.05) 50%, transparent 100%);
-  transform: skewX(-15deg); transition: left .65s ease; pointer-events:none;
-}
-.mod-card.is-active:hover::after { left:140%; }
-
-.mod-card.is-soon { opacity:.55; }
-.mod-card.is-soon:hover { opacity:.72; border-color:#2a2a2a; }
-
-.seta-cta { transition: transform .3s ease, opacity .3s ease; }
-.mod-card.is-active:hover .seta-cta { transform: translateX(4px); }
-.ico-wrap { transition: border-color .35s ease; }
-.mod-card.is-active:hover .ico-wrap { border-color: rgba(249,115,22,.5); }
-
-/* entrada em cascata */
 @keyframes launcherFadeSlideUp { from{opacity:0; transform:translateY(18px);} to{opacity:1; transform:translateY(0);} }
 .stg { animation: launcherFadeSlideUp .55s ease-out both; }
 .stg-1{animation-delay:60ms}.stg-2{animation-delay:130ms}.stg-3{animation-delay:200ms}
 .stg-4{animation-delay:270ms}.stg-5{animation-delay:340ms}.stg-6{animation-delay:410ms}
-
-/* cursor do typewriter (pergunta do hero) */
-.launcher-caret {
-  display: inline-block;
-  width: 3px;
-  height: 1em;
-  margin-left: 4px;
-  background: linear-gradient(180deg, #f97316, #facc15);
-  animation: launcherBlink 1s steps(1) infinite;
-  vertical-align: -2px;
-}
-@keyframes launcherBlink { 50% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .launcher-caret { animation: none; }
-}
 
 
 /* ==========================================

@@ -1,0 +1,171 @@
+/* ==========================================
+   LAUNCHER — tela de escolha de ambiente (visual "Clara")
+   Markup em index.html (#launcher-screen), lógica em app.js (showLauncher).
+   Carrega SEMPRE (sem data-ui-v2): as cores vêm dos tokens do v2 com
+   fallback do tema claro, então a tela não fica crua se o v2 for desligado.
+   Seletores começam com "html body #launcher-screen" para vencer as regras
+   genéricas do reskin.css (ex.: raio 12px em todo <button> do launcher).
+   ========================================== */
+
+#launcher-screen {
+  --l-bg: var(--v2-bg, #F3F6F9);
+  --l-card: var(--v2-card, #FFFFFF);
+  --l-ink: var(--v2-ink, #0F1B26);
+  --l-ink-2: var(--v2-ink-2, #4A5561);
+  --l-line: var(--v2-line, #E3E8ED);
+  --l-blue: var(--v2-blue, #008FD4);
+  --l-blue-50: var(--v2-blue-50, #E6F4FB);
+  --l-blue-text: var(--v2-blue-text, #006A9E);
+  --l-orange: var(--v2-orange, #FAA519);
+  --l-orange-ink: var(--v2-orange-ink, #3D2600);
+  --l-orange-50: var(--v2-orange-50, #FEF4E3);
+  --l-orange-text: var(--v2-orange-text, #8A5500);
+  --l-red: var(--v2-red, #D14343);
+  --l-shadow: var(--v2-shadow, 0 1px 2px rgba(15,27,38,.04), 0 8px 24px rgba(15,27,38,.05));
+  --l-logo-a: var(--v2-logo-a, #008FD4);
+
+  background: var(--l-bg) !important;
+  background-image: none !important;
+  color: var(--l-ink);
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* faixa azul/laranja do topo — a mesma do cabeçalho do app */
+#launcher-screen .lch-faixa {
+  height: 3px;
+  background: linear-gradient(90deg, var(--l-blue) 0 72%, var(--l-orange) 72%);
+}
+
+/* ─── topo ─── */
+#launcher-screen .lch-topo {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+@media (min-width: 640px) { #launcher-screen .lch-topo { padding: 16px 24px; } }
+
+#launcher-screen .lch-logo { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+#launcher-screen .lch-logo svg { height: 30px; width: auto; flex-shrink: 0; }
+#launcher-screen .lch-logo b { font-family: Inter, sans-serif; font-weight: 900; font-size: 21px; letter-spacing: -.03em; }
+#launcher-screen svg .lch-logo-a { fill: var(--l-logo-a); }
+#launcher-screen span.lch-logo-a { color: var(--l-logo-a); }
+
+#launcher-screen .lch-user { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#launcher-screen .lch-avatar {
+  width: 36px; height: 36px; flex-shrink: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  display: grid; place-items: center;
+  background: var(--l-orange);
+  color: var(--l-orange-ink);
+  font-weight: 800; font-size: 14px;
+  user-select: none;
+}
+#launcher-screen .lch-avatar img { width: 100%; height: 100%; object-fit: cover; }
+#launcher-screen .lch-user-txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+#launcher-screen .lch-user-nome { font-size: 13px; font-weight: 700; color: var(--l-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }
+#launcher-screen .lch-user-papel { font-size: 11px; font-weight: 500; color: var(--l-ink-2); }
+html body #launcher-screen button.lch-sair {
+  margin-left: 2px;
+  width: 36px; height: 36px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: 12px !important;
+  border: 1px solid var(--l-line);
+  background: var(--l-card);
+  color: var(--l-red);
+  transition: border-color .2s, background-color .2s;
+}
+html body #launcher-screen button.lch-sair:hover { border-color: var(--l-red); background: rgba(209,67,67,.08); }
+#launcher-screen .lch-sair svg { width: 17px; height: 17px; }
+
+/* ─── conteúdo ─── */
+#launcher-screen .lch-main { max-width: 72rem; margin: 0 auto; padding: 0 16px 64px; }
+@media (min-width: 640px) { #launcher-screen .lch-main { padding: 0 24px 80px; } }
+
+#launcher-screen .lch-hero { text-align: center; padding: 40px 0 32px; }
+@media (min-width: 640px) { #launcher-screen .lch-hero { padding: 64px 0 44px; } }
+#launcher-screen .lch-saudacao { font-size: 14px; font-weight: 700; color: var(--l-blue-text); margin: 0 0 8px; }
+#launcher-screen .lch-titulo {
+  margin: 0;
+  font-size: 28px; line-height: 1.2; font-weight: 800; letter-spacing: -.02em;
+  color: var(--l-ink);
+}
+@media (min-width: 640px) { #launcher-screen .lch-titulo { font-size: 40px; } }
+#launcher-screen .lch-sub { margin: 12px auto 0; max-width: 36rem; font-size: 15px; font-weight: 500; color: var(--l-ink-2); }
+
+#launcher-screen .lch-grade {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+}
+
+/* ─── card de ambiente ─── */
+html body #launcher-screen button.lch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  padding: 22px;
+  background: var(--l-card);
+  border: 1px solid var(--l-line);
+  border-radius: 24px !important;
+  box-shadow: var(--l-shadow);
+  color: var(--l-ink);
+  cursor: pointer;
+  transition: transform .25s cubic-bezier(.22,1,.36,1), border-color .2s ease, box-shadow .2s ease;
+}
+html body #launcher-screen button.lch-card.hidden { display: none; }
+html body #launcher-screen button.lch-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--l-blue);
+  box-shadow: var(--l-shadow), 0 12px 28px rgba(0,143,212,.12);
+}
+html body #launcher-screen button.lch-card:active { transform: translateY(-1px) scale(.99); }
+html body #launcher-screen button.lch-card:focus-visible { outline: none; border-color: var(--l-blue); box-shadow: 0 0 0 4px rgba(0,143,212,.2); }
+
+#launcher-screen .lch-card-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 28px; }
+@media (max-width: 639px) { #launcher-screen .lch-card-topo { margin-bottom: 18px; } html body #launcher-screen button.lch-card { padding: 18px; } }
+#launcher-screen .lch-ico {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  display: grid; place-items: center;
+  background: var(--l-blue-50);
+  color: var(--l-blue);
+}
+#launcher-screen .lch-ico svg { width: 22px; height: 22px; }
+
+/* selo do último ambiente aberto (aparece com .is-ultimo no card) */
+#launcher-screen .lch-ultimo {
+  display: none;
+  font-size: 11px; font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--l-orange-50);
+  color: var(--l-orange-text);
+  white-space: nowrap;
+}
+#launcher-screen .lch-card.is-ultimo .lch-ultimo { display: inline-block; }
+
+#launcher-screen .lch-card h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.01em; color: var(--l-ink); }
+#launcher-screen .lch-card p { margin: 6px 0 0; font-size: 14px; font-weight: 500; line-height: 1.55; color: var(--l-ink-2); }
+#launcher-screen .lch-entrar {
+  margin-top: auto;
+  padding-top: 18px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700;
+  color: var(--l-blue-text);
+}
+#launcher-screen .lch-entrar svg { width: 16px; height: 16px; transition: transform .25s ease; }
+#launcher-screen .lch-card:hover .lch-entrar svg { transform: translateX(4px); }
+
+#launcher-screen .lch-rodape { margin-top: 48px; text-align: center; font-size: 12px; font-weight: 600; color: var(--l-ink-2); opacity: .8; }
+
+@media (prefers-reduced-motion: reduce) {
+  html body #launcher-screen button.lch-card,
+  #launcher-screen .lch-entrar svg { transition: none; }
+}
