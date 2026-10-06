@@ -100,7 +100,7 @@ function renderOrcamento() {
   if (bar && !document.getElementById('orcamento-modo')) {
     const label = document.createElement('label');
     label.className = 'orcamento-modo';
-    label.innerHTML = `<select id="orcamento-modo" aria-label="Tipo de proposta" onchange="setPBProposalMode(this.value)"><option value="PROMOCIONAL">Promocional</option>${canUsePersonalizada() ? '<option value="PERSONALIZADA">Personalizada</option>' : ''}</select>`;
+    label.innerHTML = `<select id="orcamento-modo" class="v2-select" aria-label="Tipo de proposta" data-titulo="Tipo de proposta" onchange="setPBProposalMode(this.value)"><option value="PROMOCIONAL">Promocional</option>${canUsePersonalizada() ? '<option value="PERSONALIZADA">Personalizada</option>' : ''}</select>`;
     bar.appendChild(label);
   }
   if (panel && !panel.dataset.orcamentoBound) {
@@ -138,6 +138,7 @@ function orcamentoAtualizarResumo() {
     mode.value = state.pbProposalMode;
     const custom = mode.querySelector('option[value="PERSONALIZADA"]');
     if (custom) custom.disabled = !canUsePersonalizada();
+    if (window.uiV2Select) window.uiV2Select.scan(mode.parentElement);
   }
   const kit = (state.data || []).find((k) => String(k.id) === _orcamentoKitId && k.ativo !== false
     && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)));

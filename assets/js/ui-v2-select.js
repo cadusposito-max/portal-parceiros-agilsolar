@@ -37,6 +37,20 @@
 
   // ---------- botão no lugar do select ----------
   function rotulo(sel) { const o = sel.options[sel.selectedIndex]; return o ? o.text : ''; }
+  function sincronizar(sel) {
+    const b = sel.nextElementSibling;
+    if (!b || b._sel !== sel) return;
+    const texto = rotulo(sel);
+    if (b.querySelector('span').textContent !== texto) b.querySelector('span').textContent = texto;
+    if (b.disabled !== sel.disabled) b.disabled = sel.disabled;
+    b.classList.toggle('on', sel.classList.contains('on'));
+    const label = sel.getAttribute('aria-label') || sel.dataset.titulo;
+    if (label) b.setAttribute('aria-label', label);
+    if (P.btn === b) {
+      if (sel.disabled) fechar();
+      else desenharLista(P.el.querySelector('input')?.value || '');
+    }
+  }
   function enhance(sel) {
     if (sel.dataset.v2dd) return;
     sel.dataset.v2dd = '1';
@@ -52,10 +66,13 @@
     b.addEventListener('click', (e) => { e.stopPropagation(); P.btn === b ? fechar() : abrir(b); });
     b.addEventListener('keydown', (e) => { if (P.btn !== b && ['ArrowDown', 'ArrowUp'].includes(e.key)) { e.preventDefault(); abrir(b); } });
     sel.insertAdjacentElement('afterend', b);
+    sel.addEventListener('change', () => sincronizar(sel));
+    sincronizar(sel);
   }
   function scan(root) {
     if (!window.uiV2.isActive() || !root) return;
     root.querySelectorAll('select.v2-select:not([data-v2dd])').forEach(enhance);
+    root.querySelectorAll('select.v2-select[data-v2dd]').forEach(sincronizar);
   }
 
   // ---------- lista (cartão / gaveta) ----------
@@ -114,6 +131,7 @@
     P.el.style.top = (cabeBaixo ? r.bottom + 6 : r.top - alto - 6) + 'px';
   }
   function abrir(btn) {
+    if (btn.disabled || btn._sel.disabled) return;
     montarPop();
     if (P.btn) fechar();
     P.btn = btn;
@@ -145,6 +163,7 @@
     const btn = P.btn;
     if (!btn) return;
     const sel = btn._sel;
+    if (sel.disabled) { fechar(); return; }
     const o = sel.options[i];
     if (!o || o.disabled) return;
     fechar();
@@ -179,7 +198,7 @@
       if (pend) return;
       pend = true;
       queueMicrotask(() => { pend = false; if (P.btn && !P.btn.isConnected) fechar(); scan(main); });
-    }).observe(main, { childList: true, subtree: true });
+    }).observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
     scan(main);
   }
 })();

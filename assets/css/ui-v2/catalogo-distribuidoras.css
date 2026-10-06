@@ -6,6 +6,11 @@ html[data-ui="v2"] #pb-fornecimento-panel .pbd-sec svg { width: 16px; height: 16
 html[data-ui="v2"] .pbd-fornecimento-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 12px; }
 html[data-ui="v2"] .pbd-fornecimento-fields label { min-width: 0; }
 html[data-ui="v2"] #pb-fornecimento-panel select { width: 100%; font-size: 13px; font-weight: 600; }
+html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd {
+  width: 100%; max-width: none; justify-content: space-between; border: 1px solid var(--v2-line-strong);
+  border-radius: var(--v2-r-ctl) !important; box-shadow: none; color: var(--v2-ink); font-weight: 600;
+}
+html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd:disabled { opacity: .55; cursor: wait; }
 html[data-ui="v2"] #pbd-fornecimento-slot { margin-top: 18px; border-top: 1px solid var(--v2-line); }
 html[data-ui="v2"] .catalogo-fornecimento-section { padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--v2-line); color: var(--v2-ink); }
 html[data-ui="v2"] .catalogo-fornecimento-section h3 { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
@@ -25,6 +30,7 @@ html[data-ui="v2"] .catalogo-nova-distribuidora .pbd-input { flex: 1; }
 @media (max-width: 760px) {
   html[data-ui="v2"] .pbd-fornecimento-fields { grid-template-columns: 1fr; }
   html[data-ui="v2"] #pb-fornecimento-panel select { font-size: 16px; }
+  html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd { font-size: 16px; }
   html[data-ui="v2"] .catalogo-oferta-row { grid-template-columns: minmax(0,1fr) auto; }
   html[data-ui="v2"] .catalogo-oferta-row [data-oferta-dist] { grid-column: 1 / -1; }
   html[data-ui="v2"] .catalogo-oferta-row .catalogo-oferta-ativo { grid-row: 3; }

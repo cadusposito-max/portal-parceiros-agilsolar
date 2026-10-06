@@ -281,19 +281,6 @@ function _pbdRenderResultado() {
   const mic = _pbdRecomendar('kitsMicro', alvo);
   const principal = inv.kit || mic.kit;
 
-  let chart = '';
-  if (principal) {
-    const geracao = _pbdGeracaoMensal(_pbdGeracao(principal));
-    const consumo = c.meses || Array(12).fill(c.media);
-    chart = `<div class="pbd-chart">${_pbdChartSVG(consumo, geracao)}<div class="pbd-tip" hidden></div>
-      <div class="pbd-leg">
-        <span><i style="width:10px;height:10px;border-radius:2px;background:var(--v2-line-strong)"></i>consumo do cliente${c.meses ? '' : ' (média)'}</span>
-        <span><i style="width:14px;border-top:3px solid var(--v2-blue)"></i>geração do ${escapeHTML(principal.name)}</span>
-      </div>
-      ${_pbd.hsp ? '' : '<p class="pbd-hint" style="margin-top:4px">Variação mensal típica da região (cidade do cliente sem dado mês a mês).</p>'}
-    </div>`;
-  }
-
   const cards = [];
   if (inv.kit) cards.push(_pbdKitCard(inv.kit, alvo, 'Com inversor', true));
   if (mic.kit) cards.push(_pbdKitCard(mic.kit, alvo, 'Com microinversor', !inv.kit));
@@ -309,8 +296,7 @@ function _pbdRenderResultado() {
     kitsHtml = `<div class="pbd-aviso" style="margin-top:12px">Nenhum kit disponível com esta seleção cobre o consumo. Confira os equipamentos e a distribuidora escolhidos.</div>`;
   }
 
-  host.innerHTML = mets + chart + kitsHtml;
-  if (principal) _pbdBindChart(host, c.meses || Array(12).fill(c.media), _pbdGeracaoMensal(_pbdGeracao(principal)), !c.meses);
+  host.innerHTML = mets + kitsHtml;
   if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }

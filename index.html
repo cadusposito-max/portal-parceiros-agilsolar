@@ -61,12 +61,13 @@
   <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261002-legivel2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261005-dim2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261006-fluxo" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261006-dist" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261006-listas" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261006-listas" data-ui-v2 media="not all">
   <!-- Tailwind PRÉ-COMPILADO (antes era o cdn.tailwindcss.com, que compilava CSS dentro do navegador e
        deixava a plataforma pesada em PC fraco). Fica depois dos outros CSS, na mesma posição em que o CDN
        injetava o <style>. Usou classe Tailwind nova? Regerar — comando no tailwind.config.js. -->
   <link rel="stylesheet" href="assets/css/tailwind.css?v=20261006-cc">
+  <link rel="stylesheet" href="assets/css/mobile-fields.css?v=20261006-zoom">
   <script>
     /* Visual novo (v2) é o ÚNICO visual para todos desde 29/09/2026: sempre liga,
        sem preferência nem ?ui=v1. Só em emergência (desenvolvedor): trocar para
@@ -1312,9 +1313,9 @@
   local('crm-metas.js',        '20260716-crm-loop');
   local('etiquetas.js',        '20261006-etq');
   local('analise.js',          '20261006-etq');
-  local('catalogo-distribuidoras.js', '20261006-dist');
+  local('catalogo-distribuidoras.js', '20261006-listas');
   local('produtos.js',         '20261006-dist');
-  local('pb-dimensionar.js',   '20261006-dist');
+  local('pb-dimensionar.js',   '20261006-sem-grafico');
   local('proposta-builder.js', '20261006-dist');
   local('orcamento-dre.js',    '20261006-cc');
   local('vendas.js',           '20260930-venda');
@@ -1333,13 +1334,13 @@
   local('ui-v2.js',            '20260929-rel6');
   local('ui-v2-shell.js',      '20261001-eng');
   local('ui-v2-screens.js',    '20261006-etq');
-  local('ui-v2-select.js',     '20260929-p28');
+  local('ui-v2-select.js',     '20261006-listas');
   local('ui-v2-filtros.js',    '20260929-p28');
   local('ui-v2-ficha.js',      '20261006-fluxo');
   local('ui-v2-modais.js',     '20261006-fluxo');
   local('ui-v2-login.js',      '20260929-p23');
   local('ui-v2-admin.js',      '20260929-p30');
-  local('orcamento-tela.js',   '20261006-dist');
+  local('orcamento-tela.js',   '20261006-listas');
   local('update-notice.js',    '20260929-rel3');
   local('push.js',             '20261006-leads');
   local('leads-meta-avisos.js', '20261006-sw');

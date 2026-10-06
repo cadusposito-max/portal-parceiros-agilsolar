@@ -19,10 +19,11 @@ html[data-ui="v2"] body #orcamento-builder-slot #pb-mode-bar {
   grid-column: 2; grid-row: 1; padding: 14px; border: 0 !important; background: transparent !important;
 }
 html[data-ui="v2"] #orcamento-builder-slot #pb-mode-bar > :not(.orcamento-modo) { display: none !important; }
-html[data-ui="v2"] .orcamento-modo select {
+html[data-ui="v2"] .orcamento-modo :is(select, .v2-dd) {
   min-height: 44px; width: 160px; border: 1px solid var(--v2-line-strong); border-radius: var(--v2-r-ctl);
   padding: 0 12px; font: inherit; font-size: 13px; font-weight: 700; color: var(--v2-ink); background: var(--v2-card);
 }
+html[data-ui="v2"] body .orcamento-modo .v2-dd { justify-content: space-between; border-radius: var(--v2-r-ctl) !important; box-shadow: none; }
 html[data-ui="v2"] body #orcamento-builder-slot #pb-porta {
   grid-column: 1; grid-row: 1; align-content: center; padding: 14px; padding-right: 0; gap: 6px;
 }

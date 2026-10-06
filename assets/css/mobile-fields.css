@@ -1,0 +1,22 @@
+/* Campos pequenos provocam zoom ao focar no iPhone. A camada com !important
+   mantém o texto legível mesmo nos módulos que têm tamanhos próprios com
+   !important. Só afeta celulares/telas de toque; não restringe o zoom manual. */
+@layer mobile-fields {
+  @media (max-width: 760px), (hover: none) and (pointer: coarse) {
+    :is(
+      input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+      textarea,
+      select,
+      [contenteditable="true"],
+      [contenteditable=""],
+      [contenteditable="plaintext-only"]
+    ) {
+      font-size: 16px !important;
+    }
+
+    /* Estes campos já eram maiores; preserva a hierarquia original. */
+    #v2-pal .v2-pal-in input { font-size: 17px !important; }
+    #mfa-code-input { font-size: 22px !important; }
+    #mfa-login-code { font-size: 26px !important; }
+  }
+}
