@@ -429,6 +429,7 @@ function openEquipModal(item = null) {
   set('equip-custo', item?.custo ?? '');
   const ativoEl = document.getElementById('equip-ativo');
   if (ativoEl) ativoEl.checked = item ? item.ativo !== false : true;
+  catalogoOfertasEquipamentoAbrir(item?.id || '');
 }
 
 function closeEquipModal() {
@@ -441,12 +442,18 @@ async function submitEquipModal(e) {
 
   const id = document.getElementById('equip-id').value;
   const btn = document.getElementById('equip-save-btn');
+  if (btn?.disabled) return;
   const nome = document.getElementById('equip-nome').value.trim();
   const preco = Number(document.getElementById('equip-preco').value);
   if (!nome) { showToast('Informe o nome do equipamento.'); return; }
   if (!Number.isFinite(preco) || preco < 0) { showToast('Informe um preço válido.'); return; }
 
+  let ofertas;
+  try { ofertas = catalogoLerOfertasEquipamento(); }
+  catch (error) { showToast(error.message); return; }
+
   if (btn) btn.innerHTML = 'SALVANDO...';
+  if (btn) btn.disabled = true;
   const potenciaRaw = document.getElementById('equip-potencia').value;
   const custoRaw = document.getElementById('equip-custo').value;
   const payload = {
@@ -460,9 +467,10 @@ async function submitEquipModal(e) {
     ativo:          document.getElementById('equip-ativo').checked,
   };
 
-  const { error } = id
-    ? await supabaseClient.from('componentes').update(payload).eq('id', id)
-    : await supabaseClient.from('componentes').insert([payload]);
+  const { error } = await Promise.resolve(supabaseClient.rpc('catalogo_salvar_equipamento', {
+    p_id: id || null, p_dados: payload, p_ofertas: ofertas,
+  })).catch((err) => ({ error: err }));
+  if (btn) btn.disabled = false;
   if (error) {
     console.error('[equipamentos] Falha ao salvar.', error);
     showToast(`ERRO AO SALVAR: ${error.message || 'tente novamente'}`);
@@ -471,6 +479,7 @@ async function submitEquipModal(e) {
   }
 
   await fetchEquipamentos();
+  await carregarCatalogoDistribuidoras(true);
   closeEquipModal();
   showToast('EQUIPAMENTO SALVO COM SUCESSO');
   if (btn) btn.innerHTML = 'SALVAR EQUIPAMENTO';
@@ -566,6 +575,7 @@ function openModal(item = null) {
       el.classList.toggle('opacity-50', somentePrecos);
     }
   });
+  catalogoKitAbrir(item || null);
 }
 
 function closeModal() {
@@ -625,6 +635,9 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
     renderContent();
     return;
   }
+
+  try { Object.assign(productData, catalogoKitLer()); }
+  catch (error) { falhou(error, 'validar equipamentos do kit'); return; }
 
   if (id) {
     const { error } = await supabaseClient.from('produtos').update(productData).eq('id', id);

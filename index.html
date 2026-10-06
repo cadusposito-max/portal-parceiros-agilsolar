@@ -62,6 +62,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261005-dim2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261006-fluxo" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261006-dist" data-ui-v2 media="not all">
   <!-- Tailwind PRÉ-COMPILADO (antes era o cdn.tailwindcss.com, que compilava CSS dentro do navegador e
        deixava a plataforma pesada em PC fraco). Fica depois dos outros CSS, na mesma posição em que o CDN
        injetava o <style>. Usou classe Tailwind nova? Regerar — comando no tailwind.config.js. -->
@@ -826,6 +827,7 @@
         </form>
       </div>
 
+      <div id="pb-kit-fornecimento-slot"></div>
       <div id="pb-products-container" class="p-3 md:p-4 bg-[#050505]"></div>
       <div id="pb-empty" class="hidden flex-col items-center justify-center p-10 bg-[#050505]">
         <i data-lucide="search-x" class="w-12 h-12 text-neutral-700 mb-4"></i>
@@ -892,6 +894,16 @@
           </select>
         </div>
       </div>
+      <section id="kit-fornecimento-section" class="catalogo-fornecimento-section">
+        <h3>Equipamentos e distribuidora</h3>
+        <div class="catalogo-kit-fields">
+          <label>Distribuidora do kit<select id="form-distribuidora" class="pbd-input" onchange="catalogoKitEquipamentosSync()"></select></label>
+          <label>Módulo / Painel<select id="form-modulo" class="pbd-input"></select></label>
+          <label>Inversor / Microinversor<select id="form-inversor" class="pbd-input"></select></label>
+          <label>Quantidade de módulos<input id="form-modulo-qtd" class="pbd-input" type="number" min="1" step="1"></label>
+          <label>Quantidade de inversores<input id="form-inversor-qtd" class="pbd-input" type="number" min="1" step="1"></label>
+        </div>
+      </section>
       <div class="pt-4 flex gap-4">
         <button type="button" onclick="closeModal()" class="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-black uppercase tracking-widest transition-colors border-b-4 border-neutral-950 active:border-b-0 active:translate-y-1">Cancelar</button>
         <button type="submit" id="btn-save-modal" class="flex-1 py-4 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black font-black uppercase tracking-widest transition-all border-b-4 border-orange-800 active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(234,88,12,0.4)]">SALVAR OFERTA</button>
@@ -957,6 +969,16 @@
           <span class="text-white font-bold text-sm uppercase">Ativo</span>
         </label>
       </div>
+      <section id="equip-ofertas-section" class="catalogo-fornecimento-section">
+        <h3>Ofertas por distribuidora</h3>
+        <p class="pbd-hint">O mesmo equipamento pode ter um valor em cada distribuidora.</p>
+        <div id="equip-ofertas-lista"></div>
+        <button type="button" id="equip-ofertas-add" class="btn btn-secondary btn-sm" onclick="catalogoOfertaAdicionar()"><i data-lucide="plus"></i> Adicionar oferta</button>
+        <div class="catalogo-nova-distribuidora">
+          <input id="equip-nova-distribuidora" class="pbd-input" aria-label="Nome da nova distribuidora" placeholder="Nova distribuidora">
+          <button type="button" id="equip-distribuidora-add" class="btn btn-secondary btn-sm" onclick="catalogoCriarDistribuidora()">Cadastrar</button>
+        </div>
+      </section>
       <div class="pt-4 flex gap-4">
         <button type="button" onclick="closeEquipModal()" class="flex-1 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-black uppercase tracking-widest transition-colors border-b-4 border-neutral-950 active:border-b-0 active:translate-y-1">Cancelar</button>
         <button type="submit" id="equip-save-btn" class="flex-1 py-4 bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 text-black font-black uppercase tracking-widest transition-all border-b-4 border-orange-800 active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(234,88,12,0.4)]">SALVAR EQUIPAMENTO</button>
@@ -1277,7 +1299,7 @@
   local('config.js',           '20261006-leads');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20261002-zip');
-  local('api.js',              '20261001-eng');
+  local('api.js',              '20261006-dist');
   local('auth.js',             '20260925-f5-lugar');
   local('comunicados.js',      '20260615-om-central-propostas');
   local('dashboard.js',        '20260925-layout-c');
@@ -1290,9 +1312,10 @@
   local('crm-metas.js',        '20260716-crm-loop');
   local('etiquetas.js',        '20261006-etq');
   local('analise.js',          '20261006-etq');
-  local('produtos.js',         '20261001-eng');
-  local('pb-dimensionar.js',   '20261006-fluxo');
-  local('proposta-builder.js', '20261006-fluxo');
+  local('catalogo-distribuidoras.js', '20261006-dist');
+  local('produtos.js',         '20261006-dist');
+  local('pb-dimensionar.js',   '20261006-dist');
+  local('proposta-builder.js', '20261006-dist');
   local('orcamento-dre.js',    '20261006-cc');
   local('vendas.js',           '20260930-venda');
   local('admin.js',            '20261001-eng');
@@ -1316,7 +1339,7 @@
   local('ui-v2-modais.js',     '20261006-fluxo');
   local('ui-v2-login.js',      '20260929-p23');
   local('ui-v2-admin.js',      '20260929-p30');
-  local('orcamento-tela.js',   '20261006-fluxo');
+  local('orcamento-tela.js',   '20261006-dist');
   local('update-notice.js',    '20260929-rel3');
   local('push.js',             '20261006-leads');
   local('leads-meta-avisos.js', '20261006-sw');

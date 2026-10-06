@@ -85,7 +85,6 @@ function renderOrcamento() {
       <header class="orcamento-header">
         <button type="button" class="btn btn-secondary" onclick="orcamentoVoltar()"><i data-lucide="arrow-left"></i> Voltar</button>
         <div class="orcamento-cliente"><h1>Orçamento · ${escapeHTML(client.nome || '')}</h1><p>${info}</p></div>
-        <button type="button" class="btn btn-secondary" onclick="orcamentoVerFicha()"><i data-lucide="id-card"></i> Ver ficha</button>
       </header>
       <div id="orcamento-builder-slot"></div>
       <footer class="orcamento-footer">
@@ -121,8 +120,13 @@ function renderOrcamento() {
 function orcamentoSelecionarKit(kitId) {
   if (_orcamentoGerando) return;
   const kit = (state.data || []).find((k) => String(k.id) === String(kitId) && k.ativo !== false);
-  if (!kit) return;
+  if (!kit || (typeof pbKitCompativel === 'function' && !pbKitCompativel(kit))) return;
   _orcamentoKitId = String(kit.id);
+  orcamentoAtualizarResumo();
+}
+
+function orcamentoLimparKit() {
+  _orcamentoKitId = null;
   orcamentoAtualizarResumo();
 }
 
@@ -135,7 +139,8 @@ function orcamentoAtualizarResumo() {
     const custom = mode.querySelector('option[value="PERSONALIZADA"]');
     if (custom) custom.disabled = !canUsePersonalizada();
   }
-  const kit = (state.data || []).find((k) => String(k.id) === _orcamentoKitId && k.ativo !== false);
+  const kit = (state.data || []).find((k) => String(k.id) === _orcamentoKitId && k.ativo !== false
+    && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)));
   let texto = 'Escolha um kit para continuar';
   let valido = Boolean(kit);
   if (personalizada) {
@@ -144,7 +149,8 @@ function orcamentoAtualizarResumo() {
     valido = canUsePersonalizada() && tot.total > 0 && _pbPotenciaEfetiva(draft, tot) > 0 && tot.itens.length > 0;
     texto = tot.total > 0 ? `${draft.descricao || 'Proposta personalizada'} · ${formatCurrency(tot.total)}` : 'Adicione os itens da proposta';
   } else if (kit) {
-    texto = `${kit.name} · ${formatCurrency(kit.price)}`;
+    const dist = typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(kit) : '';
+    texto = `${kit.name}${dist ? ' · ' + dist : ''} · ${formatCurrency(kit.price)}`;
   }
   const label = document.getElementById('orcamento-selecao-label');
   const resumo = document.getElementById('orcamento-selecao');
@@ -179,7 +185,7 @@ async function orcamentoGerar(event) {
       await handleEquipamentosProposalSubmit({ preventDefault() {} });
     } else {
       const kit = (state.data || []).find((k) => String(k.id) === _orcamentoKitId && k.ativo !== false);
-      if (kit) await copyProposalLink(kit, { currentTarget: btn });
+      if (kit && (typeof pbKitCompativel !== 'function' || pbKitCompativel(kit))) await copyProposalLink(kit, { currentTarget: btn });
     }
   } finally {
     _orcamentoGerando = false;

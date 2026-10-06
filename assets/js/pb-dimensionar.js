@@ -21,11 +21,6 @@ const PBD_LIGACOES = [
   { v: 'bi',   label: 'Bifásico',   taxa: 50 },
   { v: 'tri',  label: 'Trifásico',  taxa: 100 },
 ];
-const PBD_PERFIS = [
-  { kwh: 200, label: 'Casa pequena' },
-  { kwh: 350, label: 'Casa média' },
-  { kwh: 600, label: 'Casa grande' },
-];
 const PBD_PORTA_KEY = 'pb_porta';
 
 let _pbd = null;              // estado do dimensionamento do cliente em atendimento
@@ -34,10 +29,9 @@ const _pbdHspCache = {};      // ibge -> { anual, mensal } | null
 function _pbdNovoEstado(client) {
   return {
     clienteId: client ? client.id : null,
-    modo: 'mes',              // 'mes' | 'media' | 'ns'
+    modo: 'mes',              // 'mes' | 'media'
     meses: Array(12).fill(''),
     media: '',
-    perfil: 350,
     ligacao: 'mono',
     hsp: null,                // { anual, mensal[12] } da cidade do cliente
   };
@@ -67,7 +61,6 @@ function pbDimMount() {
     <div class="pbd-chips" data-pbd-grupo="modo">
       <button type="button" class="pbd-chip" data-pbd-modo="mes">Mês a mês (da conta)</button>
       <button type="button" class="pbd-chip" data-pbd-modo="media">Só a média em kWh</button>
-      <button type="button" class="pbd-chip" data-pbd-modo="ns">Não sabe</button>
     </div>
     <div id="pbd-box-mes" style="margin-top:10px">
       <p class="pbd-hint">Copie do gráfico de barras da conta de luz (histórico de 12 meses). Pode deixar mês vazio: a média usa só os preenchidos.</p>
@@ -78,18 +71,13 @@ function pbDimMount() {
     <div id="pbd-box-media" class="hidden" style="margin-top:10px">
       <label class="pbd-mes"><span>Média mensal (kWh)</span><input id="pbd-media" class="pbd-input pbd-input-um" type="number" inputmode="numeric" min="0" step="1" placeholder="Ex.: 350"></label>
     </div>
-    <div id="pbd-box-ns" class="hidden" style="margin-top:10px">
-      <div class="pbd-chips">
-        ${PBD_PERFIS.map((p) => `<button type="button" class="pbd-chip" data-pbd-perfil="${p.kwh}">${p.label} · ${p.kwh} kWh</button>`).join('')}
-      </div>
-      <p class="pbd-hint" style="margin-top:6px">Média só pra começar. Confirme o consumo com o cliente antes de fechar.</p>
-    </div>
 
     <div class="pbd-sec">Ligação</div>
     <div class="pbd-chips">
       ${PBD_LIGACOES.map((l) => `<button type="button" class="pbd-chip" data-pbd-ligacao="${l.v}">${l.label}</button>`).join('')}
     </div>
 
+    <div id="pbd-fornecimento-slot"></div>
     <div class="pbd-sec">Resultado</div>
     <div id="pbd-resultado"></div>
   `;
@@ -97,8 +85,7 @@ function pbDimMount() {
   panel.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b || !_pbd) return;
-    if (b.dataset.pbdModo)    { _pbd.modo = b.dataset.pbdModo; pbDimRender(); return; }
-    if (b.dataset.pbdPerfil)  { _pbd.perfil = Number(b.dataset.pbdPerfil); pbDimRender(); return; }
+    if (b.dataset.pbdModo)    { _pbd.modo = b.dataset.pbdModo === 'media' ? 'media' : 'mes'; pbDimRender(); return; }
     if (b.dataset.pbdLigacao) { _pbd.ligacao = b.dataset.pbdLigacao; pbDimRender(); return; }
     if (b.dataset.pbdVerTodos) { pbDimVerTodos(Number(b.dataset.pbdVerTodos)); }
   });
@@ -153,6 +140,7 @@ function pbDimSync() {
   porta.classList.toggle('hidden', !promo);
   porta.querySelectorAll('[data-pb-porta]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbPorta === (state.pbPorta || 'kit')));
   panel.classList.toggle('hidden', !dim);
+  if (typeof pbFornecimentoMount === 'function') pbFornecimentoMount();
 
   if (promo) {
     const toolbar = document.getElementById('pb-promocional-toolbar');
@@ -197,7 +185,6 @@ async function _pbdCarregarHsp(client) {
 // ---------- cálculo ----------
 
 function _pbdConsumo() {
-  if (_pbd.modo === 'ns') return { media: _pbd.perfil, meses: null, preenchidos: 0 };
   if (_pbd.modo === 'media') return { media: Math.max(0, _pbdNum(_pbd.media)), meses: null, preenchidos: 0 };
   const meses = _pbd.meses.map((v) => (String(v).trim() === '' ? null : Math.max(0, _pbdNum(v))));
   const validos = meses.filter((v) => v != null && v > 0);
@@ -217,7 +204,8 @@ function _pbdGeracao(kit) {
 // Menor kit ativo da categoria que cobre o consumo a compensar.
 function _pbdRecomendar(categoria, alvo) {
   const kits = (state.data || [])
-    .filter((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0)
+    .filter((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0
+      && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)))
     .sort((a, b) => (Number(a.power) - Number(b.power)) || (Number(a.price) - Number(b.price)));
   if (!kits.length) return { kit: null, maior: null };
   const kit = kits.find((k) => _pbdGeracao(k) >= alvo) || null;
@@ -241,11 +229,9 @@ function pbDimRender() {
   if (!panel) return;
 
   panel.querySelectorAll('[data-pbd-modo]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbdModo === _pbd.modo));
-  panel.querySelectorAll('[data-pbd-perfil]').forEach((b) => b.classList.toggle('is-on', Number(b.dataset.pbdPerfil) === _pbd.perfil));
   panel.querySelectorAll('[data-pbd-ligacao]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbdLigacao === _pbd.ligacao));
   document.getElementById('pbd-box-mes')?.classList.toggle('hidden', _pbd.modo !== 'mes');
   document.getElementById('pbd-box-media')?.classList.toggle('hidden', _pbd.modo !== 'media');
-  document.getElementById('pbd-box-ns')?.classList.toggle('hidden', _pbd.modo !== 'ns');
 
   // Inputs refletem o estado do cliente atual (o painel é o mesmo DOM para todos).
   panel.querySelectorAll('[data-pbd-mes]').forEach((inp) => {
@@ -320,7 +306,7 @@ function _pbdRenderResultado() {
     }
     kitsHtml += `<button type="button" class="pbd-link" data-pbd-ver-todos="${Math.round(_pbdGeracao(principal))}">Ver todos os kits perto dessa geração →</button>`;
   } else {
-    kitsHtml = `<div class="pbd-aviso" style="margin-top:12px">Consumo acima do maior kit da tabela. Monte uma proposta personalizada (gestor/admin).</div>`;
+    kitsHtml = `<div class="pbd-aviso" style="margin-top:12px">Nenhum kit disponível com esta seleção cobre o consumo. Confira os equipamentos e a distribuidora escolhidos.</div>`;
   }
 
   host.innerHTML = mets + chart + kitsHtml;
@@ -339,6 +325,7 @@ function _pbdKitCard(kit, alvo, tag, top) {
       <span class="pbd-kit-tag">${top ? 'Recomendado · ' : ''}${tag}</span>
       <div class="pbd-kit-n">${escapeHTML(kit.name)}</div>
       <div class="pbd-kit-d">${escapeHTML(String(kit.power))} kWp · ~${_pbdInt(g)} kWh/mês · cobre ${cobre}% do consumo a compensar</div>
+      ${typeof pbKitDistribuidoraNome === 'function' && pbKitDistribuidoraNome(kit) ? `<div class="pbd-kit-d">Distribuidora: ${escapeHTML(pbKitDistribuidoraNome(kit))}</div>` : ''}
       <div class="pbd-kit-f">
         <div>
           ${temDe ? `<div class="pbd-kit-de">De: ${formatCurrency(kit.list_price)}</div>` : ''}

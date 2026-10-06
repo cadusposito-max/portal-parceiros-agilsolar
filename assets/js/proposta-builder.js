@@ -256,6 +256,7 @@ function pbEmbedSetup(client) {
   state.pbSearch       = '';
   state.pbProposalMode = PB_PROPOSAL_MODES.PROMOCIONAL;
   resetPBEquipDraft();
+  if (typeof pbFornecimentoReset === 'function') pbFornecimentoReset();
 
   const searchEl = document.getElementById('pb-search');
   if (searchEl) searchEl.value = '';
@@ -926,7 +927,8 @@ function renderModalProducts() {
   }
 
   // Kits fora de linha (ativo=false) não aparecem para o vendedor.
-  let list = state.data.filter(k => k.categoria === state.pbCategory && k.ativo !== false);
+  let list = state.data.filter(k => k.categoria === state.pbCategory && k.ativo !== false
+    && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)));
 
   // HSP da cidade do cliente em atendimento: quando existe, a geração exibida
   // e usada na busca é recalculada com ele (senão vale o _estGeneration da franquia).
@@ -972,6 +974,8 @@ function renderModalProducts() {
     const safeName          = escapeHTML(item.name);
     const safeBrand         = escapeHTML(item.brand);
     const safePower         = escapeHTML(String(item.power));
+    const distribuidora = typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(item) : '';
+    const fornecedorHTML = distribuidora ? `<p class="text-neutral-500 text-xs mt-1">Distribuidora: ${escapeHTML(distribuidora)}</p>` : '';
 
     // Cards container-aware: nada de breakpoints de viewport ditando linha/coluna
     // (o painel vive dentro da ficha e a largura do container é quem manda).
@@ -985,6 +989,7 @@ function renderModalProducts() {
             <span class="text-[10px] text-neutral-600 line-through decoration-red-500/70 font-bold shrink-0">De: ${formattedListPrice}</span>
           </div>
           <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors">${safeName}</h3>
+          ${fornecedorHTML}
           <div class="grid grid-cols-2 gap-2">
             <div class="bg-black p-2 border border-neutral-800 flex flex-col items-center justify-center">
               <span class="text-[8px] text-neutral-500 font-black uppercase tracking-widest">Potência</span>
@@ -1009,6 +1014,7 @@ function renderModalProducts() {
         <div class="flex-1 min-w-[240px]">
           <span class="text-[9px] bg-orange-600/15 text-orange-500 px-2 py-0.5 font-black uppercase tracking-widest border border-orange-500/30 inline-block">${safeBrand}</span>
           <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors mt-1.5">${safeName}</h3>
+          ${fornecedorHTML}
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[10px] font-bold">
             <span class="text-orange-500 flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i>${safePower} kWp</span>
             <span class="text-blue-400 flex items-center gap-1"><i data-lucide="sun" class="w-3 h-3"></i>~${estGeneration} kWh/mês</span>
@@ -1057,6 +1063,7 @@ function copiarLinkExistente(id, btnElement) {
 }
 
 async function copyProposalLink(kit, event) {
+  if (typeof pbKitCompativel === 'function' && !pbKitCompativel(kit)) return showToast('Este kit não está disponível na seleção atual. Escolha outro kit.');
   const client = state.pbActiveClient;
   if (!client) return showToast('Nenhum cliente em atendimento!');
 
@@ -1086,6 +1093,7 @@ async function copyProposalLink(kit, event) {
       kit_list_price:    kit.list_price,
       geracao_estimada:  calcularGeracaoEstimada(kit.power, kit.categoria, client.hsp),
       source_product_id: kit.id || null, // a engenharia acha os equipamentos do kit por aqui
+      distribuidora_id: kit.distribuidora_id || null,
       franquia_id:       state.franquiaId
     }]).select();
 

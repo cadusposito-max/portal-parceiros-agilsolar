@@ -1,0 +1,32 @@
+/* Equipamentos e fornecedora: mesmos controles, cores e espaçamento do portal. */
+html[data-ui="v2"] #pb-fornecimento-panel { padding: 0 0 12px; color: var(--v2-ink); }
+html[data-ui="v2"] #pb-kit-fornecimento-slot #pb-fornecimento-panel { padding: 0 14px 14px; }
+html[data-ui="v2"] #pb-fornecimento-panel .pbd-sec { display: flex; align-items: center; gap: 7px; }
+html[data-ui="v2"] #pb-fornecimento-panel .pbd-sec svg { width: 16px; height: 16px; color: var(--v2-blue); }
+html[data-ui="v2"] .pbd-fornecimento-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 12px; }
+html[data-ui="v2"] .pbd-fornecimento-fields label { min-width: 0; }
+html[data-ui="v2"] #pb-fornecimento-panel select { width: 100%; font-size: 13px; font-weight: 600; }
+html[data-ui="v2"] #pbd-fornecimento-slot { margin-top: 18px; border-top: 1px solid var(--v2-line); }
+html[data-ui="v2"] .catalogo-fornecimento-section { padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--v2-line); color: var(--v2-ink); }
+html[data-ui="v2"] .catalogo-fornecimento-section h3 { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+html[data-ui="v2"] .catalogo-fornecimento-section .pbd-hint { font-size: 12px; color: var(--v2-ink-2); margin-bottom: 10px; }
+html[data-ui="v2"] .catalogo-fornecimento-section .pbd-input {
+  height: 42px; min-width: 0; width: 100%; padding: 0 12px; border: 1px solid var(--v2-line-strong);
+  border-radius: var(--v2-r-ctl); background: var(--v2-card); color: var(--v2-ink); font-family: inherit; font-size: 13px;
+}
+html[data-ui="v2"] .catalogo-kit-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+html[data-ui="v2"] .catalogo-kit-fields label { display: flex; flex-direction: column; gap: 5px; min-width: 0; font-size: 12px; font-weight: 700; color: var(--v2-ink-2); }
+html[data-ui="v2"] .catalogo-kit-fields label:first-child { grid-column: 1 / -1; }
+html[data-ui="v2"] .catalogo-oferta-row { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr) auto auto; align-items: center; gap: 8px; margin: 10px 0; }
+html[data-ui="v2"] .catalogo-oferta-ativo { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; }
+html[data-ui="v2"] .catalogo-oferta-ativo input { accent-color: var(--v2-blue); }
+html[data-ui="v2"] .catalogo-nova-distribuidora { display: flex; gap: 8px; margin-top: 12px; }
+html[data-ui="v2"] .catalogo-nova-distribuidora .pbd-input { flex: 1; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .pbd-fornecimento-fields { grid-template-columns: 1fr; }
+  html[data-ui="v2"] #pb-fornecimento-panel select { font-size: 16px; }
+  html[data-ui="v2"] .catalogo-oferta-row { grid-template-columns: minmax(0,1fr) auto; }
+  html[data-ui="v2"] .catalogo-oferta-row [data-oferta-dist] { grid-column: 1 / -1; }
+  html[data-ui="v2"] .catalogo-oferta-row .catalogo-oferta-ativo { grid-row: 3; }
+  html[data-ui="v2"] .catalogo-oferta-row button { grid-column: 2; grid-row: 3; }
+}
