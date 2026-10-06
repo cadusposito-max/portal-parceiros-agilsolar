@@ -1062,6 +1062,16 @@ let _clientModalCidade = null;
 let _clientModalHsp = null;
 let _clientModalDup = null;
 let _clientModalInit = false;
+let _clientModalOnSaved = null;
+let _clientModalDupVersion = 0;
+let _clientModalSaving = false;
+let _clientModalDupChecking = false;
+
+function _clientModalSaveLabel() {
+  return document.getElementById('client-modal-overlay')?.dataset.proposalFlow === 'true'
+    ? 'Salvar e fazer orçamento →'
+    : 'SALVAR CLIENTE';
+}
 
 function _clientModalSetCidade(mun) {
   _clientModalCidade = mun;
@@ -1095,10 +1105,12 @@ function _clientModalRenderDupWarning() {
   if (!warnEl || !btnSave) return;
 
   const dup = _clientModalDup;
+  if (typeof renderNovaPropostaDuplicateWarning === 'function'
+      && renderNovaPropostaDuplicateWarning(dup, warnEl, btnSave)) return;
   if (!dup || !dup.existe) {
     warnEl.classList.add('hidden');
     warnEl.innerHTML = '';
-    btnSave.disabled = false;
+    btnSave.disabled = _clientModalSaving || _clientModalDupChecking;
     return;
   }
 
@@ -1123,21 +1135,26 @@ function _clientModalRenderDupWarning() {
   btnSave.disabled = true;
 }
 
-const _clientModalDupCheckDebounced = debounce(async (telefone) => {
+const _clientModalDupCheckDebounced = debounce(async (telefone, version) => {
   const digits = digitsOnly(telefone);
+  if (version !== _clientModalDupVersion) return;
   if (digits.length < 10) {
     _clientModalDup = null;
+    _clientModalDupChecking = false;
     _clientModalRenderDupWarning();
     return;
   }
 
   try {
     const { data, error } = await supabaseClient.rpc('check_cliente_telefone', { p_telefone: digits });
+    if (version !== _clientModalDupVersion) return;
     _clientModalDup = error ? null : data;
   } catch (err) {
+    if (version !== _clientModalDupVersion) return;
     console.warn('[clientes] Falha na checagem de duplicata.', err);
     _clientModalDup = null;
   }
+  _clientModalDupChecking = false;
   _clientModalRenderDupWarning();
 }, 350);
 
@@ -1148,13 +1165,25 @@ function _initClientModalEnhancements() {
   attachCidadeAutocomplete(document.getElementById('client-cidade'), _clientModalSetCidade);
 
   document.getElementById('client-telefone').addEventListener('input', (event) => {
-    _clientModalDupCheckDebounced(event.target.value);
+    _clientModalDup = null;
+    _clientModalDupVersion += 1;
+    _clientModalDupChecking = document.getElementById('client-modal-overlay').dataset.proposalFlow === 'true'
+      && digitsOnly(event.target.value).length >= 10;
+    _clientModalRenderDupWarning();
+    _clientModalDupCheckDebounced(event.target.value, _clientModalDupVersion);
   });
 }
 
-function openClientModal() {
-  document.getElementById('client-modal-overlay').classList.remove('hidden');
+function openClientModal(options = {}) {
+  if (typeof resetNovaPropostaPicker === 'function') resetNovaPropostaPicker();
+  const overlay = document.getElementById('client-modal-overlay');
+  overlay.dataset.proposalFlow = options.forProposal ? 'true' : 'false';
+  _clientModalOnSaved = typeof options.onSaved === 'function' ? options.onSaved : null;
+  _clientModalDupVersion += 1;
+  _clientModalDupChecking = false;
+  overlay.classList.remove('hidden');
   document.getElementById('client-form').reset();
+  document.getElementById('btn-save-client').innerText = _clientModalSaveLabel();
   const origemEl = document.getElementById('client-origem');
   if (origemEl) origemEl.innerHTML = clientOrigemOptionsHTML('');
   _clientModalCidade = null;
@@ -1168,6 +1197,11 @@ function openClientModal() {
 
 function closeClientModal() {
   document.getElementById('client-modal-overlay').classList.add('hidden');
+  _clientModalDupVersion += 1;
+  _clientModalDupChecking = false;
+  _clientModalOnSaved = null;
+  if (typeof resetNovaPropostaPicker === 'function') resetNovaPropostaPicker();
+  document.getElementById('client-modal-overlay').dataset.proposalFlow = 'false';
 }
 
 function formatarTelefone(event) {
@@ -1184,6 +1218,7 @@ function formatarTelefone(event) {
 
 document.getElementById('client-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (_clientModalSaving) return;
   if (!state.currentUser) {
     showToast('Faça login primeiro.');
     return;
@@ -1195,8 +1230,19 @@ document.getElementById('client-form').addEventListener('submit', async (event) 
     return;
   }
 
+  const forProposal = document.getElementById('client-modal-overlay').dataset.proposalFlow === 'true';
+  if (forProposal && _clientModalDupChecking) {
+    showToast('Aguarde a verificação do WhatsApp.');
+    return;
+  }
+  if (forProposal && typeof findNovaPropostaClienteTelefone === 'function' && findNovaPropostaClienteTelefone(telefone)) {
+    _clientModalRenderDupWarning();
+    showToast('Use o cliente já cadastrado para fazer o orçamento.');
+    return;
+  }
+
   // Bloqueio de duplicata: só admin pode criar mesmo assim (telefone de familiar).
-  if (_clientModalDup && _clientModalDup.existe && !state.isAdmin) {
+  if (_clientModalDup && _clientModalDup.existe && (!state.isAdmin || forProposal)) {
     _clientModalRenderDupWarning();
     showToast('Já existe um cadastro com este telefone.');
     return;
@@ -1212,6 +1258,9 @@ document.getElementById('client-form').addEventListener('submit', async (event) 
   const mun = _clientModalCidade || (typeof parseCidadeLivre === 'function' ? parseCidadeLivre(cidadeTexto) : null);
 
   const btnSave = document.getElementById('btn-save-client');
+  const afterSave = _clientModalOnSaved;
+  _clientModalSaving = true;
+  btnSave.disabled = true;
   btnSave.innerText = 'SALVANDO...';
 
   const newClient = {
@@ -1230,12 +1279,15 @@ document.getElementById('client-form').addEventListener('submit', async (event) 
     franquia_id: state.franquiaId,
   };
 
-  const { data, error } = await supabaseClient.from('clientes').insert([newClient]).select();
+  const { data, error } = await Promise.resolve(supabaseClient.from('clientes').insert([newClient]).select())
+    .catch((err) => ({ data: null, error: err }));
 
   if (error) {
     console.error('Erro ao salvar cliente:', error);
     showToast(`Erro ao salvar cliente: ${error.message}`);
-    btnSave.innerText = 'SALVAR CLIENTE';
+    _clientModalSaving = false;
+    _clientModalRenderDupWarning();
+    btnSave.innerText = _clientModalSaveLabel();
     return;
   }
 
@@ -1245,11 +1297,15 @@ document.getElementById('client-form').addEventListener('submit', async (event) 
     enrichClienteHsp(savedId, mun);
   }
 
-  await fetchClientes();
+  await fetchClientes().catch((err) => console.warn('[clientes] Cliente salvo, falha ao atualizar a lista.', err));
+  if (savedId && !state.clientes.some((client) => String(client.id) === String(savedId))) state.clientes.unshift(data[0]);
+  _clientModalSaving = false;
   closeClientModal();
   showToast('CLIENTE SALVO!');
   renderContent();
+  btnSave.disabled = false;
   btnSave.innerText = 'SALVAR CLIENTE';
+  if (savedId && afterSave) afterSave(data[0]);
 });
 
 

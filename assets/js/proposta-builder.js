@@ -224,9 +224,9 @@ function getPBDefaultEquipDraft() {
 function resetPBEquipDraft() {
   state.pbEquipDraft = getPBDefaultEquipDraft();
 }
-// O construtor vive DENTRO da ficha CRM 360 (aba NOVA PROPOSTA): este wrapper
-// só valida e abre a ficha na aba certa. Todos os call sites antigos (card do
-// cliente, seletor "Nova Proposta", dashboard) continuam funcionando.
+// O construtor vive na tela própria de orçamento (orcamento-tela.js): este
+// wrapper só valida e abre a tela. Todos os call sites (card do cliente,
+// popup "Nova proposta", ficha, dashboard) passam por aqui.
 function openProposalBuilder(clientId) {
   const client = state.clientes.find(c => c.id === clientId);
 
@@ -239,11 +239,11 @@ function openProposalBuilder(clientId) {
     return;
   }
 
-  openCrm360(clientId, 'nova');
+  openOrcamento(clientId);
 }
 
-// Prepara o painel embutido (#pb-embedded-panel) para o cliente da ficha.
-// Chamado pelo renderCrm360 depois de mover o painel para o slot da aba.
+// Prepara o painel embutido (#pb-embedded-panel) para o cliente do orçamento.
+// Chamado pelo renderOrcamento depois de mover o painel para o slot da tela.
 // Quando é o MESMO cliente, não reseta nada: o painel foi movido (não
 // recriado), então busca, modo e lista renderizada continuam de pé.
 function pbEmbedSetup(client) {
@@ -413,6 +413,7 @@ function updatePBModeUI() {
 
   updatePBPersonalizadaRoleBadge();
   if (typeof pbDimSync === 'function') pbDimSync();
+  if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
   lucide.createIcons();
 }
 
@@ -694,11 +695,12 @@ function updateEquipamentosPreview() {
     submitBtn.classList.toggle('opacity-50', !canSubmit);
     submitBtn.classList.toggle('cursor-not-allowed', !canSubmit);
   }
+  if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
 }
 
 function bindEquipUIEvents() {
   const bindings = [
-    ['pb-equip-descricao',       'input',  v => { _pbDraft().descricao = v; }],
+    ['pb-equip-descricao',       'input',  v => { _pbDraft().descricao = v; if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo(); }],
     ['pb-equip-potencia',        'input',  v => { const d = _pbDraft(); d.potencia = v; d.potenciaManual = v !== ''; updateEquipamentosPreview(); }],
     ['pb-equip-desconto',        'input',  v => { _pbDraft().descontoValor = v; updateEquipamentosPreview(); }],
     ['pb-equip-desconto-tipo',   'change', v => { _pbDraft().descontoTipo = v === 'percent' ? 'percent' : 'value'; updateEquipamentosPreview(); }],
@@ -759,7 +761,18 @@ function bindEquipUIEvents() {
   }
 
   const form = document.getElementById('pb-equip-form');
-  if (form && !form.dataset.bound) { form.addEventListener('submit', handleEquipamentosProposalSubmit); form.dataset.bound = '1'; }
+  if (form && !form.dataset.bound) {
+    form.addEventListener('submit', (event) => {
+      if (typeof orcamentoAberto === 'function' && orcamentoAberto()) {
+        event.preventDefault();
+        const btn = document.getElementById('orcamento-gerar');
+        if (btn) orcamentoGerar({ currentTarget: btn });
+        return;
+      }
+      handleEquipamentosProposalSubmit(event);
+    });
+    form.dataset.bound = '1';
+  }
 }
 
 async function handleEquipamentosProposalSubmit(event) {
@@ -966,7 +979,7 @@ function renderModalProducts() {
     // esmagar o nome do kit.
     if (state.pbViewMode === 'grid') {
       return `
-        <div class="bg-[#0d0d0f] border border-neutral-800 hover:border-orange-500/40 p-4 flex flex-col gap-3 group transition-all">
+        <div data-orcamento-kit="${safeId}" class="bg-[#0d0d0f] border border-neutral-800 hover:border-orange-500/40 p-4 flex flex-col gap-3 group transition-all">
           <div class="flex justify-between items-start gap-2">
             <span class="text-[9px] bg-orange-600/15 text-orange-500 px-2 py-0.5 font-black uppercase tracking-widest border border-orange-500/30">${safeBrand}</span>
             <span class="text-[10px] text-neutral-600 line-through decoration-red-500/70 font-bold shrink-0">De: ${formattedListPrice}</span>
@@ -992,7 +1005,7 @@ function renderModalProducts() {
     }
 
     return `
-      <div class="bg-[#0d0d0f] border border-neutral-800 hover:border-orange-500/40 p-4 flex flex-wrap items-center gap-x-6 gap-y-3 group transition-all">
+      <div data-orcamento-kit="${safeId}" class="bg-[#0d0d0f] border border-neutral-800 hover:border-orange-500/40 p-4 flex flex-wrap items-center gap-x-6 gap-y-3 group transition-all">
         <div class="flex-1 min-w-[240px]">
           <span class="text-[9px] bg-orange-600/15 text-orange-500 px-2 py-0.5 font-black uppercase tracking-widest border border-orange-500/30 inline-block">${safeBrand}</span>
           <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors mt-1.5">${safeName}</h3>
@@ -1011,11 +1024,16 @@ function renderModalProducts() {
       </div>`;
   }).join('');
 
+  if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
   lucide.createIcons();
 }
 
 // --- Lookup por ID para evitar JSON em onclick ---
 function copyProposalLinkById(kitId, event) {
+  if (typeof orcamentoAberto === 'function' && orcamentoAberto()) {
+    orcamentoSelecionarKit(kitId);
+    return;
+  }
   const kit = state.data.find(k => String(k.id) === String(kitId));
   if (!kit) return;
   copyProposalLink(kit, event);
@@ -1238,8 +1256,7 @@ function showProposalSharePanel(propostaId, link) {
   const waMsg = encodeURIComponent(`Olá, ${nomeBonito}! Segue a sua proposta de energia solar da Ágil Solar: ${link}\nQualquer dúvida, é só me chamar por aqui.`);
   const waLink = digits.length >= 10 ? `https://wa.me/55${digits}?text=${waMsg}` : null;
 
-  const existing = document.getElementById('pb-share-overlay');
-  if (existing) existing.remove();
+  closeProposalSharePanel();
 
   const overlay = document.createElement('div');
   overlay.id = 'pb-share-overlay';
@@ -1256,17 +1273,29 @@ function showProposalSharePanel(propostaId, link) {
           ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${propostaId}')" class="btn btn-success btn-lg btn-block"><i data-lucide="message-circle"></i> Enviar no WhatsApp</a>`
           : '<p class="text-yellow-500/90 text-[10px] font-bold uppercase tracking-widest">Cliente sem WhatsApp cadastrado — envie o link copiado por outro canal.</p>'}
         <button onclick="copiarTextoBlindado('${link}'); marcarPropostaEnviada('${propostaId}'); showToast('LINK COPIADO!')" class="btn btn-secondary btn-block"><i data-lucide="copy"></i> Copiar link de novo</button>
+        <a href="${link}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block"><i data-lucide="external-link"></i> Abrir link</a>
         <a href="${link.replace('/proposta.html?', '/proposta-pdf.html?')}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block"><i data-lucide="file-down"></i> Baixar PDF</a>
+        ${typeof orcamentoAberto === 'function' && orcamentoAberto() ? `
+        <div class="pb-share-next flex flex-wrap justify-center gap-x-5 gap-y-2 pt-2">
+          <button onclick="closeProposalSharePanel()" class="btn btn-ghost btn-sm"><i data-lucide="plus"></i> Fazer outro orçamento</button>
+          <button onclick="closeProposalSharePanel(); orcamentoVerFicha()" class="btn btn-ghost btn-sm"><i data-lucide="id-card"></i> Ir para a ficha</button>
+        </div>` : ''}
       </div>
     </div>`;
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeProposalSharePanel(); });
   document.body.appendChild(overlay);
+  document.addEventListener('keydown', _pbShareOnKeydown);
   lucide.createIcons();
+}
+
+function _pbShareOnKeydown(event) {
+  if (event.key === 'Escape' && document.getElementById('pb-share-overlay')) closeProposalSharePanel();
 }
 
 function closeProposalSharePanel() {
   const el = document.getElementById('pb-share-overlay');
   if (el) el.remove();
+  document.removeEventListener('keydown', _pbShareOnKeydown);
 }
 
 // ==========================================

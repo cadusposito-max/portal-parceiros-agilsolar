@@ -325,6 +325,7 @@ function _pbdRenderResultado() {
 
   host.innerHTML = mets + chart + kitsHtml;
   if (principal) _pbdBindChart(host, c.meses || Array(12).fill(c.media), _pbdGeracaoMensal(_pbdGeracao(principal)), !c.meses);
+  if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -334,7 +335,7 @@ function _pbdKitCard(kit, alvo, tag, top) {
   const temDe = Number(kit.list_price) > Number(kit.price);
   const id = escapeHTML(String(kit.id));
   return `
-    <div class="pbd-kit${top ? ' is-top' : ''}">
+    <div data-orcamento-kit="${id}" class="pbd-kit${top ? ' is-top' : ''}">
       <span class="pbd-kit-tag">${top ? 'Recomendado · ' : ''}${tag}</span>
       <div class="pbd-kit-n">${escapeHTML(kit.name)}</div>
       <div class="pbd-kit-d">${escapeHTML(String(kit.power))} kWp · ~${_pbdInt(g)} kWh/mês · cobre ${cobre}% do consumo a compensar</div>

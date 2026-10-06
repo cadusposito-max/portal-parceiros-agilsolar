@@ -29,24 +29,27 @@
     if (!box) return;
     const h2 = box.querySelector('h2');
     const btn = $('#btn-save-client');
+    const forProposal = $('#client-modal-overlay')?.dataset.proposalFlow === 'true';
     if (!('h2' in ORIG)) {
       ORIG.h2 = h2 ? h2.textContent : '';
-      ORIG.btn = btn ? btn.textContent : '';
+      ORIG.btn = forProposal ? 'SALVAR CLIENTE' : (btn ? btn.textContent : '');
       Object.keys(TXT).forEach((sel) => { const el = $(sel); ORIG[sel] = el ? el.getAttribute('placeholder') : ''; });
     }
     box.querySelectorAll('.v2m-deco').forEach((el) => el.remove());
     if (!on) {
-      if (h2) h2.textContent = ORIG.h2;
-      if (btn) btn.textContent = ORIG.btn;
+      if (h2) h2.textContent = forProposal ? 'Nova proposta' : ORIG.h2;
+      if (btn) btn.textContent = forProposal ? 'Salvar e fazer orçamento →' : ORIG.btn;
       Object.keys(TXT).forEach((sel) => { const el = $(sel); if (el) el.setAttribute('placeholder', ORIG[sel]); });
       return;
     }
     if (h2) {
-      h2.textContent = 'Novo cliente';
-      h2.insertAdjacentHTML('beforebegin', `<span class="v2m-deco v2m-ic">${ic('user-plus')}</span>`);
-      h2.insertAdjacentHTML('afterend', '<p class="v2m-deco v2m-sub">Só o essencial agora. O resto você completa na ficha.</p>');
+      h2.textContent = forProposal ? 'Nova proposta' : 'Novo cliente';
+      h2.insertAdjacentHTML('beforebegin', `<span class="v2m-deco v2m-ic">${ic(forProposal ? 'file-plus-2' : 'user-plus')}</span>`);
+      if (!forProposal) h2.insertAdjacentHTML('afterend', '<p class="v2m-deco v2m-sub">Só o essencial agora. O resto você completa na ficha.</p>');
     }
-    if (btn) btn.innerHTML = `<span class="v2m-deco" style="display:inline-flex">${ic('check')}</span> Salvar cliente`;
+    if (btn) btn.innerHTML = forProposal
+      ? `Salvar e fazer orçamento <span class="v2m-deco" style="display:inline-flex">${ic('arrow-right')}</span>`
+      : `<span class="v2m-deco" style="display:inline-flex">${ic('check')}</span> Salvar cliente`;
     Object.keys(TXT).forEach((sel) => { const el = $(sel); if (el) el.setAttribute('placeholder', TXT[sel]); });
 
     // origem: pílulas que escrevem no select original

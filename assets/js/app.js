@@ -382,6 +382,7 @@ function appUiSnapshot() {
     const sc = document.getElementById('crm360-scroll');
     snap.crm360 = { id: _crm360ClientId, tab: _crm360Tab, y: sc ? Math.round(sc.scrollTop) : 0 };
   }
+  if (typeof orcamentoAberto === 'function' && orcamentoAberto()) snap.orcamento = orcamentoSnapshot();
   if (state.adminOpen) {
     const ov = document.getElementById('admin-overlay');
     snap.admin = { y: ov ? Math.round(ov.scrollTop) : 0 };
@@ -411,6 +412,7 @@ function appUiRestoreOverlays() {
   const snap = _appUiPendente;
   _appUiPendente = null;
   if (!snap) return;
+  if (snap.orcamento && typeof orcamentoRestaurar === 'function') orcamentoRestaurar(snap.orcamento);
   if (snap.admin && typeof userCanAccessAdminPanel === 'function' && userCanAccessAdminPanel()) {
     openAdmin();
     appRestoreElScroll(() => document.getElementById('admin-overlay'), snap.admin.y);
@@ -1318,56 +1320,135 @@ function propostasFiltroSelectHTML(chave, valorAtual, opcoes, rotuloTodos, icone
     </div>`;
 }
 
-// "Nova Proposta" abre este seletor em vez de largar o usuário na aba
-// Clientes sem instrução: escolhe o cliente → abre direto o construtor.
+// O mesmo cadastro de clientes é o primeiro passo de "Nova proposta".
+// Os campos e eventos continuam no formulário original; a busca fica na outra aba.
 function openNovaPropostaPicker() {
-  const existing = document.getElementById('np-picker-overlay');
-  if (existing) existing.remove();
+  openClientModal({ forProposal: true, onSaved: (client) => openProposalBuilder(client.id) });
+  const overlay = document.getElementById('client-modal-overlay');
+  const form = document.getElementById('client-form');
+  const heading = overlay.querySelector('h2');
+  if (heading) {
+    heading.dataset.npOriginalTitle = heading.textContent;
+    heading.textContent = 'Nova proposta';
+  }
+  overlay.style.zIndex = '95';
 
-  const overlay = document.createElement('div');
-  overlay.id = 'np-picker-overlay';
-  overlay.className = 'fixed inset-0 z-[95] flex items-center justify-center bg-black/90 backdrop-blur-md p-4';
-  overlay.innerHTML = `
-    <div class="bg-neutral-900 border border-neutral-700 w-full max-w-md shadow-2xl animate-fade-in-up flex flex-col max-h-[80vh]">
-      <div class="flex justify-between items-center p-5 border-b border-neutral-800 bg-black/50">
-        <p class="text-orange-500 text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2"><i data-lucide="file-plus-2" class="w-4 h-4"></i> Nova proposta — para quem?</p>
-        <button onclick="document.getElementById('np-picker-overlay').remove()" class="text-neutral-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-      <div class="p-4 border-b border-neutral-800">
+  const tabs = document.createElement('div');
+  tabs.className = 'np-picker-deco np-picker-tabs flex gap-2 mx-6 mt-3 p-1 bg-neutral-800';
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Cliente da proposta');
+  tabs.innerHTML = `
+    <button type="button" id="np-tab-novo" role="tab" aria-selected="true" aria-controls="client-form" onclick="setNovaPropostaPickerTab('novo')" class="flex-1 py-2 px-3 text-xs font-bold text-white bg-neutral-700 on">Cliente novo</button>
+    <button type="button" id="np-tab-existente" role="tab" aria-selected="false" aria-controls="np-picker-existing" onclick="setNovaPropostaPickerTab('existente')" class="flex-1 py-2 px-3 text-xs font-bold text-neutral-400">Já é cliente</button>`;
+  form.insertAdjacentElement('beforebegin', tabs);
+
+  const searchPane = document.createElement('div');
+  searchPane.id = 'np-picker-existing';
+  searchPane.className = 'np-picker-deco hidden';
+  searchPane.setAttribute('role', 'tabpanel');
+  searchPane.setAttribute('aria-labelledby', 'np-tab-existente');
+  searchPane.innerHTML = `
+      <div class="p-4">
         <div class="relative">
           <i data-lucide="search" class="w-3.5 h-3.5 text-neutral-600 absolute left-3 top-1/2 -translate-y-1/2"></i>
           <input id="np-picker-search" type="text" placeholder="Buscar cliente por nome, telefone ou cidade" class="w-full bg-black border border-neutral-800 text-white pl-9 pr-3 py-2.5 text-[11px] font-bold tracking-wide" autocomplete="off">
         </div>
       </div>
-      <div id="np-picker-list" class="flex-1 overflow-y-auto custom-scrollbar"></div>
+      <div id="np-picker-list" class="overflow-y-auto custom-scrollbar" style="max-height:50vh"></div>
       <div class="p-4 border-t border-neutral-800 bg-black/40">
-        <button onclick="document.getElementById('np-picker-overlay').remove(); setTab('clientes'); openClientModal();" class="btn btn-ghost btn-sm btn-block"><i data-lucide="user-plus"></i> Cadastrar cliente novo</button>
-      </div>
-    </div>`;
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
-
+        <button type="button" onclick="setNovaPropostaPickerTab('novo')" class="btn btn-ghost btn-sm btn-block"><i data-lucide="user-plus"></i> Não achou? Cadastrar cliente novo</button>
+      </div>`;
+  form.insertAdjacentElement('afterend', searchPane);
+  const save = document.getElementById('btn-save-client');
+  if (save) save.innerHTML = 'Salvar e fazer orçamento <i data-lucide="arrow-right" class="w-4 h-4"></i>';
   const input = document.getElementById('np-picker-search');
-  if (input) {
-    input.addEventListener('input', () => renderNovaPropostaPickerList(input.value));
-    input.focus();
-  }
+  if (input) input.addEventListener('input', () => renderNovaPropostaPickerList(input.value));
   renderNovaPropostaPickerList('');
+  setNovaPropostaPickerTab('novo');
   lucide.createIcons();
+}
+
+function resetNovaPropostaPicker() {
+  const overlay = document.getElementById('client-modal-overlay');
+  if (!overlay) return;
+  overlay.querySelectorAll('.np-picker-deco').forEach((el) => el.remove());
+  overlay.style.zIndex = '';
+  const form = document.getElementById('client-form');
+  if (form) form.classList.remove('hidden');
+  const heading = overlay.querySelector('h2');
+  if (heading && heading.dataset.npOriginalTitle) {
+    heading.textContent = heading.dataset.npOriginalTitle;
+    delete heading.dataset.npOriginalTitle;
+  }
+}
+
+function setNovaPropostaPickerTab(tab) {
+  const novo = tab !== 'existente';
+  document.getElementById('client-form')?.classList.toggle('hidden', !novo);
+  document.getElementById('np-picker-existing')?.classList.toggle('hidden', novo);
+  ['novo', 'existente'].forEach((key) => {
+    const button = document.getElementById(`np-tab-${key}`);
+    const selected = (key === 'novo') === novo;
+    if (!button) return;
+    button.classList.toggle('on', selected);
+    button.classList.toggle('bg-neutral-700', selected);
+    button.classList.toggle('text-white', selected);
+    button.classList.toggle('text-neutral-400', !selected);
+    button.setAttribute('aria-selected', String(selected));
+  });
+  const input = document.getElementById(novo ? 'client-nome' : 'np-picker-search');
+  if (input) input.focus();
+}
+
+function getNovaPropostaClientes() {
+  // Mesmo recorte da aba Clientes (admin respeita o escopo global ativo).
+  return state.isAdmin && typeof applyAdminGlobalScope === 'function'
+    ? applyAdminGlobalScope(state.clientes || [])
+    : (Array.isArray(state.clientes) ? state.clientes : []);
+}
+
+function findNovaPropostaClienteTelefone(telefone) {
+  const digits = digitsOnly(telefone);
+  return digits.length >= 10
+    ? getNovaPropostaClientes().find((client) => digitsOnly(client?.telefone) === digits)
+    : null;
+}
+
+function selectNovaPropostaCliente(clientId) {
+  if (!getNovaPropostaClientes().some((client) => String(client.id) === String(clientId))) return;
+  closeClientModal();
+  openProposalBuilder(clientId);
+}
+
+function renderNovaPropostaDuplicateWarning(dup, warnEl, btnSave) {
+  const overlay = document.getElementById('client-modal-overlay');
+  if (overlay?.dataset.proposalFlow !== 'true') return false;
+  const client = findNovaPropostaClienteTelefone(document.getElementById('client-telefone')?.value);
+  if (!client) {
+    if (!dup?.existe) return false;
+    // Não oferece um cadastro fora do escopo de clientes que o usuário pode usar.
+    warnEl.className = 'text-[10px] font-bold p-2.5 border mt-1 bg-blue-500/10 border-blue-500/30 text-blue-300';
+    warnEl.innerHTML = 'Já existe um cadastro com este telefone. Busque na aba <strong>Já é cliente</strong> ou confirme com seu gestor.';
+    btnSave.disabled = true;
+    return true;
+  }
+  warnEl.className = 'text-[10px] font-bold p-2.5 border mt-1 bg-blue-500/10 border-blue-500/30 text-blue-300 np-duplicate';
+  warnEl.innerHTML = `<span>Esse número já é do <strong>${escapeHTML(client.nome || 'cliente')}</strong>${client.cidade ? ` (${escapeHTML(client.cidade)})` : ''}.</span><button type="button" class="btn btn-secondary btn-sm">Usar esse cliente</button>`;
+  warnEl.querySelector('button').onclick = () => selectNovaPropostaCliente(client.id);
+  btnSave.disabled = true;
+  return true;
 }
 
 function renderNovaPropostaPickerList(term) {
   const listEl = document.getElementById('np-picker-list');
   if (!listEl) return;
 
-  // Mesmo recorte da aba Clientes (admin respeita o escopo global ativo).
-  const source = state.isAdmin && typeof applyAdminGlobalScope === 'function'
-    ? applyAdminGlobalScope(state.clientes || [])
-    : (Array.isArray(state.clientes) ? state.clientes : []);
-
-  const t = String(term || '').trim().toLowerCase();
+  const source = getNovaPropostaClientes();
+  const t = normalizeFilterText(String(term || '').trim());
+  const phoneTerm = digitsOnly(term);
   const rows = (t
-    ? source.filter((c) => `${c?.nome || ''} ${c?.telefone || ''} ${c?.cidade || ''}`.toLowerCase().includes(t))
+    ? source.filter((c) => normalizeFilterText(`${c?.nome || ''} ${c?.telefone || ''} ${c?.cidade || ''}`).includes(t)
+      || (phoneTerm.length >= 3 && digitsOnly(c?.telefone).includes(phoneTerm)))
     : source).slice(0, 30);
 
   if (rows.length === 0) {
@@ -1376,7 +1457,7 @@ function renderNovaPropostaPickerList(term) {
   }
 
   listEl.innerHTML = rows.map((c) => `
-    <button onclick="document.getElementById('np-picker-overlay').remove(); openProposalBuilder('${c.id}')"
+    <button type="button" data-client-id="${escapeHTML(c.id)}"
       class="w-full text-left px-5 py-3 border-b border-neutral-800/60 hover:bg-neutral-800/50 transition-colors flex items-center justify-between gap-3">
       <span class="min-w-0">
         <span class="block text-white text-xs font-black uppercase truncate">${escapeHTML(c?.nome || 'CLIENTE')}</span>
@@ -1384,6 +1465,9 @@ function renderNovaPropostaPickerList(term) {
       </span>
       <i data-lucide="chevron-right" class="w-4 h-4 text-neutral-600 shrink-0"></i>
     </button>`).join('');
+  listEl.querySelectorAll('button[data-client-id]').forEach((button) => {
+    button.onclick = () => selectNovaPropostaCliente(button.dataset.clientId);
+  });
   lucide.createIcons();
 }
 

@@ -3,7 +3,7 @@
 // ------------------------------------------
 // Só no beta. Redesenha a MOLDURA da ficha (cabeçalho, etapas, resumo, abas,
 // painel de dados) mantendo os mesmos IDs de crm.js — salvar, autocompletar
-// cidade, máscaras, construtor de proposta embutido, financiamento e arquivos
+// cidade, máscaras, atalho para orçamento, financiamento e arquivos
 // continuam os mesmos. O conteúdo de cada aba vem de renderCrm360TabContent.
 // ==========================================
 
@@ -285,7 +285,7 @@
 
   function renderCrm360V2() {
     const overlay = ensureCrm360Container();
-    pbParkEmbeddedPanel(); // o innerHTML destruiria o construtor embutido
+    pbParkEmbeddedPanel();
     const client = _crm360Client();
     if (!client) { closeCrm360(); return; }
     ensureScrim();
@@ -298,7 +298,6 @@
     const podeProposta = typeof canOperateClientProposalFlow !== 'function' || canOperateClientProposalFlow(client);
     const docs = has('_crm360DocsAtivo') && _crm360DocsAtivo();
     const tabs = [['dados', 'id-card', 'Dados'], ['timeline', 'history', 'Timeline'], ['propostas', 'file-text', 'Propostas', propostas.length]];
-    if (podeProposta) tabs.push(['nova', 'file-plus-2', 'Nova proposta', null, 'acc']);
     tabs.push(['vendas', 'trophy', 'Vendas', vendas.length], ['financiamento', 'landmark', 'Financ.']);
     if (has('renderCrmArquivosTab')) tabs.push(['arquivos', 'paperclip', 'Arquivos', `<span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`]);
     if (has('renderEngFichaTab')) tabs.push(['engenharia', 'ruler', 'Engenharia']);
@@ -389,6 +388,7 @@
               ${lost && client.perdido_motivo ? `<div class="v2f-lost">${ic('info')}Motivo da perda: ${esc(client.perdido_motivo)}</div>` : ''}
             </div>
             <div class="v2f-acts">
+              ${podeProposta ? `<button class="btn btn-primary btn-sm" onclick="openProposalBuilder('${esc(client.id)}')">${ic('file-plus-2')}Nova proposta</button>` : ''}
               ${waLink ? `<a class="v2f-wa" href="${esc(waLink)}" target="_blank" rel="noopener noreferrer">${ic('message-circle')}WhatsApp</a>` : ''}
               ${tel ? `<a class="v2-sq" href="tel:+55${tel}" title="Ligar">${ic('phone')}</a>` : ''}
               ${docs ? `<button class="v2-sq" onclick="abrirDocumentosCliente('${esc(client.id)}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}
@@ -432,12 +432,6 @@
       const cepInput = document.getElementById('crm360-cep');
       if (docInput) ligarMascara(docInput, 'auto');
       if (cepInput) ligarMascara(cepInput, 'cep');
-    }
-    if (_crm360Tab === 'nova') {
-      const slot = document.getElementById('crm360-builder-slot');
-      const panel = document.getElementById('pb-embedded-panel');
-      if (slot && panel) slot.appendChild(panel);
-      if (has('pbEmbedSetup')) pbEmbedSetup(client);
     }
     if (_crm360Tab === 'financiamento' && has('renderFinanciamento')) renderFinanciamento();
     if (_crm360Tab === 'propostas' && state.isAdmin && has('preencherSelosPrecificacao')) preencherSelosPrecificacao();

@@ -53,7 +53,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/shell.css?v=20261006-leads" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/screens.css?v=20261006-leads" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/ficha.css?v=20261006-leads" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/modais.css?v=20261006-cc" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/modais.css?v=20261006-fluxo" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/chat.css?v=20260928-f8" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/admin.css?v=20260929-p31" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
@@ -61,6 +61,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261002-legivel2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261005-dim2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261006-fluxo" data-ui-v2 media="not all">
   <!-- Tailwind PRÉ-COMPILADO (antes era o cdn.tailwindcss.com, que compilava CSS dentro do navegador e
        deixava a plataforma pesada em PC fraco). Fica depois dos outros CSS, na mesma posição em que o CDN
        injetava o <style>. Usou classe Tailwind nova? Regerar — comando no tailwind.config.js. -->
@@ -644,15 +645,14 @@
   </div>
 </div>
 
-<!-- CONSTRUTOR DE PROPOSTA (painel embutido) — vive na aba NOVA PROPOSTA da
-     ficha CRM 360: renderCrm360 MOVE #pb-embedded-panel via appendChild para o
-     slot da aba (preserva listeners) e devolve para cá antes de cada re-render.
-     Estacionado aqui, oculto, quando a ficha está fechada. -->
+<!-- CONSTRUTOR DE PROPOSTA — renderOrcamento move o painel para a tela própria
+     via appendChild (preserva listeners) e devolve antes de cada re-render.
+     Estacionado aqui, oculto, quando o orçamento está fechado. -->
 <div id="pb-parking" class="hidden">
   <div id="pb-embedded-panel" class="border border-neutral-800 bg-[#050505]">
 
       <!-- ===== BARRA DE MODO ===== -->
-      <div class="p-3 bg-black border-b border-neutral-800 flex flex-wrap gap-2 items-center">
+      <div id="pb-mode-bar" class="p-3 bg-black border-b border-neutral-800 flex flex-wrap gap-2 items-center">
         <div class="flex bg-neutral-900 border border-neutral-800 shrink-0">
           <button id="pb-mode-promocional-btn" onclick="setPBProposalMode('PROMOCIONAL')"
             class="flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase transition-all bg-orange-500 text-black whitespace-nowrap">
@@ -671,7 +671,7 @@
       <div id="pb-porta" class="pbd-porta hidden">
         <button type="button" data-pb-porta="dim" class="pbd-porta-btn">
           <i data-lucide="calculator"></i>
-          <span><span class="pbd-porta-t block">Dimensionar sistema</span><span class="pbd-porta-s block">Calculo pelo consumo do cliente</span></span>
+          <span><span class="pbd-porta-t block">Dimensionar pelo consumo</span><span class="pbd-porta-s block">Calculo pelo consumo do cliente</span></span>
         </button>
         <button type="button" data-pb-porta="kit" class="pbd-porta-btn">
           <i data-lucide="list"></i>
@@ -1282,17 +1282,17 @@
   local('comunicados.js',      '20260615-om-central-propostas');
   local('dashboard.js',        '20260925-layout-c');
   local('cidades.js',          '20260703-crm1');
-  local('clientes.js',         '20260925-fontes');
+  local('clientes.js',         '20261006-fluxo');
   local('documentos.js',       '20260930-rede-cnpj');
-  local('crm.js',              '20261006-etq');
+  local('crm.js',              '20261006-fluxo');
   local('crm-arquivos.js',     '20261002-arqrep');
   local('crm-fila.js',         '20260917-modal-altura');
   local('crm-metas.js',        '20260716-crm-loop');
   local('etiquetas.js',        '20261006-etq');
   local('analise.js',          '20261006-etq');
   local('produtos.js',         '20261001-eng');
-  local('pb-dimensionar.js',   '20261005-dim2');
-  local('proposta-builder.js', '20261005-f1');
+  local('pb-dimensionar.js',   '20261006-fluxo');
+  local('proposta-builder.js', '20261006-fluxo');
   local('orcamento-dre.js',    '20261006-cc');
   local('vendas.js',           '20260930-venda');
   local('admin.js',            '20261001-eng');
@@ -1306,16 +1306,17 @@
   local('engenharia.js',       '20261001-eng');
   local('eng-v2.js',           '20261005-foto');
   local('rede.js',             '20261001-rec');
-  local('app.js',              '20261001-eng');
+  local('app.js',              '20261006-fluxo');
   local('ui-v2.js',            '20260929-rel6');
   local('ui-v2-shell.js',      '20261001-eng');
   local('ui-v2-screens.js',    '20261006-etq');
   local('ui-v2-select.js',     '20260929-p28');
   local('ui-v2-filtros.js',    '20260929-p28');
-  local('ui-v2-ficha.js',      '20261006-etq');
-  local('ui-v2-modais.js',     '20260929-p21');
+  local('ui-v2-ficha.js',      '20261006-fluxo');
+  local('ui-v2-modais.js',     '20261006-fluxo');
   local('ui-v2-login.js',      '20260929-p23');
   local('ui-v2-admin.js',      '20260929-p30');
+  local('orcamento-tela.js',   '20261006-fluxo');
   local('update-notice.js',    '20260929-rel3');
   local('push.js',             '20261006-leads');
   local('leads-meta-avisos.js', '20261006-sw');

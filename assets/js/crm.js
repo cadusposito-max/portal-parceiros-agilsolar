@@ -325,12 +325,25 @@ function _crm360OnKeydown(event) {
 function pbParkEmbeddedPanel() {
   const panel = document.getElementById('pb-embedded-panel');
   const parking = document.getElementById('pb-parking');
+  // A tela de orçamento cuida do seu estacionamento. Re-renderizações da
+  // ficha (timeline, arquivos, O&M) não devem retirar o painel de lá.
+  if (panel && panel.closest('#orcamento-builder-slot')
+      && typeof orcamentoAberto === 'function' && orcamentoAberto()) return;
   if (panel && parking && panel.parentElement !== parking) parking.appendChild(panel);
 }
 
 async function openCrm360(clientId, initialTab) {
   const client = (state.clientes || []).find((c) => c.id === clientId);
   if (!client) return;
+
+  // Compatibilidade com atalhos antigos: orçamento agora tem tela própria.
+  // O wrapper mantém a mesma validação de acesso do construtor.
+  if (initialTab === 'nova') {
+    openProposalBuilder(clientId);
+    return;
+  }
+  if (typeof orcamentoAberto === 'function' && orcamentoAberto()
+      && typeof closeOrcamento === 'function') closeOrcamento();
 
   _crm360ClientId = clientId;
   _crm360Tab = typeof initialTab === 'string' && initialTab ? initialTab : 'timeline';
@@ -422,8 +435,6 @@ function renderCrm360() {
     { id: 'timeline', label: `TIMELINE`, icon: 'history' },
     { id: 'propostas', label: `PROPOSTAS (${propostas.length})`, icon: 'file-text' },
   ];
-  // O construtor de proposta vive aqui dentro (painel embutido — ver pb-parking).
-  if (podeProposta) tabs.push({ id: 'nova', label: 'NOVA PROPOSTA', icon: 'file-plus-2', accent: true });
   tabs.push({ id: 'vendas', label: `VENDAS (${vendas.length})`, icon: 'trophy' });
   tabs.push({ id: 'financiamento', label: 'FINANC.', icon: 'landmark' });
   // Documentos para a engenharia (crm-arquivos.js). Contador atualizado em crmArqRender.
@@ -474,15 +485,15 @@ function renderCrm360() {
           <div class="flex items-center gap-2 flex-wrap">
             ${waLink ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm"><i data-lucide="message-circle"></i> WhatsApp</a>` : ''}
             ${telDigits ? `<a href="tel:+55${telDigits}" class="btn btn-secondary btn-sm"><i data-lucide="phone"></i> Ligar</a>` : ''}
-            ${podeProposta ? `<button onclick="crmSet360Tab('nova')" class="btn btn-secondary btn-sm"><i data-lucide="file-plus-2"></i> Proposta</button>` : ''}
+            ${podeProposta ? `<button onclick="openProposalBuilder('${client.id}')" class="btn btn-secondary btn-sm"><i data-lucide="file-plus-2"></i> Nova proposta</button>` : ''}
             ${_crm360DocsAtivo() ? `<button onclick="abrirDocumentosCliente('${client.id}')" title="Gerar contrato e procuração" class="btn btn-secondary btn-sm"><i data-lucide="file-signature"></i> Documentos</button>` : ''}
             <button onclick="openFechaVenda('${client.id}')" class="btn btn-success btn-sm"><i data-lucide="trophy"></i> Venda</button>
           </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-5">
-          <!-- COLUNA ESQUERDA: DADOS EDITÁVEIS (oculta nas abas largas — o
-               construtor de kits e a vitrine FINANC. precisam da largura toda) -->
+          <!-- COLUNA ESQUERDA: DADOS EDITÁVEIS (oculta na aba FINANC.,
+               cuja vitrine precisa da largura toda) -->
           <div class="${_crm360AbaLarga() ? 'hidden' : ''} lg:col-span-2 p-5 md:p-6 border-b lg:border-b-0 lg:border-r border-neutral-800 space-y-4">
             <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><i data-lucide="user-cog" class="w-3.5 h-3.5"></i> Dados do cliente</p>
 
@@ -541,14 +552,6 @@ function renderCrm360() {
   ligarMascara(document.getElementById('crm360-documento'), 'auto');
   ligarMascara(document.getElementById('crm360-cep'), 'cep');
 
-  // Aba NOVA PROPOSTA: move o painel do construtor para o slot (appendChild
-  // preserva listeners) e prepara o estado para o cliente atual.
-  if (_crm360Tab === 'nova') {
-    const slot = document.getElementById('crm360-builder-slot');
-    const panel = document.getElementById('pb-embedded-panel');
-    if (slot && panel) slot.appendChild(panel);
-    if (typeof pbEmbedSetup === 'function') pbEmbedSetup(client);
-  }
   if (_crm360Tab === 'financiamento' && typeof renderFinanciamento === 'function') renderFinanciamento();
   // Selo de margem da precificação interna (só admin; preenchido async).
   if (_crm360Tab === 'propostas' && state.isAdmin && typeof preencherSelosPrecificacao === 'function') preencherSelosPrecificacao();
@@ -586,33 +589,21 @@ function crm360Field(label, inputHTML, extraCls = '') {
 }
 
 function crmSet360Tab(tab) {
+  if (tab === 'nova') {
+    if (_crm360ClientId) openProposalBuilder(_crm360ClientId);
+    return;
+  }
   _crm360Tab = tab;
   renderCrm360();
 }
 
 // Abas que ocupam a largura toda da ficha (a coluna "Dados do cliente" some):
-// o construtor de kits e a vitrine de financiamento precisam de espaço.
+// a vitrine de financiamento precisa de espaço.
 function _crm360AbaLarga() {
-  return _crm360Tab === 'nova' || _crm360Tab === 'financiamento';
+  return _crm360Tab === 'financiamento';
 }
 
 function renderCrm360TabContent(client, propostas, vendas) {
-  // Construtor de proposta embutido: o slot recebe #pb-embedded-panel via
-  // appendChild no pós-render do renderCrm360 (preserva listeners do painel).
-  if (_crm360Tab === 'nova') {
-    const primeiroNome = String(client?.nome || 'o cliente').trim().split(' ')[0];
-    const nomeBonito = primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1).toLowerCase();
-    return `
-      <div class="mb-5">
-        <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 mb-1">
-          <i data-lucide="file-plus-2" class="w-3.5 h-3.5"></i> NOVA PROPOSTA
-        </p>
-        <h3 class="text-xl font-black text-white uppercase tracking-tighter">Escolha o kit para ${escapeHTML(nomeBonito)}</h3>
-        <p class="text-neutral-500 text-xs mt-1">Toque em GERAR — o link já sai pronto para enviar no WhatsApp.</p>
-      </div>
-      <div id="crm360-builder-slot"></div>`;
-  }
-
   // Projetos na engenharia + envio (eng-v2.js).
   if (_crm360Tab === 'engenharia' && typeof renderEngFichaTab === 'function') {
     return renderEngFichaTab(client);
@@ -626,7 +617,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
   if (_crm360Tab === 'propostas') {
     const podeProposta = typeof canOperateClientProposalFlow !== 'function' || canOperateClientProposalFlow(client);
     const novaBtn = podeProposta
-      ? `<button onclick="crmSet360Tab('nova')" class="btn btn-primary btn-sm"><i data-lucide="file-plus-2"></i> Nova proposta</button>`
+      ? `<button onclick="openProposalBuilder('${client.id}')" class="btn btn-primary btn-sm"><i data-lucide="file-plus-2"></i> Nova proposta</button>`
       : '';
 
     if (propostas.length === 0) {
