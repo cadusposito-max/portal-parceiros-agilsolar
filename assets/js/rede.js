@@ -9,13 +9,16 @@
 // - impostos: rede_empresas + rede_impostos (alíquota vigente no mês);
 // - custos e despesas: rede_lancamentos; sem lançamento, custos viram
 //   estimativa (% em rede_taxas) e despesas repetem o último mês lançado;
-// - royalties, fundo, rebate, projetos e mensalidade: rede_taxas.
+// - royalties, fundo, rebate e mensalidade: rede_taxas;
+// - projetos de engenharia: RPC rede_projetos (kWp de cada projeto) × faixa de
+//   kWp (rede_padroes.projeto_faixas ou tabela própria da unidade); ajuste ou
+//   isenção por projeto em rede_projeto_taxas.
 // Toda a leitura/escrita é protegida no banco por is_admin().
 // ==========================================================================
 (function () {
   'use strict';
 
-  const R = { mes: null, data: null, unit: null, utab: 'resumo', busca: '', container: null, tab: 'visao', loading: null };
+  const R = { mes: null, data: null, unit: null, utab: 'resumo', busca: '', container: null, tab: 'visao', loading: null, projAberto: false };
 
   const MESES_ABR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   const MESES_N = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -24,7 +27,7 @@
   const BASES = { faturamento: 'Faturamento', servicos: 'Serviços', equipamentos: 'Equipamentos' };
   const CUSTOS = [['custo_kits', 'Custo dos kits'], ['custo_instalacao', 'Instalação e materiais'], ['comissoes', 'Comissões de venda']];
   const DESPESAS = [['aluguel', 'Aluguel'], ['folha', 'Folha e pró-labore'], ['marketing', 'Marketing local'], ['veiculos', 'Veículo e combustível'], ['outras', 'Outras']];
-  const TAXA_CAMPOS = ['royalties_pct', 'royalties_base', 'royalties_minimo', 'publicidade_pct', 'rebate_pct', 'projeto_valor', 'mensalidade', 'equipamentos_pct', 'custo_equip_pct', 'custo_serv_pct', 'comissao_pct'];
+  const TAXA_CAMPOS = ['royalties_pct', 'royalties_base', 'royalties_minimo', 'publicidade_pct', 'rebate_pct', 'mensalidade', 'equipamentos_pct', 'custo_equip_pct', 'custo_serv_pct', 'comissao_pct'];
 
   // ------------------------------------------------------------ utilidades
   const esc = (s) => (typeof escapeHTML === 'function' ? escapeHTML(String(s ?? '')) : String(s ?? ''));
@@ -75,7 +78,7 @@
     const dia = ehAtual ? Number(hojeSP().slice(8, 10)) : null;
     const meses = [5, 4, 3, 2, 1, 0].map((i) => addMes(mes, -i));
     const sb = supabaseClient;
-    const [fr, emp, imp, tx, pad, lan, mov, usr] = await Promise.all([
+    const [fr, emp, imp, tx, pad, lan, mov, usr, prj] = await Promise.all([
       sb.from('franquias').select('id, nome, cidade, uf, tipo, ativo, inicio_operacao, hsp_medio, created_at').order('nome'),
       sb.from('rede_empresas').select('*').order('principal', { ascending: false }).order('razao_social'),
       sb.from('rede_impostos').select('*').order('created_at'),
@@ -84,13 +87,16 @@
       sb.from('rede_lancamentos').select('*').gte('mes', meses[0] + '-01').lte('mes', mes + '-01'),
       sb.rpc('rede_movimento', { p_ate: mes + '-01', p_meses: 6, p_dia: dia }),
       sb.from('user_accounts').select('franquia_id, nome, email, role, ativo').eq('ativo', true).order('nome'),
+      sb.rpc('rede_projetos', { p_ate: mes + '-01', p_meses: 6, p_dia: dia }),
     ]);
-    const erro = [fr, emp, imp, tx, pad, lan, mov].find((r) => r.error);
+    const erro = [fr, emp, imp, tx, pad, lan, mov, prj].find((r) => r.error);
     if (erro) throw erro.error;
     const movMap = {};
     (mov.data || []).forEach((r) => { movMap[r.franquia_id + '|' + String(r.mes).slice(0, 7)] = r; });
     const taxas = {};
     (tx.data || []).forEach((t) => { taxas[t.franquia_id] = t; });
+    const projetos = {};
+    (prj.data || []).forEach((p) => { (projetos[p.franquia_id + '|' + String(p.mes).slice(0, 7)] ||= []).push(p); });
     return {
       key: mes, mes, meses, dia,
       franquias: fr.data || [],
@@ -100,6 +106,7 @@
       padroes: pad.data || {},
       lanc: lan.data || [],
       mov: movMap,
+      projetos,
       users: usr.error ? [] : (usr.data || []),
     };
   }
@@ -132,6 +139,31 @@
   }
   const aliqEfetiva = (fid, ym) => impostoDe(fid, ym, 100).imp;
 
+  // projetos de engenharia: valor pela faixa de kWp ("até X kWp"; o limite fica na
+  // faixa de baixo). Acima da última faixa é "a combinar" até o admin informar.
+  const kwpTxt = (v) => num(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  const faixasPadrao = () => (Array.isArray(D().padroes.projeto_faixas) ? D().padroes.projeto_faixas : []);
+  const faixasProprias = (fid) => { const t = D().taxas[fid]; return t && Array.isArray(t.projeto_faixas) && t.projeto_faixas.length ? t.projeto_faixas : null; };
+  const faixasDe = (fid) => faixasProprias(fid) || faixasPadrao();
+  function cobraProjetos(f) { const t = D().taxas[f.id]; return t && t.projeto_cobrar != null ? !!t.projeto_cobrar : f.tipo === 'franquia'; }
+  function faixaDoKwp(faixas, kwp) {
+    let de = 0;
+    for (const x of faixas) { if (kwp <= num(x.ate)) return { de, ate: num(x.ate), valor: num(x.valor) }; de = num(x.ate); }
+    return null;
+  }
+  const faixaTxt = (fx) => (fx.de ? `${kwpTxt(fx.de)} a ${kwpTxt(fx.ate)} kWp` : `até ${kwpTxt(fx.ate)} kWp`);
+  function taxaProjeto(p, faixas) {
+    const kwp = num(p.kwp), fx = kwp > 0 ? faixaDoKwp(faixas, kwp) : null;
+    if (p.isento) return { v: 0, tipo: 'isento', fx };
+    if (p.valor != null) return { v: num(p.valor), tipo: 'ajustado', fx };
+    if (!(kwp > 0)) return { v: 0, tipo: 'sem_kwp', fx };
+    return fx ? { v: fx.valor, tipo: 'faixa', fx } : { v: 0, tipo: 'combinar', fx };
+  }
+  function projetosDe(f, ym) {
+    const faixas = faixasDe(f.id);
+    return (D().projetos[f.id + '|' + ym] || []).map((p) => ({ ...p, taxa: taxaProjeto(p, faixas) }));
+  }
+
   // lançamentos do mês; sem nenhum, repete o último mês lançado (estimativa)
   function lancDe(fid, ym) {
     const doMes = D().lanc.filter((l) => l.franquia_id === fid && String(l.mes).slice(0, 7) === ym);
@@ -161,8 +193,11 @@
     let roy = baseRoy * num(t.royalties_pct) / 100, royMin = false;
     if (f.tipo === 'franquia' && f.ativo !== false && num(t.royalties_minimo) > 0 && roy < num(t.royalties_minimo)) { roy = num(t.royalties_minimo); royMin = true; }
     const pub = fat * num(t.publicidade_pct) / 100;
-    const nproj = num(mv.projetos);
-    const proj = nproj * num(t.projeto_valor);
+    const cobraProj = cobraProjetos(f);
+    const projs = cobraProj ? projetosDe(f, ym) : [];
+    const nproj = projs.filter((p) => p.taxa.tipo !== 'isento').length;
+    const proj = projs.reduce((s, p) => s + p.taxa.v, 0);
+    const projPendentes = projs.filter((p) => p.taxa.tipo === 'combinar' || p.taxa.tipo === 'sem_kwp').length;
     const mens = num(t.mensalidade);
     const taxas = roy + pub + proj + mens;
     const despMap = {}; let desp = 0;
@@ -172,7 +207,7 @@
     return {
       fat, equip, serv, imp, faltaImposto: faltando, liq, cKit, cInst, com, custos, bruto,
       estKit: !has('custo_kits'), estInst: !has('custo_instalacao'), estCom: !has('comissoes'),
-      roy, royMin, baseRoy, pub, proj, nproj, mens, taxas, desp, despMap, despRef: L.ref, despEstimado: L.estimado, semDesp: !L.ref,
+      roy, royMin, baseRoy, pub, proj, nproj, projs, cobraProj, projPendentes, mens, taxas, desp, despMap, despRef: L.ref, despEstimado: L.estimado, semDesp: !L.ref,
       res, mg: fat ? res / fat * 100 : null, reb, franq: roy + pub + reb + proj + mens,
       vendas: num(mv.vendas), propostas: num(mv.propostas), valorPropostas: num(mv.valor_propostas),
     };
@@ -306,6 +341,7 @@
       else if (c.faltaImposto) alertas.push(['at', 'percent', `${nomeCurto(f.nome)} com impostos não configurados`, 'Algum CNPJ está sem alíquota; o DRE considera 0% de imposto.', `redeAbrirUnidade('${f.id}','taxas')`]);
       if (f.tipo === 'franquia' && !c.fat) alertas.push(['bad', 'trending-down', `${nomeCurto(f.nome)} sem venda registrada`, `Nenhuma venda em ${mesNome(ym).toLowerCase()} (${periodoTxt()}).`, `redeAbrirUnidade('${f.id}','resultado')`]);
       else if (pc.fat && c.fat < pc.fat * 0.8) alertas.push(['at', 'arrow-down-right', `${nomeCurto(f.nome)} caiu ${pct((pc.fat - c.fat) / pc.fat * 100)}`, 'Comparado ao mesmo período do mês anterior.', `redeAbrirUnidade('${f.id}','resumo')`]);
+      if (c.projPendentes) alertas.push(['at', 'ruler', `${nomeCurto(f.nome)}: ${c.projPendentes} projeto(s) sem valor`, 'Acima da tabela de kWp ou sem kWp. Informe o valor na linha de projetos do DRE.', `redeAbrirUnidade('${f.id}','resultado')`]);
     });
     // receita da franqueadora: um card por fonte, com o peso de cada uma no total
     const nMin = fs.filter((f) => calc(f, ym).royMin).length;
@@ -484,10 +520,10 @@
         <div class="rd-line"><div class="nm">Mínimo mensal de royalties</div>${inp('royalties_minimo', t.royalties_minimo, false, true)}</div>
         <div class="rd-line"><div class="nm">Fundo de publicidade</div>${inp('publicidade_pct', t.publicidade_pct)}</div>
         <div class="rd-line"><div class="nm">Rebate sobre kits <span class="rd-tag auto">pago pelo distribuidor</span></div>${inp('rebate_pct', t.rebate_pct)}</div>
-        <div class="rd-line"><div class="nm">Projeto de engenharia <span class="rd-tag">por projeto</span></div>${inp('projeto_valor', t.projeto_valor, false, true)}</div>
         <div class="rd-line"><div class="nm">Mensalidade da plataforma</div>${inp('mensalidade', t.mensalidade, false, true)}</div>
       </div>
     </div>
+    ${uProjetos(f)}
     <div class="rd-card rd-mb" id="rd-cartao-taxas">
       <h3>${ic('credit-card')}Taxas do cartão de crédito</h3>
       <p class="rd-sub">Taxa da operadora por quantidade de parcelas, usada nas propostas solares desta unidade e no PDF. Cada campo salva ao sair.</p>
@@ -513,8 +549,59 @@
     </div>`;
   }
 
+  // tabela de faixas; alvo = 'pad' (padrão da rede) ou id da unidade. Editável salva ao sair do campo.
+  function faixasTabela(faixas, alvo, editavel) {
+    const a = `'${alvo}'`;
+    const linhas = faixas.map((x, i) => {
+      const de = i ? num(faixas[i - 1].ate) : 0;
+      const rotulo = de ? `Acima de ${kwpTxt(de)} até` : 'Até';
+      if (!editavel) return `<div class="rd-line"><span>${rotulo} ${kwpTxt(x.ate)} kWp</span><b>${brlC(num(x.valor))}</b></div>`;
+      return `<div class="rd-line rd-faixa"><div class="nm">${rotulo}<div class="rd-in"><input inputmode="decimal" aria-label="Limite da faixa em kWp" value="${pctIn(x.ate)}" onchange="redeSetFaixa(${a},${i},'ate',this.value)"><span>kWp</span></div></div>
+        <div style="display:flex;gap:4px;align-items:center"><div class="rd-in money"><span>R$</span><input inputmode="decimal" aria-label="Valor do projeto nesta faixa" value="${pctIn(x.valor)}" onchange="redeSetFaixa(${a},${i},'valor',this.value)"></div>${faixas.length > 1 ? `<button class="rd-btn sm ghost danger" title="Remover faixa" onclick="redeDelFaixa(${a},${i})">${ic('trash-2')}</button>` : ''}</div></div>`;
+    }).join('');
+    const ult = faixas.length ? num(faixas[faixas.length - 1].ate) : 0;
+    return `${linhas}<div class="rd-line"><span>Acima de ${kwpTxt(ult)} kWp</span><span class="rd-tag man">a combinar</span></div>
+      ${editavel ? `<button class="rd-btn sm ghost" style="color:var(--v2-blue-text);margin-top:6px" onclick="redeAddFaixa(${a})">${ic('plus')}Adicionar faixa</button>` : ''}`;
+  }
+
+  function uProjetos(f) {
+    const on = cobraProjetos(f), proprias = faixasProprias(f.id);
+    return `<div class="rd-card rd-mb">
+      <h3>${ic('ruler')}Projetos de engenharia</h3><p class="rd-sub">Cada projeto enviado à engenharia é cobrado pela faixa de kWp. Entra no DRE da unidade e na receita da franqueadora.</p>
+      <div class="rd-line"><div class="nm">Cobrar projetos desta unidade</div><button class="rd-sw ${on ? 'on' : ''}" role="switch" aria-checked="${on}" aria-label="Cobrar projetos desta unidade" onclick="redeSetProjetoCobrar('${f.id}',${!on})"></button></div>
+      ${on ? `<div class="rd-line"><div class="nm">Tabela usada</div><div class="rd-seg"><button class="${proprias ? '' : 'on'}" onclick="redeProjetoTabela('${f.id}',false)">Padrão da rede</button><button class="${proprias ? 'on' : ''}" onclick="redeProjetoTabela('${f.id}',true)">Personalizada</button></div></div>
+        ${proprias ? faixasTabela(proprias, f.id, true) + `<div class="rd-tip">${ic('info')}Tabela só desta unidade. Mudanças no padrão da rede não alteram ela.</div>`
+          : faixasTabela(faixasPadrao(), f.id, false) + `<div class="rd-tip">${ic('info')}Usando o padrão da rede (aba Padrões). Se o padrão mudar, muda aqui também.</div>`}`
+        : `<div class="rd-tip">${ic('info')}Desligado: os projetos desta unidade não entram no DRE nem na receita da franqueadora.</div>`}
+    </div>`;
+  }
+
   function linha(n, v, cls = '', tag = '', extra = '') { return `<div class="rd-line ${cls}"><div class="nm">${n}${tag}</div><div class="val ${v < 0 ? 'rd-neg' : ''}">${brl(v)}${extra}</div></div>`; }
   const TA = ' <span class="rd-tag auto">plataforma</span>', TL = ' <span class="rd-tag man">lançado</span>', TC = ' <span class="rd-tag">calculado</span>', TE = ' <span class="rd-tag">estimado</span>';
+
+  // linha "Projetos de engenharia" do DRE; clicando abre cada projeto com faixa, valor e isenção
+  const ENG_STATUS = { validacao: 'Validação', validacao_reprovada: 'Validação reprovada', validacao_aprovada: 'Validação aprovada', elaborar_projeto: 'Elaborar projeto', projeto_enviado: 'Projeto enviado', projeto_aprovado: 'Projeto aprovado', projeto_reprovado: 'Projeto reprovado', projeto_reenviado: 'Projeto reenviado', solicitacao_vistoria: 'Solicitação de vistoria', vistoria_solicitada: 'Vistoria solicitada', projeto_concluido: 'Projeto concluído' };
+  const statusTxt = (s) => { if (ENG_STATUS[s]) return ENG_STATUS[s]; const t = String(s || '').replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); };
+  function linhaProjetos(c) {
+    const aberto = R.projAberto && c.projs.length;
+    const pend = c.projPendentes ? ` <span class="rd-tag bad">${c.projPendentes} a definir</span>` : '';
+    const cab = `<div class="rd-line ${c.projs.length ? 'rd-click' : ''}" ${c.projs.length ? 'role="button" tabindex="0" onclick="redeToggleProjetos()" onkeydown="if(event.key===\'Enter\')redeToggleProjetos()"' : ''}>
+      <div class="nm">${c.projs.length ? ic(aberto ? 'chevron-down' : 'chevron-right') : ''}(−) Projetos de engenharia · ${c.nproj}× <span class="rd-tag auto">por kWp</span>${pend}</div><div class="val ${c.proj ? 'rd-neg' : ''}">${brl(-c.proj)}</div></div>`;
+    if (!aberto) return cab;
+    const tag = (p) => {
+      const x = p.taxa;
+      if (x.tipo === 'isento') return '<span class="rd-tag">isento</span>';
+      if (x.tipo === 'ajustado') return '<span class="rd-tag man">ajustado</span>';
+      if (x.tipo === 'combinar') return '<span class="rd-tag bad">a combinar</span>';
+      if (x.tipo === 'sem_kwp') return '<span class="rd-tag bad">sem kWp</span>';
+      return `<span class="rd-tag">${faixaTxt(x.fx)}</span>`;
+    };
+    return cab + `<div class="rd-projs">${c.projs.map((p) => `<div class="rd-proj">
+        <div class="inf"><b>${p.numero ? '#' + p.numero + ' · ' : ''}${esc(p.cliente_nome || 'Cliente')}</b><div class="rd-muted">${num(p.kwp) > 0 ? kwpTxt(p.kwp) + ' kWp · ' : ''}${esc(statusTxt(p.status))} ${tag(p)}</div></div>
+        <div class="act"><div class="rd-in money"><span>R$</span><input inputmode="decimal" aria-label="Valor do projeto" value="${p.taxa.tipo === 'combinar' || p.taxa.tipo === 'sem_kwp' ? '' : pctIn(p.taxa.v)}" placeholder="informar" ${p.isento ? 'disabled' : ''} onchange="redeProjetoValor('${p.id}',this.value)"></div>
+        <button class="rd-btn sm ${p.isento ? '' : 'ghost'}" onclick="redeProjetoIsento('${p.id}',${!p.isento})">${p.isento ? 'Cobrar' : 'Isentar'}</button></div>
+      </div>`).join('')}<div class="rd-tip">${ic('info')}O valor vem da faixa de kWp. Mudar o valor ou isentar vale só para aquele projeto; apagar o valor volta para a faixa.</div></div>`;
+  }
 
   function uResultado(f, c) {
     const fr = f.tipo === 'franquia', ym = D().mes, t = taxasDe(f.id);
@@ -535,7 +622,7 @@
         ${linha('Resultado bruto', c.bruto, 'tot')}
         ${fr || temTaxas ? linha('(−) Royalties · ' + pct(t.royalties_pct), -c.roy, '', c.royMin ? ' <span class="rd-tag">mínimo</span>' : TC)
           + linha('(−) Fundo de publicidade · ' + pct(t.publicidade_pct), -c.pub, '', TC)
-          + linha(`(−) Projetos de engenharia · ${c.nproj}×`, -c.proj, '', TA)
+          + (c.cobraProj ? linhaProjetos(c) : '')
           + (c.mens ? linha('(−) Mensalidade da plataforma', -c.mens, '', TC) : '') : ''}
         ${linha('(−) Despesas operacionais', -c.desp, '', despTag)}
         ${linha('Resultado líquido', c.res, 'tot fin', '', `<span style="font-size:12px;margin-left:8px">${c.mg == null ? '' : pct(c.mg)}</span>`)}
@@ -617,7 +704,6 @@
         ${campo('royalties_minimo', 'Mínimo mensal de royalties', true)}
         ${campo('publicidade_pct', 'Fundo de publicidade')}
         ${campo('rebate_pct', 'Rebate sobre kits')}
-        ${campo('projeto_valor', 'Projeto de engenharia (por projeto)', true)}
         ${campo('mensalidade', 'Mensalidade da plataforma', true)}
         <p class="rd-sub" style="margin:14px 0 4px"><b>Estimativas do DRE</b></p>
         ${campo('equipamentos_pct', 'Parte do faturamento que é kit')}
@@ -629,9 +715,14 @@
           <button class="rd-btn" onclick="redeAplicarPadroes()">${ic('copy')}Aplicar a todas as franquias</button>
         </div>
       </div>
+      <div>
+      <div class="rd-card rd-mb"><h3>${ic('ruler')}Projetos de engenharia por kWp</h3><p class="rd-sub">Tabela da engenharia (ART inclusa). Vale para todas as unidades que cobram projetos e não têm tabela própria. Cada campo salva ao sair.</p>
+        ${faixasTabela(faixasPadrao(), 'pad', true)}
+      </div>
       <div class="rd-card"><h3>${ic('calendar-clock')}Como a plataforma fecha o mês</h3><p class="rd-sub">Regras usadas nos números da Rede</p>
-        ${[['Faturamento', 'Vendas registradas na plataforma'], ['Comparação com meses anteriores', 'Mesmo intervalo de dias (1 até hoje)'], ['Impostos', 'Alíquotas vigentes de cada CNPJ, pela participação no faturamento'], ['Custos sem lançamento', 'Estimados pelos percentuais da unidade'], ['Despesas sem lançamento', 'Repete o último mês lançado'], ['Unidade própria', 'Não paga royalties nem fundo'], ['Quem vê o ambiente Rede', 'Somente administradores']]
+        ${[['Faturamento', 'Vendas registradas na plataforma'], ['Comparação com meses anteriores', 'Mesmo intervalo de dias (1 até hoje)'], ['Impostos', 'Alíquotas vigentes de cada CNPJ, pela participação no faturamento'], ['Custos sem lançamento', 'Estimados pelos percentuais da unidade'], ['Despesas sem lançamento', 'Repete o último mês lançado'], ['Projetos de engenharia', 'Faixa de kWp de cada projeto enviado no mês'], ['Unidade própria', 'Não paga royalties nem fundo'], ['Quem vê o ambiente Rede', 'Somente administradores']]
           .map(([a, b]) => `<div class="rd-line"><span>${a}</span><b style="text-align:right">${b}</b></div>`).join('')}
+      </div>
       </div>
     </div>`;
   }
@@ -952,16 +1043,93 @@
     if (!TAXA_CAMPOS.includes(campo)) return;
     const valor = campo === 'royalties_base' ? v : parseNum(v);
     if (campo !== 'royalties_base' && (valor < 0 || (/_pct$/.test(campo) && valor > 100))) { toast('Valor inválido.'); pintar(); return; }
+    if (await salvarTaxas(fid, { [campo]: valor })) toast('Salvo · resultado recalculado.');
+    pintar();
+  }
+  // upsert da linha de rede_taxas; sem linha ainda, parte do padrão da rede
+  async function salvarTaxas(fid, patch) {
     const atual = { ...taxasDe(fid) };
     const row = { franquia_id: fid };
     TAXA_CAMPOS.forEach((k) => { row[k] = atual[k]; });
-    row[campo] = valor; row.updated_at = new Date().toISOString();
+    if (!D().taxas[fid]) row.projeto_cobrar = cobraProjetos(franquia(fid));
+    Object.assign(row, patch, { updated_at: new Date().toISOString() });
     const { error } = await supabaseClient.from('rede_taxas').upsert(row, { onConflict: 'franquia_id' });
-    if (error) { toast('Erro: ' + error.message); pintar(); return; }
+    if (error) { toast('Erro: ' + error.message); return false; }
     D().taxas[fid] = { ...atual, ...row };
-    toast('Salvo · resultado recalculado.');
+    return true;
+  }
+
+  // ------------------------------------------------------------ ações: projetos de engenharia
+  function redeToggleProjetos() { R.projAberto = !R.projAberto; pintar(); }
+  async function redeSetProjetoCobrar(fid, on) {
+    if (await salvarTaxas(fid, { projeto_cobrar: !!on })) toast(on ? 'Projetos passam a entrar no DRE.' : 'Projetos fora do DRE desta unidade.');
     pintar();
   }
+  async function redeProjetoTabela(fid, propria) {
+    if (!!faixasProprias(fid) === !!propria) return;
+    const faixas = propria ? faixasPadrao().map((x) => ({ ate: num(x.ate), valor: num(x.valor) })) : null;
+    if (await salvarTaxas(fid, { projeto_faixas: faixas })) toast(propria ? 'Tabela própria criada a partir do padrão.' : 'Unidade voltou a usar o padrão da rede.');
+    pintar();
+  }
+  async function salvarFaixas(alvo, faixas) {
+    for (let i = 0; i < faixas.length; i++) {
+      if (!(faixas[i].ate > 0) || faixas[i].valor < 0) { toast('Informe kWp maior que zero e valor positivo.'); return false; }
+      if (i && faixas[i].ate <= faixas[i - 1].ate) { toast('Os limites de kWp precisam ser crescentes.'); return false; }
+    }
+    if (alvo !== 'pad') return salvarTaxas(alvo, { projeto_faixas: faixas });
+    const { error } = await supabaseClient.from('rede_padroes').update({ projeto_faixas: faixas, updated_at: new Date().toISOString() }).eq('id', 1);
+    if (error) { toast('Erro: ' + error.message); return false; }
+    D().padroes = { ...D().padroes, projeto_faixas: faixas };
+    return true;
+  }
+  const faixasAlvo = (alvo) => (alvo === 'pad' ? faixasPadrao() : faixasProprias(alvo) || []).map((x) => ({ ate: num(x.ate), valor: num(x.valor) }));
+  async function redeSetFaixa(alvo, i, campo, v) {
+    const fx = faixasAlvo(alvo);
+    if (!fx[i] || (campo !== 'ate' && campo !== 'valor')) return;
+    fx[i][campo] = parseNum(v);
+    if (await salvarFaixas(alvo, fx)) toast('Faixa salva · resultado recalculado.');
+    pintar();
+  }
+  async function redeAddFaixa(alvo) {
+    const fx = faixasAlvo(alvo), ult = fx[fx.length - 1] || { ate: 0, valor: 0 };
+    fx.push({ ate: ult.ate + 25, valor: ult.valor });
+    if (await salvarFaixas(alvo, fx)) toast('Faixa adicionada. Ajuste o limite e o valor.');
+    pintar();
+  }
+  async function redeDelFaixa(alvo, i) {
+    const fx = faixasAlvo(alvo);
+    if (fx.length < 2) return;
+    fx.splice(i, 1);
+    if (await salvarFaixas(alvo, fx)) toast('Faixa removida.');
+    pintar();
+  }
+  // ajuste de um projeto: valor nulo = volta para a faixa; sem valor e sem isenção, a linha é apagada
+  async function salvarAjusteProjeto(pid, ajuste) {
+    const lst = Object.values(D().projetos).flat(), p = lst.find((x) => x.id === pid);
+    if (!p) return;
+    const novo = { valor: p.valor ?? null, isento: !!p.isento, ...ajuste };
+    if (novo.valor === (p.valor ?? null) && novo.isento === !!p.isento) { pintar(); return; }
+    const q = supabaseClient.from('rede_projeto_taxas');
+    const { error } = novo.valor == null && !novo.isento
+      ? await q.delete().eq('projeto_id', pid)
+      : await q.upsert({ projeto_id: pid, valor: novo.valor, isento: novo.isento, updated_by: state.currentUser?.email || null, updated_at: new Date().toISOString() }, { onConflict: 'projeto_id' });
+    if (error) { toast('Erro: ' + error.message); pintar(); return; }
+    Object.assign(p, novo);
+    toast(novo.isento ? 'Projeto isento.' : novo.valor == null ? 'Projeto volta a seguir a faixa.' : 'Valor do projeto salvo.');
+    pintar();
+  }
+  function redeProjetoValor(pid, v) {
+    const raw = String(v ?? '').trim();
+    const p = Object.values(D().projetos).flat().find((x) => x.id === pid);
+    if (!p) return;
+    let valor = raw === '' ? null : parseNum(raw);
+    if (valor != null && valor < 0) { toast('Valor inválido.'); pintar(); return; }
+    // digitar o mesmo valor da faixa = sem ajuste
+    const f = franquia(p.franquia_id), fx = num(p.kwp) > 0 ? faixaDoKwp(faixasDe(f.id), num(p.kwp)) : null;
+    if (valor != null && fx && valor === fx.valor) valor = null;
+    salvarAjusteProjeto(pid, { valor });
+  }
+  function redeProjetoIsento(pid, isento) { salvarAjusteProjeto(pid, { isento: !!isento }); }
   function lerPadroes() {
     const p = {};
     for (const k of TAXA_CAMPOS) {
@@ -1036,5 +1204,6 @@
     redeEmpresaModal, redeBuscarCnpj, redeSalvarEmpresa, redeEmpresaPrincipal, redeEmpresaAtivo,
     redeImpostoModal, redeSalvarImposto, redeSugerirImpostos, redeSetAliquota, redeRemoverImposto,
     redeSetTaxa, redeSetTaxaCartao, redeSalvarPadroes, redeAplicarPadroes, redeLancarModal, redeSalvarLancamentos,
+    redeToggleProjetos, redeSetProjetoCobrar, redeProjetoTabela, redeSetFaixa, redeAddFaixa, redeDelFaixa, redeProjetoValor, redeProjetoIsento,
   });
 })();

@@ -232,3 +232,25 @@ html[data-theme="dark"] .rd-pos { color: #7BE0B5; }
 /* textos pequenos legíveis: cinza com mais contraste dentro dos ambientes Rede/Engenharia */
 .rd { --v2-gray: #676A6D; }
 html[data-theme="dark"] .rd { --v2-gray: #97A3AF; }
+
+/* projetos de engenharia: chave liga/desliga, escolha de tabela, faixas e detalhe por projeto no DRE */
+.rd-sw { width: 42px; height: 24px; border-radius: 99px; border: 0; padding: 0; background: var(--v2-line-strong); position: relative; cursor: pointer; flex: none; transition: background .15s; }
+.rd-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15,27,38,.2); transition: left .15s; }
+.rd-sw.on { background: var(--v2-blue); }
+.rd-sw.on::after { left: 21px; }
+.rd-sw:focus-visible { outline: 2px solid var(--v2-blue); outline-offset: 2px; }
+.rd-seg { display: inline-flex; gap: 4px; background: var(--v2-soft); border: 1px solid var(--v2-line); border-radius: 10px; padding: 3px; }
+.rd-seg button { border: 0; background: none; font: inherit; font-size: 12px; font-weight: 700; color: var(--v2-ink-2); padding: 6px 10px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.rd-seg button.on { background: var(--v2-card); color: var(--v2-blue-text); box-shadow: var(--v2-shadow); }
+.rd-faixa .nm { gap: 8px; }
+.rd-faixa .rd-in input { width: 58px; }
+.rd-click { cursor: pointer; border-radius: 8px; }
+.rd-click:hover { background: var(--v2-hover); }
+.rd-click svg.lucide { width: 16px; height: 16px; color: var(--v2-ink-2); }
+.rd-projs { background: var(--v2-soft); border-radius: 12px; padding: 4px 12px 10px; margin: 2px 0 6px; }
+.rd-proj { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--v2-line); font-size: 13px; }
+.rd-proj .inf { min-width: 0; }
+.rd-proj .inf .rd-muted { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+.rd-proj .act { display: flex; gap: 6px; align-items: center; flex: none; }
+.rd-proj .rd-in.money input { width: 76px; }
+@media (max-width: 560px) { .rd-proj { flex-direction: column; align-items: stretch; } .rd-proj .act { justify-content: flex-end; } }
