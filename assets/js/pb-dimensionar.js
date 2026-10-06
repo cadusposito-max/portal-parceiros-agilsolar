@@ -7,8 +7,11 @@
 // criada é idêntica à de hoje. Nada é gravado do consumo (por enquanto).
 //
 // Dimensionamento: consumo a compensar = média − taxa mínima da ligação
-// (30/50/100 kWh, sempre cobrada). Kit recomendado = menor kit ativo cuja
-// geração estimada (mesma conta da lista, com o HSP do cliente) cobre isso.
+// (30/50/100 kWh, sempre cobrada) — só informativo nos números do resultado.
+// Kits sugeridos (do tipo escolhido: inversor ou micro), comparando a geração
+// estimada com a MÉDIA de consumo, como a busca da lista faz (mesma conta,
+// com o HSP do cliente): "Recomendado" = menor kit que gera acima da média;
+// a outra opção = maior kit que gera abaixo dela.
 
 const PBD_MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const PBD_MESES_NOME = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -20,6 +23,11 @@ const PBD_LIGACOES = [
   { v: 'mono', label: 'Monofásico', taxa: 30 },
   { v: 'bi',   label: 'Bifásico',   taxa: 50 },
   { v: 'tri',  label: 'Trifásico',  taxa: 100 },
+];
+// Mesmas categorias das abas da lista (state.pbCategory): trocar aqui troca lá.
+const PBD_TIPOS = [
+  { v: 'kitsInversor', label: 'Inversor' },
+  { v: 'kitsMicro',    label: 'Microinversor' },
 ];
 const PBD_PORTA_KEY = 'pb_porta';
 
@@ -77,6 +85,11 @@ function pbDimMount() {
       ${PBD_LIGACOES.map((l) => `<button type="button" class="pbd-chip" data-pbd-ligacao="${l.v}">${l.label}</button>`).join('')}
     </div>
 
+    <div class="pbd-sec">Tipo de sistema</div>
+    <div class="pbd-chips">
+      ${PBD_TIPOS.map((t) => `<button type="button" class="pbd-chip" data-pbd-tipo="${t.v}">${t.label}</button>`).join('')}
+    </div>
+
     <div id="pbd-fornecimento-slot"></div>
     <div class="pbd-sec">Resultado</div>
     <div id="pbd-resultado"></div>
@@ -87,6 +100,7 @@ function pbDimMount() {
     if (!b || !_pbd) return;
     if (b.dataset.pbdModo)    { _pbd.modo = b.dataset.pbdModo === 'media' ? 'media' : 'mes'; pbDimRender(); return; }
     if (b.dataset.pbdLigacao) { _pbd.ligacao = b.dataset.pbdLigacao; pbDimRender(); return; }
+    if (b.dataset.pbdTipo)    { pbDimSetTipo(b.dataset.pbdTipo); return; }
     if (b.dataset.pbdVerTodos) { pbDimVerTodos(Number(b.dataset.pbdVerTodos)); }
   });
   panel.addEventListener('input', (e) => {
@@ -201,15 +215,28 @@ function _pbdGeracao(kit) {
   return calcularGeracaoEstimada(Number(kit.power) || 0, kit.categoria, _pbdHspCliente()) || 0;
 }
 
-// Menor kit ativo da categoria que cobre o consumo a compensar.
-function _pbdRecomendar(categoria, alvo) {
+// Dois kits da categoria em volta da média: o menor que gera acima dela
+// (recomendado) e o maior que gera abaixo. Empate de geração: o mais barato.
+function _pbdRecomendar(categoria, media) {
   const kits = (state.data || [])
     .filter((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0
       && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)))
-    .sort((a, b) => (Number(a.power) - Number(b.power)) || (Number(a.price) - Number(b.price)));
-  if (!kits.length) return { kit: null, maior: null };
-  const kit = kits.find((k) => _pbdGeracao(k) >= alvo) || null;
-  return { kit, maior: kits[kits.length - 1] };
+    .map((k) => ({ k, g: _pbdGeracao(k) }));
+  const melhor = (lista, maiorPrimeiro) => lista
+    .sort((a, b) => (maiorPrimeiro ? b.g - a.g : a.g - b.g) || (Number(a.k.price) - Number(b.k.price)))[0]?.k || null;
+  return {
+    acima: melhor(kits.filter((x) => x.g >= media), false),
+    abaixo: melhor(kits.filter((x) => x.g < media), true),
+  };
+}
+
+function pbDimSetTipo(categoria) {
+  if (!PBD_TIPOS.some((t) => t.v === categoria) || state.pbCategory === categoria) return;
+  if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) return;
+  state.pbCategory = categoria;
+  if (typeof updatePBTabsUI === 'function') updatePBTabsUI();
+  if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
+  pbDimRender();
 }
 
 // Distribui a geração média pelos 12 meses (mesma regra do geracao-chart.js).
@@ -230,6 +257,7 @@ function pbDimRender() {
 
   panel.querySelectorAll('[data-pbd-modo]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbdModo === _pbd.modo));
   panel.querySelectorAll('[data-pbd-ligacao]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbdLigacao === _pbd.ligacao));
+  panel.querySelectorAll('[data-pbd-tipo]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbdTipo === state.pbCategory));
   document.getElementById('pbd-box-mes')?.classList.toggle('hidden', _pbd.modo !== 'mes');
   document.getElementById('pbd-box-media')?.classList.toggle('hidden', _pbd.modo !== 'media');
 
@@ -277,23 +305,23 @@ function _pbdRenderResultado() {
     return;
   }
 
-  const inv = _pbdRecomendar('kitsInversor', alvo);
-  const mic = _pbdRecomendar('kitsMicro', alvo);
-  const principal = inv.kit || mic.kit;
+  const tipo = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
+  const tipoNome = tipo === 'kitsMicro' ? 'com microinversor' : 'com inversor';
+  const { acima, abaixo } = _pbdRecomendar(tipo, c.media);
 
   const cards = [];
-  if (inv.kit) cards.push(_pbdKitCard(inv.kit, alvo, 'Com inversor', true));
-  if (mic.kit) cards.push(_pbdKitCard(mic.kit, alvo, 'Com microinversor', !inv.kit));
+  if (acima) cards.push(_pbdKitCard(acima, c.media, 'Recomendado · acima da média', true));
+  if (abaixo) cards.push(_pbdKitCard(abaixo, c.media, 'Opção menor · abaixo da média', false));
 
   let kitsHtml;
   if (cards.length) {
     kitsHtml = `<div class="pbd-sec">Kit recomendado</div><div class="pbd-kits">${cards.join('')}</div>`;
-    if (!inv.kit || !mic.kit) {
-      kitsHtml += `<p class="pbd-hint" style="margin-top:8px">Nenhum kit ${!inv.kit ? 'com inversor' : 'com microinversor'} da tabela cobre esse consumo.</p>`;
+    if (!acima) {
+      kitsHtml += `<p class="pbd-hint" style="margin-top:8px">Nenhum kit ${tipoNome} da tabela gera acima da média de consumo.</p>`;
     }
-    kitsHtml += `<button type="button" class="pbd-link" data-pbd-ver-todos="${Math.round(_pbdGeracao(principal))}">Ver todos os kits perto dessa geração →</button>`;
+    kitsHtml += `<button type="button" class="pbd-link" data-pbd-ver-todos="${Math.round(c.media)}">Ver todos os kits perto dessa geração →</button>`;
   } else {
-    kitsHtml = `<div class="pbd-aviso" style="margin-top:12px">Nenhum kit disponível com esta seleção cobre o consumo. Confira os equipamentos e a distribuidora escolhidos.</div>`;
+    kitsHtml = `<div class="pbd-aviso" style="margin-top:12px">Nenhum kit ${tipoNome} disponível com esta seleção. Confira os equipamentos e a distribuidora escolhidos.</div>`;
   }
 
   host.innerHTML = mets + kitsHtml;
@@ -301,16 +329,16 @@ function _pbdRenderResultado() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function _pbdKitCard(kit, alvo, tag, top) {
+function _pbdKitCard(kit, media, tag, top) {
   const g = _pbdGeracao(kit);
-  const cobre = Math.round(g / alvo * 100);
+  const cobre = Math.round(g / media * 100);
   const temDe = Number(kit.list_price) > Number(kit.price);
   const id = escapeHTML(String(kit.id));
   return `
     <div data-orcamento-kit="${id}" class="pbd-kit${top ? ' is-top' : ''}">
-      <span class="pbd-kit-tag">${top ? 'Recomendado · ' : ''}${tag}</span>
+      <span class="pbd-kit-tag">${tag}</span>
       <div class="pbd-kit-n">${escapeHTML(kit.name)}</div>
-      <div class="pbd-kit-d">${escapeHTML(String(kit.power))} kWp · ~${_pbdInt(g)} kWh/mês · cobre ${cobre}% do consumo a compensar</div>
+      <div class="pbd-kit-d">${escapeHTML(String(kit.power))} kWp · ~${_pbdInt(g)} kWh/mês · ${cobre}% da média de consumo</div>
       ${typeof pbKitDistribuidoraNome === 'function' && pbKitDistribuidoraNome(kit) ? `<div class="pbd-kit-d">Distribuidora: ${escapeHTML(pbKitDistribuidoraNome(kit))}</div>` : ''}
       <div class="pbd-kit-f">
         <div>
@@ -392,10 +420,9 @@ function _pbdBindChart(host, consumo, geracao, media) {
   svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') esconder(); });
 }
 
-// "Ver todos": volta para a lista com a busca pela geração do kit recomendado.
+// "Ver todos": volta para a lista (no tipo escolhido) buscando pela média de
+// consumo — a busca mostra os kits que geram até 50 kWh a mais ou a menos.
 function pbDimVerTodos(geracao) {
-  const categoria = _pbdRecomendar('kitsInversor', 1).kit ? 'kitsInversor' : state.pbCategory;
-  state.pbCategory = categoria;
   state.pbSearch = String(geracao || '');
   const search = document.getElementById('pb-search');
   if (search) search.value = state.pbSearch;
