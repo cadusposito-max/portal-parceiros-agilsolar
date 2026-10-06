@@ -619,6 +619,14 @@ async function renderPBCatalogo() {
     b.classList.toggle('is-on', ativo);
     b.setAttribute('aria-pressed', String(ativo));
   });
+  const kits = _pbCatFonte === 'kits';
+  const buscaEl = document.getElementById('pb-catalogo-busca');
+  if (buscaEl) buscaEl.placeholder = kits ? 'Buscar kit por nome, marca ou potência' : 'Buscar equipamento por nome, marca ou tipo';
+  const titulo = document.getElementById('pb-catalogo-titulo');
+  const setTitulo = (n) => {
+    if (titulo) titulo.textContent = (kits ? 'Kits' : 'Equipamentos') + (n == null ? '' : ` · ${n} ${n === 1 ? 'encontrado' : 'encontrados'}`);
+  };
+  setTitulo(null);
   const termo = String((document.getElementById('pb-catalogo-busca') || {}).value || '').trim().toLowerCase();
   const casa = (txt) => !termo || String(txt || '').toLowerCase().includes(termo);
 
@@ -658,6 +666,7 @@ async function renderPBCatalogo() {
       }));
   }
 
+  setTitulo(linhas.length);
   lista.innerHTML = linhas.length
     ? linhas.map((l) => `
         <button type="button" data-pb-cat-add="${escapeHTML(l.chave)}" class="pbp-res">
@@ -810,17 +819,28 @@ function bindEquipUIEvents() {
     document.addEventListener('click', (e) => {
       const box = document.getElementById('pb-catalogo');
       if (!box || box.classList.contains('hidden')) return;
-      if (e.target.closest('#pb-catalogo, #pb-catalogo-busca, [data-pb-acao="catalogo"]')) return;
+      if (e.target.closest('#pb-catalogo, #pb-catalogo-busca, #pb-catalogo-fonte, [data-pb-acao="catalogo"]')) return;
       fecharPBCatalogo();
     });
     document.body.dataset.pbCatFora = '1';
   }
 
+  // Kits × Equipamentos fica ao lado da busca: troca a fonte e já mostra a lista.
+  const fonteBox = document.getElementById('pb-catalogo-fonte');
+  if (fonteBox && !fonteBox.dataset.bound) {
+    fonteBox.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pb-cat-fonte]');
+      if (!b) return;
+      _pbCatFonte = b.getAttribute('data-pb-cat-fonte');
+      abrirPBCatalogo();
+      renderPBCatalogo();
+    });
+    fonteBox.dataset.bound = '1';
+  }
+
   const catBox = document.getElementById('pb-catalogo');
   if (catBox && !catBox.dataset.bound) {
     catBox.addEventListener('click', (e) => {
-      const fonte = e.target.closest('[data-pb-cat-fonte]');
-      if (fonte) { _pbCatFonte = fonte.getAttribute('data-pb-cat-fonte'); renderPBCatalogo(); return; }
       const add = e.target.closest('[data-pb-cat-add]');
       if (add) adicionarDoCatalogo(add.getAttribute('data-pb-cat-add'));
     });

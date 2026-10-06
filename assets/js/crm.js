@@ -734,8 +734,8 @@ function renderCrm360TabContent(client, propostas, vendas) {
   // Celular: lista com altura fixa (420px). Desktop: a lista preenche o espaço
   // que sobra na coluna (absolute dentro do flex-1, pra não esticar a caixa).
   return composer + `
-    <div class="relative lg:flex-1 lg:min-h-[420px]">
-    <div class="space-y-0 max-h-[420px] overflow-y-auto pr-1 lg:max-h-none lg:absolute lg:inset-0 custom-scrollbar">
+    <div class="crm360-tl-wrap relative lg:flex-1 lg:min-h-[420px]">
+    <div class="crm360-tl-lista space-y-0 max-h-[420px] overflow-y-auto pr-1 lg:max-h-none lg:absolute lg:inset-0 custom-scrollbar">
       ${eventos.map((ev) => {
         const meta = CRM_ATIVIDADE_META[ev.tipo] || CRM_ATIVIDADE_META.nota;
         let texto = ev.descricao || '';

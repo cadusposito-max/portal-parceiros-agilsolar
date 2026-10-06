@@ -52,7 +52,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/reskin.css?v=20260929-rel4" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/shell.css?v=20261006-leads" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/screens.css?v=20261006-leads" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/ficha.css?v=20261006-leads" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/ficha.css?v=20261006-tl" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/modais.css?v=20261006-fluxo" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/chat.css?v=20260928-f8" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/admin.css?v=20260929-p31" data-ui-v2 media="not all">
@@ -62,7 +62,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261005-dim2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261006-pers" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261006-pers" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261006-pers2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261006-listas" data-ui-v2 media="not all">
   <!-- Tailwind PRÉ-COMPILADO (antes era o cdn.tailwindcss.com, que compilava CSS dentro do navegador e
        deixava a plataforma pesada em PC fraco). Fica depois dos outros CSS, na mesma posição em que o CDN
@@ -722,20 +722,21 @@
 
               <p class="pbp-sec">Itens <span id="pb-equip-preview-qtd" class="pbp-sec-n"></span></p>
               <div class="pbp-add">
+                <div class="pbp-seg pbp-seg-lg" id="pb-catalogo-fonte">
+                  <button type="button" data-pb-cat-fonte="kits" class="is-on" aria-pressed="true">Kits</button>
+                  <button type="button" data-pb-cat-fonte="equipamentos" aria-pressed="false">Equipamentos</button>
+                </div>
                 <div class="pbp-busca">
                   <i data-lucide="search"></i>
-                  <input type="text" id="pb-catalogo-busca" class="pbp-input" placeholder="Buscar kit ou equipamento no catálogo" aria-controls="pb-catalogo">
+                  <input type="text" id="pb-catalogo-busca" class="pbp-input" placeholder="Buscar kit por nome, marca ou potência" aria-controls="pb-catalogo">
                 </div>
                 <button type="button" id="pb-itens-add-manual" class="pbp-btn"><i data-lucide="plus"></i> Item avulso</button>
               </div>
 
-              <!-- Catálogo (kits + equipamentos) -->
+              <!-- Catálogo (kits ou equipamentos, conforme o seletor ao lado da busca) -->
               <div id="pb-catalogo" class="pbp-cat hidden">
                 <div class="pbp-cat-top">
-                  <div class="pbp-seg">
-                    <button type="button" data-pb-cat-fonte="kits">Kits</button>
-                    <button type="button" data-pb-cat-fonte="equipamentos">Equipamentos</button>
-                  </div>
+                  <span id="pb-catalogo-titulo" class="pbp-cat-titulo"></span>
                   <button type="button" id="pb-catalogo-fechar" class="pbp-icon-btn" title="Fechar catálogo" aria-label="Fechar catálogo"><i data-lucide="x"></i></button>
                 </div>
                 <div id="pb-catalogo-lista" class="pbp-cat-lista custom-scrollbar"></div>
@@ -1276,7 +1277,7 @@
   local('cidades.js',          '20260703-crm1');
   local('clientes.js',         '20261006-fluxo');
   local('documentos.js',       '20260930-rede-cnpj');
-  local('crm.js',              '20261006-fluxo');
+  local('crm.js',              '20261006-tl');
   local('crm-arquivos.js',     '20261002-arqrep');
   local('crm-fila.js',         '20260917-modal-altura');
   local('crm-metas.js',        '20260716-crm-loop');
@@ -1285,7 +1286,7 @@
   local('catalogo-distribuidoras.js', '20261006-modulo-potencia');
   local('produtos.js',         '20261006-dist');
   local('pb-dimensionar.js',   '20261006-tipo');
-  local('proposta-builder.js', '20261006-pers');
+  local('proposta-builder.js', '20261006-pers2');
   local('orcamento-dre.js',    '20261006-cc');
   local('vendas.js',           '20260930-venda');
   local('admin.js',            '20261001-eng');

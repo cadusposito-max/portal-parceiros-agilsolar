@@ -89,6 +89,10 @@ html[data-ui="v2"] body .v2f textarea.crm360-input { height: auto; padding: 10px
 html[data-ui="v2"] .v2f-save { height: 48px; border: 0; border-radius: 14px; background: var(--v2-blue); color: #fff; font-weight: 800; font-size: 14px; display: flex; gap: 8px; align-items: center; justify-content: center; cursor: pointer; font-family: inherit; }
 html[data-ui="v2"] .v2f-save:hover { background: var(--v2-blue-hover); }
 html[data-ui="v2"] .v2f-tabbody { min-height: 320px; }
+/* Timeline na ficha nova: a lista cresce com os itens e quem rola é o corpo da ficha
+   (a altura mínima de 420px do layout antigo criava barra de rolagem com poucos itens). */
+html[data-ui="v2"] .v2f-tabbody .crm360-tl-wrap { min-height: 0 !important; }
+html[data-ui="v2"] .v2f-tabbody .crm360-tl-lista { position: static !important; max-height: none !important; overflow: visible !important; padding-right: 0; }
 @media (max-width: 1000px) {
   html[data-ui="v2"] .v2f-grid { grid-template-columns: minmax(0, 1fr); }
   html[data-ui="v2"] .v2f-tabbody { order: -1; }

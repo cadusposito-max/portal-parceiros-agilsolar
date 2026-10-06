@@ -89,6 +89,9 @@ html[data-ui="v2"] body #pb-embedded-panel .pbp-seg button.is-on { background: v
 #pb-embedded-panel .pbp-sec { font-size: 14px; font-weight: 800; margin: 18px 0 8px; }
 #pb-embedded-panel .pbp-sec-n { color: var(--v2-ink-2); font-weight: 600; }
 #pb-embedded-panel .pbp-add { display: flex; gap: 8px; }
+#pb-embedded-panel .pbp-seg-lg { flex-shrink: 0; height: 42px; padding: 4px; border-radius: var(--v2-r-ctl); }
+html[data-ui="v2"] body #pb-embedded-panel .pbp-seg-lg button { padding: 0 14px; font-size: 13px; }
+#pb-embedded-panel .pbp-cat-titulo { padding-left: 6px; font-size: 12px; font-weight: 700; color: var(--v2-ink-2); }
 #pb-embedded-panel .pbp-busca { position: relative; flex: 1; min-width: 0; }
 #pb-embedded-panel .pbp-busca > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--v2-ink-2); pointer-events: none; z-index: 1; }
 html[data-ui="v2"] body #pb-embedded-panel .pbp-busca .pbp-input { padding-left: 36px; }
@@ -189,12 +192,14 @@ html[data-ui="v2"] body #pb-embedded-panel .pbp-obs-btn { justify-content: space
 #pb-embedded-panel .pbp-obs.hidden { display: none; }
 #pb-embedded-panel .pbp-obs .pbp-lb { margin-top: 4px; }
 @media (max-width: 900px) { #pb-embedded-panel .pbp-side { position: static; } }
+@container (max-width: 560px) {
+  #pb-embedded-panel .pbp-add { flex-wrap: wrap; }
+  #pb-embedded-panel .pbp-busca { flex-basis: 100%; order: 3; }
+  #pb-embedded-panel .pbp-add .pbp-btn { flex: 1; }
+}
 @media (max-width: 760px) { #pb-embedded-panel .pbp-lock { display: none; } }
 @media (max-width: 520px) {
   html[data-ui="v2"] body #pb-embedded-panel #pb-equip-panel.pbp { padding: 14px 12px; }
-  #pb-embedded-panel .pbp-add { flex-wrap: wrap; }
-  #pb-embedded-panel .pbp-busca { flex-basis: 100%; }
-  #pb-embedded-panel .pbp-add .pbp-btn { flex: 1; }
   #pb-embedded-panel .pbp-it-nome { flex-wrap: wrap; }
   html[data-ui="v2"] body #pb-embedded-panel .pbp-it select.pbp-input { width: 100%; }
   html[data-ui="v2"] body #pb-embedded-panel .pbp-preco .pbp-input { width: 112px; }
