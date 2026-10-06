@@ -14,7 +14,7 @@
     frame-src   https://challenges.cloudflare.com https://tzwjxgprhorqrmpqudgg.supabase.co blob:;
     object-src  'none';
     base-uri    'self';
-    worker-src  'none';
+    worker-src  'self';
     form-action 'self';
     upgrade-insecure-requests;
     block-all-mixed-content;
@@ -1316,7 +1316,7 @@
   local('ui-v2-admin.js',      '20260929-p30');
   local('update-notice.js',    '20260929-rel3');
   local('push.js',             '20261006-leads');
-  local('leads-meta-avisos.js', '20261006-leads');
+  local('leads-meta-avisos.js', '20261006-sw');
 })();
 </script>
 <script>

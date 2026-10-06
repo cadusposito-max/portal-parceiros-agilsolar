@@ -92,8 +92,11 @@
       if (has('showToast')) showToast('NOTIFICAÇÕES ATIVADAS! VOCÊ VAI SER AVISADO DOS LEADS');
     } else if (r.reason === 'denied') {
       precisaPush = 'bloqueado';
-    } else if (has('showToast')) {
-      showToast('Não foi possível ativar as notificações agora.');
+    } else {
+      // o motivo aparece no aviso: o vendedor manda print e dá pra saber onde travou
+      const motivo = { sw_not_registered: 'serviço de notificação não iniciou', unsupported: 'navegador sem suporte', save_failed: 'não salvou no servidor', subscribe_failed: 'o navegador recusou a inscrição' }[r.reason] || r.reason || 'erro desconhecido';
+      console.error('[leads-meta-avisos] ativar push:', r);
+      if (has('showToast')) showToast(`Não foi possível ativar as notificações (${motivo}).`);
     }
     pintarAvisos();
   }
