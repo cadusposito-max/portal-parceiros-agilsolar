@@ -316,9 +316,14 @@ function _analiseOrigensHTML() {
   // --- Motivos de perda ---
   const perdidos = clientes.filter((c) => normalizeClientStatus(c.status) === 'PERDIDO');
   const porMotivo = {};
+  // Com etiquetas, cada etiqueta do perdido conta (um cliente pode ter mais de
+  // um motivo); sem etiqueta, vale o motivo antigo sem o detalhe.
   perdidos.forEach((c) => {
-    const m = String(c.perdido_motivo || 'NÃO INFORMADO').toUpperCase();
-    porMotivo[m] = (porMotivo[m] || 0) + 1;
+    const tags = typeof etqDoCliente === 'function' ? etqDoCliente(c.id) : [];
+    const ms = tags.length
+      ? tags.map((e) => e.nome.toUpperCase())
+      : [String(c.perdido_motivo || 'NÃO INFORMADO').split(' — ')[0].toUpperCase()];
+    ms.forEach((m) => { porMotivo[m] = (porMotivo[m] || 0) + 1; });
   });
   const motivos = Object.entries(porMotivo).sort((a, b) => b[1] - a[1]);
   const maxMotivo = Math.max(...motivos.map(([, n]) => n), 1);

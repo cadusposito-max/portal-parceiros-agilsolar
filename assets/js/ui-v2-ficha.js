@@ -385,6 +385,7 @@
                 <span>${ic('map-pin')}${esc(client.cidade || 'sem cidade')}${Number(client.hsp) > 0 ? ` · HSP ${esc(String(client.hsp).replace('.', ','))}` : ''}</span>
                 <span>${ic('calendar')}desde ${esc(formatDate(client.created_at))}</span>
               </div>
+              ${has('etqFichaHTML') ? etqFichaHTML(client) : ''}
               ${lost && client.perdido_motivo ? `<div class="v2f-lost">${ic('info')}Motivo da perda: ${esc(client.perdido_motivo)}</div>` : ''}
             </div>
             <div class="v2f-acts">

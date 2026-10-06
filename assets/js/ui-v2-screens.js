@@ -401,7 +401,8 @@
   function clientesRows() {
     if (has('buildCrmAggregates')) buildCrmAggregates();
     const source = state.isAdmin ? applyAdminGlobalScope(state.clientes || []) : (Array.isArray(state.clientes) ? state.clientes : []);
-    const filtered = state.isAdmin ? applyAdminClientesFilters(source) : applyRegularClientesFilters(source);
+    const base = state.isAdmin ? applyAdminClientesFilters(source) : applyRegularClientesFilters(source);
+    const filtered = has('etqAplicarFiltro') ? etqAplicarFiltro(base) : base;
     state.lastFilteredClientes = filtered;
     return { source, filtered, showSeller: (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll), showFranquia: state.isAdmin && state.adminViewAll };
   }
@@ -446,6 +447,8 @@
     return String(state.adminScopeFranquiaId || 'all') === 'all' ? 'Todas as franquias' : getFranquiaNameById(state.adminScopeFranquiaId);
   }
   const waLink = (c) => (has('buildClientWhatsappLink') ? buildClientWhatsappLink(c) : '');
+  const etqLinha = (id, max) => (has('etqLinhaHTML') ? etqLinhaHTML(id, max) : '');
+  const etqFiltro = (source) => (has('etqFiltroSelectHTML') ? etqFiltroSelectHTML(source) : '');
   const followLate = (c) => c && c.proxima_acao_em && new Date(c.proxima_acao_em) < new Date();
 
   function renderClientesListV2(container) {
@@ -471,6 +474,7 @@
       <div class="v2-toolbar">
         ${searchBox(state.isAdmin ? 'Nome, telefone, cidade ou vendedor' : 'Buscar por nome, telefone ou cidade')}
         ${sortSeg}
+        ${etqFiltro(source)}
         <div class="v2-grow"></div>
         ${viewSeg('clientes', vista, ['lista', 'kanban'])}
         ${adminBtns}
@@ -494,7 +498,7 @@
       const wa = waLink(c);
       const meta = leadMetaChip(c, true);
       return `<tr onclick="openCrm360('${esc(c.id)}')">
-        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}<span class="show-m v2-mstline"><span class="v2-chip dot ${st[1]}">${st[0]}</span>${meta}</span></div></div></td>
+        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}${etqLinha(c.id, 3)}<span class="show-m v2-mstline"><span class="v2-chip dot ${st[1]}">${st[0]}</span>${meta}</span></div></div></td>
         <td class="hide-m">${esc(c.cidade || '—')}${Number(c.hsp) > 0 ? `<small class="muted" style="display:block;font-size:12px">HSP ${esc(String(c.hsp).replace('.', ','))}</small>` : ''}</td>
         <td class="hide-m"><button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Alterar status">${st[0]}</button></td>
         <td class="hide-m">${nProp ? `${nProp} proposta${nProp > 1 ? 's' : ''}` : '<span class="muted">—</span>'}${nVend ? `<small style="display:block;font-size:12px;color:#1FA971;font-weight:700">${nVend} venda${nVend > 1 ? 's' : ''}</small>` : ''}</td>
@@ -533,6 +537,7 @@
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}</div>
         <div class="meta">${meta.join('')}</div>
         ${vistoriaChip(c) || engChip(c) ? `<div class="v2-visline">${vistoriaChip(c)}${engChip(c)}</div>` : ''}
+        ${etqLinha(c.id, 3)}
         <div class="f">${valor ? `<b>${moneyC(valor)}</b>` : '<span class="none">Sem proposta</span>'}
           ${editavel ? `<button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Mudar etapa">${st[0]}</button>` : `<span class="v2-chip dot ${st[1]}">${st[0]}</span>`}</div>
       </article>`;
@@ -577,6 +582,7 @@
       <div class="v2-toolbar">
         ${searchBox('Buscar no funil por nome, telefone ou cidade')}
         ${vendSelect}
+        ${etqFiltro(source)}
         ${filtrosAtivos ? `<div class="v2-pills"><button class="warn" onclick="funilLimparFiltros()">${ic('filter-x')}${filtrosAtivos} filtro${filtrosAtivos > 1 ? 's' : ''} da aba Clientes · limpar</button></div>` : ''}
         <div class="v2-grow"></div>
         ${viewSeg('funil', vista, ['kanban', 'lista'])}

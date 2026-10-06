@@ -1331,6 +1331,7 @@ async function higieneAplicar(acao) {
     }
 
     if (ehPerdido) {
+      if (typeof etqAplicarEmMassa === 'function') await etqAplicarEmMassa(ids, 'Sem retorno');
       // O trigger do banco loga a mudança de status na timeline de cada um.
       state.clientes.forEach((c) => {
         if (!ids.includes(c.id)) return;
