@@ -461,6 +461,7 @@
     const emps = empresasDe(f.id);
     const inp = (campo, v, dis, money) => `<div class="rd-in ${money ? 'money' : ''}">${money ? '<span>R$</span>' : ''}<input inputmode="decimal" value="${pctIn(v)}" ${dis ? 'disabled' : ''} onchange="redeSetTaxa('${f.id}','${campo}',this.value)">${money ? '' : '<span>%</span>'}</div>`;
     const bo = (v, l) => `<option value="${v}" ${t.royalties_base === v ? 'selected' : ''}>${l}</option>`;
+    const cartao = propostaTaxasCartao(D().taxas[f.id]?.cartao_taxas);
     return `
     <div class="rd-grid rd-two rd-mb">
       <div class="rd-card">
@@ -485,6 +486,16 @@
         <div class="rd-line"><div class="nm">Rebate sobre kits <span class="rd-tag auto">pago pelo distribuidor</span></div>${inp('rebate_pct', t.rebate_pct)}</div>
         <div class="rd-line"><div class="nm">Projeto de engenharia <span class="rd-tag">por projeto</span></div>${inp('projeto_valor', t.projeto_valor, false, true)}</div>
         <div class="rd-line"><div class="nm">Mensalidade da plataforma</div>${inp('mensalidade', t.mensalidade, false, true)}</div>
+      </div>
+    </div>
+    <div class="rd-card rd-mb" id="rd-cartao-taxas">
+      <h3>${ic('credit-card')}Taxas do cartão de crédito</h3>
+      <p class="rd-sub">Taxa da operadora por quantidade de parcelas, usada nas propostas solares desta unidade e no PDF. Cada campo salva ao sair.</p>
+      <div class="rd-grid rd-cartao-grid">
+        ${[0, 6, 12].map((inicio) => `<div>${Array.from({ length: 6 }, (_, i) => {
+          const n = inicio + i + 1;
+          return `<div class="rd-line"><label class="nm" for="rd-cartao-${n}">Crédito ${n}x</label><div class="rd-in"><input id="rd-cartao-${n}" inputmode="decimal" aria-label="Taxa do cartão em ${n} parcelas" value="${pctIn(cartao[n])}" onchange="redeSetTaxaCartao('${f.id}',${n},this)"><span>%</span></div></div>`;
+        }).join('')}</div>`).join('')}
       </div>
     </div>
     <div class="rd-card">
@@ -910,6 +921,33 @@
   }
 
   // ------------------------------------------------------------ ações: taxas / padrões
+  async function redeSetTaxaCartao(fid, parcelas, input) {
+    if (!state.isAdmin || input.disabled || !D() || !franquia(fid)) return;
+    const dados = D();
+    const anterior = propostaTaxasCartao(dados.taxas[fid]?.cartao_taxas)[parcelas];
+    const raw = input.value.trim();
+    const valor = Number(raw.replace(',', '.'));
+    if (!/^\d+(?:[.,]\d+)?$/.test(raw) || !Number.isFinite(valor) || valor < 0 || valor >= 100) {
+      input.value = pctIn(anterior);
+      toast('Informe uma taxa de 0 até menos de 100%.');
+      return;
+    }
+    input.disabled = true;
+    try {
+      const { data, error } = await supabaseClient.rpc('rede_set_taxa_cartao', {
+        p_franquia_id: fid, p_parcelas: parcelas, p_taxa: valor,
+      });
+      if (error) throw error;
+      const atual = dados.taxas[fid] || dados.padroes || {};
+      dados.taxas[fid] = { ...atual, cartao_taxas: { ...atual.cartao_taxas, [parcelas]: data[parcelas] } };
+      input.value = pctIn(valor);
+      toast('Taxa do cartão salva.');
+    } catch (error) {
+      input.value = pctIn(anterior);
+      toast('Erro ao salvar a taxa: ' + error.message);
+    } finally { input.disabled = false; }
+  }
+
   async function redeSetTaxa(fid, campo, v) {
     if (!TAXA_CAMPOS.includes(campo)) return;
     const valor = campo === 'royalties_base' ? v : parseNum(v);
@@ -997,6 +1035,6 @@
     redeNovaUnidade, redeEditarUnidade, redeSalvarUnidade, redeFecharModal: fecharModal,
     redeEmpresaModal, redeBuscarCnpj, redeSalvarEmpresa, redeEmpresaPrincipal, redeEmpresaAtivo,
     redeImpostoModal, redeSalvarImposto, redeSugerirImpostos, redeSetAliquota, redeRemoverImposto,
-    redeSetTaxa, redeSalvarPadroes, redeAplicarPadroes, redeLancarModal, redeSalvarLancamentos,
+    redeSetTaxa, redeSetTaxaCartao, redeSalvarPadroes, redeAplicarPadroes, redeLancarModal, redeSalvarLancamentos,
   });
 })();

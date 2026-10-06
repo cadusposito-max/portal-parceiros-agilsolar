@@ -26,7 +26,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/config.js?v=20260714-catalogo"></script>
 <script src="assets/js/geracao-chart.js?v=20260916-pdf"></script>
-<script src="assets/js/proposta-calc.js?v=20261005-calc"></script>
+<script src="assets/js/proposta-calc.js?v=20261006-cartao"></script>
 <style>
   /* ============================================================
      PROPOSTA ÁGIL SOLAR — VERSÃO PDF (A4 RETRATO)
@@ -1694,9 +1694,9 @@
   }
   // Parcelas no cartão: taxas e fórmula em assets/js/proposta-calc.js
   // (as mesmas da proposta web).
-  function tabelaCartao(valor) {
+  function tabelaCartao(valor, taxasCartao) {
     var html = '', parcela18 = '';
-    propostaParcelasCartao(valor).forEach(function (x) {
+    propostaParcelasCartao(valor, taxasCartao).forEach(function (x) {
       if (x.n === 18) parcela18 = fmt(x.parcela);
       html += '<div' + (x.n % 6 === 0 ? ' class="hl"' : '') + '><span>' + x.n + '×</span><b>' + fmt(x.parcela) + '</b></div>';
     });
@@ -1762,7 +1762,7 @@
     // WhatsApp do consultor (QR + áreas clicáveis): só com DDD + número válido.
     var waUrl = whatsappUrl(p.vendedor_telefone, p.vendedor_nome, p.numero);
 
-    var cartao = tabelaCartao(precoFinal);
+    var cartao = tabelaCartao(precoFinal, p.cartao_taxas);
 
     var precoStr     = fmt(precoFinal);
     var precoNum     = precoStr.replace(/^R\$\s*/, '').trim();

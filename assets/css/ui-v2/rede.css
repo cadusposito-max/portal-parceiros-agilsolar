@@ -39,6 +39,8 @@ html[data-ui="v2"] .rd { color: var(--v2-ink); font-size: 14px; }
 .rd-k3 { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); }
 .rd-two { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
 .rd-half { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.rd-cartao-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+@media (max-width: 760px) { .rd-cartao-grid { grid-template-columns: 1fr; gap: 0; } }
 .rd-mb { margin-bottom: 14px; }
 
 .rd-card { background: var(--v2-card); border-radius: var(--v2-r-panel); box-shadow: var(--v2-shadow); padding: 18px 20px; min-width: 0; }

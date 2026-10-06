@@ -63,11 +63,23 @@ function calcularNumerosProposta(p) {
   };
 }
 
+// Taxas específicas da unidade substituem só as parcelas configuradas.
+function propostaTaxasCartao(taxasFranquia) {
+  var taxas = {};
+  for (var n = 1; n <= PROPOSTA_MAX_PARCELAS; n++) {
+    var configurada = taxasFranquia && taxasFranquia[n];
+    taxas[n] = typeof configurada === 'number' && isFinite(configurada) && configurada >= 0 && configurada < 100
+      ? configurada : PROPOSTA_TAXAS_CARTAO[n];
+  }
+  return taxas;
+}
+
 // [{ n, parcela }] de 1× até PROPOSTA_MAX_PARCELAS×, já com o repasse da taxa.
-function propostaParcelasCartao(valor) {
+function propostaParcelasCartao(valor, taxasFranquia) {
   var lista = [];
+  var taxas = propostaTaxasCartao(taxasFranquia);
   for (var i = 1; i <= PROPOSTA_MAX_PARCELAS; i++) {
-    var taxa = PROPOSTA_TAXAS_CARTAO[i] || 0;
+    var taxa = taxas[i];
     lista.push({ n: i, parcela: (valor / (1 - (taxa / 100))) / i });
   }
   return lista;

@@ -179,12 +179,12 @@ modalParcelamento.addEventListener('click', (e) => {
   if (e.target === modalParcelamento) closeModal();
 });
 
-function gerarOpcoesParcelamento(valorBase) {
+function gerarOpcoesParcelamento(valorBase, taxasCartao) {
   const formatter             = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
   const installmentsContainer = document.getElementById('installments-list');
   installmentsContainer.innerHTML = '';
 
-  propostaParcelasCartao(valorBase).forEach(({ n, parcela }) => {
+  propostaParcelasCartao(valorBase, taxasCartao).forEach(({ n, parcela }) => {
     const row       = document.createElement('div');
     row.className   = 'flex justify-center items-center p-3 rounded-lg border border-neutral-800 bg-black/40 hover:bg-neutral-800/80 transition-colors';
     row.innerHTML   = `<span class="text-white font-bold text-sm md:text-base">${n}x de ${formatter.format(parcela)}</span>`;
@@ -222,7 +222,7 @@ async function carregarProposta() {
     if (typeof captureEvent === 'function') {
       captureEvent('public_proposal_viewed', { source: 'public_page' });
     }
-    gerarOpcoesParcelamento(calcularNumerosProposta(data).preco);
+    gerarOpcoesParcelamento(calcularNumerosProposta(data).preco, data.cartao_taxas);
   } catch (err) {
     showError();
   }
