@@ -88,22 +88,26 @@ function pbMarcaDoComponente(id, tipo) {
 function pbKitCompativel(kit) {
   if (!kit || kit.ativo === false) return false;
   const f = _pbFornecimento;
-  if (f.distribuidora && String(kit.distribuidora_id || '') !== f.distribuidora) return false;
+  // Kit sem distribuidora marcada vale para a distribuidora escolhida quando
+  // ela oferece o módulo e o inversor dele (conferido no fim).
+  if (f.distribuidora && kit.distribuidora_id && String(kit.distribuidora_id) !== f.distribuidora) return false;
+  const distribuidora = String(kit.distribuidora_id || f.distribuidora || '');
   if (f.modulo) {
     const modulo = _catalogoDistrib.equipamentos.find((e) => String(e.id) === String(kit.modulo_id) && e.tipo === 'modulo' && e.ativo !== false);
     if (pbDescricaoModulo(modulo) !== f.modulo) return false;
   }
   if (f.inversor && pbMarcaDoComponente(kit.inversor_id, 'inversor') !== f.inversor) return false;
-  if (kit.distribuidora_id) {
+  if (distribuidora) {
     if (!_catalogoDistrib.carregado) return false;
-    const disponiveis = new Set(catalogoEquipamentosDaDistribuidora(kit.distribuidora_id).map((e) => String(e.id)));
+    const disponiveis = new Set(catalogoEquipamentosDaDistribuidora(distribuidora).map((e) => String(e.id)));
     if (!kit.modulo_id || !kit.inversor_id || !disponiveis.has(String(kit.modulo_id)) || !disponiveis.has(String(kit.inversor_id))) return false;
   }
   return true;
 }
 
 function pbKitDistribuidoraNome(kit) {
-  return kit?.distribuidora_id ? catalogoDistribuidora(kit.distribuidora_id)?.nome || '' : '';
+  const id = kit?.distribuidora_id || _pbFornecimento.distribuidora;
+  return id ? catalogoDistribuidora(id)?.nome || '' : '';
 }
 
 function pbFornecimentoReset() {
