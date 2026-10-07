@@ -78,9 +78,13 @@ async function pushInit() {
       if (data.type !== 'NOTIFICATION_CLICK') return;
       const url = data.url || '';
       const m   = url.match(/#chat\/([0-9a-f-]+)/i);
+      const n   = url.match(/#notif\/([0-9a-f-]+)/i);
       if (m && typeof openConversation === 'function') {
         // Função do chat.js — abre a conversa diretamente
         openConversation(m[1]);
+      } else if (n && typeof window.notifAbrirPorId === 'function') {
+        // central de notificações (notificacoes.js)
+        window.notifAbrirPorId(n[1]);
       } else if (url.includes('#')) {
         window.location.hash = url.substring(url.indexOf('#') + 1);
       }

@@ -148,6 +148,8 @@
     const curTab = T.find((t) => t.id === cur) || T[0] || { label: E.n, icon: E.i };
     const chatOn = state.chat && state.chat.hasAccess === true;
     const unread = (state.chat && state.chat.unreadTotal) || 0;
+    const notifOn = has('notifAbrir') && has('notifDisponivel') && notifDisponivel();
+    const notifCnt = notifOn && has('notifNaoLidas') ? notifNaoLidas() : 0;
     const canAdmin = has('userCanAccessAdminPanel') && userCanAccessAdminPanel();
     const multiEnv = Object.keys(ENVS).filter(envAllowed).length > 1;
     const meta = window.uiV2PageMeta;
@@ -158,8 +160,8 @@
     // Troca de aba, título e contador do chat não mudam a estrutura: só
     // atualiza esses pontos, sem recriar menu e ícones (era ~40ms por vez).
     const sig = JSON.stringify([k, T.map((t) => [t.id, t.label, t.icon]), u.nome, u.email, u.role, u.avatar, u.unidade, cta && cta[0], chatOn, canAdmin, multiEnv,
-      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '']);
-    if (sig === lastSig && $('#v2-side').firstChild) { paintLight(cur, title, sub, unread); return; }
+      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn]);
+    if (sig === lastSig && $('#v2-side').firstChild) { paintLight(cur, title, sub, unread, notifCnt); return; }
     lastSig = sig;
 
     $('#v2-side').innerHTML = `
@@ -182,6 +184,7 @@
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>
       ${scopeButton()}
       ${has('ajudaAbrir') ? `<button class="v2-icb" data-v2="ajuda" title="Central de ajuda" aria-label="Central de ajuda" aria-expanded="false">${ic('circle-help')}</button>` : ''}
+      ${notifOn ? `<button class="v2-icb" data-v2="notif" title="Notificações" aria-label="Notificações" aria-expanded="false">${ic('bell')}${notifCnt ? `<span class="cnt">${notifCnt > 99 ? '99+' : notifCnt}</span>` : ''}</button>` : ''}
       ${chatOn ? `<button class="v2-icb" data-v2="chat" title="Mensagens da equipe">${ic('message-circle')}${unread ? `<span class="cnt">${unread > 99 ? '99+' : unread}</span>` : ''}</button>` : ''}
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
@@ -201,7 +204,7 @@
     icons();
     placeInd(false);
   }
-  function paintLight(cur, title, sub, unread) {
+  function paintLight(cur, title, sub, unread, notifCnt) {
     $$('[data-v2="tab"]').forEach((b) => b.classList.toggle('on', b.dataset.tab === cur));
     placeInd(true);
     const more = $('#v2-mnav [data-target="v2-sheet-more"]');
@@ -214,6 +217,11 @@
     if (chat) {
       let c = chat.querySelector('.cnt');
       if (unread) { if (!c) { c = document.createElement('span'); c.className = 'cnt'; chat.appendChild(c); } c.textContent = unread > 99 ? '99+' : String(unread); } else if (c) c.remove();
+    }
+    const sino = $('#v2-top [data-v2="notif"]');
+    if (sino) {
+      let c = sino.querySelector('.cnt');
+      if (notifCnt) { if (!c) { c = document.createElement('span'); c.className = 'cnt'; sino.appendChild(c); } c.textContent = notifCnt > 99 ? '99+' : String(notifCnt); } else if (c) c.remove();
     }
   }
   // destaque azul que desliza até a aba ativa (animação só na troca de aba)
@@ -368,6 +376,7 @@
       case 'scope': if (state.isAdmin && has('toggleAdminViewMode')) toggleAdminViewMode(); else if (has('toggleGestorViewMode')) toggleGestorViewMode(); break;
       case 'chat': if (has('_chatToggleShell')) _chatToggleShell(); break;
       case 'ajuda': if (has('ajudaAbrir')) ajudaAbrir(t); break;
+      case 'notif': if (has('notifAbrir')) notifAbrir(t); break;
       case 'logout': if (has('handleLogout')) handleLogout(); break;
       case 'palette': openPalette(); break;
       case 'palclose': closePalette(); break;
