@@ -139,10 +139,11 @@ const TOUR_PASSOS = [
     // Termina apontando o "?" do topo: é por ele que o tour volta depois.
     // Fecha o painel "Proposta gerada", que cobre o topo da tela.
     id: 'fim', opcional: true, pulsar: true,
-    alvo: () => _tourVis('#v2-top [data-v2="ajuda"]'),
+    // No celular não há "?" no topo: a ajuda fica no menu da foto.
+    alvo: () => _tourVis('#v2-top [data-v2="ajuda"]') || _tourVis('#v2-mtop .v2-av'),
     entrar: () => { if (typeof closeProposalSharePanel === 'function') closeProposalSharePanel(); },
     titulo: () => 'Orçamento concluído',
-    texto: () => 'Quando o cliente abrir o link, a proposta será marcada como <b>VISTA</b> e você receberá um aviso. Este foi um treino: nada foi salvo.<br><br>No ícone <b>?</b> você encontra os tutoriais disponíveis para o seu acesso e pode repetir este treino quando quiser.',
+    texto: () => `Quando o cliente abrir o link, a proposta será marcada como <b>VISTA</b> e você receberá um aviso. Este foi um treino: nada foi salvo.<br><br>${_tourVis('#v2-top [data-v2="ajuda"]') ? 'No ícone <b>?</b>' : 'Na sua foto, em <b>Ajuda e tutoriais</b>,'} você encontra os tutoriais disponíveis para o seu acesso e pode repetir este treino quando quiser.`,
     botao: 'Sair do treino',
     acao: () => { _tutorialFeito('orcamento'); if (window.TREINO && window.TREINO.ativo) window.TREINO.sair(); },
   },

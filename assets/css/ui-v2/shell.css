@@ -210,16 +210,30 @@ html[data-ui="v2"] .v2-msearch { display: none !important; }
   html[data-ui="v2"] .v2-mtop .ui-v2-logo .wm { display: flex !important; }
   html[data-ui="v2"] .v2-mtop .ui-v2-logo .wm b { font-size: 19px; }
   html[data-ui="v2"] .v2-mtop .ui-v2-logo .wm small { display: none; }
-  html[data-ui="v2"] .v2-mtop .v2-envbtn { width: auto; margin-left: auto; padding: 6px 10px 6px 6px; border-radius: 999px; background: var(--v2-card); box-shadow: var(--v2-shadow); }
-  html[data-ui="v2"] .v2-mtop .v2-envbtn .v2-envic { width: 30px; height: 30px; border-radius: 50%; }
+  /* com troca de ambiente só cabe o símbolo do logo (a pílula e o sininho ocupam o resto) */
+  html[data-ui="v2"] .v2-mtop.multi .ui-v2-logo .wm { display: none !important; }
+  html[data-ui="v2"] .v2-mtop .v2-envbtn { width: auto; height: 44px; padding: 6px 10px 6px 6px; border-radius: 999px; background: var(--v2-card); box-shadow: var(--v2-shadow); }
+  html[data-ui="v2"] .v2-mtop .v2-envbtn .v2-envic { width: 32px; height: 32px; border-radius: 50%; }
   html[data-ui="v2"] .v2-mtop .v2-envbtn .tx small { display: none; }
   html[data-ui="v2"] .v2-mtop .v2-envbtn b { font-size: 13px; }
-  html[data-ui="v2"] .v2-mtop .v2-av { width: 40px; height: 40px; }
+  html[data-ui="v2"] .v2-mtop .v2-icb { width: 44px; height: 44px; }
+  html[data-ui="v2"] .v2-mtop .v2-av { width: 44px; height: 44px; }
   html[data-ui="v2"] body #app-content > main { padding: 6px 0 0 !important; }
-  html[data-ui="v2"] .v2-top { margin: 4px 0 14px; }
+  html[data-ui="v2"] .v2-top { margin: 4px 0 14px; gap: 8px; }
+  html[data-ui="v2"] .v2-top > div:first-child { flex: 1; min-width: 0; }
   html[data-ui="v2"] .v2-top h1 { font-size: 23px; }
-  html[data-ui="v2"] .v2-top :is(.v2-scope, .v2-admin) { display: none !important; }
-  html[data-ui="v2"] .v2-top .v2-icb { width: 42px; height: 42px; }
+  /* "Comercial" já está na pílula de ambiente; sininho foi pro topo fixo e o "?" pro menu da foto */
+  html[data-ui="v2"] .v2-top :is(.v2-crumb, .v2-grow) { display: none; }
+  html[data-ui="v2"] .v2-top :is(.v2-scope, .v2-admin, [data-v2="notif"], [data-v2="ajuda"]) { display: none !important; }
+  html[data-ui="v2"] .v2-top .v2-icb { width: 44px; height: 44px; }
+  /* tela inicial: busca vira barra larga embaixo da saudação, com o chat do lado */
+  html[data-ui="v2"] .v2-top.home { flex-wrap: wrap; row-gap: 14px; }
+  html[data-ui="v2"] .v2-top.home > div:first-child { flex-basis: 100%; }
+  html[data-ui="v2"] .v2-top.home .v2-msearch { display: none !important; }
+  html[data-ui="v2"] .v2-top.home .v2-search { display: flex; flex: 1; width: auto; min-width: 0; height: 48px; padding: 0 16px; }
+  html[data-ui="v2"] .v2-top.home .v2-search span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html[data-ui="v2"] .v2-top.home .v2-search kbd { display: none; }
+  html[data-ui="v2"] .v2-top.home [data-v2="chat"] { width: 48px; height: 48px; }
   html[data-ui="v2"] .v2-mnav {
     display: flex; position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
     background: var(--v2-card); border-radius: 26px; padding: 8px; justify-content: space-around; align-items: center;

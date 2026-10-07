@@ -227,7 +227,9 @@
     const firstName = has('getFirstName') ? getFirstName() : '';
     const greeting = has('getGreeting') ? getGreeting() : 'Olá';
     const hoje = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-    setPageMeta('comercial:dashboard', `${greeting}${firstName ? ', ' + firstName : ''}`, `${cap(hoje)} · ${ctxFranquia || 'Comercial'}`);
+    // no celular só a data: a unidade já aparece na linha "Exibindo …" logo abaixo
+    const celular = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+    setPageMeta('comercial:dashboard', `${greeting}${firstName ? ', ' + firstName : ''}`, celular ? cap(hoje) : `${cap(hoje)} · ${ctxFranquia || 'Comercial'}`);
 
     // --- filtros
     const mesAtivo = periodo.kind === 'month' ? periodo.monthKey : '';

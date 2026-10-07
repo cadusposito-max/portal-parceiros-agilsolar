@@ -117,13 +117,15 @@
         <span class="v2-envic">${ic(v.i)}</span><span class="tx"><b>${v.n}</b><small>${v.d}</small></span>${ic('check', 'class="ck"')}
       </button>`).join('');
   }
-  function userMenuHTML() {
+  // celular: o menu da foto (folha) também abre a central de ajuda, que lá não tem "?" no topo
+  function userMenuHTML(celular) {
     const u = userInfo();
     const pref = has('getThemePreference') ? getThemePreference() : 'system';
     const canAdmin = has('userCanAccessAdminPanel') && userCanAccessAdminPanel();
     return `
       <div class="v2-phead"><span class="v2-av">${u.avatar}</span><div><b>${esc(u.nome)}</b><small>${esc(u.email)}</small><br><span class="v2-role">${u.role}${u.unidade ? ' · ' + esc(u.unidade) : ''}</span></div></div>
       <button class="v2-mi" data-v2="profile">${ic('user')}Meu perfil</button>
+      ${celular && has('ajudaAbrir') ? `<button class="v2-mi" data-v2="ajuda">${ic('circle-help')}Ajuda e tutoriais</button>` : ''}
       <div class="v2-mi">${ic('palette')}Aparência<span class="v2-themesw r">
         <button class="${pref === 'light' ? 'on' : ''}" data-v2="theme" data-theme="light" title="Claro">${ic('sun')}</button>
         <button class="${pref === 'dark' ? 'on' : ''}" data-v2="theme" data-theme="dark" title="Escuro">${ic('moon')}</button>
@@ -161,6 +163,9 @@
     // atualiza esses pontos, sem recriar menu e ícones (era ~40ms por vez).
     const sig = JSON.stringify([k, T.map((t) => [t.id, t.label, t.icon]), u.nome, u.email, u.role, u.avatar, u.unidade, cta && cta[0], chatOn, canAdmin, multiEnv,
       state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn]);
+    // celular: a tela inicial ganha a barra de busca grande (ver shell.css)
+    const top = $('#v2-top');
+    if (top) top.classList.toggle('home', !!T[0] && cur === T[0].id);
     if (sig === lastSig && $('#v2-side').firstChild) { paintLight(cur, title, sub, unread, notifCnt); return; }
     lastSig = sig;
 
@@ -173,9 +178,13 @@
       <div class="v2-foot v2-rel"><button class="v2-userbtn" data-v2="open" data-target="v2-pop-user" title="${esc(u.nome)}"><span class="v2-av">${u.avatar}</span><span class="tx"><b>${esc(u.nome)}</b><small title="${esc(u.role + (u.unidade ? ' · ' + u.unidade : ''))}">${u.roleCurto}${u.unidadeCurta ? ' · ' + esc(u.unidadeCurta) : ''}</small></span>${ic('chevrons-up-down', 'class="chev"')}</button>
         <div class="v2-pop" id="v2-pop-user">${userMenuHTML()}</div></div>`;
 
+    // celular: o sininho mora aqui; a busca e o chat ficam na barra de cima e o "?" vai pro menu da foto
+    const sinoHTML = notifOn ? `<button class="v2-icb" data-v2="notif" title="Notificações" aria-label="Notificações" aria-expanded="false">${ic('bell')}${notifCnt ? `<span class="cnt">${notifCnt > 99 ? '99+' : notifCnt}</span>` : ''}</button>` : '';
+    $('#v2-mtop').classList.toggle('multi', multiEnv);
     $('#v2-mtop').innerHTML = `${LOGO}
-      ${multiEnv ? `<button class="v2-envbtn" data-v2="sheet" data-target="v2-sheet-env"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${ic('chevron-down', 'class="chev"')}</button>` : '<span class="v2-grow"></span>'}
-      <button class="v2-av" data-v2="sheet" data-target="v2-sheet-user">${u.avatar}</button>`;
+      ${multiEnv ? `<button class="v2-envbtn" data-v2="sheet" data-target="v2-sheet-env"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${ic('chevron-down', 'class="chev"')}</button>` : ''}
+      <span class="v2-grow"></span>${sinoHTML}
+      <button class="v2-av" data-v2="sheet" data-target="v2-sheet-user" aria-label="Menu da conta">${u.avatar}</button>`;
 
     $('#v2-top').innerHTML = `
       <div><div class="v2-crumb">${ic(E.i)}${E.n}</div><h1>${esc(title)}</h1>${sub ? `<p class="v2-sub">${esc(sub)}</p>` : ''}</div>
@@ -184,7 +193,7 @@
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>
       ${scopeButton()}
       ${has('ajudaAbrir') ? `<button class="v2-icb" data-v2="ajuda" title="Central de ajuda" aria-label="Central de ajuda" aria-expanded="false">${ic('circle-help')}</button>` : ''}
-      ${notifOn ? `<button class="v2-icb" data-v2="notif" title="Notificações" aria-label="Notificações" aria-expanded="false">${ic('bell')}${notifCnt ? `<span class="cnt">${notifCnt > 99 ? '99+' : notifCnt}</span>` : ''}</button>` : ''}
+      ${sinoHTML}
       ${chatOn ? `<button class="v2-icb" data-v2="chat" title="Mensagens da equipe">${ic('message-circle')}${unread ? `<span class="cnt">${unread > 99 ? '99+' : unread}</span>` : ''}</button>` : ''}
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
@@ -200,7 +209,7 @@
     $('#v2-more-grid').innerHTML = T.map((t) => `<button class="${t.id === cur ? 'on' : ''}" data-v2="tab" data-tab="${t.id}">${ic(t.icon || 'circle')}${esc(sentence(t.label))}</button>`).join('')
       + (canAdmin ? `<button data-v2="admin">${ic('settings')}Admin</button>` : '');
     $$('[data-v2-envlist]').forEach((el) => { el.innerHTML = envListHTML(); });
-    $$('[data-v2-usermenu]').forEach((el) => { el.innerHTML = userMenuHTML(); });
+    $$('[data-v2-usermenu]').forEach((el) => { el.innerHTML = userMenuHTML(true); });
     icons();
     placeInd(false);
   }
@@ -218,11 +227,10 @@
       let c = chat.querySelector('.cnt');
       if (unread) { if (!c) { c = document.createElement('span'); c.className = 'cnt'; chat.appendChild(c); } c.textContent = unread > 99 ? '99+' : String(unread); } else if (c) c.remove();
     }
-    const sino = $('#v2-top [data-v2="notif"]');
-    if (sino) {
+    $$('#v2-top [data-v2="notif"], #v2-mtop [data-v2="notif"]').forEach((sino) => {
       let c = sino.querySelector('.cnt');
       if (notifCnt) { if (!c) { c = document.createElement('span'); c.className = 'cnt'; sino.appendChild(c); } c.textContent = notifCnt > 99 ? '99+' : String(notifCnt); } else if (c) c.remove();
-    }
+    });
   }
   // destaque azul que desliza até a aba ativa (animação só na troca de aba)
   const reduzMovimento = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
