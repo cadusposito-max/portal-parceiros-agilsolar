@@ -81,11 +81,20 @@ const TOUR_PASSOS = [
     esperar: () => state.pbPorta === 'dim',
   },
   {
-    id: 'consumo', senaoVolta: 'porta',
-    alvo: () => [_tourVis('[data-pbd-grupo="modo"]'), _tourVis('#pbd-box-mes') || _tourVis('#pbd-box-media')],
+    // O painel abre no "mês a mês", que já sugere kit com um mês preenchido:
+    // o tour pede a média primeiro para não avançar no meio do preenchimento.
+    id: 'consumo-modo', senaoVolta: 'porta',
+    alvo: () => _tourVis('[data-pbd-grupo="modo"]'),
     titulo: () => 'Consumo de energia',
-    texto: () => 'Informe o consumo mensal conforme o histórico da conta de luz. Se tiver apenas a média, selecione <b>Só a média em kWh</b> e informe o valor.',
-    esperar: () => Boolean(_tourVis('#pbd-resultado .pbd-kit')),
+    texto: () => 'O consumo pode ser informado mês a mês, conforme o histórico da conta de luz, ou pela média mensal.<br><br>Para este orçamento, selecione <b>Só a média em kWh</b>.',
+    esperar: () => Boolean(document.querySelector('[data-pbd-modo="media"].is-on')),
+  },
+  {
+    id: 'consumo-media', senaoVolta: 'consumo-modo',
+    alvo: () => _tourVis('#pbd-box-media'),
+    titulo: () => 'Média de consumo',
+    texto: () => 'Informe a média mensal de consumo do cliente, em kWh, e selecione <b>Próximo</b>.<br><br>Quando quiser mais precisão, utilize o preenchimento mês a mês.',
+    validar: () => (_tourVis('#pbd-resultado .pbd-kit') ? '' : 'Informe a média de consumo para continuar.'),
   },
   {
     id: 'ligacao', alvo: () => _tourVis('[data-pbd-ligacao]')?.parentElement, senaoVolta: 'porta',
@@ -295,6 +304,7 @@ const TourOrcamento = (() => {
       <h3>${p.titulo(rever)}</h3>
       <p>${p.texto(rever)}</p>
       ${p.esperar ? '<div class="tour-faca"><i data-lucide="pointer"></i> Realize esta ação para continuar</div>' : ''}
+      ${p.validar ? '<p class="tour-erro" role="alert"></p>' : ''}
       <div class="tour-btns">
         ${p.pular ? `<button type="button" class="tour-b tour-b-ghost" data-t="pular">${p.pular}</button>` : ''}
         ${!p.esperar ? `<button type="button" class="tour-b tour-b-pri" data-t="prox">${p.botao || 'Próximo'}</button>` : ''}
@@ -322,7 +332,13 @@ const TourOrcamento = (() => {
     const b = e.target.closest('[data-t]');
     if (!b) return;
     const t = b.dataset.t;
-    if (t === 'prox') { if (i === TOUR_PASSOS.length - 1) evento('tour_orcamento_concluido'); proximo(); }
+    if (t === 'prox') {
+      const erro = passo().validar ? passo().validar() : '';
+      const aviso = balao.querySelector('.tour-erro');
+      if (erro) { if (aviso) aviso.textContent = erro; ultimo = ''; sacudir(); return; }
+      if (i === TOUR_PASSOS.length - 1) evento('tour_orcamento_concluido');
+      proximo();
+    }
     else if (t === 'pular' || t === 'sim') { evento('tour_orcamento_pulado'); fechar(); }
     else if (t === 'sair') confirmarSaida();
     else if (t === 'nao') render();

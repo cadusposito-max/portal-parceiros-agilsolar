@@ -49,6 +49,8 @@ html[data-theme="dark"] .tour-luz { box-shadow: 0 0 0 200vmax rgba(2, 6, 10, .74
   font-size: 12px; font-weight: 700; color: var(--v2-orange-text);
 }
 .tour-faca svg { width: 16px; height: 16px; }
+.tour-balao p.tour-erro { margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--v2-red); }
+.tour-balao p.tour-erro:empty { display: none; }
 
 .tour-btns { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .tour-btns:empty { display: none; }
