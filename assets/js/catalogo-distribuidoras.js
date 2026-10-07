@@ -153,15 +153,17 @@ function pbFornecimentoRender() {
   const kitsTipo = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false && Number(k.price) > 0);
   const emKits = new Set(kitsTipo.flatMap((k) => [String(k.modulo_id), String(k.inversor_id)]));
   const usados = kitsTipo.length ? disponiveis.filter((e) => emKits.has(String(e.id))) : disponiveis;
-  ['modulo', 'inversor'].forEach((tipo) => {
+  // Distribuidora integrada: os dois campos mostram o que ELA tem (buscado no servidor).
+  const avisoIntegrada = integrada && typeof pbIntegracaoPreencherFiltros === 'function'
+    ? pbIntegracaoPreencherFiltros(document.getElementById('pb-filtro-modulo'), document.getElementById('pb-filtro-inversor')) : '';
+  if (!integrada) ['modulo', 'inversor'].forEach((tipo) => {
     const select = document.getElementById(`pb-filtro-${tipo}`);
     const opcoes = tipo === 'modulo' ? pbModulosEquipamentos(usados) : pbMarcasEquipamentos(usados, tipo);
     if (_pbFornecimento[tipo] && !opcoes.includes(_pbFornecimento[tipo])) _pbFornecimento[tipo] = '';
     select.innerHTML = '<option value="">Sem preferência</option>' + opcoes.map((opcao) =>
       `<option value="${escapeHTML(opcao)}">${escapeHTML(opcao)}</option>`).join('');
     select.value = _pbFornecimento[tipo];
-    // Distribuidora integrada cota o kit inteiro no servidor: os filtros da tabela não valem.
-    select.disabled = !_catalogoDistrib.carregado || Boolean(integrada);
+    select.disabled = !_catalogoDistrib.carregado;
   });
   const dist = document.getElementById('pb-filtro-distribuidora');
   dist.innerHTML = '<option value="">Todas as distribuidoras</option>' + _catalogoDistrib.distribuidoras.filter((d) => d.ativo !== false)
@@ -171,7 +173,7 @@ function pbFornecimentoRender() {
   const aviso = document.getElementById('pb-fornecimento-aviso');
   aviso.textContent = _catalogoDistrib.erro ? 'Não foi possível carregar as distribuidoras. Tente atualizar a página.'
     : !_catalogoDistrib.carregado ? 'Carregando catálogo...'
-    : integrada ? 'Os kits desta distribuidora são cotados na hora: informe as placas e clique em Cotar kits.'
+    : integrada ? avisoIntegrada
     : _pbFornecimento.distribuidora && !disponiveis.length ? 'Nenhum equipamento disponível nesta distribuidora.' : '';
   aviso.classList.toggle('hidden', !aviso.textContent);
   if (window.uiV2Select) window.uiV2Select.scan(panel);
@@ -180,6 +182,10 @@ function pbFornecimentoRender() {
 function pbFornecimentoEscolher(campo, value) {
   if (!['distribuidora', 'modulo', 'inversor'].includes(campo)) return;
   if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) { pbFornecimentoRender(); return; }
+  if (campo !== 'distribuidora' && typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual()) {
+    pbIntegracaoEscolher(campo, value);
+    return;
+  }
   _pbFornecimento[campo] = campo === 'distribuidora' ? String(value || '') : pbMarcaEquipamento(value);
   if (campo === 'distribuidora') {
     // A mesma marca pode ter ofertas distintas nas duas fornecedoras; limpar

@@ -14,6 +14,8 @@ const INTEGRACOES_INFO = {
 let _integracoesAtivas = null;      // Map distribuidora_id -> provedor
 let _integracoesAtivasPromise = null;
 let _pbCot = { chave: '', placas: '', carregando: false, erro: '', kits: [] };
+const _pbCotOpcoes = {};                    // distribuidora_id -> { carregando, erro, modulos, padrao, marcas_inversor, marcas_micro }
+const _pbCotSel = { modulo: '', marca: '' }; // módulo (sku) e marca escolhidos pra cotar
 
 async function carregarIntegracoesAtivas(force = false) {
   if (_integracoesAtivas && !force) return _integracoesAtivas;
@@ -40,6 +42,57 @@ function pbIntegracaoAtual() {
 }
 
 // ------------------------------------------------------------------ orçamento
+// Módulos e marcas que a distribuidora tem (buscados uma vez por distribuidora).
+async function pbIntegracaoCarregarOpcoes(force = false) {
+  const id = _pbFornecimento.distribuidora;
+  const provedor = pbIntegracaoAtual();
+  if (!id || !provedor || (_pbCotOpcoes[id] && !force)) return;
+  _pbCotOpcoes[id] = { carregando: true };
+  try {
+    const { data, error } = await supabaseClient.functions.invoke('distribuidoras', {
+      body: { acao: 'opcoes', provedor, placas: Number(_pbCot.placas) || 10 },
+    });
+    if (error) throw error;
+    if (!data?.ok) throw new Error(data?.error || 'Não foi possível buscar os equipamentos.');
+    _pbCotOpcoes[id] = { modulos: data.modulos || [], padrao: data.padrao, marcas_inversor: data.marcas_inversor || [], marcas_micro: data.marcas_micro || [] };
+    if (!_pbCotSel.modulo || !_pbCotOpcoes[id].modulos.some((m) => m.sku === _pbCotSel.modulo)) _pbCotSel.modulo = data.padrao || '';
+  } catch (err) {
+    console.error('[integrações] opções', err);
+    _pbCotOpcoes[id] = { erro: err?.message || 'Não foi possível buscar os equipamentos.' };
+  }
+  if (typeof pbFornecimentoRender === 'function') pbFornecimentoRender();
+}
+
+// Preenche "Módulo" e "Marca do inversor" com o que a distribuidora tem. Devolve o aviso do painel.
+function pbIntegracaoPreencherFiltros(selMod, selInv) {
+  const o = _pbCotOpcoes[_pbFornecimento.distribuidora];
+  if (!o) pbIntegracaoCarregarOpcoes();
+  if (!o || o.carregando || o.erro) {
+    const txt = o?.erro ? 'Indisponível' : 'Carregando…';
+    [selMod, selInv].forEach((sel) => { sel.innerHTML = `<option value="">${txt}</option>`; sel.disabled = true; });
+    return o?.erro ? `Não foi possível buscar os equipamentos da distribuidora: ${o.erro}` : 'Buscando os módulos e as marcas da distribuidora…';
+  }
+  const micro = state.pbCategory === 'kitsMicro';
+  selMod.innerHTML = o.modulos.map((m) => `<option value="${escapeHTML(m.sku)}">${escapeHTML(`${m.fabricante} ${m.potencia} W${m.tipo ? ' · ' + m.tipo : ''}`)}</option>`).join('');
+  selMod.value = _pbCotSel.modulo || o.padrao || '';
+  selMod.disabled = !o.modulos.length;
+  const marcas = micro ? o.marcas_micro : o.marcas_inversor;
+  if (_pbCotSel.marca && !marcas.includes(_pbCotSel.marca)) _pbCotSel.marca = '';
+  selInv.innerHTML = `<option value="">${micro ? 'Hoymiles (padrão)' : 'Sem preferência (Solis e Growatt)'}</option>`
+    + marcas.map((m) => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
+  selInv.value = _pbCotSel.marca;
+  selInv.disabled = false;
+  return 'Escolha o módulo e a marca, informe as placas e clique em Cotar kits.';
+}
+
+function pbIntegracaoEscolher(campo, value) {
+  if (campo === 'modulo') _pbCotSel.modulo = String(value || '');
+  if (campo === 'inversor') _pbCotSel.marca = String(value || '');
+  _pbCot.kits = []; _pbCot.erro = '';
+  if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
+  pbFornecimentoSync();
+}
+
 function pbCotacaoKits() {
   return (_pbCot.kits || []).filter((k) => !k.erro).map((k) => ({
     id: 'cot:' + k.cotacao_id,
@@ -115,7 +168,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
     </div>
     ${status}
     ${cards ? `<div class="pbd-kits" style="margin-top:10px">${cards}</div>` : ''}
-    ${erros.length && !_pbCot.carregando ? `<p class="pbd-hint">Sem cotação: ${erros.map((e) => escapeHTML(e.opcao)).join(', ')}.</p>` : ''}`;
+    ${erros.length && !_pbCot.carregando ? `<p class="pbd-hint">Não disponível no momento: ${erros.map((e) => escapeHTML(e.opcao) + (state.isAdmin && e.erro ? ` (${escapeHTML(e.erro)})` : '')).join(', ')}. Pra esse equipamento, cote com outro módulo ou outro inversor.</p>` : ''}`;
 }
 
 async function pbIntegracaoCotar() {
@@ -129,12 +182,15 @@ async function pbIntegracaoCotar() {
   pbFornecimentoSync();
   try {
     const { data, error } = await supabaseClient.functions.invoke('distribuidoras', {
-      body: { acao: 'cotar', provedor, placas, telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico' },
+      body: {
+        acao: 'cotar', provedor, placas, telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico',
+        tipo: state.pbCategory === 'kitsMicro' ? 'micro' : 'inversor', modulo: _pbCotSel.modulo || null, marca: _pbCotSel.marca || null,
+      },
     });
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.error || 'Não foi possível cotar agora.');
     _pbCot.kits = data.kits || [];
-    if (!_pbCot.kits.some((k) => !k.erro)) _pbCot.erro = 'A distribuidora não devolveu nenhum kit pra esse tamanho.';
+    if (!_pbCot.kits.some((k) => !k.erro)) _pbCot.erro = 'Esse kit não está disponível no momento. Escolha outro módulo ou outro inversor e cote de novo.';
   } catch (err) {
     console.error('[integrações] cotar', err);
     _pbCot.erro = err?.message || 'Não foi possível cotar agora. Tente de novo.';
@@ -261,6 +317,6 @@ async function integracaoTestar(provedor, btn) {
 }
 
 Object.assign(window, {
-  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoPainelHTML, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
+  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoPainelHTML, pbIntegracaoPreencherFiltros, pbIntegracaoEscolher, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
   renderAdminDistribuidoras, integracaoSalvar, integracaoTestar,
 });
