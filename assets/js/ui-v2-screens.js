@@ -859,6 +859,46 @@
   const kitFaixa = (kwp) => { const v = Number(kwp) || 0; return v <= 5 ? 'a' : v <= 10 ? 'b' : v <= 20 ? 'c' : 'd'; };
   const kwpTxt = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
+  // Catálogo grande (300+ kits): desenhar tudo de uma vez travava a tela
+  // (cada card tem ~6 ícones). Mostra em lotes e o resto entra ao rolar.
+  // Com os mesmos filtros, um redesenho (editar, tirar de linha) mantém o
+  // que já estava aberto, para a página não pular de volta ao topo.
+  const LOTE_PROD = 48;
+  const lotesProd = { chave: '', n: LOTE_PROD, obs: null };
+  function loteInicial(chave) {
+    if (lotesProd.chave !== chave) { lotesProd.chave = chave; lotesProd.n = LOTE_PROD; }
+    return lotesProd.n;
+  }
+  const maisProdHtml = (mostrados, total) => (total > mostrados
+    ? `<div class="v2-more" id="v2-prod-more"><button class="v2-btn2" type="button">${ic('chevrons-down')}Carregar mais · ${mostrados} de ${total}</button></div>` : '');
+  function ligarLotes(container, alvoSel, lista, render) {
+    if (lotesProd.obs) { lotesProd.obs.disconnect(); lotesProd.obs = null; }
+    const alvo = container.querySelector(alvoSel);
+    const mais = container.querySelector('#v2-prod-more');
+    if (!alvo || !mais) return;
+    const carregar = () => {
+      const de = alvo.children.length;
+      if (de >= lista.length) return;
+      const ate = Math.min(de + LOTE_PROD, lista.length);
+      // ícones montados fora da página: o createIcons não varre o resto da tela
+      const tmp = document.createElement(alvo.tagName);
+      tmp.innerHTML = lista.slice(de, ate).map(render).join('');
+      if (window.lucide) window.lucide.createIcons({ root: tmp });
+      alvo.append(...tmp.children);
+      lotesProd.n = ate;
+      if (ate >= lista.length) { if (lotesProd.obs) lotesProd.obs.disconnect(); lotesProd.obs = null; mais.remove(); return; }
+      mais.innerHTML = `<button class="v2-btn2" type="button">${ic('chevrons-down')}Carregar mais · ${ate} de ${lista.length}</button>`;
+      if (window.lucide) window.lucide.createIcons({ root: mais });
+      // observar de novo: se o fim da lista ainda estiver à vista, puxa outro lote
+      if (lotesProd.obs) { lotesProd.obs.unobserve(mais); lotesProd.obs.observe(mais); }
+    };
+    mais.addEventListener('click', carregar);
+    if ('IntersectionObserver' in window) {
+      lotesProd.obs = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) carregar(); }, { rootMargin: '600px 0px' });
+      lotesProd.obs.observe(mais);
+    }
+  }
+
   function renderProductsListV2(container, original) {
     if (!canManageProductCatalog()) { window.uiV2PageMeta = null; return original(container); }
     const emptyState = document.getElementById('empty-state');
@@ -940,6 +980,10 @@
       ? `<div class="v2-card v2-empty">${ic('package-open', 'style="width:36px;height:36px;margin:0 auto 10px;display:block;opacity:.5"')}<b style="display:block;color:var(--v2-ink);font-size:15px">Nenhum kit cadastrado ainda</b>Cadastre um por um ou importe a planilha modelo.${state.isAdmin ? `<div class="v2-btnrow"><button class="v2-btnp" onclick="openModal()">${ic('package-plus')}Cadastrar o primeiro kit</button><button class="v2-btn2" onclick="triggerKitsImportPicker()">${ic('upload')}Importar planilha</button><button class="v2-btn2" onclick="downloadKitsImportTemplateXLSX()">${ic('file-down')}Baixar modelo</button></div>` : '<div style="margin-top:8px">Peça ao administrador para cadastrar os kits.</div>'}</div>`
       : `<div class="v2-card v2-empty">Nenhum kit com esses filtros.<div style="margin-top:12px"><button class="v2-btn2" onclick="uiV2Screens.limparKits()">${ic('filter-x')}Limpar filtros</button></div></div>`;
 
+    const nKits = loteInicial(['kits', _catalogoCategoria, _catalogoStatus, _catalogoBusca, faixa, vista, franqAtual].join('|'));
+    const visiveis = lista.slice(0, nKits);
+    const maisKits = maisProdHtml(visiveis.length, lista.length);
+
     container.dataset.v2total = String(lista.length); container.dataset.v2nome = 'kit|kits';
     container.innerHTML = `
       <div class="v2-toolbar">
@@ -961,9 +1005,10 @@
       </div>
       ${todos.length ? `<div class="v2-pills">${KIT_FAIXAS.map(([v, l]) => `<button class="${faixa === v ? 'on' : ''}" onclick="uiV2Screens.setKitFaixa('${v}')">${l}<em>${count[v] || 0}</em></button>`).join('')}</div>` : ''}
       ${!lista.length ? vazio : vista === 'lista'
-        ? `<div class="v2-card" style="padding:12px 14px"><div style="overflow-x:auto"><table class="v2-table v2-eqtable"><thead><tr><th>Kit</th><th>Potência</th><th class="hide-sm">Categoria</th><th class="hide-sm">Geração</th><th>Preço</th><th></th></tr></thead><tbody>${lista.map(kitRow).join('')}</tbody></table></div></div>`
-        : `<div class="v2-pgrid">${lista.map(card).join('')}</div>`}`;
+        ? `<div class="v2-card" style="padding:12px 14px"><div style="overflow-x:auto"><table class="v2-table v2-eqtable"><thead><tr><th>Kit</th><th>Potência</th><th class="hide-sm">Categoria</th><th class="hide-sm">Geração</th><th>Preço</th><th></th></tr></thead><tbody>${visiveis.map(kitRow).join('')}</tbody></table></div>${maisKits}</div>`
+        : `<div class="v2-pgrid">${visiveis.map(card).join('')}</div>${maisKits}`}`;
     if (window.lucide) window.lucide.createIcons();
+    if (lista.length) ligarLotes(container, vista === 'lista' ? '.v2-eqtable tbody' : '.v2-pgrid', lista, vista === 'lista' ? kitRow : card);
   }
 
   function produtosEquipV2(container, seg, todos) {
@@ -1019,6 +1064,10 @@
       ? `<div class="v2-card v2-empty">${ic('package-open', 'style="width:36px;height:36px;margin:0 auto 10px;display:block;opacity:.5"')}<b style="display:block;color:var(--v2-ink);font-size:15px">Nenhum equipamento cadastrado</b>Módulo, inversor, estrutura, cabos, serviço e outros, cada um com seu valor.<div class="v2-btnrow"><button class="v2-btnp" onclick="openEquipModal()">${ic('plus')}Cadastrar o primeiro</button><button class="v2-btn2" onclick="triggerEquipImportPicker()">${ic('upload')}Importar planilha</button><button class="v2-btn2" onclick="downloadEquipamentosTemplateXLSX()">${ic('file-down')}Baixar modelo</button></div></div>`
       : `<div class="v2-card v2-empty">Nenhum item com esses filtros.<div style="margin-top:12px"><button class="v2-btn2" onclick="uiV2Screens.limparEquip()">${ic('filter-x')}Limpar filtros</button></div></div>`;
 
+    const nEq = loteInicial(['equip', _equipCategoria, _equipStatus, _equipBusca, vista].join('|'));
+    const visiveis = lista.slice(0, nEq);
+    const maisEq = maisProdHtml(visiveis.length, lista.length);
+
     container.dataset.v2total = String(lista.length); container.dataset.v2nome = 'item|itens';
     container.innerHTML = `
       <div class="v2-toolbar">
@@ -1037,8 +1086,9 @@
         ${viewSeg('produtos_equip', vista, ['lista', 'cards'])}
       </div>
       ${todos.length ? `<div class="v2-pills"><button class="${_equipCategoria === 'all' ? 'on' : ''}" onclick="setEquipCategoria('all')">Todos<em>${count.all}</em></button>${EQUIP_CATEGORIAS.map((c) => `<button class="${_equipCategoria === c.v ? 'on' : ''}" onclick="setEquipCategoria('${c.v}')">${c.label}<em>${count[c.v] || 0}</em></button>`).join('')}</div>` : ''}
-      ${lista.length && vista === 'cards' ? `<div class="v2-pgrid">${lista.map(eqCard).join('')}</div>` : lista.length ? `<div class="v2-card" style="padding:12px 14px"><div style="overflow-x:auto"><table class="v2-table v2-eqtable"><thead><tr><th>Item</th><th class="hide-sm">Potência</th><th class="hide-sm">Custo</th><th>Preço</th><th></th></tr></thead><tbody>${lista.map(row).join('')}</tbody></table></div></div>` : vazio}`;
+      ${lista.length && vista === 'cards' ? `<div class="v2-pgrid">${visiveis.map(eqCard).join('')}</div>${maisEq}` : lista.length ? `<div class="v2-card" style="padding:12px 14px"><div style="overflow-x:auto"><table class="v2-table v2-eqtable"><thead><tr><th>Item</th><th class="hide-sm">Potência</th><th class="hide-sm">Custo</th><th>Preço</th><th></th></tr></thead><tbody>${visiveis.map(row).join('')}</tbody></table></div>${maisEq}</div>` : vazio}`;
     if (window.lucide) window.lucide.createIcons();
+    if (lista.length) ligarLotes(container, vista === 'lista' ? '.v2-eqtable tbody' : '.v2-pgrid', lista, vista === 'lista' ? row : eqCard);
   }
 
   // ==================== troca de render ====================
@@ -1051,7 +1101,10 @@
     window[name] = function (container) {
       if (window.uiV2.isActive()) {
         // entrar numa tela recomeça as listas do 1º lote
-        if (name !== lastScreen) { lastScreen = name; window.uiV2Screens.vendasLimite = 40; }
+        if (name !== lastScreen) {
+          lastScreen = name; window.uiV2Screens.vendasLimite = 40;
+          lotesProd.chave = ''; if (lotesProd.obs) { lotesProd.obs.disconnect(); lotesProd.obs = null; }
+        }
         try {
           if (container) { delete container.dataset.v2total; delete container.dataset.v2nome; }
           const r = v2(container, original);
