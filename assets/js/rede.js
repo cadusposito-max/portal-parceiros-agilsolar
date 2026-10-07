@@ -354,7 +354,7 @@
     if (semDesp.length) alertas.push(['info', 'file-warning', `${semDesp.length} unidade(s) sem despesas lançadas`, semDesp.slice(0, 3).map((f) => nomeCurto(f.nome)).join(', ') + (semDesp.length > 3 ? '…' : '') + ' · o resultado fica sem despesas.', `redeAbrirUnidade('${semDesp[0].id}','resultado')`]);
 
     return `
-    ${r.vendas === 0 ? `<div class="rd-note">${ic('info')}<div>Nenhuma venda registrada na plataforma em ${mesNome(ym).toLowerCase()}. O faturamento da rede vem das vendas registradas ao marcar o cliente como <b>Fechado</b> (botão registrar venda). Venda fechada só no Groner não entra aqui.</div></div>` : ''}
+    ${r.vendas === 0 ? `<div class="rd-note">${ic('info')}<div>Nenhuma venda registrada na plataforma em ${mesNome(ym).toLowerCase()}. O faturamento da rede vem das vendas registradas ao marcar o cliente como <b>Fechado</b> (botão registrar venda).</div></div>` : ''}
     <div class="rd-grid rd-k3 rd-mb">
       <div class="rd-kpi hero"><div class="l">${ic('trending-up')}Faturamento da rede</div><div class="v">${brl(r.fat)}</div><div class="h">${p ? delta(r.fat, p.fat) : ''} vs ${mesAbr(ant)} (${periodoTxt()})</div></div>
       <div class="rd-kpi"><div class="l">${ic('scale')}Resultado líquido</div><div class="v ${r.res < 0 ? 'rd-neg' : ''}">${brl(r.res)}</div><div class="h">Margem de ${pct(r.fat ? r.res / r.fat * 100 : 0)} · soma das unidades</div></div>
