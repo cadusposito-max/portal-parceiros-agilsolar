@@ -7,9 +7,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // experimental.passkey = true habilita os metodos de passkey/WebAuthn (Face ID, biometria).
 // E aditivo: nao altera o login por senha nem as opcoes padrao de sessao (persist/refresh).
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const _supabaseReal = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { experimental: { passkey: true } },
 });
+// Modo treino (treino.js): mesmas telas, sem gravar nada no banco.
+const supabaseClient = window.TREINO && window.TREINO.ativo ? window.TREINO.criarCliente(_supabaseReal) : _supabaseReal;
 
 // --- CONSTANTES DE NEGOCIO ---
 // A comissão real é o comissao_pct de cada vendedor (vendedores_stats), exibida

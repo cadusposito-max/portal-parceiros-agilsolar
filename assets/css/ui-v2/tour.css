@@ -101,3 +101,52 @@ html[data-theme="dark"] .tour-luz { box-shadow: 0 0 0 200vmax rgba(2, 6, 10, .74
   .tour-luz, .tour-anel, .tour-balao { transition: none; }
   .tour-anel.tour-pulsa, .tour-sacode { animation: none; }
 }
+
+/* ---------- modo treino (assets/js/treino.js) ---------- */
+#treino-faixa {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1003; height: 36px;
+  display: flex; align-items: center; justify-content: center; gap: 14px; padding: 0 12px;
+  background: var(--v2-orange); color: var(--v2-orange-ink);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px;
+}
+#treino-faixa b { font-weight: 800; }
+#treino-faixa button {
+  height: 26px; padding: 0 12px; border-radius: 9px; border: 0; cursor: pointer;
+  background: var(--v2-orange-ink); color: #fff; font: inherit; font-size: 12px; font-weight: 700;
+}
+html.modo-treino body { padding-top: 36px; }
+html[data-ui="v2"].modo-treino .v2-side { top: 52px; height: calc(100vh - 68px); }
+@media (max-width: 760px) {
+  html[data-ui="v2"].modo-treino .v2-mtop { top: 36px; }
+}
+@media (max-width: 420px) {
+  #treino-faixa { font-size: 12px; gap: 8px; }
+}
+
+/* ---------- menu "?" · central de ajuda (ajudaAbrir) ---------- */
+.aj-pop {
+  position: fixed; z-index: 150; width: 340px; max-width: calc(100vw - 24px); padding: 8px;
+  background: var(--v2-card); color: var(--v2-ink); border: 1px solid var(--v2-line);
+  border-radius: 20px; box-shadow: var(--v2-shadow-pop);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.aj-pop.aj-folha {
+  left: 0; right: 0; bottom: 0; width: auto; max-width: none; border-radius: 22px 22px 0 0;
+  padding: 12px 10px calc(16px + env(safe-area-inset-bottom));
+}
+.aj-pop h6 { margin: 6px 10px 4px; font-size: 15px; font-weight: 800; color: var(--v2-ink); }
+.aj-cap { margin: 10px 10px 4px; font-size: 12px; font-weight: 700; color: var(--v2-ink-2); }
+.aj-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 14px;
+  background: none; color: var(--v2-ink); text-align: left; cursor: pointer; font: inherit;
+}
+.aj-item:hover, .aj-item:focus-visible { background: var(--v2-hover); outline: none; }
+.aj-ic { width: 34px; height: 34px; border-radius: 11px; background: var(--v2-blue-50); color: var(--v2-blue); display: grid; place-items: center; flex-shrink: 0; }
+.aj-ic svg { width: 18px; height: 18px; }
+.aj-tx { flex: 1; min-width: 0; }
+.aj-tx b { display: block; font-size: 14px; font-weight: 700; }
+.aj-tx small { display: block; font-size: 12px; color: var(--v2-ink-2); margin-top: 1px; }
+.aj-tag { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--v2-blue-50); color: var(--v2-blue-text); white-space: nowrap; }
+.aj-nota { margin: 6px 10px 8px; padding: 10px 12px; border-radius: 12px; background: var(--v2-orange-50); color: var(--v2-orange-text); font-size: 13px; line-height: 1.45; }
+.aj-vazio { margin: 6px 10px; font-size: 13px; color: var(--v2-ink-2); }
+.aj-rodape { margin: 8px 10px 4px; padding-top: 10px; border-top: 1px solid var(--v2-line); font-size: 12px; color: var(--v2-ink-2); }

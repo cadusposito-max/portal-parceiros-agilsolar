@@ -7,9 +7,13 @@
 // `esperar` tem botão Próximo. Se o elemento sumir (ex.: fechou o popup),
 // volta pro passo `senaoVolta`.
 //
-// Quem vê sozinho: só usuário criado a partir de TOUR_NOVOS_DESDE, uma única
-// vez (marca no user_metadata ao abrir, mesmo que ele pule). Depois disso,
-// só pelo "?" do topo no ambiente Comercial (tourOrcamentoIniciar).
+// O orçamento do tour é feito no MODO TREINO (treino.js): telas reais, clientes
+// fictícios, nada é salvo. O convite ('oi') aparece fora do treino; "Começar o
+// treino" recarrega a aba no treino e o tour segue de 'treino-oi'.
+//
+// Quem recebe o convite sozinho: só usuário criado a partir de TOUR_NOVOS_DESDE,
+// uma única vez (marca no user_metadata ao abrir, mesmo que ele recuse). Depois
+// disso, pelo menu "?" do topo (ajudaAbrir), que lista os tutoriais do acesso.
 
 const TOUR_NOVOS_DESDE = '2026-10-07T00:00:00-03:00';
 const TOUR_META = 'tour_orcamento_visto_em';
@@ -33,11 +37,16 @@ const _tourNoOrcamento = { se: _tourOrcamentoAberto, para: 'orc' }; // escolheu 
 const TOUR_PASSOS = [
   {
     id: 'oi', centro: true, icone: 'sparkles',
-    titulo: (rever) => rever ? 'Tour do orçamento' : `Boas-vindas${_tourPrimeiroNome() ? ', ' + escapeHTML(_tourPrimeiroNome()) : ''}!`,
-    texto: (rever) => rever
-      ? 'Deseja rever, passo a passo, como elaborar um orçamento? O processo leva cerca de 2 minutos.'
-      : 'Vamos elaborar o seu <b>primeiro orçamento</b>? O processo leva cerca de 2 minutos e, ao final, a proposta estará pronta para ser enviada ao cliente.<br><br>Tenha em mãos o nome, o WhatsApp e a conta de luz de um cliente.',
-    botao: 'Começar', pular: 'Agora não',
+    titulo: () => `Boas-vindas${_tourPrimeiroNome() ? ', ' + escapeHTML(_tourPrimeiroNome()) : ''}!`,
+    texto: () => 'Vamos treinar a elaboração de um <b>orçamento</b>? O treino usa as telas reais da plataforma com clientes fictícios: nada do que for feito será salvo ou enviado.<br><br>O processo leva cerca de 2 minutos.',
+    botao: 'Começar o treino', pular: 'Agora não',
+    acao: () => window.TREINO.entrar('orcamento'),
+  },
+  {
+    id: 'treino-oi', centro: true, icone: 'graduation-cap',
+    titulo: () => 'Você está no modo treino',
+    texto: () => 'A faixa laranja no topo indica que nada será salvo. Os clientes e as propostas criados aqui são fictícios.<br><br>Siga os passos destacados na tela.',
+    botao: 'Começar',
   },
   {
     id: 'nova', alvo: () => _tourVis('#v2-side .v2-cta, #v2-mnav .plus'),
@@ -54,7 +63,7 @@ const TOUR_PASSOS = [
     id: 'np-contato', senaoVolta: 'nova', atalho: _tourNoOrcamento,
     alvo: () => [_tourBloco('#client-nome'), _tourBloco('#client-telefone')],
     titulo: () => 'Nome e WhatsApp',
-    texto: () => 'Informe o nome e o WhatsApp do cliente. O WhatsApp é importante, pois é por ele que a proposta será enviada.',
+    texto: () => 'Informe o nome e o WhatsApp do cliente. O WhatsApp é importante, pois é por ele que a proposta será enviada.<br><br>No treino, utilize dados fictícios.',
   },
   {
     id: 'np-cidade', senaoVolta: 'nova', atalho: _tourNoOrcamento,
@@ -123,25 +132,25 @@ const TOUR_PASSOS = [
     alvo: () => _tourVis('#pb-share-overlay a.btn-success') || _tourVis('#pb-share-overlay > div'),
     titulo: () => 'Proposta gerada',
     texto: () => document.querySelector('#pb-share-overlay a.btn-success')
-      ? `O link já foi copiado. Selecione <b>Enviar no WhatsApp</b> para encaminhar a proposta a ${escapeHTML(_tourCliente())} com a mensagem pronta.`
+      ? `O link já foi copiado. Na plataforma, <b>Enviar no WhatsApp</b> encaminha a proposta a ${escapeHTML(_tourCliente())} com a mensagem pronta. No treino, nada é enviado.`
       : 'O link já foi copiado. Como o cliente não tem WhatsApp cadastrado, envie o link por outro canal.',
   },
   {
     // Termina apontando o "?" do topo: é por ele que o tour volta depois.
     // Fecha o painel "Proposta gerada", que cobre o topo da tela.
     id: 'fim', opcional: true, pulsar: true,
-    alvo: () => _tourVis('#v2-top [data-v2="tour"]'),
+    alvo: () => _tourVis('#v2-top [data-v2="ajuda"]'),
     entrar: () => { if (typeof closeProposalSharePanel === 'function') closeProposalSharePanel(); },
     titulo: () => 'Orçamento concluído',
-    texto: () => 'Quando o cliente abrir o link, a proposta será marcada como <b>VISTA</b> e você receberá um aviso.<br><br>Sempre que precisar de ajuda, use este ícone <b>?</b> para rever o passo a passo do orçamento.',
-    botao: 'Concluir',
+    texto: () => 'Quando o cliente abrir o link, a proposta será marcada como <b>VISTA</b> e você receberá um aviso. Este foi um treino: nada foi salvo.<br><br>No ícone <b>?</b> você encontra os tutoriais disponíveis para o seu acesso e pode repetir este treino quando quiser.',
+    botao: 'Sair do treino',
+    acao: () => { _tutorialFeito('orcamento'); if (window.TREINO && window.TREINO.ativo) window.TREINO.sair(); },
   },
 ];
 
 const TourOrcamento = (() => {
   let i = -1;
   let ativo = false;
-  let rever = false;
   let saindo = false;
   let raf = 0;
   let sumiuDesde = 0;
@@ -152,7 +161,8 @@ const TourOrcamento = (() => {
   const TOTAL = TOUR_PASSOS.filter((p) => !p.centro).length;
   const passo = () => TOUR_PASSOS[i];
   const indice = (id) => TOUR_PASSOS.findIndex((p) => p.id === id);
-  const evento = (nome, extra) => { if (typeof captureEvent === 'function') captureEvent(nome, { passo: passo()?.id, rever, ...extra }); };
+  const evento = (nome, extra) => { if (typeof captureEvent === 'function') captureEvent(nome, { passo: passo()?.id, ...extra }); };
+  const sairDoTreino = () => { if (window.TREINO && window.TREINO.ativo) window.TREINO.sair(); };
 
   function sacudir() {
     balao.classList.remove('tour-sacode');
@@ -301,8 +311,8 @@ const TourOrcamento = (() => {
       ${p.centro ? `<div class="tour-ic"><i data-lucide="${p.icone || 'sparkles'}"></i></div>` : `
       <div class="tour-prog" aria-hidden="true"><span style="width:${Math.round(n / TOTAL * 100)}%"></span></div>
       <div class="tour-top"><small>Passo ${n} de ${TOTAL}</small><button type="button" class="tour-x" data-t="sair" aria-label="Sair do tour"><i data-lucide="x"></i></button></div>`}
-      <h3>${p.titulo(rever)}</h3>
-      <p>${p.texto(rever)}</p>
+      <h3>${p.titulo()}</h3>
+      <p>${p.texto()}</p>
       ${p.esperar ? '<div class="tour-faca"><i data-lucide="pointer"></i> Realize esta ação para continuar</div>' : ''}
       ${p.validar ? '<p class="tour-erro" role="alert"></p>' : ''}
       <div class="tour-btns">
@@ -319,7 +329,7 @@ const TourOrcamento = (() => {
     balao.classList.remove('tour-centro');
     balao.innerHTML = `
       <h3>Deseja sair do tour?</h3>
-      <p>Você poderá revê-lo a qualquer momento pelo ícone <b>?</b> no topo da tela.</p>
+      <p>${window.TREINO && window.TREINO.ativo ? 'O modo treino será encerrado. ' : ''}Você poderá refazê-lo a qualquer momento pelo ícone <b>?</b> no topo da tela.</p>
       <div class="tour-btns">
         <button type="button" class="tour-b tour-b-ghost" data-t="sim">Sair</button>
         <button type="button" class="tour-b tour-b-pri" data-t="nao">Continuar</button>
@@ -337,9 +347,10 @@ const TourOrcamento = (() => {
       const aviso = balao.querySelector('.tour-erro');
       if (erro) { if (aviso) aviso.textContent = erro; ultimo = ''; sacudir(); return; }
       if (i === TOUR_PASSOS.length - 1) evento('tour_orcamento_concluido');
+      if (passo().acao) { fechar(); passo().acao(); return; }
       proximo();
     }
-    else if (t === 'pular' || t === 'sim') { evento('tour_orcamento_pulado'); fechar(); }
+    else if (t === 'pular' || t === 'sim') { evento('tour_orcamento_pulado'); fechar(); sairDoTreino(); }
     else if (t === 'sair') confirmarSaida();
     else if (t === 'nao') render();
   }
@@ -366,14 +377,13 @@ const TourOrcamento = (() => {
 
   function proximo() { ir(i + 1); }
 
-  function iniciar(modoRever) {
+  function iniciar(inicio) {
     if (ativo) return;
     montar();
-    rever = Boolean(modoRever);
     ativo = true;
     document.body.classList.add('tour-on');
     [luz, ...muros, anel, balao].forEach((el) => el.classList.add('on'));
-    ir(0);
+    ir(Math.max(0, indice(inicio || 'oi')));
     evento('tour_orcamento_inicio');
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(posicionar);
@@ -393,6 +403,8 @@ const TourOrcamento = (() => {
 
 // ---------- quem vê e quando ----------
 
+const _tourTreino = () => Boolean(window.TREINO && window.TREINO.ativo);
+
 function _tourChaveLocal() {
   return 'tour_orcamento_visto:' + (state.currentUser?.id || '');
 }
@@ -403,7 +415,7 @@ function _tourJaViu() {
   try { return localStorage.getItem(_tourChaveLocal()) === '1'; } catch (e) { return false; }
 }
 
-// Grava "já viu" assim que abre: aparece uma vez só, mesmo que ele pule ou feche a aba.
+// Grava "já viu" assim que o convite abre: aparece uma vez só, mesmo que ele recuse ou feche a aba.
 async function _tourMarcarVisto() {
   const quando = new Date().toISOString();
   try { localStorage.setItem(_tourChaveLocal(), '1'); } catch (e) { /* sem storage: fica só no servidor */ }
@@ -424,11 +436,16 @@ function _tourUsuarioNovo() {
 }
 
 // Tela livre pra começar: Comercial, sem launcher, ficha, orçamento ou popup aberto.
+// No treino, leva até o Comercial (o launcher pode abrir no recarregamento).
 function _tourTelaLivre() {
   if (!window.uiV2 || !window.uiV2.isActive()) return false;
-  if (state.environment !== 'comercial') return false;
-  if (!document.getElementById('launcher-screen')?.classList.contains('hidden')) return false;
   if (!document.getElementById('splash-screen')?.classList.contains('hidden')) return false;
+  const launcher = !document.getElementById('launcher-screen')?.classList.contains('hidden');
+  if (_tourTreino()) {
+    if (launcher && typeof enterEnvironment === 'function') { enterEnvironment('comercial'); return false; }
+    if (state.environment !== 'comercial' && typeof setEnvironment === 'function') { setEnvironment('comercial'); return false; }
+  }
+  if (launcher || state.environment !== 'comercial') return false;
   if (_tourOrcamentoAberto()) return false;
   if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId) return false;
   if (document.querySelector('[id$="-overlay"]:not(.hidden), [id$="-modal"].fixed:not(.hidden), .v2-sheet.on, .v2-pop.on')) return false;
@@ -436,23 +453,113 @@ function _tourTelaLivre() {
 }
 
 let _tourAguardando = 0;
-function tourOrcamentoPosLogin() {
+function _tourQuandoLivre(fn) {
   clearInterval(_tourAguardando);
-  if (!_tourUsuarioNovo() || _tourJaViu()) return;
-  // espera ele chegar no Comercial (o launcher pode estar aberto)
   _tourAguardando = setInterval(() => {
-    if (!state.currentUser || _tourJaViu()) { clearInterval(_tourAguardando); return; }
+    if (!state.currentUser) { clearInterval(_tourAguardando); return; }
     if (TourOrcamento.ativo || !_tourTelaLivre()) return;
     clearInterval(_tourAguardando);
-    _tourMarcarVisto();
-    TourOrcamento.iniciar(false);
-  }, 1000);
+    fn();
+  }, 800);
 }
 
-// Botão "?" do topo: rever quando quiser.
-function tourOrcamentoIniciar() {
-  if (TourOrcamento.ativo) return;
-  if (_tourOrcamentoAberto() && typeof closeOrcamento === 'function') closeOrcamento();
-  if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId && typeof closeCrm360 === 'function') closeCrm360();
-  setTimeout(() => TourOrcamento.iniciar(true), 150);
+function tourOrcamentoPosLogin() {
+  let saiu = false;
+  try { saiu = sessionStorage.getItem('treino_saiu') === '1'; sessionStorage.removeItem('treino_saiu'); } catch (e) { /* sem storage */ }
+  if (saiu && typeof showToast === 'function') showToast('Modo treino encerrado. Você está de volta à plataforma.');
+
+  if (_tourTreino()) {
+    if (window.TREINO.tour === 'orcamento') _tourQuandoLivre(() => TourOrcamento.iniciar('treino-oi'));
+    return;
+  }
+  if (!_tourUsuarioNovo() || _tourJaViu()) return;
+  _tourQuandoLivre(() => { _tourMarcarVisto(); TourOrcamento.iniciar('oi'); });
 }
+
+// ---------- menu "?" (central de ajuda) ----------
+// Cada tutorial aparece só para quem tem acesso à área dele.
+const TUTORIAIS = [
+  {
+    id: 'orcamento', titulo: 'Fazer um orçamento', sub: 'Do cadastro do cliente ao envio da proposta · cerca de 2 min', icone: 'file-text',
+    pode: () => !state.isTecnico,
+    abrir: () => window.TREINO.entrar('orcamento'),
+  },
+];
+
+function _tutorialChave(id) {
+  return 'tutorial_feito:' + id + ':' + (state.currentUser?.id || '');
+}
+function _tutorialFeito(id) {
+  try { localStorage.setItem(_tutorialChave(id), '1'); } catch (e) { /* sem storage */ }
+}
+function _tutorialJaFeito(id) {
+  try { return localStorage.getItem(_tutorialChave(id)) === '1'; } catch (e) { return false; }
+}
+
+function _ajudaItem(acao, icone, titulo, sub, extra = '', tag = '') {
+  return `<button type="button" class="aj-item" data-aj="${acao}" ${extra}>
+      <span class="aj-ic"><i data-lucide="${icone}"></i></span>
+      <span class="aj-tx"><b>${escapeHTML(titulo)}</b><small>${escapeHTML(sub)}</small></span>${tag}
+    </button>`;
+}
+
+function _ajudaHTML() {
+  if (_tourTreino()) {
+    return `<h6>Central de ajuda</h6>
+      <div class="aj-nota"><b>Você está no modo treino.</b> Nada do que for feito aqui é salvo.</div>
+      ${_ajudaItem('sair-treino', 'log-out', 'Sair do treino', 'Voltar para a plataforma')}`;
+  }
+  const itens = TUTORIAIS.filter((t) => t.pode()).map((t) => _ajudaItem('tutorial', t.icone, t.titulo, t.sub,
+    `data-id="${t.id}"`, _tutorialJaFeito(t.id) ? '<span class="aj-tag">Concluído</span>' : '')).join('');
+  return `<h6>Central de ajuda</h6>
+    <div class="aj-cap">Tutoriais</div>
+    ${itens || '<div class="aj-vazio">Ainda não há tutoriais para o seu acesso.</div>'}
+    <div class="aj-rodape">Os tutoriais usam o modo treino: nada é salvo ou enviado.</div>`;
+}
+
+function ajudaFechar() {
+  document.getElementById('ajuda-pop')?.remove();
+  document.querySelector('#v2-top [data-v2="ajuda"]')?.setAttribute('aria-expanded', 'false');
+}
+
+function ajudaAbrir(botao) {
+  if (document.getElementById('ajuda-pop')) { ajudaFechar(); return; }
+  if (TourOrcamento.ativo) return;
+  const pop = document.createElement('div');
+  pop.id = 'ajuda-pop';
+  pop.className = 'aj-pop';
+  pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'Central de ajuda');
+  pop.innerHTML = _ajudaHTML();
+  document.body.appendChild(pop);
+  if (window.lucide) lucide.createIcons();
+  const alvo = botao || document.querySelector('#v2-top [data-v2="ajuda"]');
+  if (alvo && window.innerWidth > 760) {
+    const r = alvo.getBoundingClientRect();
+    pop.style.top = r.bottom + 8 + 'px';
+    pop.style.left = Math.max(12, Math.min(r.right - pop.offsetWidth, window.innerWidth - pop.offsetWidth - 12)) + 'px';
+  } else {
+    pop.classList.add('aj-folha');
+  }
+  alvo?.setAttribute('aria-expanded', 'true');
+  pop.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-aj]');
+    if (!b) return;
+    ajudaFechar();
+    if (b.dataset.aj === 'sair-treino') window.TREINO.sair();
+    if (b.dataset.aj === 'tutorial') {
+      const t = TUTORIAIS.find((x) => x.id === b.dataset.id);
+      if (!t) return;
+      if (typeof captureEvent === 'function') captureEvent('tutorial_aberto', { tutorial: t.id });
+      t.abrir();
+    }
+  });
+  pop.querySelector('button')?.focus({ preventScroll: true });
+}
+
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('ajuda-pop');
+  if (pop && !pop.contains(e.target) && !e.target.closest('[data-v2="ajuda"]')) ajudaFechar();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ajudaFechar(); });
+window.addEventListener('resize', ajudaFechar);
