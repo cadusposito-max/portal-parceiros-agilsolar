@@ -181,6 +181,7 @@
       <button class="v2-icb v2-msearch" data-v2="palette" title="Buscar">${ic('search')}</button>
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>
       ${scopeButton()}
+      ${k === 'comercial' && has('tourOrcamentoIniciar') ? `<button class="v2-icb" data-v2="tour" title="Tour do orçamento" aria-label="Rever o tour do orçamento">${ic('circle-help')}</button>` : ''}
       ${chatOn ? `<button class="v2-icb" data-v2="chat" title="Mensagens da equipe">${ic('message-circle')}${unread ? `<span class="cnt">${unread > 99 ? '99+' : unread}</span>` : ''}</button>` : ''}
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
@@ -366,6 +367,7 @@
       case 'admin': if (has('openAdmin')) openAdmin(); break;
       case 'scope': if (state.isAdmin && has('toggleAdminViewMode')) toggleAdminViewMode(); else if (has('toggleGestorViewMode')) toggleGestorViewMode(); break;
       case 'chat': if (has('_chatToggleShell')) _chatToggleShell(); break;
+      case 'tour': if (has('tourOrcamentoIniciar')) tourOrcamentoIniciar(); break;
       case 'logout': if (has('handleLogout')) handleLogout(); break;
       case 'palette': openPalette(); break;
       case 'palclose': closePalette(); break;

@@ -292,6 +292,7 @@ async function checkAuth() {
       if (typeof chatBoot === 'function') await chatBoot();
       if (typeof identifyUser === 'function') identifyUser(session.user);
       if (typeof filaAvisoPosLogin === 'function') filaAvisoPosLogin();
+      if (typeof tourOrcamentoPosLogin === 'function') tourOrcamentoPosLogin();
     } else {
       document.getElementById('login-screen').classList.remove('hidden');
       document.getElementById('splash-screen').classList.add('hidden');
@@ -670,6 +671,7 @@ async function _finishLogin(user, email) {
   if (typeof chatBoot === 'function') await chatBoot();
   if (typeof identifyUser === 'function') identifyUser(user);
   if (typeof filaAvisoPosLogin === 'function') filaAvisoPosLogin();
+  if (typeof tourOrcamentoPosLogin === 'function') tourOrcamentoPosLogin();
   if (typeof captureEvent === 'function') captureEvent('login_success', { source: 'portal' });
 }
 

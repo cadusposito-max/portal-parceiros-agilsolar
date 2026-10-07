@@ -1,0 +1,101 @@
+/* Tour guiado do primeiro orçamento (assets/js/tour-orcamento.js). Só tokens do v2. */
+.tour-luz, .tour-muro, .tour-anel, .tour-balao { display: none; }
+.tour-luz.on, .tour-muro.on, .tour-anel.on, .tour-balao.on { display: block; }
+
+/* recorte iluminado: a sombra gigante é o escurecido da tela */
+.tour-luz {
+  position: fixed; z-index: 1000; pointer-events: none;
+  box-shadow: 0 0 0 200vmax rgba(15, 27, 38, .66);
+  transition: left .25s, top .25s, width .25s, height .25s;
+}
+html[data-theme="dark"] .tour-luz { box-shadow: 0 0 0 200vmax rgba(2, 6, 10, .74); }
+/* faixas transparentes em volta do recorte: seguram os cliques fora do passo */
+.tour-muro { position: fixed; z-index: 1000; }
+
+.tour-anel {
+  position: fixed; z-index: 1001; pointer-events: none;
+  border: 2px solid var(--v2-blue); border-radius: 16px;
+  transition: left .25s, top .25s, width .25s, height .25s, opacity .2s;
+}
+.tour-anel.tour-pulsa { animation: tour-pulso 1.6s ease-out infinite; }
+@keyframes tour-pulso {
+  0% { box-shadow: 0 0 0 0 rgba(0, 143, 212, .55); }
+  70% { box-shadow: 0 0 0 12px rgba(0, 143, 212, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 143, 212, 0); }
+}
+
+.tour-balao {
+  position: fixed; z-index: 1002; width: 340px; max-width: calc(100vw - 24px);
+  padding: 16px 18px 16px; border-radius: 20px;
+  background: var(--v2-card); color: var(--v2-ink);
+  box-shadow: var(--v2-shadow-pop); border: 1px solid var(--v2-line);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  transition: left .25s, top .25s, opacity .2s;
+}
+.tour-balao h3 { margin: 0 0 6px; font-size: 17px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
+.tour-balao p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--v2-ink-2); }
+.tour-balao p b { color: var(--v2-ink); }
+
+.tour-prog { height: 4px; border-radius: 99px; background: var(--v2-line); overflow: hidden; margin-bottom: 10px; }
+.tour-prog span { display: block; height: 100%; border-radius: 99px; background: var(--v2-blue); transition: width .3s; }
+.tour-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.tour-top small { font-size: 12px; font-weight: 700; color: var(--v2-blue-text); }
+.tour-x { border: 0; background: none; color: var(--v2-ink-2); cursor: pointer; padding: 4px; margin: -4px; border-radius: 8px; display: grid; place-items: center; }
+.tour-x:hover { background: var(--v2-hover); }
+.tour-x svg { width: 18px; height: 18px; }
+
+.tour-faca {
+  display: flex; align-items: center; gap: 6px; margin-top: 12px;
+  font-size: 12px; font-weight: 700; color: var(--v2-orange-text);
+}
+.tour-faca svg { width: 16px; height: 16px; }
+
+.tour-btns { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.tour-btns:empty { display: none; }
+.tour-b {
+  display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px;
+  border-radius: 12px; border: 1px solid transparent; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 800;
+}
+.tour-b svg { width: 15px; height: 15px; }
+.tour-b-pri { background: var(--v2-orange); color: var(--v2-orange-ink); }
+.tour-b-pri:hover { filter: brightness(1.04); }
+.tour-b-sec { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+.tour-b-sec:hover { filter: brightness(.97); }
+.tour-b-ghost { background: none; color: var(--v2-ink-2); margin-right: auto; }
+.tour-b-ghost:hover { background: var(--v2-hover); }
+.tour-b:focus-visible { outline: 2px solid var(--v2-blue); outline-offset: 2px; }
+
+/* passos de boas-vindas e fim (no meio da tela) */
+.tour-balao.tour-centro { width: 380px; text-align: center; padding: 26px 24px 20px; }
+.tour-balao.tour-centro h3 { font-size: 21px; }
+.tour-balao.tour-centro .tour-btns { justify-content: center; }
+.tour-balao.tour-centro .tour-b-ghost { margin-right: 0; }
+.tour-ic {
+  width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 18px;
+  background: var(--v2-orange-50); color: var(--v2-orange-text); display: grid; place-items: center;
+}
+.tour-ic svg { width: 28px; height: 28px; }
+
+/* setinha apontando pro elemento */
+.tour-balao::after {
+  content: ''; position: absolute; width: 14px; height: 14px; background: var(--v2-card);
+  border: 1px solid var(--v2-line); transform: rotate(45deg); display: none;
+}
+.tour-balao.lado-baixo::after { display: block; top: -8px; left: calc(var(--seta) - 7px); border-right: 0; border-bottom: 0; }
+.tour-balao.lado-cima::after { display: block; bottom: -8px; left: calc(var(--seta) - 7px); border-left: 0; border-top: 0; }
+.tour-balao.lado-dir::after { display: block; left: -8px; top: calc(var(--seta) - 7px); border-right: 0; border-top: 0; }
+.tour-balao.lado-esq::after { display: block; right: -8px; top: calc(var(--seta) - 7px); border-left: 0; border-bottom: 0; }
+
+/* celular: balão encaixado em cima/embaixo, largura toda */
+.tour-balao.doca { width: auto; right: 12px; }
+
+.tour-sacode { animation: tour-sacode .35s; }
+@keyframes tour-sacode {
+  0%, 100% { translate: 0; } 25% { translate: -6px; } 75% { translate: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-luz, .tour-anel, .tour-balao { transition: none; }
+  .tour-anel.tour-pulsa, .tour-sacode { animation: none; }
+}
