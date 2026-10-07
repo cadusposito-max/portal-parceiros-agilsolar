@@ -132,6 +132,9 @@ function pbFornecimentoMount() {
   if (!_catalogoDistrib.carregado && !_catalogoDistrib.erro) carregarCatalogoDistribuidoras().then(() => {
     if (state.pbActiveClient) pbFornecimentoSync();
   });
+  if (typeof carregarIntegracoesAtivas === 'function') carregarIntegracoesAtivas().then(() => {
+    if (state.pbActiveClient && _pbFornecimento.distribuidora) pbFornecimentoSync();
+  });
 }
 
 function pbFornecimentoRender() {
@@ -144,6 +147,7 @@ function pbFornecimentoRender() {
     ? 'Escolha o módulo, a marca do inversor e a distribuidora. O consumo define a potência do sistema e o kit recomendado.'
     : 'Filtre os kits pelo módulo, pela marca do inversor e pela distribuidora.';
   const disponiveis = catalogoEquipamentosDaDistribuidora(_pbFornecimento.distribuidora);
+  const integrada = typeof pbIntegracaoAtual === 'function' ? pbIntegracaoAtual() : null;
   // Só oferece módulo/marca que está em algum kit ativo do tipo escolhido
   // (inversor ou micro): escolher uma opção nunca deixa a lista vazia à toa.
   const kitsTipo = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false && Number(k.price) > 0);
@@ -156,7 +160,8 @@ function pbFornecimentoRender() {
     select.innerHTML = '<option value="">Sem preferência</option>' + opcoes.map((opcao) =>
       `<option value="${escapeHTML(opcao)}">${escapeHTML(opcao)}</option>`).join('');
     select.value = _pbFornecimento[tipo];
-    select.disabled = !_catalogoDistrib.carregado;
+    // Distribuidora integrada cota o kit inteiro no servidor: os filtros da tabela não valem.
+    select.disabled = !_catalogoDistrib.carregado || Boolean(integrada);
   });
   const dist = document.getElementById('pb-filtro-distribuidora');
   dist.innerHTML = '<option value="">Todas as distribuidoras</option>' + _catalogoDistrib.distribuidoras.filter((d) => d.ativo !== false)
@@ -166,6 +171,7 @@ function pbFornecimentoRender() {
   const aviso = document.getElementById('pb-fornecimento-aviso');
   aviso.textContent = _catalogoDistrib.erro ? 'Não foi possível carregar as distribuidoras. Tente atualizar a página.'
     : !_catalogoDistrib.carregado ? 'Carregando catálogo...'
+    : integrada ? 'Os kits desta distribuidora são cotados na hora: informe as placas e clique em Cotar kits.'
     : _pbFornecimento.distribuidora && !disponiveis.length ? 'Nenhum equipamento disponível nesta distribuidora.' : '';
   aviso.classList.toggle('hidden', !aviso.textContent);
   if (window.uiV2Select) window.uiV2Select.scan(panel);

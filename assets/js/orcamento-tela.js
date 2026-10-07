@@ -148,10 +148,18 @@ function renderOrcamento() {
 
 function orcamentoSelecionarKit(kitId) {
   if (_orcamentoGerando) return;
-  const kit = (state.data || []).find((k) => String(k.id) === String(kitId) && k.ativo !== false);
-  if (!kit || (typeof pbKitCompativel === 'function' && !pbKitCompativel(kit))) return;
+  const kit = _orcamentoAcharKit(kitId);
+  if (!kit) return;
   _orcamentoKitId = String(kit.id);
   orcamentoAtualizarResumo();
+}
+
+// Kit da tabela (ativo e compatível com a seleção) ou kit cotado na distribuidora.
+function _orcamentoAcharKit(id) {
+  if (!id) return null;
+  if (String(id).startsWith('cot:')) return typeof pbAcharKit === 'function' ? pbAcharKit(id) : null;
+  const kit = (state.data || []).find((k) => String(k.id) === String(id) && k.ativo !== false);
+  return kit && (typeof pbKitCompativel !== 'function' || pbKitCompativel(kit)) ? kit : null;
 }
 
 function orcamentoLimparKit() {
@@ -169,8 +177,7 @@ function orcamentoAtualizarResumo() {
     if (custom) custom.disabled = !canUsePersonalizada();
     if (window.uiV2Select) window.uiV2Select.scan(mode.parentElement);
   }
-  const kit = (state.data || []).find((k) => String(k.id) === _orcamentoKitId && k.ativo !== false
-    && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)));
+  const kit = _orcamentoAcharKit(_orcamentoKitId);
   let texto = 'Escolha um kit para continuar';
   let valido = Boolean(kit);
   if (personalizada) {
@@ -215,8 +222,8 @@ async function orcamentoGerar(event) {
     if (state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA) {
       await handleEquipamentosProposalSubmit({ preventDefault() {} });
     } else {
-      const kit = (state.data || []).find((k) => String(k.id) === _orcamentoKitId && k.ativo !== false);
-      if (kit && (typeof pbKitCompativel !== 'function' || pbKitCompativel(kit))) await copyProposalLink(kit, { currentTarget: btn });
+      const kit = _orcamentoAcharKit(_orcamentoKitId);
+      if (kit) await copyProposalLink(kit, { currentTarget: btn });
     }
   } finally {
     _orcamentoGerando = false;

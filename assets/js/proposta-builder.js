@@ -1055,6 +1055,18 @@ function renderModalProducts() {
     return;
   }
 
+  // Distribuidora com integração (Admin → Distribuidoras): cota no servidor em vez da tabela.
+  if (typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual()) {
+    emptyEl.classList.add('hidden');
+    emptyEl.classList.remove('flex');
+    container.className = 'p-3 md:p-4 bg-[#050505]';
+    container.innerHTML = pbIntegracaoPainelHTML(null);
+    if (window.uiV2Select) window.uiV2Select.scan(container);
+    if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
+    lucide.createIcons();
+    return;
+  }
+
   // Kits fora de linha (ativo=false) não aparecem para o vendedor.
   let list = state.data.filter(k => k.categoria === state.pbCategory && k.ativo !== false
     && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)));
@@ -1169,7 +1181,7 @@ function copyProposalLinkById(kitId, event) {
     orcamentoSelecionarKit(kitId);
     return;
   }
-  const kit = state.data.find(k => String(k.id) === String(kitId));
+  const kit = typeof pbAcharKit === 'function' ? pbAcharKit(kitId) : state.data.find(k => String(k.id) === String(kitId));
   if (!kit) return;
   copyProposalLink(kit, event);
 }
@@ -1192,7 +1204,7 @@ function copiarLinkExistente(id, btnElement) {
 }
 
 async function copyProposalLink(kit, event) {
-  if (typeof pbKitCompativel === 'function' && !pbKitCompativel(kit)) return showToast('Este kit não está disponível na seleção atual. Escolha outro kit.');
+  if (!kit._cotacaoId && typeof pbKitCompativel === 'function' && !pbKitCompativel(kit)) return showToast('Este kit não está disponível na seleção atual. Escolha outro kit.');
   const client = state.pbActiveClient;
   if (!client) return showToast('Nenhum cliente em atendimento!');
 
@@ -1221,8 +1233,10 @@ async function copyProposalLink(kit, event) {
       kit_price:         kit.price,
       kit_list_price:    kit.list_price,
       geracao_estimada:  calcularGeracaoEstimada(kit.power, kit.categoria, client.hsp),
-      source_product_id: kit.id || null, // a engenharia acha os equipamentos do kit por aqui
-      distribuidora_id: kit.distribuidora_id || null,
+      // kit cotado na distribuidora: o banco copia nome/preço da cotação (cotacao_id)
+      source_product_id: kit._cotacaoId ? null : (kit.id || null), // a engenharia acha os equipamentos do kit por aqui
+      distribuidora_id: kit._cotacaoId ? null : (kit.distribuidora_id || null),
+      ...(kit._cotacaoId ? { cotacao_id: kit._cotacaoId, proposal_mode: 'PROMOCIONAL' } : {}),
       franquia_id:       state.franquiaId
     }]).select();
 

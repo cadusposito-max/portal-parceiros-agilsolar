@@ -96,6 +96,7 @@ function renderAdminPanel(container) {
     { id: 'produtos',      label: 'KITS',            icon: 'zap' },
     { id: 'financiadoras', label: 'FINANCIADORAS',   icon: 'landmark',   adminOnly: true },
     { id: 'componentes',   label: 'COMPONENTES',     icon: 'cpu',        adminOnly: true },
+    { id: 'distribuidoras', label: 'DISTRIBUIDORAS', icon: 'plug',       adminOnly: true },
     { id: 'custos',        label: 'CUSTOS EXTRAS',   icon: 'circle-plus', adminOnly: true },
     { id: 'usuarios',      label: 'USUARIOS',        icon: 'user-cog',   adminOnly: true },
     { id: 'vendedores',    label: 'VENDEDORES',       icon: 'users' },
@@ -167,6 +168,7 @@ function renderAdminPanel(container) {
       lucide.createIcons();
     }
     else if (state.adminSection === 'financiadoras') renderAdminFinanciadoras(content);
+    else if (state.adminSection === 'distribuidoras' && typeof renderAdminDistribuidoras === 'function') renderAdminDistribuidoras(content);
     else if (state.adminSection === 'custos')      renderAdminCustos(content);
     else if (state.adminSection === 'usuarios')    renderAdminUsuarios(content);
     else if (state.adminSection === 'vendedores')  renderAdminVendedores(content);

@@ -319,6 +319,15 @@ function _pbdRenderResultado() {
     return;
   }
 
+  // Distribuidora com integração: cota no servidor com as placas que cobrem o consumo (módulo 620 W).
+  if (typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual()) {
+    host.innerHTML = mets + pbIntegracaoPainelHTML(Math.min(150, Math.max(4, Math.ceil(kwpNecessario * 1000 / 620))));
+    if (window.uiV2Select) window.uiV2Select.scan(host);
+    if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    return;
+  }
+
   const tipo = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
   const tipoNome = tipo === 'kitsMicro' ? 'com microinversor' : 'com inversor';
   const { recomendado, outros, menorQueCobre } = _pbdRecomendar(tipo, c.media);

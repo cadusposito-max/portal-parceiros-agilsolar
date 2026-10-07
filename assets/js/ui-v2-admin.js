@@ -25,10 +25,11 @@
     ['Propostas', [
       ['financiadoras', 'landmark', 'Financiadoras', 'Bancos e taxas na proposta', true],
       ['custos', 'circle-plus', 'Custos extras', 'Somados na proposta', true],
+      ['distribuidoras', 'plug', 'Distribuidoras', 'Integrações e precificação', true],
     ]],
   ];
   const CATALOGO = [['produtos', 'zap', 'Kits'], ['componentes', 'boxes', 'Equipamentos']];
-  const RENDER = { usuarios: 'renderAdminUsuarios', vendedores: 'renderAdminVendedores', comunicados: 'renderAdminComunicados', financiadoras: 'renderAdminFinanciadoras', custos: 'renderAdminCustos' };
+  const RENDER = { usuarios: 'renderAdminUsuarios', vendedores: 'renderAdminVendedores', comunicados: 'renderAdminComunicados', financiadoras: 'renderAdminFinanciadoras', custos: 'renderAdminCustos', distribuidoras: 'renderAdminDistribuidoras' };
 
   // celular: o menu vira gaveta de baixo, aberta pelo botão com a seção atual
   window.uiV2Admin = {
