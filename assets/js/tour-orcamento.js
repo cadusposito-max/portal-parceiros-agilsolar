@@ -118,9 +118,13 @@ const TOUR_PASSOS = [
       : 'O link já foi copiado. Como o cliente não tem WhatsApp cadastrado, envie o link por outro canal.',
   },
   {
-    id: 'fim', centro: true, icone: 'party-popper',
+    // Termina apontando o "?" do topo: é por ele que o tour volta depois.
+    // Fecha o painel "Proposta gerada", que cobre o topo da tela.
+    id: 'fim', opcional: true, pulsar: true,
+    alvo: () => _tourVis('#v2-top [data-v2="tour"]'),
+    entrar: () => { if (typeof closeProposalSharePanel === 'function') closeProposalSharePanel(); },
     titulo: () => 'Orçamento concluído',
-    texto: () => 'Quando o cliente abrir o link, a proposta será marcada como <b>VISTA</b> e você receberá um aviso.<br><br>Para rever este passo a passo, use o ícone <b>?</b> no topo da tela.',
+    texto: () => 'Quando o cliente abrir o link, a proposta será marcada como <b>VISTA</b> e você receberá um aviso.<br><br>Sempre que precisar de ajuda, use este ícone <b>?</b> para rever o passo a passo do orçamento.',
     botao: 'Concluir',
   },
 ];
@@ -211,7 +215,7 @@ const TourOrcamento = (() => {
     if (p.atalho && p.atalho.se()) { ir(indice(p.atalho.para)); return; }
     const els = alvos(p);
 
-    if (!p.centro && !els.length) {
+    if (!p.centro && !p.opcional && !els.length) {
       // elemento sumiu: espera um pouco (tela trocando) e volta pro passo seguro;
       // sem passo seguro, encerra em vez de deixar a tela travada no escuro
       if (!sumiuDesde) sumiuDesde = performance.now();
@@ -236,7 +240,7 @@ const TourOrcamento = (() => {
     recortar(r);
     if (ra) {
       Object.assign(anel.style, { opacity: '1', left: ra.x + 'px', top: ra.y + 'px', width: ra.w + 'px', height: ra.h + 'px' });
-      anel.classList.toggle('tour-pulsa', Boolean(p.esperar));
+      anel.classList.toggle('tour-pulsa', Boolean(p.esperar || p.pulsar));
     } else {
       anel.style.opacity = '0';
     }
@@ -329,6 +333,7 @@ const TourOrcamento = (() => {
     i = novo;
     const p = passo();
     if (!p) { fechar(); return; }
+    if (p.entrar) p.entrar();
     render();
     // traz o elemento pra tela (o rodapé do orçamento e a barra do celular são fixos)
     requestAnimationFrame(() => {
