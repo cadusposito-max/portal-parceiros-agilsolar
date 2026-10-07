@@ -325,6 +325,9 @@
 
     const prevScroll = document.getElementById('crm360-scroll');
     const keepY = prevScroll && overlay.dataset.clientId === String(client.id) ? prevScroll.scrollTop : 0;
+    // no celular a barra de abas rola de lado: guarda a posição (o innerHTML abaixo zerava)
+    const prevTabs = overlay.querySelector('.v2f-tabs');
+    const keepX = prevTabs && overlay.dataset.clientId === String(client.id) ? prevTabs.scrollLeft : 0;
     if (fichaDe !== String(client.id)) { fichaDe = String(client.id); expandido = false; }
     const full = cheia();
     overlay.classList.toggle('v2f-cheia', full);
@@ -450,6 +453,17 @@
     overlay.dataset.clientId = String(client.id);
     const sc = document.getElementById('crm360-scroll');
     if (sc && keepY) sc.scrollTop = keepY;
+    const tabsEl = overlay.querySelector('.v2f-tabs');
+    if (tabsEl) {
+      tabsEl.scrollLeft = keepX;
+      // aba ativa fora da área visível (ex.: aberta por atalho): traz pra dentro sem mexer no resto
+      const on = tabsEl.querySelector('button.on');
+      if (on) {
+        const r = on.getBoundingClientRect(), t = tabsEl.getBoundingClientRect();
+        if (r.left < t.left) tabsEl.scrollLeft -= t.left - r.left + 16;
+        else if (r.right > t.right) tabsEl.scrollLeft += r.right - t.right + 16;
+      }
+    }
     if (sc) sc.addEventListener('scroll', ajustarCabecalho, { passive: true });
     ajustarCabecalho();
   }
