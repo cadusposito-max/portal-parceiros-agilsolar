@@ -291,3 +291,45 @@ html[data-ui="v2"] body .v2f textarea#crm360-observacoes { resize: none; overflo
 @media (max-width: 760px) {
   html[data-ui="v2"] .v2f-lmq { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+
+/* ---- cabeçalho da ficha no celular: ~metade da altura de antes ----
+   Nome numa linha; status, selos e etiquetas na linha de baixo; telefone/cidade
+   numa linha; Nova proposta + WhatsApp + Ligar + "⋯" (contrato, registrar venda);
+   etapas e resumo já abrem recolhidos na linha "Etapa · Resp. · Próx. ação"
+   (telaBaixa() no ui-v2-ficha.js). .v2f-mob só aparece no celular; .v2f-dsk só fora dele. */
+html[data-ui="v2"] .v2f .v2f-mob { display: none; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2f .v2f-dsk { display: none !important; }
+  html[data-ui="v2"] .v2f .v2-sq.v2f-mob { display: inline-grid; flex: none; }
+  html[data-ui="v2"] .v2f .crm-menu.v2f-mob { display: block; flex: none; }
+  html[data-ui="v2"] .v2f .v2f-sum > .v2f-mob { display: block; }
+
+  html[data-ui="v2"] .v2f-head { padding-top: 12px; }
+  html[data-ui="v2"] .v2f-top { gap: 10px; align-items: flex-start !important; }
+  html[data-ui="v2"] .v2f .v2f-av,
+  html[data-ui="v2"] .v2f.compacto .v2f-av { width: 40px; height: 40px; border-radius: 13px; }
+  html[data-ui="v2"] .v2f .v2f-av svg { width: 20px; height: 20px; }
+  html[data-ui="v2"] .v2f .v2-sq { width: 38px; height: 38px; }
+
+  /* h2 e a linha de etiquetas "somem" como caixa: os chips entram na mesma linha */
+  html[data-ui="v2"] .v2f-top .tx { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  html[data-ui="v2"] .v2f-top h2,
+  html[data-ui="v2"] .v2f-top .tx .v2f-etqs { display: contents; }
+  html[data-ui="v2"] .v2f-nome { flex: 1 0 100%; min-width: 0; font-size: 17px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+  html[data-ui="v2"] .v2f .v2-chip { font-size: 11.5px; padding: 3px 9px; }
+  html[data-ui="v2"] .v2f-etqs .v2-etq { font-size: 11.5px; padding: 4px 9px; }
+  html[data-ui="v2"] body .v2f-etqs .v2-etqadd { font-size: 0; gap: 0; height: 24px; padding: 0 8px; }
+  html[data-ui="v2"] .v2f-top .sub,
+  html[data-ui="v2"] .v2f.compacto .v2f-top .sub { display: flex; order: 5; flex: 1 0 100%; flex-wrap: nowrap; gap: 12px; margin-top: 4px; overflow: hidden; }
+  html[data-ui="v2"] .v2f-top .sub span { white-space: nowrap; min-width: 0; }
+  html[data-ui="v2"] .v2f-lost { order: 6; flex: 1 0 100%; }
+
+  html[data-ui="v2"] .v2f-acts { margin-top: 2px; }
+  html[data-ui="v2"] .v2f-acts > .btn-primary,
+  html[data-ui="v2"] .v2f-acts > .v2f-wa { flex: 1 1 0; min-width: 0; height: 40px; justify-content: center; white-space: nowrap; border-radius: 12px; }
+  html[data-ui="v2"] .v2f .crm-menu-pop svg { width: 16px !important; height: 16px !important; }
+
+  /* linha recolhida: vistoria fica só no resumo aberto, pra caber numa linha */
+  html[data-ui="v2"] .v2f-mini span:nth-of-type(4) { display: none; }
+  html[data-ui="v2"] .v2f.compacto .v2f-tabs { margin-top: 8px; }
+}

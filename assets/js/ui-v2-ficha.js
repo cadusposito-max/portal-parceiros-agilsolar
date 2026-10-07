@@ -31,7 +31,8 @@
   // tocar na linha compacta mostra as etapas e o resumo de novo.
   const CHEIA_KEY = 'ui_v2_ficha_cheia';
   const cheia = () => { try { return localStorage.getItem(CHEIA_KEY) === '1'; } catch (_) { return false; } };
-  const telaBaixa = () => window.innerHeight < 760;
+  // celular (mesma quebra do CSS) também abre encolhido: o cabeçalho cheio comia metade da tela
+  const telaBaixa = () => window.innerHeight < 760 || window.innerWidth <= 760;
   let expandido = false;
   let fichaDe = null;
   function ajustarCabecalho() {
@@ -376,25 +377,33 @@
           <div class="v2f-top">
             ${(() => { const pj = window.uiV2TipoCliente && window.uiV2TipoCliente(client) === 'PJ'; return `<i class="v2f-av ${pj ? 'pj' : ''}" title="${pj ? 'Empresa' : 'Pessoa física'}">${ic(pj ? 'building-2' : 'user')}</i>`; })()}
             <div class="tx">
-              <h2>${esc(client.nome || 'Cliente')}
+              <h2><span class="v2f-nome">${esc(client.nome || 'Cliente')}</span>
                 <button class="v2-chip dot ${ST_CLS[status] || 't-gray'} v2f-stchip" onclick="openClientStatusMenu(event, '${esc(client.id)}')" title="Alterar status">${ST[status] || status}${ic('chevron-down')}</button>
                 ${omFlag ? '<span class="v2-chip t-blue">O&amp;M</span>' : ''}${has('engFichaChip') ? engFichaChip(client) : ''}${window.uiV2LeadMeta ? window.uiV2LeadMeta.chip(client, true) : ''}</h2>
               <div class="sub">
                 <span>${ic('phone')}${esc(client.telefone || '—')}</span>
                 <span>${ic('map-pin')}${esc(client.cidade || 'sem cidade')}${Number(client.hsp) > 0 ? ` · HSP ${esc(String(client.hsp).replace('.', ','))}` : ''}</span>
-                <span>${ic('calendar')}desde ${esc(formatDate(client.created_at))}</span>
+                <span class="v2f-dsk">${ic('calendar')}desde ${esc(formatDate(client.created_at))}</span>
               </div>
               ${has('etqFichaHTML') ? etqFichaHTML(client) : ''}
               ${lost && client.perdido_motivo ? `<div class="v2f-lost">${ic('info')}Motivo da perda: ${esc(client.perdido_motivo)}</div>` : ''}
             </div>
+            <button class="v2-sq v2f-mob" onclick="closeCrm360()" title="Fechar">${ic('x')}</button>
             <div class="v2f-acts">
               ${podeProposta ? `<button class="btn btn-primary btn-sm" onclick="openProposalBuilder('${esc(client.id)}')">${ic('file-plus-2')}Nova proposta</button>` : ''}
               ${waLink ? `<a class="v2f-wa" href="${esc(waLink)}" target="_blank" rel="noopener noreferrer">${ic('message-circle')}WhatsApp</a>` : ''}
               ${tel ? `<a class="v2-sq" href="tel:+55${tel}" title="Ligar">${ic('phone')}</a>` : ''}
-              ${docs ? `<button class="v2-sq" onclick="abrirDocumentosCliente('${esc(client.id)}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}
-              <button class="v2-sq" onclick="openFechaVenda('${esc(client.id)}')" title="Registrar venda">${ic('trophy')}</button>
+              ${docs ? `<button class="v2-sq v2f-dsk" onclick="abrirDocumentosCliente('${esc(client.id)}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}
+              <button class="v2-sq v2f-dsk" onclick="openFechaVenda('${esc(client.id)}')" title="Registrar venda">${ic('trophy')}</button>
+              <div class="crm-menu v2f-mob">
+                <button type="button" class="v2-sq" title="Mais ações" onclick="crmMenuToggle(event, this)">${ic('ellipsis')}</button>
+                <div class="crm-menu-pop">
+                  ${docs ? `<button type="button" onclick="crmMenuFechar(); abrirDocumentosCliente('${esc(client.id)}')">${ic('file-signature')}Contrato e procuração</button>` : ''}
+                  <button type="button" onclick="crmMenuFechar(); openFechaVenda('${esc(client.id)}')">${ic('trophy')}Registrar venda</button>
+                </div>
+              </div>
               <button class="v2-sq v2f-exp" onclick="uiV2Ficha.cheia()" title="${full ? 'Voltar ao painel lateral' : 'Abrir em tela cheia'}">${ic(full ? 'minimize-2' : 'maximize-2')}</button>
-              <button class="v2-sq" onclick="closeCrm360()" title="Fechar (Esc)">${ic('x')}</button>
+              <button class="v2-sq v2f-dsk" onclick="closeCrm360()" title="Fechar (Esc)">${ic('x')}</button>
             </div>
           </div>
           <div class="v2f-steps">${steps}</div>
@@ -404,6 +413,7 @@
             <div><small>Propostas</small><b>${propostas.length}${vendas.length ? ` · ${vendas.length} venda${vendas.length > 1 ? 's' : ''}` : ''}</b></div>
             <div class="v2f-sumlink ${proxAtrasada ? 'late' : ''}" role="button" tabindex="0" onclick="uiV2Ficha.irDados('proxima')" title="Ver próxima ação"><small>Próxima ação</small><b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + prox.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })) : 'Nenhuma'}</b></div>
             ${vistoriaResumoHTML(client)}
+            <div class="v2f-mob"><small>Desde</small><b>${esc(formatDate(client.created_at))}</b></div>
           </div>
           ${mini}
           <div class="v2f-tabs">${tabs.map((t) => `<button class="${t[4] || ''} ${_crm360Tab === t[0] ? 'on' : ''}" onclick="crmSet360Tab('${t[0]}')">${ic(t[1])}${t[2]}${t[3] != null ? `<em>${t[3]}</em>` : ''}</button>`).join('')}</div>
