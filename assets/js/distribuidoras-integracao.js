@@ -10,11 +10,6 @@ const INTEGRACOES_INFO = {
   belenus: { nome: 'Belenus', login: 'senha', descricao: 'Login com o e-mail e a senha do portal da Belenus. A senha fica criptografada no servidor e nunca volta pra tela.' },
   helte:   { nome: 'Helte', login: 'oauth', descricao: 'A Helte conecta por autorização oficial (OAuth), como na Groner. Falta a Helte enviar o client_id e o client_secret da Ágil Solar.' },
 };
-const INTEGRACAO_PREC_CAMPOS = [
-  ['final', 'Final do preço (arredonda pra cima)', '1'],
-  ['de_pct', 'Preço "De": % acima do preço', '0.01'],
-  ['de_lim', 'Desconto cheio até (R$)', '100'],
-];
 
 let _integracoesAtivas = null;      // Map distribuidora_id -> provedor
 let _integracoesAtivasPromise = null;
@@ -198,7 +193,6 @@ function _integracaoCard(provedor, i) {
         <p class="text-neutral-500 text-xs">${escapeHTML(info.descricao)}</p>
       </div>`;
   }
-  const prec = i?.precificacao || {};
   const testado = i?.testado_em ? new Date(i.testado_em).toLocaleString('pt-BR') : '';
   return `
     <form class="bg-neutral-900/60 border border-neutral-800 p-4 flex flex-col gap-3" onsubmit="integracaoSalvar(event,'${provedor}')">
@@ -213,14 +207,6 @@ function _integracaoCard(provedor, i) {
         <div><label class="${_labelCls}">Senha</label>
           <input id="int-${provedor}-senha" type="password" class="${_inputCls}" autocomplete="new-password" placeholder="${i?.tem_senha ? 'Guardada · digite só pra trocar' : 'Senha do portal'}"></div>
       </div>
-      <div class="text-neutral-400 text-[10px] font-black uppercase tracking-widest mt-1">Preço de venda</div>
-      <p class="text-neutral-500 text-xs">O preço sai do centro de custo da unidade do vendedor (Financeiro → Config), a mesma conta da calculadora de orçamento: o valor que dá a margem-alvo em cima do custo cotado com frete. Aqui só o arredondamento e o preço riscado.</p>
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-        ${INTEGRACAO_PREC_CAMPOS.map(([k, label, step]) => `
-          <div><label class="${_labelCls}">${escapeHTML(label)}</label>
-            <input id="int-${provedor}-${k}" type="number" step="${step}" min="0" class="${_inputCls} font-mono" value="${prec[k] ?? ''}"></div>`).join('')}
-      </div>
-      <p class="text-neutral-600 text-[11px]">"De" = preço + %; acima do limite o desconto cresce mais devagar (kit grande não fica com desconto absurdo).</p>
       <label class="flex items-center gap-3 cursor-pointer">
         <input type="checkbox" id="int-${provedor}-ativo" ${i?.ativo === false ? '' : 'checked'} class="w-4 h-4 accent-red-500">
         <span class="text-white font-bold text-sm">Usar no orçamento</span>
@@ -238,19 +224,13 @@ async function integracaoSalvar(e, provedor) {
   e.preventDefault();
   if (!_requireAdmin()) return;
   const v = (k) => document.getElementById(`int-${provedor}-${k}`)?.value;
-  const precificacao = {};
-  for (const [k] of INTEGRACAO_PREC_CAMPOS) {
-    const n = Number(v(k));
-    if (!Number.isFinite(n) || n < 0) { showToast('Confira os números da precificação.'); return; }
-    precificacao[k] = n;
-  }
   const usuario = String(v('usuario') || '').trim();
   if (!usuario) { showToast('Informe o usuário.'); return; }
   const btn = e.submitter;
   if (btn) btn.disabled = true;
   const { error } = await supabaseClient.rpc('integracao_salvar', {
     p_provedor: provedor, p_usuario: usuario, p_senha: v('senha') || null,
-    p_precificacao: precificacao, p_ativo: document.getElementById(`int-${provedor}-ativo`)?.checked !== false,
+    p_precificacao: null, p_ativo: document.getElementById(`int-${provedor}-ativo`)?.checked !== false,
   });
   if (btn) btn.disabled = false;
   if (error) { showToast('ERRO AO SALVAR: ' + error.message); return; }
