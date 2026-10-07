@@ -105,7 +105,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
 
   return `
     <div class="pbd-sec">Cotar na ${escapeHTML(info.nome)}</div>
-    <div class="pbd-fornecimento-fields" style="align-items:end">
+    <div class="pbd-fornecimento-fields pb-cot-campos">
       <label class="pbd-mes"><span>Quantidade de placas</span>
         <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" placeholder="Ex.: 13"></label>
       <label class="pbd-mes"><span>Telhado</span>

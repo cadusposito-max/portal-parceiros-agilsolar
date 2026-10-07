@@ -27,6 +27,14 @@ html[data-ui="v2"] .catalogo-oferta-ativo { display: flex; align-items: center; 
 html[data-ui="v2"] .catalogo-oferta-ativo input { accent-color: var(--v2-blue); }
 html[data-ui="v2"] .catalogo-nova-distribuidora { display: flex; gap: 8px; margin-top: 12px; }
 html[data-ui="v2"] .catalogo-nova-distribuidora .pbd-input { flex: 1; }
+/* Cotar na distribuidora integrada: mesmos campos do painel acima, botão alinhado embaixo. */
+html[data-ui="v2"] .pb-cot-campos { align-items: end; }
+html[data-ui="v2"] .pb-cot-campos select { width: 100%; font-size: 13px; font-weight: 600; }
+html[data-ui="v2"] body .pb-cot-campos .v2-dd {
+  width: 100%; max-width: none; justify-content: space-between; border: 1px solid var(--v2-line-strong);
+  border-radius: var(--v2-r-ctl) !important; box-shadow: none; color: var(--v2-ink); font-weight: 600;
+}
+html[data-ui="v2"] .pb-cot-campos .btn { height: 42px; width: 100%; justify-content: center; }
 @media (max-width: 760px) {
   html[data-ui="v2"] .pbd-fornecimento-fields { grid-template-columns: 1fr; }
   html[data-ui="v2"] #pb-fornecimento-panel select { font-size: 16px; }
