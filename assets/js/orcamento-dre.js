@@ -136,7 +136,14 @@
   // custo cadastrado dos equipamentos do catálogo (componentes.custo × qtd).
   // Itens manuais, kits prontos e serviços não têm custo cadastrado → ficam de fora.
   async function sugerirCustoKit(p) {
-    const itens = (p.custom_config && Array.isArray(p.custom_config.itens)) ? p.custom_config.itens : [];
+    // Kit cotado na distribuidora (Admin → Distribuidoras): custo exato da cotação, com frete.
+    if (p.cotacao_id) {
+      const { data, error } = await supabaseClient.rpc('custo_cotacao_proposta', { p_proposta_id: p.id });
+      if (!error && data && num(data.custo) > 0) {
+        return { valor: r2(num(data.custo)), fonte: 'cotacao', provedor: data.provedor };
+      }
+    }
+    const itens =(p.custom_config && Array.isArray(p.custom_config.itens)) ? p.custom_config.itens : [];
     const doCatalogo = itens.filter((i) => i.origem === 'componente' && i.ref_id && i.tipo !== 'servico');
     if (!doCatalogo.length) return null;
     const ids = [...new Set(doCatalogo.map((i) => i.ref_id))];
@@ -306,7 +313,9 @@
               cur.origem === 'banco' ? escapeHTML(fmtSalvoEm(cur.saved))
               : cur.origem === 'local' ? 'Rascunho antigo deste navegador — clique em Salvar para gravar'
               : 'Ainda não salvo'}${cur.sugestaoKit && cur.origem === 'novo'
-                ? ` · <span class="text-neutral-400">custo do kit preenchido pelo catálogo (${cur.sugestaoKit.itens} de ${cur.sugestaoKit.de} equipamentos com custo)</span>`
+                ? ` · <span class="text-neutral-400">${cur.sugestaoKit.fonte === 'cotacao'
+                  ? `custo do kit preenchido pela cotação da ${cur.sugestaoKit.provedor === 'belenus' ? 'Belenus' : 'distribuidora'} (com frete)`
+                  : `custo do kit preenchido pelo catálogo (${cur.sugestaoKit.itens} de ${cur.sugestaoKit.de} equipamentos com custo)`}</span>`
                 : ''}</div>
           </div>
           <button type="button" data-orc-act="close" class="orc-x shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>

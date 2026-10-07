@@ -11,10 +11,7 @@ const INTEGRACOES_INFO = {
   helte:   { nome: 'Helte', login: 'oauth', descricao: 'A Helte conecta por autorização oficial (OAuth), como na Groner. Falta a Helte enviar o client_id e o client_secret da Ágil Solar.' },
 };
 const INTEGRACAO_PREC_CAMPOS = [
-  ['rel_inv', 'Relação preço ÷ custo · inversor', '0.0001'],
-  ['rel_micro', 'Relação preço ÷ custo · micro', '0.0001'],
-  ['fator', 'Fator do preço (× base final 97)', '0.001'],
-  ['final', 'Final do preço base', '1'],
+  ['final', 'Final do preço (arredonda pra cima)', '1'],
   ['de_pct', 'Preço "De": % acima do preço', '0.01'],
   ['de_lim', 'Desconto cheio até (R$)', '100'],
 ];
@@ -61,6 +58,7 @@ function pbCotacaoKits() {
     ativo: true,
     distribuidora_id: _pbFornecimento.distribuidora,
     _custo: k.custo,
+    _margem: k.margem_alvo,
     _inversor: k.inversor,
   }));
 }
@@ -85,7 +83,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
     const id = escapeHTML(k.id);
     const temDe = Number(k.list_price) > Number(k.price);
     const custo = state.isAdmin && Number(k._custo) > 0
-      ? `<div class="pbd-kit-nota">Só admin: custo ${escapeHTML(info.nome)} ${formatCurrency(k._custo)}</div>` : '';
+      ? `<div class="pbd-kit-nota">Só admin: custo ${escapeHTML(info.nome)} ${formatCurrency(k._custo)}${k._margem != null ? ` · margem-alvo ${escapeHTML(String(k._margem).replace('.', ','))}%` : ''}</div>` : '';
     return `
       <div data-orcamento-kit="${id}" class="pbd-kit${i === 0 ? ' is-top' : ''}">
         ${i === 0 ? '<span class="pbd-kit-tag">Menor preço</span>' : ''}
@@ -215,13 +213,14 @@ function _integracaoCard(provedor, i) {
         <div><label class="${_labelCls}">Senha</label>
           <input id="int-${provedor}-senha" type="password" class="${_inputCls}" autocomplete="new-password" placeholder="${i?.tem_senha ? 'Guardada · digite só pra trocar' : 'Senha do portal'}"></div>
       </div>
-      <div class="text-neutral-400 text-[10px] font-black uppercase tracking-widest mt-1">Precificação em cima do custo cotado</div>
+      <div class="text-neutral-400 text-[10px] font-black uppercase tracking-widest mt-1">Preço de venda</div>
+      <p class="text-neutral-500 text-xs">O preço sai do centro de custo da unidade do vendedor (Financeiro → Config), a mesma conta da calculadora de orçamento: o valor que dá a margem-alvo em cima do custo cotado com frete. Aqui só o arredondamento e o preço riscado.</p>
       <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
         ${INTEGRACAO_PREC_CAMPOS.map(([k, label, step]) => `
           <div><label class="${_labelCls}">${escapeHTML(label)}</label>
             <input id="int-${provedor}-${k}" type="number" step="${step}" min="0" class="${_inputCls} font-mono" value="${prec[k] ?? ''}"></div>`).join('')}
       </div>
-      <p class="text-neutral-600 text-[11px]">Preço = custo × relação, arredondado pra cima no final ${escapeHTML(String(prec.final ?? 97))} e × fator. "De" = preço + %; acima do limite o desconto cresce mais devagar.</p>
+      <p class="text-neutral-600 text-[11px]">"De" = preço + %; acima do limite o desconto cresce mais devagar (kit grande não fica com desconto absurdo).</p>
       <label class="flex items-center gap-3 cursor-pointer">
         <input type="checkbox" id="int-${provedor}-ativo" ${i?.ativo === false ? '' : 'checked'} class="w-4 h-4 accent-red-500">
         <span class="text-white font-bold text-sm">Usar no orçamento</span>
