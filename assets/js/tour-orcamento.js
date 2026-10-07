@@ -33,94 +33,94 @@ const _tourNoOrcamento = { se: _tourOrcamentoAberto, para: 'orc' }; // escolheu 
 const TOUR_PASSOS = [
   {
     id: 'oi', centro: true, icone: 'sparkles',
-    titulo: (rever) => rever ? 'Tour do orçamento' : `Bem-vindo${_tourPrimeiroNome() ? ', ' + escapeHTML(_tourPrimeiroNome()) : ''}!`,
+    titulo: (rever) => rever ? 'Tour do orçamento' : `Boas-vindas${_tourPrimeiroNome() ? ', ' + escapeHTML(_tourPrimeiroNome()) : ''}!`,
     texto: (rever) => rever
-      ? 'Vamos rever, passo a passo, como fazer um orçamento? Leva uns 2 minutos.'
-      : 'Vamos fazer seu <b>primeiro orçamento</b> juntos? Leva uns 2 minutos e no fim você já tem uma proposta pronta pra mandar.<br><br>Tenha em mãos o nome, o WhatsApp e a conta de luz de um cliente.',
+      ? 'Deseja rever, passo a passo, como elaborar um orçamento? O processo leva cerca de 2 minutos.'
+      : 'Vamos elaborar o seu <b>primeiro orçamento</b>? O processo leva cerca de 2 minutos e, ao final, a proposta estará pronta para ser enviada ao cliente.<br><br>Tenha em mãos o nome, o WhatsApp e a conta de luz de um cliente.',
     botao: 'Começar', pular: 'Agora não',
   },
   {
     id: 'nova', alvo: () => _tourVis('#v2-side .v2-cta, #v2-mnav .plus'),
-    titulo: () => 'Tudo começa aqui',
-    texto: () => 'Toque em <b>Nova proposta</b>. Esse botão fica sempre aqui, em qualquer tela do Comercial.',
+    titulo: () => 'Por onde começar',
+    texto: () => 'Selecione <b>Nova proposta</b>. Este botão fica sempre disponível no ambiente Comercial.',
     esperar: _tourModalProposta,
   },
   {
     id: 'np-tabs', alvo: () => _tourVis('#client-modal-overlay .np-picker-tabs'), senaoVolta: 'nova', atalho: _tourNoOrcamento,
-    titulo: () => 'Cliente novo ou já cadastrado?',
-    texto: () => 'Se o cliente já estiver na plataforma, use <b>Já é cliente</b> e busque pelo nome. Se não, cadastre aqui mesmo, em <b>Cliente novo</b>.',
+    titulo: () => 'Cliente novo ou já cadastrado',
+    texto: () => 'Se o cliente já estiver cadastrado na plataforma, selecione <b>Já é cliente</b> e pesquise pelo nome. Caso contrário, faça o cadastro em <b>Cliente novo</b>.',
   },
   {
     id: 'np-contato', senaoVolta: 'nova', atalho: _tourNoOrcamento,
     alvo: () => [_tourBloco('#client-nome'), _tourBloco('#client-telefone')],
     titulo: () => 'Nome e WhatsApp',
-    texto: () => 'O WhatsApp é importante: é por ele que a proposta chega no cliente, com a mensagem pronta.',
+    texto: () => 'Informe o nome e o WhatsApp do cliente. O WhatsApp é importante, pois é por ele que a proposta será enviada.',
   },
   {
     id: 'np-cidade', senaoVolta: 'nova', atalho: _tourNoOrcamento,
     alvo: () => [_tourBloco('#client-cidade'), _tourDropCidade()],
-    titulo: () => 'A cidade muda o resultado',
-    texto: () => 'Digite e <b>escolha na lista</b>. A plataforma usa o sol da cidade pra calcular quanto o sistema vai gerar.',
+    titulo: () => 'Cidade do cliente',
+    texto: () => 'Digite a cidade e <b>selecione-a na lista</b>. A plataforma utiliza a irradiação solar da região para calcular a geração de energia do sistema.',
   },
   {
     id: 'np-salvar', senaoVolta: 'nova', atalho: _tourNoOrcamento,
     alvo: () => [_tourVis('#client-form'), _tourDropCidade()], anel: () => _tourVis('#btn-save-client'),
-    titulo: () => 'Salvar e seguir',
-    texto: () => 'E-mail e origem são opcionais. Toque em <b>Salvar e fazer orçamento</b>: o cliente fica salvo e você vai direto pro orçamento dele.',
+    titulo: () => 'Salvar o cadastro',
+    texto: () => 'E-mail e origem são opcionais. Selecione <b>Salvar e fazer orçamento</b>: o cliente será cadastrado e você seguirá diretamente para o orçamento.',
     esperar: _tourOrcamentoAberto,
   },
   {
     id: 'orc', alvo: () => _tourVis('.orcamento-header'), senaoVolta: 'nova',
-    titulo: () => 'A tela do orçamento',
-    texto: () => `Tudo aqui é do <b>${escapeHTML(_tourCliente())}</b>. Cidade, sol da região e WhatsApp ficam no topo pra você conferir.`,
+    titulo: () => 'Tela do orçamento',
+    texto: () => `Este é o orçamento de <b>${escapeHTML(_tourCliente())}</b>. No topo, confira a cidade, a irradiação solar da região (HSP) e o WhatsApp do cliente.`,
   },
   {
     id: 'porta', alvo: () => _tourVis('#orcamento-builder-slot #pb-porta'), senaoVolta: 'nova',
-    titulo: () => 'Dois jeitos de montar',
-    texto: () => '<b>Escolher kit</b>: quando você já sabe qual kit quer.<br><b>Dimensionar sistema</b>: quando tem a conta de luz e quer que a plataforma sugira o kit.<br><br>Toque em <b>Dimensionar sistema</b>.',
+    titulo: () => 'Formas de montar o orçamento',
+    texto: () => '<b>Escolher kit</b>: quando você já sabe qual kit oferecer.<br><b>Dimensionar sistema</b>: quando você tem a conta de luz e deseja que a plataforma recomende o kit.<br><br>Selecione <b>Dimensionar sistema</b>.',
     esperar: () => state.pbPorta === 'dim',
   },
   {
     id: 'consumo', senaoVolta: 'porta',
     alvo: () => [_tourVis('[data-pbd-grupo="modo"]'), _tourVis('#pbd-box-mes') || _tourVis('#pbd-box-media')],
-    titulo: () => 'O consumo da conta de luz',
-    texto: () => 'Copie os meses do histórico da conta. Só tem a média? Toque em <b>Só a média em kWh</b> e digite o número.',
+    titulo: () => 'Consumo de energia',
+    texto: () => 'Informe o consumo mensal conforme o histórico da conta de luz. Se tiver apenas a média, selecione <b>Só a média em kWh</b> e informe o valor.',
     esperar: () => Boolean(_tourVis('#pbd-resultado .pbd-kit')),
   },
   {
     id: 'ligacao', alvo: () => _tourVis('[data-pbd-ligacao]')?.parentElement, senaoVolta: 'porta',
     titulo: () => 'Tipo de ligação',
-    texto: () => 'Monofásico, bifásico ou trifásico (vem escrito na conta). Muda a taxa mínima que o cliente paga mesmo com solar: 30, 50 ou 100 kWh.',
+    texto: () => 'Selecione monofásico, bifásico ou trifásico, conforme indicado na conta de luz. Essa informação define a taxa mínima cobrada pela distribuidora mesmo com o sistema instalado: 30, 50 ou 100 kWh.',
   },
   {
     id: 'tipo', alvo: () => _tourVis('[data-pbd-tipo]')?.parentElement, senaoVolta: 'porta',
     titulo: () => 'Inversor ou microinversor',
-    texto: () => 'Troque aqui pra ver os kits de cada tipo. A sugestão se ajusta na hora.',
+    texto: () => 'Selecione o tipo de sistema. A recomendação de kits é atualizada automaticamente.',
   },
   {
     id: 'kit', alvo: () => _tourVis('#pbd-resultado .pbd-kit'), senaoVolta: 'porta',
-    titulo: () => 'O kit recomendado',
-    texto: () => 'É o kit <b>mais barato que cobre a média</b> de consumo do cliente. Logo abaixo aparecem outras opções parecidas.<br><br>Toque no kit para selecionar.',
+    titulo: () => 'Kit recomendado',
+    texto: () => 'Este é o kit <b>de menor preço que atende à média de consumo</b> do cliente. Logo abaixo, são exibidas outras opções semelhantes.<br><br>Selecione o kit para continuar.',
     esperar: () => Boolean(document.querySelector('#orcamento-builder-slot .orcamento-kit-selecionado')),
   },
   {
     id: 'gerar', alvo: () => _tourVis('.orcamento-footer'), anel: () => _tourVis('#orcamento-gerar'), senaoVolta: 'porta',
-    titulo: () => 'Confira e gere',
-    texto: () => 'Aqui embaixo ficam o kit escolhido e o preço. Tudo certo? Toque em <b>Gerar proposta</b>.',
+    titulo: () => 'Revisar e gerar',
+    texto: () => 'Confira o kit selecionado e o valor. Se estiver tudo correto, selecione <b>Gerar proposta</b>.',
     esperar: () => Boolean(document.getElementById('pb-share-overlay')),
   },
   {
     id: 'enviar', senaoVolta: 'fim',
     alvo: () => _tourVis('#pb-share-overlay a.btn-success') || _tourVis('#pb-share-overlay > div'),
-    titulo: () => 'Proposta pronta!',
+    titulo: () => 'Proposta gerada',
     texto: () => document.querySelector('#pb-share-overlay a.btn-success')
-      ? `O link já foi copiado. Toque em <b>Enviar no WhatsApp</b> e a mensagem vai pronta pro ${escapeHTML(_tourCliente())}, com o link da proposta.`
-      : 'O link já foi copiado. Como o cliente está sem WhatsApp, mande o link por outro canal.',
+      ? `O link já foi copiado. Selecione <b>Enviar no WhatsApp</b> para encaminhar a proposta a ${escapeHTML(_tourCliente())} com a mensagem pronta.`
+      : 'O link já foi copiado. Como o cliente não tem WhatsApp cadastrado, envie o link por outro canal.',
   },
   {
     id: 'fim', centro: true, icone: 'party-popper',
-    titulo: () => 'Orçamento feito!',
-    texto: () => 'Quando o cliente abrir o link, a proposta aparece como <b>VISTA</b> e você recebe um aviso.<br><br>Quer rever este passo a passo? Toque no <b>?</b> lá em cima.',
+    titulo: () => 'Orçamento concluído',
+    texto: () => 'Quando o cliente abrir o link, a proposta será marcada como <b>VISTA</b> e você receberá um aviso.<br><br>Para rever este passo a passo, use o ícone <b>?</b> no topo da tela.',
     botao: 'Concluir',
   },
 ];
@@ -290,7 +290,7 @@ const TourOrcamento = (() => {
       <div class="tour-top"><small>Passo ${n} de ${TOTAL}</small><button type="button" class="tour-x" data-t="sair" aria-label="Sair do tour"><i data-lucide="x"></i></button></div>`}
       <h3>${p.titulo(rever)}</h3>
       <p>${p.texto(rever)}</p>
-      ${p.esperar ? '<div class="tour-faca"><i data-lucide="pointer"></i> Faça isso na tela pra continuar</div>' : ''}
+      ${p.esperar ? '<div class="tour-faca"><i data-lucide="pointer"></i> Realize esta ação para continuar</div>' : ''}
       <div class="tour-btns">
         ${p.pular ? `<button type="button" class="tour-b tour-b-ghost" data-t="pular">${p.pular}</button>` : ''}
         ${!p.esperar ? `<button type="button" class="tour-b tour-b-pri" data-t="prox">${p.botao || 'Próximo'}</button>` : ''}
@@ -304,10 +304,10 @@ const TourOrcamento = (() => {
     saindo = true;
     balao.classList.remove('tour-centro');
     balao.innerHTML = `
-      <h3>Sair do tour?</h3>
-      <p>Você pode rever quando quiser no <b>?</b> lá em cima.</p>
+      <h3>Deseja sair do tour?</h3>
+      <p>Você poderá revê-lo a qualquer momento pelo ícone <b>?</b> no topo da tela.</p>
       <div class="tour-btns">
-        <button type="button" class="tour-b tour-b-ghost" data-t="sim">Sair do tour</button>
+        <button type="button" class="tour-b tour-b-ghost" data-t="sim">Sair</button>
         <button type="button" class="tour-b tour-b-pri" data-t="nao">Continuar</button>
       </div>`;
     ultimo = '';
