@@ -6,6 +6,13 @@
 // preço e "De"; o admin também vê o custo. A proposta é criada com cotacao_id e
 // o banco copia nome/preço da cotação (o navegador não define o preço).
 
+// A função roda sempre em São Paulo: nos logs de 08/10 todas as recusas imediatas (403) da Belenus
+// vieram da função rodando nos EUA, e as cotações que deram certo rodaram em São Paulo.
+const DISTRIBUIDORAS_REGIAO = 'sa-east-1';
+function invocarDistribuidoras(body) {
+  return supabaseClient.functions.invoke('distribuidoras', { body, region: DISTRIBUIDORAS_REGIAO });
+}
+
 const INTEGRACOES_INFO = {
   belenus: { nome: 'Belenus', login: 'senha', descricao: 'Login com o e-mail e a senha do portal da Belenus. A senha fica criptografada no servidor e nunca volta pra tela.' },
   helte:   { nome: 'Helte', login: 'oauth', descricao: 'A Helte conecta por autorização oficial (OAuth), como na Groner. Falta a Helte enviar o client_id e o client_secret da Ágil Solar.' },
@@ -48,12 +55,15 @@ function pbIntegracaoAtual() {
 function pbIntegracaoAlertaHTML(msg, contexto = 'cotar') {
   const nome = INTEGRACOES_INFO[pbIntegracaoAtual()]?.nome || 'distribuidora';
   const txt = String(msg || '').replace(/^Não foi possível buscar os equipamentos da distribuidora:\s*/i, '').trim();
-  const bloqueio = txt.match(/recusando as consultas[\s\S]*?(\d{1,2}:\d{2})/i);
+  // Pausa: 403 ("recusando as consultas") ou 429 ("pediu pra aguardar"), sempre com o horário.
+  const bloqueio = txt.match(/(?:recusando as consultas|pediu pra aguardar)[\s\S]*?(\d{1,2}:\d{2})/i);
   let tipo = 'aviso', icone = 'alert-triangle', titulo, corpo, hora = '';
   if (bloqueio) {
     icone = 'hourglass'; hora = bloqueio[1];
     titulo = `${nome} pausada por alguns minutos`;
-    corpo = `A ${nome} recusou uma consulta. Nosso sistema pausou novas tentativas por precaução; o horário abaixo não garante a liberação pela distribuidora.`;
+    corpo = /pediu pra aguardar/i.test(txt)
+      ? `A ${nome} pediu pra aguardar antes de novas consultas.`
+      : `A ${nome} recusou uma consulta. Nosso sistema pausou novas tentativas por precaução; o horário abaixo não garante a liberação pela distribuidora.`;
   } else if (/^Esse kit não está disponível/i.test(txt)) {
     icone = 'package-x';
     titulo = `Kit indisponível na ${nome}`;
@@ -89,9 +99,7 @@ async function pbIntegracaoCarregarOpcoes(force = false) {
   if (!id || !provedor || (_pbCotOpcoes[id] && !force)) return;
   _pbCotOpcoes[id] = { carregando: true };
   try {
-    const { data, error } = await supabaseClient.functions.invoke('distribuidoras', {
-      body: { acao: 'opcoes', provedor, placas: Number(_pbCot.placas) || 10 },
-    });
+    const { data, error } = await invocarDistribuidoras({ acao: 'opcoes', provedor, placas: Number(_pbCot.placas) || 10 });
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.error || 'Não foi possível buscar os equipamentos.');
     _pbCotOpcoes[id] = { modulos: data.modulos || [], padrao: data.padrao, marcas_inversor: data.marcas_inversor || [], marcas_micro: data.marcas_micro || [] };
@@ -231,18 +239,16 @@ async function pbIntegracaoCotar() {
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbFornecimentoSync();
   try {
-    const { data, error } = await supabaseClient.functions.invoke('distribuidoras', {
-      body: {
-        acao: 'cotar', provedor, placas, telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico',
-        tipo: state.pbCategory === 'kitsMicro' ? 'micro' : 'inversor', modulo: _pbCotSel.modulo || null, marca: _pbCotSel.marca || null,
-      },
+    const { data, error } = await invocarDistribuidoras({
+      acao: 'cotar', provedor, placas, telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico',
+      tipo: state.pbCategory === 'kitsMicro' ? 'micro' : 'inversor', modulo: _pbCotSel.modulo || null, marca: _pbCotSel.marca || null,
     });
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.error || 'Não foi possível cotar agora.');
     _pbCot.kits = data.kits || [];
     // Nenhuma opção saiu: se foi bloqueio, mostra o bloqueio (com o horário); senão, kit indisponível.
     if (!_pbCot.kits.some((k) => !k.erro)) {
-      _pbCot.erro = _pbCot.kits.find((k) => /recusando as consultas/i.test(k.erro || ''))?.erro
+      _pbCot.erro = _pbCot.kits.find((k) => /recusando as consultas|pediu pra aguardar/i.test(k.erro || ''))?.erro
         || 'Esse kit não está disponível no momento. Escolha outro módulo ou outro inversor e cote de novo.';
     }
   } catch (err) {
@@ -358,7 +364,7 @@ async function integracaoTestar(provedor, btn) {
   btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i>Testando...';
   lucide.createIcons();
   try {
-    const { data, error } = await supabaseClient.functions.invoke('distribuidoras', { body: { acao: 'testar', provedor } });
+    const { data, error } = await invocarDistribuidoras({ acao: 'testar', provedor });
     if (error) throw error;
     showToast(data?.ok ? `CONECTADA${data.conta ? ' · ' + data.conta : ''}` : `FALHOU: ${data?.error || 'sem resposta'}`);
   } catch (err) {
