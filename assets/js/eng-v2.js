@@ -1328,10 +1328,10 @@
   }
 
   // documentos congelados no envio (com o que chegou depois)
-  const DOC_LABEL = { rg_cnh: 'RG / CNH', conta_energia: 'Conta de energia', foto_padrao: 'Foto do padrão', foto_disjuntor: 'Foto do disjuntor', foto_fachada: 'Fachada', localizacao_padrao: 'Localização do padrão', foto_medidor: 'Medidor', caixa_medicao: 'Caixa de medição', procuracao: 'Procuração', comprovante_taxa: 'Comprovante da taxa', engenharia: 'Engenharia', inspecao: 'Inspeção', outros: 'Outros' };
+  const DOC_LABEL = { rg_cnh: 'RG / CNH', conta_energia: 'Conta de energia', contrato_social: 'Contrato social', cartao_cnpj: 'Cartão CNPJ', foto_padrao: 'Foto do padrão', foto_disjuntor: 'Foto do disjuntor', foto_fachada: 'Fachada', localizacao_padrao: 'Localização do padrão', foto_medidor: 'Medidor', caixa_medicao: 'Caixa de medição', procuracao: 'Procuração', comprovante_taxa: 'Comprovante da taxa', engenharia: 'Engenharia', inspecao: 'Inspeção', outros: 'Outros' };
   // ------------------------------------------------------------ documentos
   // ordem da pasta (zip numerado) e checklist dos obrigatórios
-  const DOC_ORDEM = ['conta_energia', 'rg_cnh', 'procuracao', 'comprovante_taxa', 'foto_padrao', 'foto_disjuntor', 'foto_fachada', 'localizacao_padrao', 'foto_medidor', 'caixa_medicao', 'engenharia', 'inspecao', 'outros'];
+  const DOC_ORDEM = ['conta_energia', 'rg_cnh', 'contrato_social', 'cartao_cnpj', 'procuracao', 'comprovante_taxa', 'foto_padrao', 'foto_disjuntor', 'foto_fachada', 'localizacao_padrao', 'foto_medidor', 'caixa_medicao', 'engenharia', 'inspecao', 'outros'];
   const DOC_OBRIG = [['conta_energia', 'Conta de energia'], ['rg_cnh', 'RG / CNH'], ['procuracao', 'Procuração'], ['comprovante_taxa', 'Taxa de projeto'], ['foto_padrao', 'Foto do padrão'], ['foto_disjuntor', 'Foto do disjuntor'], ['foto_fachada', 'Fachada'], ['localizacao_padrao', 'Localização do padrão'], ['foto_medidor', 'Medidor'], ['caixa_medicao', 'Caixa de medição']];
   const SLOT_LABEL = { frontal: 'frontal', traseira: 'traseira', aberta: 'aberta', fechada: 'fechada' };
   const extDe = (a) => { const m = String(a.nome || a.storage_path || '').match(/\.([a-z0-9]{2,5})$/i); if (m) return m[1].toLowerCase(); const t = String(a.mime || ''); return t.includes('pdf') ? 'pdf' : t.includes('png') ? 'png' : t.includes('jpeg') || t.includes('jpg') ? 'jpeg' : t.includes('webp') ? 'webp' : 'bin'; };
@@ -1375,7 +1375,11 @@
     const snapDocs = docs.filter((a) => !a.novo), novos = docs.filter((a) => a.novo);
     const fotos = snapDocs.filter(ehImg), outros = snapDocs.filter((a) => !ehImg(a));
     const loc = p.snapshot && p.snapshot.cliente && p.snapshot.cliente.padrao_localizacao;
-    const chk = DOC_OBRIG.map(([tipo, rotulo]) => {
+    // cliente empresa: contrato social e cartão CNPJ também são obrigatórios (eng_docs_faltando)
+    const cli = (p.snapshot && p.snapshot.cliente) || {};
+    const faltouPj = docsFaltando(p).some((f) => /contrato social|cart[aã]o cnpj/i.test(f));
+    const pj = faltouPj || docs.some((a) => a.tipo === 'contrato_social' || a.tipo === 'cartao_cnpj') || String(cli.documento || '').replace(/\D/g, '').length === 14;
+    const chk = DOC_OBRIG.concat(pj ? [['contrato_social', 'Contrato social'], ['cartao_cnpj', 'Cartão CNPJ']] : []).map(([tipo, rotulo]) => {
       const q = snapDocs.filter((a) => a.tipo === tipo);
       const depois = novos.some((a) => a.tipo === tipo);
       let ok = q.length > 0, extra = q.length > 1 ? '×' + q.length : '';

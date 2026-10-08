@@ -40,6 +40,12 @@ const CRM_DOCS_CHECKLIST = [
   ] },
 ];
 
+// Cliente pessoa jurídica: entram no grupo Cadastro (mesma regra em eng_docs_faltando).
+const CRM_DOCS_PJ = [
+  { tipo: 'contrato_social', label: 'Contrato social / estatuto', dica: 'Contrato social ou última alteração consolidada. Igreja, associação e condomínio: estatuto + ata de eleição da diretoria. MEI: CCMEI.' },
+  { tipo: 'cartao_cnpj', label: 'Cartão CNPJ', dica: 'Comprovante de inscrição emitido no site da Receita Federal.' },
+];
+
 // Fora da conta dos obrigatórios.
 const CRM_ARQ_PASTAS_EXTRAS = [
   { tipo: 'engenharia', label: 'Engenharia', icon: 'hard-hat', dica: 'ART, parecer de acesso e outros documentos técnicos.' },
@@ -51,12 +57,34 @@ let _crmArq = { clienteId: null, rows: [], urls: {}, loading: false, erro: null,
 let _crmArqUploadCtx = null;
 let _crmArqRep = {}; // tipo -> { trocado, rotulos } da reprovação da engenharia em aberto
 
-function _crmArqItens() {
-  return CRM_DOCS_CHECKLIST.flatMap((g) => g.itens);
+// Mesma regra do ícone empresa/pessoa (ui-v2-screens.js): tipo salvo no contrato,
+// senão CPF/CNPJ pelos dígitos, senão nome típico de empresa.
+function _crmArqEhPJ(client) {
+  if (!client) return false;
+  if (typeof window.uiV2TipoCliente === 'function') return window.uiV2TipoCliente(client) === 'PJ';
+  const salvo = client.documentos_dados && client.documentos_dados.tipo_pessoa;
+  if (salvo === 'PJ' || salvo === 'PF') return salvo === 'PJ';
+  return String(client.documento || '').replace(/\D/g, '').length === 14;
+}
+
+// Checklist do cliente: PJ ganha contrato social e cartão CNPJ no Cadastro, e o
+// RG/CNH passa a ser do representante legal. Se já houver arquivo de PJ anexado,
+// os itens aparecem mesmo que o cliente não seja reconhecido como empresa.
+function _crmArqChecklist(client, rows) {
+  const pj = _crmArqEhPJ(client) || (rows || []).some((r) => CRM_DOCS_PJ.some((i) => i.tipo === r.tipo));
+  if (!pj) return CRM_DOCS_CHECKLIST;
+  return CRM_DOCS_CHECKLIST.map((g) => g.grupo !== 'Cadastro' ? g : {
+    ...g,
+    itens: g.itens.map((i) => i.tipo === 'rg_cnh' ? { ...i, label: 'RG / CNH do representante legal', dica: 'De quem assina pela empresa (sócio administrador, presidente ou síndico).' } : i).concat(CRM_DOCS_PJ),
+  });
+}
+
+function _crmArqItens(client, rows) {
+  return _crmArqChecklist(client, rows).flatMap((g) => g.itens);
 }
 
 function _crmArqLabel(tipo) {
-  const item = _crmArqItens().find((i) => i.tipo === tipo) || CRM_ARQ_PASTAS_EXTRAS.find((p) => p.tipo === tipo);
+  const item = _crmArqItens().find((i) => i.tipo === tipo) || CRM_DOCS_PJ.find((i) => i.tipo === tipo) || CRM_ARQ_PASTAS_EXTRAS.find((p) => p.tipo === tipo);
   return item ? item.label : tipo;
 }
 
@@ -97,7 +125,7 @@ function _crmArqItemFeito(item, rows, client) {
 }
 
 function _crmArqProgresso(rows, client) {
-  const itens = _crmArqItens();
+  const itens = _crmArqItens(client, rows);
   const faltando = itens.filter((i) => !_crmArqItemFeito(i, rows, client)).map((i) => ({ tipo: i.tipo, label: i.label }));
   return { feitos: itens.length - faltando.length, total: itens.length, faltando };
 }
@@ -163,7 +191,7 @@ function renderCrmArquivosTab(client) {
   const pct = Math.round((prog.feitos / prog.total) * 100);
   const completo = prog.feitos === prog.total;
 
-  const grupos = CRM_DOCS_CHECKLIST.map((g) => {
+  const grupos = _crmArqChecklist(client, rows).map((g) => {
     const feitos = g.itens.filter((i) => _crmArqItemFeito(i, rows, client)).length;
     return `
       <div class="space-y-1.5">
