@@ -53,7 +53,7 @@ function pbIntegracaoAlertaHTML(msg, contexto = 'cotar') {
   if (bloqueio) {
     icone = 'hourglass'; hora = bloqueio[1];
     titulo = `${nome} pausada por alguns minutos`;
-    corpo = `A ${nome} limitou as consultas da plataforma. Tentar antes só aumenta a espera.`;
+    corpo = `A ${nome} recusou uma consulta. Nosso sistema pausou novas tentativas por precaução; o horário abaixo não garante a liberação pela distribuidora.`;
   } else if (/^Esse kit não está disponível/i.test(txt)) {
     icone = 'package-x';
     titulo = `Kit indisponível na ${nome}`;
@@ -77,7 +77,7 @@ function pbAlertaHTML({ tipo = 'aviso', icone = 'alert-triangle', titulo, corpo 
       <div>
         <p class="pb-alerta-t">${escapeHTML(titulo)}</p>
         ${corpo ? `<p class="pb-alerta-b">${escapeHTML(corpo)}</p>` : ''}
-        ${hora ? `<span class="pb-alerta-chip"><i data-lucide="clock"></i>Volta às ${escapeHTML(hora)}</span>` : ''}
+        ${hora ? `<span class="pb-alerta-chip"><i data-lucide="clock"></i>Nova tentativa após ${escapeHTML(hora)}</span>` : ''}
       </div>
     </div>`;
 }
