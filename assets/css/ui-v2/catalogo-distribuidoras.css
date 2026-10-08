@@ -44,3 +44,21 @@ html[data-ui="v2"] .pb-cot-campos .btn { height: 42px; width: 100%; justify-cont
   html[data-ui="v2"] .catalogo-oferta-row .catalogo-oferta-ativo { grid-row: 3; }
   html[data-ui="v2"] .catalogo-oferta-row button { grid-column: 2; grid-row: 3; }
 }
+/* Avisos da distribuidora integrada (bloqueio, kit em falta, erro): cartão com ícone,
+   título e explicação, em letra grande pra ler no celular. Laranja = aviso; vermelho = erro. */
+html[data-ui="v2"] .pb-alerta {
+  display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding: 12px 14px;
+  border-radius: 14px; text-align: left;
+}
+html[data-ui="v2"] .pb-alerta > svg { width: 22px; height: 22px; flex-shrink: 0; margin-top: 1px; }
+html[data-ui="v2"] .pb-alerta > div { min-width: 0; }
+html[data-ui="v2"] .pb-alerta-t { margin: 0 0 2px; font-size: 15px; font-weight: 800; line-height: 1.35; }
+html[data-ui="v2"] .pb-alerta-b { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+html[data-ui="v2"] .pb-alerta-aviso { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] .pb-alerta-erro { background: rgba(209,67,67,.1); color: #A32D2D; }
+html[data-ui="v2"][data-theme="dark"] .pb-alerta-erro { background: rgba(209,67,67,.16); color: #F29B9B; }
+html[data-ui="v2"] .pb-alerta-chip {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 3px 10px;
+  border: 1px solid currentColor; border-radius: 999px; font-size: 13px; font-weight: 700;
+}
+html[data-ui="v2"] .pb-alerta-chip svg { width: 14px; height: 14px; }

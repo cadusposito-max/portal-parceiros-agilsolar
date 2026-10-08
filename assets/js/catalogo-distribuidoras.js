@@ -148,7 +148,7 @@ function pbFornecimentoMount() {
         <label class="pbd-mes"><span>Módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
         <label class="pbd-mes"><span>Marca do inversor / microinversor</span><select id="pb-filtro-inversor" class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor" onchange="pbFornecimentoEscolher('inversor',this.value)"></select></label>
         <label class="pbd-mes"><span>Distribuidora do kit</span><select id="pb-filtro-distribuidora" class="pbd-input v2-select" data-titulo="Distribuidora do kit" onchange="pbFornecimentoEscolher('distribuidora',this.value)"></select></label>
-      </div><p id="pb-fornecimento-aviso" class="pbd-hint" aria-live="polite"></p>`;
+      </div><div id="pb-fornecimento-aviso" class="pbd-hint" aria-live="polite"></div>`;
     document.getElementById('pb-kit-fornecimento-slot')?.appendChild(panel);
   }
   pbFornecimentoRender();
@@ -194,11 +194,19 @@ function pbFornecimentoRender() {
   dist.value = _pbFornecimento.distribuidora;
   dist.disabled = !_catalogoDistrib.carregado;
   const aviso = document.getElementById('pb-fornecimento-aviso');
-  aviso.textContent = _catalogoDistrib.erro ? 'Não foi possível carregar as distribuidoras. Tente atualizar a página.'
-    : !_catalogoDistrib.carregado ? 'Carregando catálogo...'
-    : integrada ? avisoIntegrada
-    : _pbFornecimento.distribuidora && !disponiveis.length ? 'Nenhum equipamento disponível nesta distribuidora.' : '';
-  aviso.classList.toggle('hidden', !aviso.textContent);
+  // Problema na distribuidora integrada vem como cartão de alerta ({ html }); o resto é dica em texto.
+  const alertaHtml = _catalogoDistrib.carregado && !_catalogoDistrib.erro && integrada && avisoIntegrada?.html;
+  aviso.classList.toggle('pbd-hint', !alertaHtml);
+  if (alertaHtml) {
+    aviso.innerHTML = alertaHtml;
+    if (window.lucide) lucide.createIcons();
+  } else {
+    aviso.textContent = _catalogoDistrib.erro ? 'Não foi possível carregar as distribuidoras. Tente atualizar a página.'
+      : !_catalogoDistrib.carregado ? 'Carregando catálogo...'
+      : integrada ? avisoIntegrada
+      : _pbFornecimento.distribuidora && !disponiveis.length ? 'Nenhum equipamento disponível nesta distribuidora.' : '';
+  }
+  aviso.classList.toggle('hidden', !aviso.textContent.trim());
   if (window.uiV2Select) window.uiV2Select.scan(panel);
 }
 

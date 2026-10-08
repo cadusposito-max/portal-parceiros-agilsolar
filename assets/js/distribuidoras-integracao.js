@@ -42,6 +42,46 @@ function pbIntegracaoAtual() {
 }
 
 // ------------------------------------------------------------------ orçamento
+// Aviso em cartão (ícone + título + explicação), legível no celular. Traduz as mensagens do
+// servidor: bloqueio temporário (com o horário de volta), kit em falta e erro. Laranja = dá pra
+// resolver esperando ou trocando a escolha; vermelho = erro. O detalhe técnico só o admin vê.
+function pbIntegracaoAlertaHTML(msg, contexto = 'cotar') {
+  const nome = INTEGRACOES_INFO[pbIntegracaoAtual()]?.nome || 'distribuidora';
+  const txt = String(msg || '').replace(/^Não foi possível buscar os equipamentos da distribuidora:\s*/i, '').trim();
+  const bloqueio = txt.match(/recusando as consultas[\s\S]*?(\d{1,2}:\d{2})/i);
+  let tipo = 'aviso', icone = 'alert-triangle', titulo, corpo, hora = '';
+  if (bloqueio) {
+    icone = 'hourglass'; hora = bloqueio[1];
+    titulo = `${nome} pausada por alguns minutos`;
+    corpo = `A ${nome} limitou as consultas da plataforma. Tentar antes só aumenta a espera.`;
+  } else if (/^Esse kit não está disponível/i.test(txt)) {
+    icone = 'package-x';
+    titulo = `Kit indisponível na ${nome}`;
+    const resto = txt.replace(/^Esse kit não está disponível no momento[:.]?\s*/i, '');
+    corpo = resto ? resto.charAt(0).toUpperCase() + resto.slice(1) : 'Escolha outro módulo ou outro inversor e cote de novo.';
+  } else if (/sendo atualizado/i.test(txt)) {
+    icone = 'refresh-cw';
+    titulo = 'Atualizando a lista de equipamentos';
+    corpo = 'Tente de novo em um minuto.';
+  } else {
+    tipo = 'erro';
+    titulo = contexto === 'equipamentos' ? 'Não foi possível buscar os equipamentos' : 'Não foi possível cotar agora';
+    corpo = state.isAdmin && txt ? txt : `A ${nome} não respondeu. Tente de novo em instantes.`;
+  }
+  return pbAlertaHTML({ tipo, icone, titulo, corpo, hora });
+}
+
+function pbAlertaHTML({ tipo = 'aviso', icone = 'alert-triangle', titulo, corpo = '', hora = '' }) {
+  return `<div class="pb-alerta pb-alerta-${tipo}" role="${tipo === 'erro' ? 'alert' : 'status'}">
+      <i data-lucide="${icone}"></i>
+      <div>
+        <p class="pb-alerta-t">${escapeHTML(titulo)}</p>
+        ${corpo ? `<p class="pb-alerta-b">${escapeHTML(corpo)}</p>` : ''}
+        ${hora ? `<span class="pb-alerta-chip"><i data-lucide="clock"></i>Volta às ${escapeHTML(hora)}</span>` : ''}
+      </div>
+    </div>`;
+}
+
 // Módulos e marcas que a distribuidora tem (buscados uma vez por distribuidora).
 async function pbIntegracaoCarregarOpcoes(force = false) {
   const id = _pbFornecimento.distribuidora;
@@ -63,14 +103,15 @@ async function pbIntegracaoCarregarOpcoes(force = false) {
   if (typeof pbFornecimentoRender === 'function') pbFornecimentoRender();
 }
 
-// Preenche "Módulo" e "Marca do inversor" com o que a distribuidora tem. Devolve o aviso do painel.
+// Preenche "Módulo" e "Marca do inversor" com o que a distribuidora tem. Devolve o aviso do
+// painel: texto simples, ou { html } com o cartão de alerta quando deu problema.
 function pbIntegracaoPreencherFiltros(selMod, selInv) {
   const o = _pbCotOpcoes[_pbFornecimento.distribuidora];
   if (!o) pbIntegracaoCarregarOpcoes();
   if (!o || o.carregando || o.erro) {
     const txt = o?.erro ? 'Indisponível' : 'Carregando…';
     [selMod, selInv].forEach((sel) => { sel.innerHTML = `<option value="">${txt}</option>`; sel.disabled = true; });
-    return o?.erro ? `Não foi possível buscar os equipamentos da distribuidora: ${o.erro}` : 'Buscando os módulos e as marcas da distribuidora…';
+    return o?.erro ? { html: pbIntegracaoAlertaHTML(o.erro, 'equipamentos') } : 'Buscando os módulos e as marcas da distribuidora…';
   }
   const micro = state.pbCategory === 'kitsMicro';
   selMod.innerHTML = o.modulos.map((m) => `<option value="${escapeHTML(m.sku)}">${escapeHTML(`${m.fabricante} ${m.potencia} W${m.tipo ? ' · ' + m.tipo : ''}`)}</option>`).join('');
@@ -152,9 +193,18 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
 
   const status = _pbCot.carregando
     ? `<p class="pbd-hint"><i data-lucide="loader-2" class="w-3 h-3 inline animate-spin"></i> Cotando na ${escapeHTML(info.nome)}… pode levar até 1 minuto.</p>`
-    : _pbCot.erro ? `<div class="pbd-aviso">${escapeHTML(_pbCot.erro)}</div>`
+    : _pbCot.erro ? pbIntegracaoAlertaHTML(_pbCot.erro)
     : (_pbCot.kits.length && !kits.length)
-      ? `<div class="pbd-aviso">Nenhum kit ${state.pbCategory === 'kitsMicro' ? 'com microinversor' : 'com inversor'} nesta cotação${outrosTipos ? ' (troque o tipo de kit acima pra ver os outros)' : ''}.</div>` : '';
+      ? pbAlertaHTML({
+        icone: 'package-x', titulo: `Nenhum kit ${state.pbCategory === 'kitsMicro' ? 'com microinversor' : 'com inversor'} nesta cotação`,
+        corpo: outrosTipos ? 'Troque o tipo de kit acima pra ver os outros.' : '',
+      }) : '';
+  // Opções que não saíram quando outras saíram (ou, pro admin, sempre: ele vê o motivo).
+  const avisoOpcoes = erros.length && !_pbCot.carregando && (kits.length || state.isAdmin)
+    ? pbAlertaHTML({
+      icone: 'package-x', titulo: 'Algumas opções não saíram',
+      corpo: `Não disponível no momento: ${erros.map((e) => e.opcao + (state.isAdmin && e.erro ? ` (${e.erro})` : '')).join(', ')}. Pra esse equipamento, cote com outro módulo ou outro inversor.`,
+    }) : '';
 
   return `
     <div class="pbd-sec">Cotar na ${escapeHTML(info.nome)}</div>
@@ -168,7 +218,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
     </div>
     ${status}
     ${cards ? `<div class="pbd-kits" style="margin-top:10px">${cards}</div>` : ''}
-    ${erros.length && !_pbCot.carregando ? `<p class="pbd-hint">Não disponível no momento: ${erros.map((e) => escapeHTML(e.opcao) + (state.isAdmin && e.erro ? ` (${escapeHTML(e.erro)})` : '')).join(', ')}. Pra esse equipamento, cote com outro módulo ou outro inversor.</p>` : ''}`;
+    ${avisoOpcoes}`;
 }
 
 async function pbIntegracaoCotar() {
@@ -190,7 +240,11 @@ async function pbIntegracaoCotar() {
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.error || 'Não foi possível cotar agora.');
     _pbCot.kits = data.kits || [];
-    if (!_pbCot.kits.some((k) => !k.erro)) _pbCot.erro = 'Esse kit não está disponível no momento. Escolha outro módulo ou outro inversor e cote de novo.';
+    // Nenhuma opção saiu: se foi bloqueio, mostra o bloqueio (com o horário); senão, kit indisponível.
+    if (!_pbCot.kits.some((k) => !k.erro)) {
+      _pbCot.erro = _pbCot.kits.find((k) => /recusando as consultas/i.test(k.erro || ''))?.erro
+        || 'Esse kit não está disponível no momento. Escolha outro módulo ou outro inversor e cote de novo.';
+    }
   } catch (err) {
     console.error('[integrações] cotar', err);
     _pbCot.erro = err?.message || 'Não foi possível cotar agora. Tente de novo.';
@@ -317,6 +371,6 @@ async function integracaoTestar(provedor, btn) {
 }
 
 Object.assign(window, {
-  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoPainelHTML, pbIntegracaoPreencherFiltros, pbIntegracaoEscolher, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
+  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoPainelHTML, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
   renderAdminDistribuidoras, integracaoSalvar, integracaoTestar,
 });
