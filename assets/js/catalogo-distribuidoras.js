@@ -93,8 +93,49 @@ function pbKitServeLigacao(kit, ligacao) {
   return !String(inversor?.ficha?.rede || '').startsWith('tri');
 }
 
+// ---------- linha de kits: promocionais × catálogo completo ----------
+// Os promocionais são kits próprios (produtos.linha), com preço próprio: o
+// orçamento só mostra os da linha escolhida no seletor do topo.
+const PB_LINHAS = {
+  promocional: 'SOFAR com RONMA 620W de 5 a 21 módulos e microinversor Hoymiles de 4 a 20, com preço promocional.',
+  catalogo: 'Todas as marcas, até 150 módulos, nas distribuidoras Helte e Belenus.',
+};
+
+function pbLinhaAtual() {
+  return state.pbLinha === 'catalogo' ? 'catalogo' : 'promocional';
+}
+
+function pbKitDaLinha(kit) {
+  return (kit?.linha || 'catalogo') === pbLinhaAtual();
+}
+
+function pbLinhaRender() {
+  const box = document.getElementById('pb-linha');
+  if (!box) return;
+  box.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL');
+  box.querySelectorAll('[data-pb-linha]').forEach((b) => {
+    const on = b.dataset.pbLinha === pbLinhaAtual();
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  const hint = document.getElementById('pb-linha-hint');
+  if (hint) hint.textContent = PB_LINHAS[pbLinhaAtual()];
+}
+
+function pbLinhaEscolher(linha) {
+  if (!PB_LINHAS[linha] || linha === pbLinhaAtual()) return;
+  if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) return;
+  state.pbLinha = linha;
+  // Filtros de marca/distribuidora só existem no catálogo: trocar de linha começa do zero.
+  pbFornecimentoReset();
+  if (typeof _pbd !== 'undefined' && _pbd) _pbd.verMais = false;
+  if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
+  pbFornecimentoSync();
+}
+
 function pbKitCompativel(kit) {
   if (!kit || kit.ativo === false) return false;
+  if (!pbKitDaLinha(kit)) return false;
   const f = _pbFornecimento;
   // Kit sem distribuidora marcada vale para a distribuidora escolhida quando
   // ela oferece o módulo e o inversor dele (conferido no fim).
@@ -151,6 +192,14 @@ function pbFornecimentoMount() {
       </div><div id="pb-fornecimento-aviso" class="pbd-hint" aria-live="polite"></div>`;
     document.getElementById('pb-kit-fornecimento-slot')?.appendChild(panel);
   }
+  const linha = document.getElementById('pb-linha');
+  if (linha && !linha.dataset.bound) {
+    linha.dataset.bound = '1';
+    linha.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pb-linha]');
+      if (b) pbLinhaEscolher(b.dataset.pbLinha);
+    });
+  }
   pbFornecimentoRender();
   if (!_catalogoDistrib.carregado && !_catalogoDistrib.erro) carregarCatalogoDistribuidoras().then(() => {
     if (state.pbActiveClient) pbFornecimentoSync();
@@ -165,7 +214,9 @@ function pbFornecimentoRender() {
   if (!panel) return;
   const slot = document.getElementById(state.pbPorta === 'dim' ? 'pbd-fornecimento-slot' : 'pb-kit-fornecimento-slot');
   if (slot && panel.parentElement !== slot) slot.appendChild(panel);
-  panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL');
+  pbLinhaRender();
+  // Promocionais são sempre SOFAR/Hoymiles: sem filtro de equipamento nem distribuidora.
+  panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || pbLinhaAtual() === 'promocional');
   document.getElementById('pb-fornecimento-hint').textContent = state.pbPorta === 'dim'
     ? 'Escolha o módulo, a marca do inversor e a distribuidora. O consumo define a potência do sistema e o kit recomendado.'
     : 'Filtre os kits pelo módulo, pela marca do inversor e pela distribuidora.';
@@ -173,7 +224,7 @@ function pbFornecimentoRender() {
   const integrada = typeof pbIntegracaoAtual === 'function' ? pbIntegracaoAtual() : null;
   // Só oferece módulo/marca que está em algum kit ativo do tipo escolhido
   // (inversor ou micro): escolher uma opção nunca deixa a lista vazia à toa.
-  const kitsTipo = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false && Number(k.price) > 0);
+  const kitsTipo = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false && Number(k.price) > 0 && pbKitDaLinha(k));
   const emKits = new Set(kitsTipo.flatMap((k) => [String(k.modulo_id), String(k.inversor_id)]));
   const usados = kitsTipo.length ? disponiveis.filter((e) => emKits.has(String(e.id))) : disponiveis;
   // Distribuidora integrada: os dois campos mostram o que ELA tem (buscado no servidor).

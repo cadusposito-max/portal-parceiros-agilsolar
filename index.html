@@ -59,9 +59,9 @@
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/rede.css?v=20261006-projetos" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261002-legivel2" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261006-faixa" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261008-linha" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261006-pers" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261008-linha" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261006-pers2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261008-alerta" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/tour.css?v=20261007-treino" data-ui-v2 media="not all">
@@ -631,6 +631,15 @@
 
         </div>
         <p id="pb-mode-helper" class="text-[10px] text-neutral-500 font-medium">Promocional selecionado. Fluxo atual de kits prontos.</p>
+      </div>
+
+      <!-- ===== LINHA DE KITS: PROMOCIONAIS × CATÁLOGO (só no PROMOCIONAL · catalogo-distribuidoras.js) ===== -->
+      <div id="pb-linha" class="pbd-linha hidden">
+        <div class="pbd-linha-seg" role="group" aria-label="Lista de kits">
+          <button type="button" data-pb-linha="promocional"><i data-lucide="tag"></i> Kits promocionais</button>
+          <button type="button" data-pb-linha="catalogo"><i data-lucide="layout-grid"></i> Catálogo completo</button>
+        </div>
+        <p id="pb-linha-hint" class="pbd-hint"></p>
       </div>
 
       <!-- ===== PORTA: DIMENSIONAR × ESCOLHER KIT (só no PROMOCIONAL · pb-dimensionar.js) ===== -->
@@ -1231,11 +1240,11 @@
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
 
   local('treino.js',           '20261007-treino');
-  local('config.js',           '20261007-treino');
+  local('config.js',           '20261008-linha');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20261002-zip');
   local('scroll-x.js',         '20261007-sx');
-  local('api.js',              '20261006-dist');
+  local('api.js',              '20261008-linha');
   local('auth.js',             '20261007-tour');
   local('comunicados.js',      '20260615-om-central-propostas');
   local('dashboard.js',        '20260925-layout-c');
@@ -1248,11 +1257,11 @@
   local('crm-metas.js',        '20260716-crm-loop');
   local('etiquetas.js',        '20261006-etq');
   local('analise.js',          '20261006-etq');
-  local('catalogo-distribuidoras.js', '20261008-alerta');
+  local('catalogo-distribuidoras.js', '20261008-linha');
   local('distribuidoras-integracao.js', '20261008-sempref');
-  local('produtos.js',         '20261006-dist');
-  local('pb-dimensionar.js',   '20261008-ligacao');
-  local('proposta-builder.js', '20261008-marca');
+  local('produtos.js',         '20261008-linha');
+  local('pb-dimensionar.js',   '20261008-linha');
+  local('proposta-builder.js', '20261008-linha');
   local('orcamento-dre.js',    '20261007-dist');
   local('vendas.js',           '20260930-venda');
   local('admin.js',            '20261007-dist');
@@ -1270,7 +1279,7 @@
   local('app.js',              '20261006-lch');
   local('ui-v2.js',            '20260929-rel6');
   local('ui-v2-shell.js',      '20261007-mtop');
-  local('ui-v2-screens.js',    '20261007-mtop');
+  local('ui-v2-screens.js',    '20261008-linha');
   local('ui-v2-select.js',     '20261006-listas');
   local('ui-v2-filtros.js',    '20260929-p28');
   local('ui-v2-ficha.js',      '20261007-sx');

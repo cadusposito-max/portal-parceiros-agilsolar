@@ -195,3 +195,25 @@ html[data-ui="v2"][data-theme="dark"] #pb-embedded-panel .pbd-kit-nota { color: 
 #pb-embedded-panel .pbd-tip i { display: inline-block; width: 9px; height: 9px; margin-right: 6px; vertical-align: middle; }
 #pb-embedded-panel .pbd-tip-c { background: var(--v2-gray); border-radius: 2px; }
 #pb-embedded-panel .pbd-tip-g { background: var(--v2-blue); border-radius: 50%; }
+
+/* Linha de kits: "Kits promocionais" × "Catálogo completo" (catalogo-distribuidoras.js) */
+#pb-embedded-panel .pbd-linha { padding: 14px 14px 0; }
+#pb-embedded-panel .pbd-linha.hidden { display: none; }
+#pb-embedded-panel .pbd-linha-seg {
+  display: inline-flex; gap: 4px; padding: 4px; max-width: 100%;
+  border-radius: 999px; background: var(--v2-bg); border: 1px solid var(--v2-line);
+}
+html[data-ui="v2"] body #pb-embedded-panel .pbd-linha-seg button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; background: none; padding: 8px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; text-transform: none; color: var(--v2-ink-2); cursor: pointer; white-space: nowrap;
+}
+html[data-ui="v2"] body #pb-embedded-panel .pbd-linha-seg button:hover { color: var(--v2-ink); }
+html[data-ui="v2"] body #pb-embedded-panel .pbd-linha-seg button.on { background: var(--v2-blue); color: #fff; }
+#pb-embedded-panel .pbd-linha-seg svg { width: 15px; height: 15px; flex-shrink: 0; }
+#pb-embedded-panel .pbd-linha .pbd-hint { margin-top: 6px; }
+@media (max-width: 420px) {
+  #pb-embedded-panel .pbd-linha-seg { display: flex; }
+  html[data-ui="v2"] body #pb-embedded-panel .pbd-linha-seg button { flex: 1; padding: 8px 6px; font-size: 12px; }
+  #pb-embedded-panel .pbd-linha-seg svg { display: none; }
+}

@@ -118,6 +118,7 @@ let state = {
   pbActiveClient: null,
   pbProposalMode: 'PROMOCIONAL', // 'PROMOCIONAL' | 'PERSONALIZADA' (EQUIPAMENTOS legado)
   pbCategory: 'kitsInversor',
+  pbLinha: 'promocional',        // 'promocional' (lista curta, preço promo) | 'catalogo' (todas as marcas)
   pbSearch: '',
   pbViewMode: 'list',
   componentes: [],          // view pública (sem preço) — futuro montador de proposta

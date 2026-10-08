@@ -162,7 +162,7 @@ async function fetchProducts() {
       const { data, error } = await supabaseClient
         .from('produtos')
         .select(`
-          id, categoria, name, brand, power, type, description, tag, ativo, created_at, price, list_price, franquia_id,
+          id, categoria, name, brand, power, type, description, tag, ativo, created_at, price, list_price, franquia_id, linha,
           modulo_id, modulo_qtd, inversor_id, inversor_qtd, distribuidora_id,
           precos_franquia!inner(price, list_price)
         `)
@@ -187,7 +187,7 @@ async function fetchProducts() {
     const { data, error } = await supabaseClient
       .from('produtos')
       .select(`
-        id, categoria, name, brand, power, type, description, tag, created_at, price, list_price, franquia_id, ativo,
+        id, categoria, name, brand, power, type, description, tag, created_at, price, list_price, franquia_id, ativo, linha,
         modulo_id, modulo_qtd, inversor_id, inversor_qtd, distribuidora_id,
         precos_franquia!inner(price, list_price)
       `)

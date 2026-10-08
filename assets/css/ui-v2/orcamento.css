@@ -78,3 +78,16 @@ html[data-ui="v2"] .pb-share-next { display: flex; flex-wrap: wrap; justify-cont
   html[data-ui="v2"] #orcamento-builder-slot .pbd-porta-btn svg { display: none; }
   html[data-ui="v2"] #orcamento-builder-slot .pbd-porta-t { font-size: 12px; }
 }
+
+/* Seletor "Kits promocionais × Catálogo completo": linha 1 ao lado do Tipo de proposta; a porta desce. */
+html[data-ui="v2"] body #orcamento-builder-slot #pb-linha { grid-column: 1; grid-row: 1; align-self: center; padding: 14px 0 0 14px; }
+html[data-ui="v2"] body #orcamento-builder-slot #pb-linha.hidden { display: none !important; }
+html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel:has(#pb-linha:not(.hidden)) #pb-porta { grid-column: 1 / -1; grid-row: 2; padding-right: 14px; }
+@media (max-width: 1000px) {
+  html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel:has(#pb-linha:not(.hidden)) #pb-mode-bar { grid-column: 2; grid-row: 1; padding-top: 14px; }
+}
+@media (max-width: 760px) {
+  html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel:has(#pb-linha:not(.hidden)) #pb-linha { grid-column: 1 / -1; padding-right: 14px; }
+  html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel:has(#pb-linha:not(.hidden)) #pb-mode-bar { grid-column: 1 / -1; grid-row: 2; padding-top: 8px; justify-content: flex-end; }
+  html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel:has(#pb-linha:not(.hidden)) #pb-porta { grid-row: 3; }
+}

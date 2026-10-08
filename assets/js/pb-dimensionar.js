@@ -349,6 +349,11 @@ function _pbdRenderResultado() {
       && _pbdGeracao(k) >= c.media * PBD_FAIXA_MIN && _pbdGeracao(k) <= c.media * PBD_FAIXA_MAX)) {
     motivo = 'Para esse consumo só tem kit com inversor trifásico. Confira a ligação do cliente.';
   }
+  // Promocionais vão até 21 módulos: consumo maior é no catálogo completo.
+  if (!motivo && typeof pbLinhaAtual === 'function' && pbLinhaAtual() === 'promocional'
+    && (!recomendado || recomendado.g < c.media * PBD_FAIXA_MIN)) {
+    motivo = 'Os kits promocionais vão até 21 módulos e não cobrem esse consumo. Use o Catálogo completo.';
+  }
 
   let kitsHtml;
   if (recomendado) {

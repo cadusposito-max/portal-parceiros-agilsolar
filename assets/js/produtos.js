@@ -753,6 +753,8 @@ const KIT_IMPORT_HEADER_ALIASES = {
   tag:        ['tag', 'selo', 'etiqueta'],
   description:['description', 'descricao', 'detalhes'],
   ativo:      ['ativo', 'status', 'ativoinativo', 'emlinha'],
+  // promocional × catálogo (vazio = catálogo): mesmo nome nas duas linhas não se mistura
+  linha:      ['linha', 'lista', 'linhadekits'],
   // vínculo técnico (opcional): vazio = a plataforma lê do nome do kit
   modulo:       ['modulo', 'modulofv', 'placa', 'modelomodulo', 'modelodomodulo'],
   modulo_qtd:   ['qtdmodulos', 'qtdmodulo', 'quantidademodulos', 'qtdplacas', 'modulosqtd'],
@@ -861,10 +863,16 @@ function getMappedImportValue(rowMap, field) {
   return '';
 }
 
-function buildKitMatchKey(name, brand, power) {
+function normalizeImportedLinha(value) {
+  const v = normalizeImportHeader(value);
+  if (!v) return null;
+  return v.includes('promo') ? 'promocional' : 'catalogo';
+}
+
+function buildKitMatchKey(name, brand, power, linha) {
   const powerNum = Number(power);
   const powerKey = Number.isFinite(powerNum) ? powerNum.toFixed(4) : '';
-  return `${normalizeImportHeader(name)}|${normalizeImportHeader(brand)}|${powerKey}`;
+  return `${normalizeImportHeader(name)}|${normalizeImportHeader(brand)}|${powerKey}|${linha === 'promocional' ? 'promocional' : 'catalogo'}`;
 }
 
 async function readImportedKitRows(file) {
@@ -956,6 +964,7 @@ function mapKitImportRow(row, fallbackCategory) {
     : null;
   const type = rawType ? normalizeImportedType(rawType) : null;
   const tag = rawTag ? normalizeImportedTag(rawTag) : null;
+  const linha = normalizeImportedLinha(getMappedImportValue(rowMap, 'linha'));
 
   // Coluna opcional "ativo": SIM/NÃO, true/false, 1/0 (ausente = não mexe).
   const rawAtivo = String(getMappedImportValue(rowMap, 'ativo')).trim().toLowerCase();
@@ -985,6 +994,7 @@ function mapKitImportRow(row, fallbackCategory) {
       tag,
       description,
       ativo,
+      linha,
       _eq: {
         modulo: String(getMappedImportValue(rowMap, 'modulo') ?? '').trim(),
         modulo_qtd: parseSpreadsheetNumber(getMappedImportValue(rowMap, 'modulo_qtd')),
@@ -1024,7 +1034,7 @@ async function loadKitsImportContext() {
 
   const { data: existing = [], error: existingErr } = await supabaseClient
     .from('produtos')
-    .select('id, categoria, name, brand, power, price, list_price, type, tag, description, ativo, franquia_id, modulo_id, modulo_qtd, inversor_id, inversor_qtd');
+    .select('id, categoria, name, brand, power, price, list_price, type, tag, description, ativo, franquia_id, linha, modulo_id, modulo_qtd, inversor_id, inversor_qtd');
   if (existingErr) throw existingErr;
   const { data: equip = [], error: equipErr } = await supabaseClient
     .from('componentes').select('id, tipo, nome, marca, potencia_wp, ficha').in('tipo', ['modulo', 'inversor']);
@@ -1045,7 +1055,7 @@ async function loadKitsImportContext() {
     precosUnidade,
     equip,
     byId: new Map(existing.map(item => [String(item.id), item])),
-    byKey: new Map(existing.map(item => [buildKitMatchKey(item.name, item.brand, item.power), item])),
+    byKey: new Map(existing.map(item => [buildKitMatchKey(item.name, item.brand, item.power, item.linha), item])),
   };
 }
 
@@ -1101,7 +1111,7 @@ function planKitRow(ctx, row) {
   }
   // Id inexistente NAO e mais descartado: cai para casamento por nome/potencia ou criacao.
   if (!target && row._hasLookupKey) {
-    target = ctx.byKey.get(buildKitMatchKey(row.name, row.brand, row.power)) || null;
+    target = ctx.byKey.get(buildKitMatchKey(row.name, row.brand, row.power, row.linha)) || null;
   }
 
   if (target) {
@@ -1182,6 +1192,7 @@ function planKitRow(ctx, row) {
       tag: row.tag || 'MAIS VENDIDO',
       description: row.description || `${row.power}kWp - ${row.brand}`,
       ativo: row.ativo === false ? false : true,
+      linha: row.linha || 'catalogo',
       // Com franquia selecionada, kit exclusivo dela; sem franquia (admin global), kit padrao.
       ...(franquiaId ? { franquia_id: franquiaId } : {}),
     },
@@ -1204,7 +1215,7 @@ function buildKitsImportEntries(ctx, rawRows) {
       entry.key = r._explicitId
         ? `id:${r._explicitId}`
         : r._hasLookupKey
-          ? `key:${buildKitMatchKey(r.name, r.brand, r.power)}`
+          ? `key:${buildKitMatchKey(r.name, r.brand, r.power, r.linha)}`
           : `row:${r._rowNum}`;
       lastByKey.set(entry.key, entry);
       entry.item = planKitRow(ctx, r);
@@ -1862,6 +1873,7 @@ async function exportCurrentKitsXLSX() {
     { header: 'tag', key: 'tag' },
     { header: 'description', key: 'description' },
     { header: 'ativo', key: 'ativo' },
+    { header: 'linha', key: 'linha' },
     // vínculo técnico (engenharia): vazio = a plataforma lê do nome do kit
     { header: 'modulo', key: 'modulo' },
     { header: 'qtd_modulos', key: 'qtd_modulos' },
@@ -1893,6 +1905,7 @@ async function exportCurrentKitsXLSX() {
       tag: item.tag || '',
       description: item.description || '',
       ativo: item.ativo === false ? 'NAO' : 'SIM',
+      linha: item.linha === 'promocional' ? 'promocional' : 'catalogo',
       modulo: nomesEq.get(item.modulo_id) || '',
       qtd_modulos: item.modulo_qtd || '',
       inversor: nomesEq.get(item.inversor_id) || '',
@@ -1922,6 +1935,7 @@ function downloadKitsImportTemplateXLSX() {
     { header: 'tag', key: 'tag' },
     { header: 'description', key: 'description' },
     { header: 'ativo', key: 'ativo' },
+    { header: 'linha', key: 'linha' },
     // vínculo técnico (engenharia): vazio = a plataforma lê do nome do kit
     { header: 'modulo', key: 'modulo' },
     { header: 'qtd_modulos', key: 'qtd_modulos' },

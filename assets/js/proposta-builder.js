@@ -236,6 +236,7 @@ function pbEmbedSetup(client) {
   if (mesmoCliente) return;
 
   state.pbCategory     = 'kitsInversor';
+  state.pbLinha        = 'promocional';
   state.pbSearch       = '';
   state.pbProposalMode = PB_PROPOSAL_MODES.PROMOCIONAL;
   resetPBEquipDraft();
@@ -640,7 +641,7 @@ async function renderPBCatalogo() {
         chave: 'kit:' + k.id,
         tipo: 'kit',
         titulo: k.name,
-        sub: [k.brand, `${_pbKwp(k.power)} kWp`].filter(Boolean).join(' · '),
+        sub: [k.linha === 'promocional' ? 'Promocional' : '', k.brand, `${_pbKwp(k.power)} kWp`].filter(Boolean).join(' · '),
         preco: _pbNum(k.price),
       }));
   } else {
@@ -1502,7 +1503,7 @@ function openFechaVenda(clientId) {
   state.data.filter(k => k.ativo !== false).forEach(k => {
     const opt = document.createElement('option');
     opt.value = JSON.stringify({ nome: k.name, preco: k.price, power: k.power, brand: k.brand });
-    opt.textContent = `${k.name} → ${formatCurrency(k.price)}`;
+    opt.textContent = `${k.name}${k.linha === 'promocional' ? ' (promocional)' : ''} → ${formatCurrency(k.price)}`;
     groupAll.appendChild(opt);
   });
   select.appendChild(groupAll);
