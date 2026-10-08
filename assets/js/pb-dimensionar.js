@@ -223,19 +223,25 @@ function _pbdGeracao(kit) {
 }
 
 // Kits da categoria perto da média ({ k: kit, g: geração }). Recomendado = o
-// mais barato da faixa que gera pelo menos a média; sem nenhum assim na faixa,
-// o mais barato que cobre (acima dela); se nenhum kit cobre, o que gera mais.
+// mais barato da faixa que gera pelo menos a média; senão o mais perto dela na
+// faixa; sem kit na faixa, o mais barato que cobre; se nenhum cobre, o que gera
+// mais. Kits com inversor trifásico só entram em ligação trifásica.
 // menorQueCobre mostra a economia quando o recomendado não é o menor kit que cobre.
+function _pbdServeLigacao(kit) {
+  return typeof pbKitServeLigacao !== 'function' || pbKitServeLigacao(kit, _pbd.ligacao);
+}
+
 function _pbdRecomendar(categoria, media) {
   const kits = (state.data || [])
     .filter((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0
-      && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)))
+      && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)) && _pbdServeLigacao(k))
     .map((k) => ({ k, g: _pbdGeracao(k) }));
   const porPreco = (a, b) => (Number(a.k.price) - Number(b.k.price)) || (b.g - a.g);
   const faixa = kits.filter((x) => x.g >= media * PBD_FAIXA_MIN && x.g <= media * PBD_FAIXA_MAX).sort(porPreco);
   const cobre = kits.filter((x) => x.g >= media);
   const menorQueCobre = cobre.slice().sort((a, b) => (a.g - b.g) || porPreco(a, b))[0] || null;
   const recomendado = faixa.find((x) => x.g >= media)
+    || faixa.slice().sort((a, b) => (b.g - a.g) || porPreco(a, b))[0]
     || cobre.slice().sort(porPreco)[0]
     || kits.slice().sort((a, b) => (b.g - a.g) || porPreco(a, b))[0]
     || null;
@@ -330,10 +336,19 @@ function _pbdRenderResultado() {
 
   const tipo = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
   const tipoNome = tipo === 'kitsMicro' ? 'com microinversor' : 'com inversor';
-  const { recomendado, outros, menorQueCobre } = _pbdRecomendar(tipo, c.media);
-  // Marca/módulo escolhido sem kit pra esse consumo, mas outras marcas têm: avisa pra trocar.
-  const naFaixa = (k) => { const g = _pbdGeracao(k); return g >= c.media * PBD_FAIXA_MIN && g <= c.media * PBD_FAIXA_MAX; };
-  const motivo = (!recomendado || !naFaixa(recomendado.k)) && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(tipo, naFaixa) : '';
+  let { recomendado, outros, menorQueCobre } = _pbdRecomendar(tipo, c.media);
+  // Marca/módulo escolhido sem kit pra esse consumo (e ligação), mas outras marcas têm:
+  // não empurra um kit fora da faixa, só avisa pra trocar.
+  const naFaixa = (k) => { const g = _pbdGeracao(k); return g >= c.media * PBD_FAIXA_MIN && g <= c.media * PBD_FAIXA_MAX && _pbdServeLigacao(k); };
+  let motivo = (!recomendado || !naFaixa(recomendado.k)) && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(tipo, naFaixa) : '';
+  if (motivo) recomendado = null;
+  // Só um inversor trifásico atende esse consumo: avisa pra conferir a ligação do cliente.
+  if (!motivo && (!recomendado || !naFaixa(recomendado.k)) && _pbd.ligacao !== 'tri' && typeof pbKitServeLigacao === 'function'
+    && (state.data || []).some((k) => k.categoria === tipo && k.ativo !== false && Number(k.price) > 0
+      && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)) && !_pbdServeLigacao(k)
+      && _pbdGeracao(k) >= c.media * PBD_FAIXA_MIN && _pbdGeracao(k) <= c.media * PBD_FAIXA_MAX)) {
+    motivo = 'Para esse consumo só tem kit com inversor trifásico. Confira a ligação do cliente.';
+  }
 
   let kitsHtml;
   if (recomendado) {

@@ -25,7 +25,7 @@ async function carregarCatalogoDistribuidoras(force = false) {
       const [dist, ofertas, equipamentos] = await Promise.all([
         supabaseClient.from('distribuidoras').select('id,nome,ativo').order('nome'),
         supabaseClient.from('distribuidora_componentes').select('distribuidora_id,componente_id,preco_unitario,ativo'),
-        supabaseClient.from('componentes').select('id,tipo,nome,marca,potencia_wp,unidade,preco_unitario,ativo').order('nome'),
+        supabaseClient.from('componentes').select('id,tipo,nome,marca,potencia_wp,unidade,preco_unitario,ativo,ficha').order('nome'),
       ]);
       const error = dist.error || ofertas.error || equipamentos.error;
       if (error) throw error;
@@ -83,6 +83,14 @@ function pbModulosEquipamentos(equipamentos) {
 function pbMarcaDoComponente(id, tipo) {
   const equipamento = _catalogoDistrib.equipamentos.find((e) => String(e.id) === String(id) && e.tipo === tipo && e.ativo !== false);
   return pbMarcaEquipamento(equipamento?.marca);
+}
+
+// Inversor trifásico (ficha.rede 'tri_*') só serve pra ligação trifásica.
+// Sem a rede na ficha, não bloqueia.
+function pbKitServeLigacao(kit, ligacao) {
+  if (ligacao === 'tri') return true;
+  const inversor = _catalogoDistrib.equipamentos.find((e) => String(e.id) === String(kit?.inversor_id));
+  return !String(inversor?.ficha?.rede || '').startsWith('tri');
 }
 
 function pbKitCompativel(kit) {
