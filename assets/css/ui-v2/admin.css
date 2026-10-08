@@ -195,3 +195,67 @@ html[data-ui="v2"] .v2a-msel, html[data-ui="v2"] .v2a-scrim, html[data-ui="v2"] 
 @media (max-width: 900px) and (prefers-reduced-motion: reduce) {
   html[data-ui="v2"] body .v2a-nav, html[data-ui="v2"] .v2a-scrim { transition: none !important; }
 }
+
+/* ---- Admin › Leads Meta (admin-leads-meta.js) ---- */
+html[data-ui="v2"] .alm { display: flex; flex-direction: column; gap: 16px; }
+html[data-ui="v2"] .alm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+html[data-ui="v2"] .alm-kpi { background: var(--v2-soft); border-radius: 16px; padding: 12px 14px; }
+html[data-ui="v2"] .alm-kpi small { display: block; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] .alm-kpi b { font-size: 24px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui="v2"] .alm-kpi.warn b { color: var(--v2-orange-text); }
+html[data-ui="v2"] .alm-kpi.bad b { color: var(--v2-red); }
+html[data-ui="v2"] .alm-card { background: var(--v2-soft); border-radius: 18px; padding: 16px 18px; }
+html[data-ui="v2"] .alm-card h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; color: var(--v2-ink); margin: 0 0 4px; text-transform: none; letter-spacing: 0; }
+html[data-ui="v2"] .alm-card h3 > svg { width: 18px; height: 18px; color: var(--v2-blue); }
+html[data-ui="v2"] .alm-h3btn { margin-left: auto; }
+html[data-ui="v2"] .alm-sub { font-size: 13px; color: var(--v2-ink-2); margin: 0 0 10px; line-height: 1.45; }
+html[data-ui="v2"] .alm-sec { font-size: 12px; font-weight: 700; color: var(--v2-gray); margin: 14px 0 4px; }
+html[data-ui="v2"] .alm-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--v2-line); }
+html[data-ui="v2"] .alm-row:first-of-type { border-top: 0; }
+html[data-ui="v2"] .alm-row.off { opacity: .6; }
+html[data-ui="v2"] .alm-row > svg { width: 16px; height: 16px; color: var(--v2-gray); }
+html[data-ui="v2"] .alm-grow { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
+html[data-ui="v2"] .alm-grow b, html[data-ui="v2"] b.alm-grow { font-size: 14px; font-weight: 700; color: var(--v2-ink); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+html[data-ui="v2"] .alm-grow small { font-size: 12px; color: var(--v2-gray); }
+html[data-ui="v2"] .alm-fb { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--v2-blue-50); color: var(--v2-blue-text); font-style: normal; }
+html[data-ui="v2"] .alm-fb svg { width: 17px; height: 17px; }
+html[data-ui="v2"] .alm-av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--v2-card); font-size: 12px; font-weight: 800; color: var(--v2-ink-2); flex-shrink: 0; }
+html[data-ui="v2"] .alm-lbl { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--v2-gray); flex-wrap: wrap; }
+html[data-ui="v2"] .alm-semv { margin-top: 12px; }
+html[data-ui="v2"] .alm select, html[data-ui="v2"] .alm input { height: 38px; border-radius: 10px; border: 1px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink); font-family: inherit; font-size: 13px; font-weight: 600; padding: 0 10px; }
+html[data-ui="v2"] .alm input { min-width: 220px; flex: 1; }
+html[data-ui="v2"] .alm-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+html[data-ui="v2"] .alm-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 10px; background: var(--v2-card); color: var(--v2-ink-2); }
+html[data-ui="v2"] .alm-chip svg { width: 13px; height: 13px; }
+html[data-ui="v2"] .alm-nova { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+html[data-ui="v2"] .alm-nova > svg { width: 16px; height: 16px; color: var(--v2-gray); }
+html[data-ui="v2"] .alm-btn { display: inline-flex; align-items: center; gap: 6px; height: 38px; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 13px; font-weight: 700; border: 1px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink); cursor: pointer; }
+html[data-ui="v2"] .alm-btn svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .alm-btn.pri { background: var(--v2-orange); border-color: var(--v2-orange); color: var(--v2-orange-ink); }
+html[data-ui="v2"] .alm-btn:disabled { opacity: .5; cursor: default; }
+html[data-ui="v2"] .alm-ico { border: 0; background: transparent; color: var(--v2-gray); padding: 6px; border-radius: 8px; cursor: pointer; display: grid; place-items: center; }
+html[data-ui="v2"] .alm-ico:hover { background: var(--v2-hover); color: var(--v2-red); }
+html[data-ui="v2"] .alm-ico svg { width: 16px; height: 16px; }
+html[data-ui="v2"] .alm-tg { width: 40px; height: 22px; border-radius: 999px; border: 0; padding: 0; background: var(--v2-line-strong); position: relative; cursor: pointer; flex-shrink: 0; transition: background .15s; }
+html[data-ui="v2"] .alm-tg::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+html[data-ui="v2"] .alm-tg.on { background: var(--v2-green); }
+html[data-ui="v2"] .alm-tg.on::after { left: 21px; }
+html[data-ui="v2"] .alm-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+html[data-ui="v2"] .alm-pills button { border: 0; height: 34px; border-radius: 999px; padding: 0 12px; font-family: inherit; font-size: 13px; font-weight: 700; background: var(--v2-card); color: var(--v2-ink-2); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+html[data-ui="v2"] .alm-pills button em { font-style: normal; font-size: 11px; font-weight: 800; background: var(--v2-bg); border-radius: 999px; padding: 1px 7px; color: var(--v2-gray); }
+html[data-ui="v2"] .alm-pills button.on { background: var(--v2-ink); color: var(--v2-bg); }
+html[data-ui="v2"] .alm-aviso { background: var(--v2-orange-50); color: var(--v2-orange-text); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
+html[data-ui="v2"] .alm-vazio { font-size: 13px; color: var(--v2-gray); padding: 8px 0; }
+html[data-ui="v2"] .alm-quando { width: 86px; font-size: 12px; color: var(--v2-gray); }
+html[data-ui="v2"] .alm-dest { font-size: 12px; color: var(--v2-ink-2); }
+html[data-ui="v2"] .alm .v2-chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+html[data-ui="v2"] .alm .t-green { background: rgba(31,169,113,.14); color: #157a52; }
+html[data-ui="v2"] .alm .t-blue { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+html[data-ui="v2"] .alm .t-orange { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] .alm .t-red { background: rgba(209,67,67,.12); color: var(--v2-red); }
+html[data-ui="v2"] .alm .t-gray { background: var(--v2-card); color: var(--v2-gray); }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .alm-card { padding: 14px; }
+  html[data-ui="v2"] .alm input { min-width: 0; width: 100%; }
+  html[data-ui="v2"] .alm-quando { width: auto; }
+}
