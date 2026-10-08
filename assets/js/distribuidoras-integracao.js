@@ -119,7 +119,7 @@ function pbIntegracaoPreencherFiltros(selMod, selInv) {
   selMod.disabled = !o.modulos.length;
   const marcas = micro ? o.marcas_micro : o.marcas_inversor;
   if (_pbCotSel.marca && !marcas.includes(_pbCotSel.marca)) _pbCotSel.marca = '';
-  selInv.innerHTML = `<option value="">${micro ? 'Hoymiles (padrão)' : 'Sem preferência (Solis e Growatt)'}</option>`
+  selInv.innerHTML = '<option value="">Sem preferência</option>'
     + marcas.map((m) => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
   selInv.value = _pbCotSel.marca;
   selInv.disabled = false;
