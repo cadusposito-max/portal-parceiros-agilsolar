@@ -540,7 +540,7 @@
         <div class="meta">${meta.join('')}</div>
         ${vistoriaChip(c) || engChip(c) ? `<div class="v2-visline">${vistoriaChip(c)}${engChip(c)}</div>` : ''}
         ${etqLinha(c.id, 3)}
-        <div class="f">${valor ? `<b>${moneyC(valor)}</b>` : '<span class="none">Sem proposta</span>'}
+        <div class="f">${valor ? `<b title="${money(valor)}">${moneyC(valor)}</b>` : '<span class="none">Sem proposta</span>'}
           ${editavel ? `<button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Mudar etapa">${st[0]}</button>` : `<span class="v2-chip dot ${st[1]}">${st[0]}</span>`}</div>
       </article>`;
     };
@@ -551,7 +551,7 @@
       const soma = items.reduce((acc, c) => acc + (has('getClienteValorEstimado') ? getClienteValorEstimado(c.id) : 0), 0);
       const drop = editavel ? `ondragover="crmDragOver(event)" ondragleave="crmDragLeave(event)" ondrop="crmDropStatus(event, '${s}')"` : '';
       return `<div class="v2-col" ${drop}>
-        <div class="v2-colh"><i class="dot" style="background:${ST_CLI[s][2]}"></i><b>${ST_CLI[s][0]}</b><em>${items.length}</em><small>${soma ? moneyC(soma) : ''}</small></div>
+        <div class="v2-colh"><i class="dot" style="background:${ST_CLI[s][2]}"></i><b>${ST_CLI[s][0]}</b><em>${items.length}</em><small title="${soma ? money(soma) : ''}">${soma ? moneyC(soma) : ''}</small></div>
         ${vis.length ? vis.map(card).join('') : `<div class="v2-drop">${editavel ? 'Arraste um cliente para cá' : 'Nenhum cliente'}</div>`}
         ${items.length > vis.length ? `<button class="v2-colmore" onclick="funilMostrarMaisColuna('${s}')">${ic('chevrons-down')}Ver mais ${items.length - vis.length}</button>` : ''}
       </div>`;
@@ -657,13 +657,13 @@
         <div class="t"><div><b>${esc(p.cliente_nome || 'Sem cliente')}</b><small>${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small></div></div>
         <div class="meta"><span>${ic('zap')}${kwpTx(p)}</span><span>${ic('clock')}${esc(timeAgo(p.created_at))}</span>${showSeller ? `<span>${ic('user')}${esc(vendNome(p.vendedor_email).split(' ')[0] || '—')}</span>` : ''}</div>
         ${propostaStatus(p) === 'VISTA' ? `<div class="v2-kinfo">${ic('eye')}${infoTx(p)}</div>` : ''}
-        <div class="f"><b>${moneyC(propostaPreco(p))}</b>${acoes(p)}</div>
+        <div class="f"><b title="${money(propostaPreco(p))}">${moneyC(propostaPreco(p))}</b>${acoes(p)}</div>
       </article>`;
     const kanban = () => `<div class="v2-kanban v2-kanban4">${Object.keys(PROP_ST).map((s) => {
       const todos = porEtapa[s] || [];
       const items = todos.slice(0, limiteCol);
       const soma = todos.reduce((a, p) => a + propostaPreco(p), 0);
-      return `<div class="v2-col"><div class="v2-colh"><i class="dot" style="background:${{ GERADA: '#808284', ENVIADA: '#008FD4', VISTA: '#FAA519', ACEITA: '#1FA971' }[s]}"></i><b>${PROP_ST[s][0]}s</b><em>${count[s] || 0}</em><small>${soma ? moneyC(soma) : ''}</small></div>
+      return `<div class="v2-col"><div class="v2-colh"><i class="dot" style="background:${{ GERADA: '#808284', ENVIADA: '#008FD4', VISTA: '#FAA519', ACEITA: '#1FA971' }[s]}"></i><b>${PROP_ST[s][0]}s</b><em>${count[s] || 0}</em><small title="${soma ? money(soma) : ''}">${soma ? moneyC(soma) : ''}</small></div>
         ${items.length ? items.map(kcard).join('') : '<div class="v2-drop">Nenhuma proposta</div>'}</div>`;
     }).join('')}</div>`;
     const lista = () => `<div class="v2-card" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">

@@ -148,13 +148,16 @@ function formatCurrency(val) {
 }
 
 // Moeda compacta para cards de KPI: abrevia valores grandes para não estourar a
-// largura do card. Ex.: 8.450 -> "R$ 8.450,00"; 53.770 -> "R$ 53,8 mil";
-// 563.822.278 -> "R$ 563,8 mi". Abaixo de 10 mil mantém o valor cheio.
+// largura do card. Corta na 1ª casa decimal em vez de arredondar (nunca mostra
+// mais do que o valor real). Ex.: 8.450 -> "R$ 8.450,00"; 13.980 -> "R$ 13,9 mil";
+// 15.980 -> "R$ 15,9 mil"; 563.872.278 -> "R$ 563,8 mi". Abaixo de 10 mil mantém o valor cheio.
 function formatCurrencyCompact(val) {
   const n = Number(val || 0);
   const abs = Math.abs(n);
-  if (abs >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mi';
-  if (abs >= 1e4) return 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' mil';
+  // trabalha em centavos inteiros pra evitar erro de ponto flutuante (ex.: 139,99999 -> 139)
+  const corta = (div) => Math.trunc(Math.round(n * 100) / (div * 10)) / 10;
+  if (abs >= 1e6) return 'R$ ' + corta(1e6).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mi';
+  if (abs >= 1e4) return 'R$ ' + corta(1e3).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' mil';
   return formatCurrency(n);
 }
 
