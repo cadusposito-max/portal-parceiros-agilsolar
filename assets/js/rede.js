@@ -24,6 +24,9 @@
   const MESES_N = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const CORES = ['#008FD4', '#FAA519', '#5CC3F2', '#006A9E', '#F7C873', '#B8C2CC'];
   const REGIMES = { simples: 'Simples Nacional', presumido: 'Lucro Presumido', real: 'Lucro Real', mei: 'MEI' };
+  // representante legal do CNPJ (chaves iguais às de documentos.js)
+  const REP_CARGOS = [['proprietario', 'Proprietário(a)'], ['socio_administrador', 'Sócio(a)-administrador(a)'], ['socio', 'Sócio(a)'], ['administrador', 'Administrador(a)'], ['diretor', 'Diretor(a)']];
+  const REP_ESTADO_CIVIL = [['solteiro', 'Solteiro(a)'], ['casado', 'Casado(a)'], ['divorciado', 'Divorciado(a)'], ['separado', 'Separado(a) judicialmente'], ['viuvo', 'Viúvo(a)'], ['uniao_estavel', 'União estável']];
   const BASES = { faturamento: 'Faturamento', servicos: 'Serviços', equipamentos: 'Equipamentos' };
   const CUSTOS = [['custo_kits', 'Custo dos kits'], ['custo_instalacao', 'Instalação e materiais'], ['comissoes', 'Comissões de venda']];
   const DESPESAS = [['aluguel', 'Aluguel'], ['folha', 'Folha e pró-labore'], ['marketing', 'Marketing local'], ['veiculos', 'Veículo e combustível'], ['outras', 'Outras']];
@@ -483,6 +486,7 @@
             <div><div class="l">Insc. municipal</div><div class="v">${esc(e.inscricao_municipal || '—')}</div></div>
             <div style="grid-column:span 2"><div class="l">Nome no contrato</div><div class="v">${esc(e.nome_contrato || e.razao_social)}</div></div>
             <div style="grid-column:span 2"><div class="l">Endereço</div><div class="v">${esc(e.endereco || '—')}</div></div>
+            <div style="grid-column:span 2"><div class="l">Representante legal</div><div class="v">${e.representante && e.representante.nome ? esc(e.representante.nome) + ' · ' + esc((REP_CARGOS.find(([k]) => k === e.representante.cargo) || REP_CARGOS[0])[1]) : '<span style="color:var(--v2-red)">Não informado (o contrato sai sem "neste ato representada por")</span>'}</div></div>
           </div>
           ${e.ativo ? `<div class="rd-share"><span style="white-space:nowrap">Fatura: <b>${esc([e.fatura_servicos && 'serviços', e.fatura_equipamentos && 'equipamentos', e.fatura_om && 'O&M'].filter(Boolean).join(', ') || '—')}</b></span><div class="rd-meter"><i style="width:${soma ? num(e.participacao_pct) / soma * 100 : 0}%"></i></div><b>${pct(soma ? num(e.participacao_pct) / soma * 100 : 0, 0)} do faturamento</b></div>` : ''}
         </div>`).join('') : `
@@ -820,6 +824,8 @@
     const cu = cidadeUf(f);
     const primeira = !empresasDe(fid).length;
     const v = (k, d = '') => esc(e ? (e[k] ?? d) : d);
+    const rep = (e && e.representante) || {};
+    const rv = (k, d = '') => esc(rep[k] ?? d);
     modal(`<h3>${e ? 'Editar CNPJ' : 'Adicionar CNPJ'}</h3><p class="rd-muted" style="margin:0">${esc(f.nome)}</p>
       <div class="rd-fgrid">
         <div class="rd-fld full"><label>CNPJ *</label><div style="display:flex;gap:8px"><input id="rde-cnpj" inputmode="numeric" placeholder="00.000.000/0001-00" value="${v('cnpj')}"><button class="rd-btn blue" id="rde-busca" onclick="redeBuscarCnpj()">${ic('search')}Buscar</button></div><span class="hint">Busca razão social, endereço e regime na Receita Federal (BrasilAPI)</span></div>
@@ -840,10 +846,24 @@
           <label class="rd-chip ${e && e.fatura_om ? 'on' : ''}"><input type="checkbox" id="rde-fo" hidden ${e && e.fatura_om ? 'checked' : ''} onchange="this.parentNode.classList.toggle('on',this.checked)">O&amp;M</label>
         </div></div>
         <label class="rd-check full"><input type="checkbox" id="rde-principal" ${(e ? e.principal : primeira) ? 'checked' : ''}> CNPJ principal da unidade (vem selecionado no contrato)</label>
+        <div class="rd-fsec full"><b>Representante legal</b><span>Quem assina o contrato por esta empresa ("neste ato representada por seu proprietário...")</span></div>
+        <div class="rd-fld full"><label>Nome completo</label><input id="rder-nome" value="${rv('nome')}" style="text-transform:uppercase"></div>
+        <div class="rd-fld"><label>Cargo</label><select id="rder-cargo">${REP_CARGOS.map(([k, l]) => `<option value="${k}" ${(rep.cargo || 'proprietario') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="rd-fld"><label>Gênero</label><select id="rder-genero"><option value="M" ${rep.genero !== 'F' ? 'selected' : ''}>Masculino</option><option value="F" ${rep.genero === 'F' ? 'selected' : ''}>Feminino</option></select></div>
+        <div class="rd-fld"><label>CPF</label><input id="rder-cpf" inputmode="numeric" placeholder="000.000.000-00" value="${rv('cpf')}"></div>
+        <div class="rd-fld"><label>RG</label><div style="display:flex;gap:8px"><input id="rder-rg" value="${rv('rg')}" placeholder="Número"><input id="rder-rg-orgao" value="${rv('rg_orgao')}" placeholder="SSP/SP" style="width:96px;text-transform:uppercase"></div></div>
+        <div class="rd-fld"><label>Nacionalidade</label><input id="rder-nac" value="${rv('nacionalidade', 'brasileiro')}"></div>
+        <div class="rd-fld"><label>Profissão</label><input id="rder-prof" value="${rv('profissao', 'empresário')}"></div>
+        <div class="rd-fld"><label>Estado civil</label><select id="rder-ec"><option value="">Não informar</option>${REP_ESTADO_CIVIL.map(([k, l]) => `<option value="${k}" ${rep.estado_civil === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <label class="rd-check full"><input type="checkbox" id="rder-mesmo" ${rep.mesmo_endereco !== false ? 'checked' : ''} onchange="document.getElementById('rder-end-box').style.display=this.checked?'none':''"> Mora no mesmo endereço da empresa</label>
+        <div class="rd-fld full" id="rder-end-box" style="${rep.mesmo_endereco !== false ? 'display:none' : ''}"><label>Endereço do representante</label><input id="rder-end" value="${rv('endereco')}" placeholder="Rua, número, bairro, cidade/UF"></div>
       </div>
       <div id="rd-err" class="rd-err"></div>
       <div class="rd-mfoot"><button class="rd-btn" onclick="redeFecharModal()">Cancelar</button><button class="rd-btn pri" id="rd-save" onclick="redeSalvarEmpresa('${fid}'${eid ? `,'${eid}'` : ''})">${ic('check')}Salvar CNPJ</button></div>`);
-    if (typeof ligarMascara === 'function') ligarMascara(document.getElementById('rde-cnpj'), 'cnpj');
+    if (typeof ligarMascara === 'function') {
+      ligarMascara(document.getElementById('rde-cnpj'), 'cnpj');
+      ligarMascara(document.getElementById('rder-cpf'), 'cpf');
+    }
   }
 
   async function redeBuscarCnpj() {
@@ -880,6 +900,16 @@
     const part = parseNum(val('rde-part'));
     if (part < 0 || part > 100) { erroModal('Participação deve ficar entre 0 e 100%.'); return; }
     const principal = chk('rde-principal');
+    const repCpf = digits(val('rder-cpf'));
+    if (repCpf && typeof documentoValido === 'function' && !documentoValido(repCpf)) { erroModal('CPF do representante inválido. Confira os números.'); return; }
+    const mesmo = chk('rder-mesmo');
+    const representante = val('rder-nome') ? {
+      nome: val('rder-nome').toUpperCase(), cargo: val('rder-cargo'), genero: val('rder-genero'),
+      cpf: repCpf ? repCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '',
+      rg: val('rder-rg'), rg_orgao: val('rder-rg-orgao').toUpperCase(),
+      nacionalidade: val('rder-nac'), profissao: val('rder-prof'), estado_civil: val('rder-ec'),
+      mesmo_endereco: mesmo, endereco: mesmo ? '' : val('rder-end'),
+    } : null;
     const payload = {
       franquia_id: fid, cnpj: fmtCnpj(cnpj), razao_social: razao.toUpperCase(),
       nome_fantasia: val('rde-fantasia') || null, nome_contrato: val('rde-contrato') || null,
@@ -887,7 +917,7 @@
       municipio: val('rde-municipio') || null, uf: val('rde-uf').toUpperCase() || null, foro: val('rde-foro') || null,
       inscricao_estadual: val('rde-ie') || null, inscricao_municipal: val('rde-im') || null,
       fatura_servicos: chk('rde-fs'), fatura_equipamentos: chk('rde-fe'), fatura_om: chk('rde-fo'),
-      participacao_pct: part, principal, updated_at: new Date().toISOString(),
+      participacao_pct: part, principal, representante, updated_at: new Date().toISOString(),
     };
     await ocupado('rd-save', async () => {
       if (principal) {

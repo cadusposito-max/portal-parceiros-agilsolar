@@ -24,7 +24,7 @@ const DOC_MODELOS = {
 };
 
 // Versão dos modelos .docx (troque ao editar um modelo, para furar o cache)
-const DOC_MODELOS_VERSAO = '20260922-pfpj';
+const DOC_MODELOS_VERSAO = '20261008-representante';
 
 const DOC_DEFAULTS = {
   concessionaria: 'CPFL PAULISTA',
@@ -52,6 +52,15 @@ const DOC_ESTADO_CIVIL = {
   separado: ['SEPARADO JUDICIALMENTE', 'SEPARADA JUDICIALMENTE'],
   viuvo: ['VIÚVO', 'VIÚVA'],
   uniao_estavel: ['CONVIVENTE EM UNIÃO ESTÁVEL', 'CONVIVENTE EM UNIÃO ESTÁVEL'],
+};
+
+// Cargo do representante da contratada (masculino, feminino) — "neste ato representada por seu proprietário"
+const DOC_CARGOS_CONTRATADA = {
+  proprietario: ['proprietário', 'proprietária'],
+  socio_administrador: ['sócio-administrador', 'sócia-administradora'],
+  socio: ['sócio', 'sócia'],
+  administrador: ['administrador', 'administradora'],
+  diretor: ['diretor', 'diretora'],
 };
 
 // ---------- formatação ----------
@@ -200,7 +209,9 @@ function docDescricaoPagamento(p, unico) {
     sistema: { potencia_kwp, itens: [{ quantidade, descricao }] },
     financeiro: { valor_total, valor_eletricista?, pagamentos: [{ tipo, valor, forma?, financeira?, texto? }] },
     prazo_entrega_dias?, data?,
-    contratada: { nome, cnpj, endereco, foro, local_assinatura },     ← documentos_config
+    contratada: { nome, cnpj, endereco, foro, local_assinatura,       ← documentos_config / rede_empresas
+                  representante?: { nome, cargo, genero, nacionalidade, profissao, estado_civil, rg, rg_orgao, cpf,
+                                    mesmo_endereco, endereco } },
     procurador: { nome, cpf, rg, rg_orgao, crea, endereco, telefone }  ← documentos_config
   }
 */
@@ -279,6 +290,7 @@ function montarDadosDocumento(dados = {}) {
     contratada_nome: contratada.nome || '',
     contratada_cnpj: contratada.cnpj || '',
     contratada_endereco: contratada.endereco || '',
+    contratada_representacao: docRepresentacaoContratada(contratada.representante),
     foro: contratada.foro || '',
     local_assinatura: contratada.local_assinatura || '',
     data_extenso: docDataExtenso(dados.data),
@@ -315,6 +327,31 @@ function montarDadosDocumento(dados = {}) {
     paragrafo_forma_pagamento: ord[2],
     prazo_entrega_dias: String(dados.prazo_entrega_dias || DOC_DEFAULTS.prazo_entrega_dias),
   };
+}
+
+// ", neste ato representada por seu proprietário FULANO, brasileiro, empresário, casado, portador da
+// cédula de identidade n.º ..., devidamente inscrito no CPF(MF) sob o n.º ..., residente e domiciliado
+// no endereço acima descrito" — vai logo depois do endereço da contratada; sem representante, vazio.
+function docRepresentacaoContratada(r) {
+  const nome = String(r?.nome ?? '').trim().toUpperCase();
+  if (!nome) return '';
+  const f = String(r.genero || '').toUpperCase().startsWith('F');
+  const low = (s) => String(s ?? '').trim().toLocaleLowerCase('pt-BR');
+  const cargo = (DOC_CARGOS_CONTRATADA[r.cargo] || DOC_CARGOS_CONTRATADA.proprietario)[f ? 1 : 0];
+  let nac = low(r.nacionalidade || DOC_DEFAULTS.nacionalidade);
+  if (f && nac === 'brasileiro') nac = 'brasileira';
+  const ec = low((DOC_ESTADO_CIVIL[r.estado_civil] || [])[f ? 1 : 0] || r.estado_civil);
+  const rg = [String(r.rg ?? '').trim(), String(r.rg_orgao ?? '').trim().toUpperCase()].filter(Boolean).join(' ');
+  const cpf = docFormatCPF(r.cpf);
+  const end = String(r.endereco ?? '').trim();
+  const partes = [
+    `neste ato representada por ${f ? 'sua' : 'seu'} ${cargo} ${nome}`,
+    nac, low(r.profissao), ec,
+    String(r.rg ?? '').trim() ? `${f ? 'portadora' : 'portador'} da cédula de identidade n.º ${rg}` : '',
+    cpf ? `devidamente ${f ? 'inscrita' : 'inscrito'} no CPF(MF) sob o n.º ${cpf}` : '',
+    `residente e ${f ? 'domiciliada' : 'domiciliado'} ${r.mesmo_endereco === false && end ? 'na ' + end : 'no endereço acima descrito'}`,
+  ];
+  return ', ' + partes.filter(Boolean).join(', ');
 }
 
 // Campos obrigatórios por modelo — retorna lista do que falta (vazio = ok)
@@ -407,7 +444,7 @@ async function docCarregarConfig() {
   // por qual deles sai; sem nenhum, vale só a contratada do documentos_config.
   const { data: empresas, error: errEmp } = await supabaseClient
     .from('rede_empresas')
-    .select('id, cnpj, razao_social, nome_fantasia, nome_contrato, endereco, municipio, uf, foro, principal')
+    .select('id, cnpj, razao_social, nome_fantasia, nome_contrato, endereco, municipio, uf, foro, principal, representante')
     .eq('franquia_id', state.franquiaId)
     .eq('ativo', true)
     .order('principal', { ascending: false })
@@ -438,6 +475,7 @@ function _docContratada() {
     nome: e.nome_contrato || e.razao_social || base.nome,
     cnpj: e.cnpj || base.cnpj,
     endereco: e.endereco || base.endereco,
+    representante: e.representante?.nome ? e.representante : base.representante,
     foro: e.foro || base.foro || local,
     local_assinatura: base.local_assinatura || local,
   };
