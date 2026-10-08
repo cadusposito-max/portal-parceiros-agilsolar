@@ -331,6 +331,9 @@ function _pbdRenderResultado() {
   const tipo = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
   const tipoNome = tipo === 'kitsMicro' ? 'com microinversor' : 'com inversor';
   const { recomendado, outros, menorQueCobre } = _pbdRecomendar(tipo, c.media);
+  // Marca/módulo escolhido sem kit pra esse consumo, mas outras marcas têm: avisa pra trocar.
+  const naFaixa = (k) => { const g = _pbdGeracao(k); return g >= c.media * PBD_FAIXA_MIN && g <= c.media * PBD_FAIXA_MAX; };
+  const motivo = (!recomendado || !naFaixa(recomendado.k)) && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(tipo, naFaixa) : '';
 
   let kitsHtml;
   if (recomendado) {
@@ -340,7 +343,8 @@ function _pbdRenderResultado() {
     const nota = economia > 0
       ? `${formatCurrency(economia)} mais barato que o kit de ${_pbdKwp(Number(menorQueCobre.k.power))} kWp (o menor que cobre a média)` : '';
     const tag = cobre ? 'Recomendado · mais barato que cobre a média' : 'Mais próximo · abaixo da média';
-    kitsHtml = `<div class="pbd-sec">Kit recomendado</div><div class="pbd-kits">${_pbdKitCard(recomendado.k, c.media, tag, true, nota)}</div>`;
+    kitsHtml = (motivo ? `<div class="pbd-aviso" style="margin:12px 0 4px">${escapeHTML(motivo)}</div>` : '')
+      + `<div class="pbd-sec">Kit recomendado</div><div class="pbd-kits">${_pbdKitCard(recomendado.k, c.media, tag, true, nota)}</div>`;
     if (!cobre) {
       kitsHtml += `<p class="pbd-hint" style="margin-top:8px">Nenhum kit ${tipoNome} da tabela gera a média de consumo.</p>`;
     }
@@ -360,7 +364,7 @@ function _pbdRenderResultado() {
     }
     kitsHtml += `<button type="button" class="pbd-link" data-pbd-ver-todos="${Math.round(c.media)}">Ver todos os kits perto dessa geração →</button>`;
   } else {
-    kitsHtml = `<div class="pbd-aviso" style="margin-top:12px">Nenhum kit ${tipoNome} disponível com esta seleção. Confira os equipamentos e a distribuidora escolhidos.</div>`;
+    kitsHtml = `<div class="pbd-aviso" style="margin-top:12px">${escapeHTML(motivo || `Nenhum kit ${tipoNome} disponível com esta seleção. Confira os equipamentos e a distribuidora escolhidos.`)}</div>`;
   }
 
   host.innerHTML = mets + kitsHtml;

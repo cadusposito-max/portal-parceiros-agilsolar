@@ -1090,6 +1090,9 @@ function renderModalProducts() {
 
   if (list.length === 0) {
     container.classList.add('hidden');
+    const motivo = !state.pbSearch && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(state.pbCategory) : '';
+    const txt = emptyEl.querySelector('p');
+    if (txt) txt.textContent = motivo || 'Nenhum kit atende a este filtro';
     emptyEl.classList.remove('hidden');
     emptyEl.classList.add('flex');
     return;

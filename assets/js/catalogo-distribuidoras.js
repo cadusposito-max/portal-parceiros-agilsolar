@@ -105,6 +105,21 @@ function pbKitCompativel(kit) {
   return true;
 }
 
+// Por que a seleção não tem kit: se sem o filtro de marca (ou de módulo) haveria
+// kit, a culpa é do equipamento escolhido e o vendedor deve trocar a marca.
+function pbMotivoSemKit(categoria, serve = () => true) {
+  const f = _pbFornecimento;
+  const base = (state.data || []).filter((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0);
+  const haveriaSem = (campo) => {
+    const salvo = f[campo];
+    f[campo] = '';
+    try { return base.some((k) => pbKitCompativel(k) && serve(k)); } finally { f[campo] = salvo; }
+  };
+  if (f.inversor && haveriaSem('inversor')) return `A marca ${f.inversor} não tem inversor compatível com a configuração atual. Troque a marca do inversor.`;
+  if (f.modulo && haveriaSem('modulo')) return `O módulo ${f.modulo} não tem kit compatível com a configuração atual. Troque o módulo.`;
+  return '';
+}
+
 function pbKitDistribuidoraNome(kit) {
   const id = kit?.distribuidora_id || _pbFornecimento.distribuidora;
   return id ? catalogoDistribuidora(id)?.nome || '' : '';
