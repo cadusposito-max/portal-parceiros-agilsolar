@@ -45,6 +45,7 @@
 
 
   <link rel="stylesheet" href="assets/css/main.css?v=20261006-lch">
+  <link rel="stylesheet" href="assets/css/centro-custo.css?v=20261009-cc">
   <link rel="stylesheet" href="assets/css/theme-light.css?v=20260925-layout-c" id="theme-light-css" disabled>
   <!-- Visual novo (v2) — BETA só para admins. Desligado por padrão (media="not all"); tudo nele é
        escopado em html[data-ui="v2"] e quem liga/desliga é assets/js/ui-v2.js. -->
@@ -816,6 +817,11 @@
           <input required type="number" step="any" id="form-listPrice" class="w-full bg-black border border-red-900 focus:border-red-500 text-red-400 rounded-none px-4 py-3 font-mono font-bold">
         </div>
       </div>
+      <!-- Custo do kit (só admin): base do preço por custos (centro de custo da unidade) -->
+      <div id="form-custo-wrap" class="space-y-1 hidden">
+        <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Custo do kit c/ frete (só admin)</label>
+        <input type="number" step="any" min="0" id="form-custo" placeholder="Vazio = sem custo (fica no markup)" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-mono font-bold">
+      </div>
       <div class="grid grid-cols-3 gap-4">
         <div class="space-y-1">
           <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Categoria</label>
@@ -1244,7 +1250,7 @@
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20261002-zip');
   local('scroll-x.js',         '20261007-sx');
-  local('api.js',              '20261009-custos2');
+  local('api.js',              '20261009-cc');
   local('auth.js',             '20261007-tour');
   local('comunicados.js',      '20260615-om-central-propostas');
   local('dashboard.js',        '20260925-layout-c');
@@ -1259,18 +1265,19 @@
   local('analise.js',          '20261006-etq');
   local('catalogo-distribuidoras.js', '20261008-linha');
   local('distribuidoras-integracao.js', '20261009-custos2');
-  local('produtos.js',         '20261008-linha');
+  local('produtos.js',         '20261009-cc');
   local('pb-dimensionar.js',   '20261008-linha');
   local('proposta-builder.js', '20261008-linha');
-  local('centro-custo-calc.js', '20261009-custos2');
-  local('orcamento-dre.js',    '20261009-custos2');
+  local('centro-custo-calc.js', '20261009-cc');
+  local('centro-custo-tela.js', '20261009-cc');
+  local('orcamento-dre.js',    '20261009-cc');
   local('vendas.js',           '20260930-venda');
   local('admin.js',            '20261007-dist');
   local('profile.js',          '20260922-2fa-sobrio');
   local('chat.js',             '20260925-layout-c');
   local('om.js',               '20260929-p22');
   local('om-os.js',            '20260930-leve');
-  local('financeiro.js',       '20261009-custos2');
+  local('financeiro.js',       '20261009-cc');
   local('vistoria.js',         '20260929-p22');
   local('vistoria-os.js',      '20260930-leve');
   local('engenharia.js',       '20261001-eng');
@@ -1280,7 +1287,7 @@
   local('app.js',              '20261006-lch');
   local('ui-v2.js',            '20260929-rel6');
   local('ui-v2-shell.js',      '20261007-mtop');
-  local('ui-v2-screens.js',    '20261008-linha');
+  local('ui-v2-screens.js',    '20261009-cc');
   local('ui-v2-select.js',     '20261006-listas');
   local('ui-v2-filtros.js',    '20260929-p28');
   local('ui-v2-ficha.js',      '20261007-sx');

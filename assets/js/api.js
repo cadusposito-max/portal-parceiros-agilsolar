@@ -32,12 +32,13 @@ function resolveProductPrices(produto) {
   const franchiseRows = Array.isArray(produto.precos_franquia) ? produto.precos_franquia : [];
   // Unidade no modo "custos + margem": o banco calcula price_custos (centro de custo) e ele
   // vale no lugar do preço do markup. Promocionais nunca têm price_custos.
+  const price = resolveBestPositiveValue(franchiseRows.map(r => r?.price), produto.price);
   const custos = franchiseRows.map(r => Number(r?.price_custos)).find(v => Number.isFinite(v) && v > 0);
   if (custos) {
     const deCustos = franchiseRows.map(r => Number(r?.list_price_custos)).find(v => Number.isFinite(v) && v > 0) || 0;
-    return { price: custos, list_price: Math.max(deCustos, custos), preco_por: 'custos' };
+    const deMarkup = resolveBestPositiveValue(franchiseRows.map(r => r?.list_price), produto.list_price);
+    return { price: custos, list_price: Math.max(deCustos, custos), preco_por: 'custos', preco_markup: price, list_price_markup: Math.max(deMarkup, price) };
   }
-  const price = resolveBestPositiveValue(franchiseRows.map(r => r?.price), produto.price);
   const listPriceRaw = resolveBestPositiveValue(franchiseRows.map(r => r?.list_price), produto.list_price);
   const listPrice = Math.max(listPriceRaw, price);
 

@@ -554,8 +554,9 @@ function openModal(item = null) {
     document.getElementById('form-name').value           = item.name;
     document.getElementById('form-brand').value          = item.brand;
     document.getElementById('form-power').value          = item.power;
-    document.getElementById('form-price').value          = item.price;
-    document.getElementById('form-listPrice').value      = item.list_price;
+    // Unidade no modo custos: o modal edita o preço do markup (o por custos é calculado).
+    document.getElementById('form-price').value          = item.preco_por === 'custos' ? item.preco_markup : item.price;
+    document.getElementById('form-listPrice').value      = item.preco_por === 'custos' ? (item.list_price_markup || item.preco_markup) : item.list_price;
     document.getElementById('form-type').value           = item.type;
     document.getElementById('form-tag').value            = item.tag;
     if (categoriaEl) categoriaEl.value = item.categoria === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
@@ -576,6 +577,35 @@ function openModal(item = null) {
     }
   });
   catalogoKitAbrir(item || null);
+  custoKitAbrir(item || null);
+}
+
+// Custo do kit com frete (produtos_custo, só admin): base do preço por custos.
+async function custoKitAbrir(item) {
+  const wrap = document.getElementById('form-custo-wrap');
+  const inp = document.getElementById('form-custo');
+  if (!wrap || !inp) return;
+  wrap.classList.toggle('hidden', !state.isAdmin);
+  inp.value = '';
+  inp.dataset.original = '';
+  if (!state.isAdmin || !item) return;
+  const { data } = await supabaseClient.from('produtos_custo').select('custo').eq('produto_id', item.id).maybeSingle();
+  if (document.getElementById('form-id').value !== String(item.id)) return;
+  inp.value = data && data.custo ? data.custo : '';
+  inp.dataset.original = inp.value;
+}
+
+async function custoKitSalvar(produtoId) {
+  const inp = document.getElementById('form-custo');
+  if (!state.isAdmin || !inp || !produtoId) return null;
+  const valor = Number(inp.value);
+  if (String(inp.value) === String(inp.dataset.original || '')) return null;
+  if (inp.value === '' || !(valor > 0)) {
+    return supabaseClient.from('produtos_custo').delete().eq('produto_id', produtoId);
+  }
+  return supabaseClient.from('produtos_custo').upsert(
+    { produto_id: produtoId, custo: Math.round(valor * 100) / 100, fonte: 'manual', atualizado_em: new Date().toISOString() },
+    { onConflict: 'produto_id' });
 }
 
 function closeModal() {
@@ -642,6 +672,9 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
   if (id) {
     const { error } = await supabaseClient.from('produtos').update(productData).eq('id', id);
     if (error) { falhou(error, 'atualizar produto'); return; }
+    const custoRes = await custoKitSalvar(id);
+    if (custoRes && custoRes.error) { falhou(custoRes.error, 'salvar o custo do kit'); return; }
+    if (custoRes && window.uiV2InvalidarCustosKits) window.uiV2InvalidarCustosKits();
     // Atualiza preço na franquia selecionada no admin
     if (state.adminKitsFranquia) {
       const { error: precoError } = await supabaseClient.from('precos_franquia').upsert(
@@ -658,6 +691,9 @@ document.getElementById('product-form').addEventListener('submit', async (e) => 
       : productData;
     const { data: newKit, error: insertError } = await supabaseClient.from('produtos').insert([novoProduto]).select().single();
     if (insertError || !newKit) { falhou(insertError || new Error('produto não retornado'), 'criar produto'); return; }
+    const custoRes = await custoKitSalvar(newKit.id);
+    if (custoRes && custoRes.error) { falhou(custoRes.error, 'salvar o custo do kit'); return; }
+    if (custoRes && window.uiV2InvalidarCustosKits) window.uiV2InvalidarCustosKits();
 
     let alvos;
     if (state.adminKitsFranquia) {
@@ -755,6 +791,8 @@ const KIT_IMPORT_HEADER_ALIASES = {
   ativo:      ['ativo', 'status', 'ativoinativo', 'emlinha'],
   // promocional × catálogo (vazio = catálogo): mesmo nome nas duas linhas não se mistura
   linha:      ['linha', 'lista', 'linhadekits'],
+  // custo do kit com frete (base do preço por custos); vazio = não mexe
+  custo:      ['custo', 'custokit', 'custodokit', 'custocomfrete'],
   // vínculo técnico (opcional): vazio = a plataforma lê do nome do kit
   modulo:       ['modulo', 'modulofv', 'placa', 'modelomodulo', 'modelodomodulo'],
   modulo_qtd:   ['qtdmodulos', 'qtdmodulo', 'quantidademodulos', 'qtdplacas', 'modulosqtd'],
@@ -965,6 +1003,7 @@ function mapKitImportRow(row, fallbackCategory) {
   const type = rawType ? normalizeImportedType(rawType) : null;
   const tag = rawTag ? normalizeImportedTag(rawTag) : null;
   const linha = normalizeImportedLinha(getMappedImportValue(rowMap, 'linha'));
+  const custoKit = parseSpreadsheetNumber(getMappedImportValue(rowMap, 'custo'));
 
   // Coluna opcional "ativo": SIM/NÃO, true/false, 1/0 (ausente = não mexe).
   const rawAtivo = String(getMappedImportValue(rowMap, 'ativo')).trim().toLowerCase();
@@ -995,6 +1034,7 @@ function mapKitImportRow(row, fallbackCategory) {
       description,
       ativo,
       linha,
+      _custo: Number.isFinite(custoKit) && custoKit > 0 ? Math.round(custoKit * 100) / 100 : null,
       _eq: {
         modulo: String(getMappedImportValue(rowMap, 'modulo') ?? '').trim(),
         modulo_qtd: parseSpreadsheetNumber(getMappedImportValue(rowMap, 'modulo_qtd')),
@@ -1050,9 +1090,16 @@ async function loadKitsImportContext() {
     precosUnidade = new Map(precos.map(p => [String(p.produto_id), p]));
   }
 
+  let custos = new Map();
+  if (state.isAdmin) {
+    const { data: cs = [] } = await supabaseClient.from('produtos_custo').select('produto_id, custo');
+    custos = new Map((cs || []).map(c => [String(c.produto_id), Number(c.custo)]));
+  }
+
   return {
     franquiaId,
     precosUnidade,
+    custos,
     equip,
     byId: new Map(existing.map(item => [String(item.id), item])),
     byKey: new Map(existing.map(item => [buildKitMatchKey(item.name, item.brand, item.power, item.linha), item])),
@@ -1153,6 +1200,10 @@ function planKitRow(ctx, row) {
     const precoMudou = !precoAtual
       || !_sameImportMoney(precoAtual.price, payload.price)
       || !_sameImportMoney(precoAtual.list_price, payload.list_price);
+    // custo do kit (coluna custo, só admin)
+    if (state.isAdmin && row._custo && !_sameImportMoney(ctx.custos && ctx.custos.get(String(target.id)), row._custo)) {
+      camposAlterados.push('custo');
+    }
 
     return {
       kind: 'update',
@@ -1340,6 +1391,24 @@ async function applyKitsImportPlan(plan, selectedItems) {
       .from('precos_franquia')
       .upsert(precoUpserts, { onConflict: 'produto_id,franquia_id' });
     if (error) throw error;
+  }
+
+  // 4) custo do kit (coluna custo, só admin): base do preço por custos da unidade
+  if (state.isAdmin) {
+    const agora = new Date().toISOString();
+    const custos = [];
+    selectedItems.filter(i => i.kind === 'insert').forEach((i, idx) => {
+      const kit = insertedRows[idx];
+      if (kit && i.row && i.row._custo) custos.push({ produto_id: kit.id, custo: i.row._custo, fonte: 'importacao', atualizado_em: agora });
+    });
+    toUpdate.forEach((i) => {
+      if (i.row && i.row._custo) custos.push({ produto_id: i.id, custo: i.row._custo, fonte: 'importacao', atualizado_em: agora });
+    });
+    if (custos.length) {
+      const { error } = await supabaseClient.from('produtos_custo').upsert(custos, { onConflict: 'produto_id' });
+      if (window.uiV2InvalidarCustosKits) window.uiV2InvalidarCustosKits();
+      if (error) throw error;
+    }
   }
 
   return {
@@ -1874,6 +1943,7 @@ async function exportCurrentKitsXLSX() {
     { header: 'description', key: 'description' },
     { header: 'ativo', key: 'ativo' },
     { header: 'linha', key: 'linha' },
+    ...(state.isAdmin ? [{ header: 'custo', key: 'custo' }] : []),
     // vínculo técnico (engenharia): vazio = a plataforma lê do nome do kit
     { header: 'modulo', key: 'modulo' },
     { header: 'qtd_modulos', key: 'qtd_modulos' },
@@ -1882,6 +1952,14 @@ async function exportCurrentKitsXLSX() {
   ];
 
   // nomes dos equipamentos ligados (catálogo técnico)
+  // custo do kit com frete (só admin)
+  let custosKit = new Map();
+  if (state.isAdmin) {
+    try {
+      const { data } = await supabaseClient.from('produtos_custo').select('produto_id, custo');
+      custosKit = new Map((data || []).map((c) => [String(c.produto_id), Number(c.custo)]));
+    } catch (_) { /* exporta sem o custo */ }
+  }
   let nomesEq = new Map();
   try {
     const { data } = await supabaseClient.from('componentes').select('id, nome').in('tipo', ['modulo', 'inversor']);
@@ -1890,8 +1968,9 @@ async function exportCurrentKitsXLSX() {
 
   const rows = kits.map(item => {
     const power = Number(item.power);
-    const price = Number(item.price);
-    const listPrice = Number(item.list_price);
+    // Unidade no modo custos: exporta o preço do markup (o por custos é calculado pelo banco).
+    const price = Number(item.preco_por === 'custos' ? item.preco_markup : item.price);
+    const listPrice = Number(item.preco_por === 'custos' ? (item.list_price_markup || item.preco_markup) : item.list_price);
 
     return {
       id: item.id ?? '',
@@ -1910,6 +1989,7 @@ async function exportCurrentKitsXLSX() {
       qtd_modulos: item.modulo_qtd || '',
       inversor: nomesEq.get(item.inversor_id) || '',
       qtd_inversores: item.inversor_qtd || '',
+      custo: custosKit.get(String(item.id)) || '',
     };
   });
 
@@ -1936,6 +2016,7 @@ function downloadKitsImportTemplateXLSX() {
     { header: 'description', key: 'description' },
     { header: 'ativo', key: 'ativo' },
     { header: 'linha', key: 'linha' },
+    ...(state.isAdmin ? [{ header: 'custo', key: 'custo' }] : []),
     // vínculo técnico (engenharia): vazio = a plataforma lê do nome do kit
     { header: 'modulo', key: 'modulo' },
     { header: 'qtd_modulos', key: 'qtd_modulos' },

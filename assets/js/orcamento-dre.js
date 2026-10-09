@@ -41,7 +41,15 @@
   ];
   const DEDUCOES = { key: 'deducoes', rotulo: 'Deduções' };
   const TODAS = LINHAS.concat([DEDUCOES]);
-  const BASES = { v: 'Venda', vk: 'Venda − kit' };
+  const BASES = CentroCustoCalc.basesPct;
+  // Linhas da demonstração: as fixas + os custos personalizados da unidade (extra_*),
+  // que entram antes da comissão.
+  function defs() {
+    const extras = Object.keys((cur && cur.linhas) || {}).filter((k) => CentroCustoCalc.ehExtra(k))
+      .map((k) => ({ key: k, rotulo: cur.linhas[k].nome || 'Custo personalizado' }));
+    const i = LINHAS.findIndex((l) => l.key === 'comissao');
+    return LINHAS.slice(0, i).concat(extras, LINHAS.slice(i));
+  }
   const LEGADO_RS = ['projeto', 'instalacao', 'eletrica', 'placas', 'ajuda', 'vistoria', 'outros'];
 
   let cur = null; // { propostaId, receita, kit, extras:[], linhas:{}, padrao:{}, margem_min, margem_alvo, ... }
@@ -75,8 +83,9 @@
       const out = {};
       TODAS.forEach((l) => {
         const src = (l.contrato ? (data.contrato || {})[l.key] : (data.linhas || {})[l.key]) || null;
-        out[l.key] = src ? linha(src.t, src.v, src.b) : (l.contrato ? linha('pct', 0, 'v') : linha('brl', 0, 'v'));
+        out[l.key] = src ? linha(src.t, src.v, src.b, src) : (l.contrato ? linha('pct', 0, 'v') : linha('brl', 0, 'v'));
       });
+      Object.entries(data.linhas || {}).forEach(([k, src]) => { if (CentroCustoCalc.ehExtra(k)) out[k] = linha(src.t, src.v, src.b, src); });
       return { linhas: out, projeto_rede: data.projeto_rede, margem_min: num(data.margem_min), margem_alvo: num(data.margem_alvo), nome: data.franquia_nome || null, fallback: false };
     } catch (err) {
       console.warn('[precificacao] centro de custo indisponível; usando padrões', err);
@@ -92,13 +101,16 @@
     if (!saved) return linhas;
     const ov = saved.overrides || {};
     if (ov.versao >= 2 && ov.linhas && typeof ov.linhas === 'object') {
-      TODAS.forEach((l) => { const s = ov.linhas[l.key]; if (s) linhas[l.key] = linha(s.t, s.v, s.b); });
+      TODAS.forEach((l) => { const s = ov.linhas[l.key]; if (s) linhas[l.key] = linha(s.t, s.v, s.b, s); });
+      Object.keys(linhas).forEach((k) => { if (CentroCustoCalc.ehExtra(k) && !ov.linhas[k]) delete linhas[k]; });
+      Object.entries(ov.linhas).forEach(([k, s]) => { if (CentroCustoCalc.ehExtra(k)) linhas[k] = linha(s.t, s.v, s.b, s); });
       // Cenário salvo antes da elétrica fixa (09/10) não ganha a linha nova.
       if (!ov.linhas.eletrica_fixa) linhas.eletrica_fixa = linha('brl', 0, 'v');
       return linhas;
     }
     const custos = saved.custos || {};
     LEGADO_RS.forEach((k) => { linhas[k] = linha('brl', num(custos[k]), 'v'); });
+    Object.keys(linhas).forEach((k) => { if (CentroCustoCalc.ehExtra(k)) delete linhas[k]; });
     linhas.eletrica_fixa = linha('brl', 0, 'v');
     ['imposto', 'comissao', 'deducoes'].forEach((k) => { if (ov[k] != null) linhas[k] = linha('brl', ov[k], 'v'); });
     if (ov.royalties != null) { linhas.royalties = linha('brl', ov.royalties, 'v'); linhas.publicidade = linha('brl', 0, 'v'); }
@@ -174,7 +186,7 @@
   }
 
   function compute() {
-    const d = CentroCustoCalc.calcular({ linhas: cur.linhas, venda: num(cur.receita), kit: num(cur.kit), modulos: cur.modulos, kwp: cur.kwp, margem: cur.margem_alvo,
+    const d = CentroCustoCalc.calcular({ linhas: cur.linhas, venda: num(cur.receita), kit: num(cur.kit), modulos: cur.modulos, kwp: cur.kwp, inversores: cur.inversores, margem: cur.margem_alvo,
       extrasReceita: cur.extras.filter(e=>e.tipo === 'receita').reduce((s,e)=>s+num(e.valor),0),
       extrasDespesa: cur.extras.filter(e=>e.tipo !== 'receita').reduce((s,e)=>s+num(e.valor),0) });
     if (cur.projetoPendente) { d.erros.push('Projeto fora da tabela da Rede. Configure a faixa antes de precificar.'); d.vendaAlvo = null; }
@@ -213,8 +225,10 @@
     const tag = `<span class="orc-adj" data-orc-adj="${def.key}" style="${ajustado(def.key) ? '' : 'display:none'}">ajustado<button type="button" data-orc-act="reset-linha" data-k="${def.key}" class="orc-adj-x" title="Voltar ao padrão da unidade"><i data-lucide="undo-2" class="w-3 h-3"></i></button></span>`;
     const nome = `<span class="orc-lbl font-bold text-neutral-300 text-sm">${escapeHTML(def.rotulo)}${def.contrato ? ' <span class="text-[10px] text-neutral-600 font-bold">· contrato</span>' : ''}</span>`;
     let ctrl;
-    if (travada) {
-      ctrl = `<span class="orc-lock"><i data-lucide="lock" class="w-3 h-3"></i>${l.t === 'pct' ? pctFmt(l.v) + '% · ' + BASES[l.b].toLowerCase() : money(l.v) + ' fixo'}</span>`;
+    if (!travada && l.t === 'brl' && l.b === 'faixa') {
+      ctrl = `<span class="orc-lock"><i data-lucide="table" class="w-3 h-3"></i>Tabela por kWp do centro de custo</span>`;
+    } else if (travada) {
+      ctrl = `<span class="orc-lock"><i data-lucide="lock" class="w-3 h-3"></i>${l.t === 'pct' ? pctFmt(l.v) + '% · ' + (BASES[l.b] || '').toLowerCase() : money(l.v) + ' fixo'}</span>`;
     } else {
       const seg = `<span class="orc-seg"><button type="button" data-orc-tipo="pct" data-k="${def.key}" class="${l.t === 'pct' ? 'on' : ''}">%</button><button type="button" data-orc-tipo="brl" data-k="${def.key}" class="${l.t === 'brl' ? 'on' : ''}">R$</button></span>`;
       const inp = `<div class="relative orc-money orc-money-sm">
@@ -224,7 +238,7 @@
         </div>`;
       const base = l.t === 'pct'
         ? `<select data-orc-base="${def.key}" class="orc-base">${Object.entries(BASES).map(([k, n]) => `<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`
-        : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${Object.entries(CentroCustoCalc.bases).map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
+        : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${Object.entries(CentroCustoCalc.bases).filter(([k]) => k !== 'faixa').map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
       ctrl = seg + inp + base;
     }
     return `<div class="orc-row orc-linha px-5 py-2 lg:py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5" data-orc-row="${def.key}">
@@ -236,7 +250,7 @@
 
   function renderLinhas() {
     const host = document.getElementById('orc-linhas'); if (!host) return;
-    host.innerHTML = LINHAS.map(linhaRow).join('');
+    host.innerHTML = defs().map(linhaRow).join('');
     const ded = document.getElementById('orc-linha-ded');
     if (ded) ded.innerHTML = linhaRow(DEDUCOES);
     if (window.lucide) lucide.createIcons();
@@ -321,6 +335,7 @@
               <div class="px-5 py-2 flex flex-wrap gap-3 text-[11px] text-neutral-500">
                 <label>Módulos <input aria-label="Módulos da simulação" data-orc-dim="modulos" type="number" min="1" step="1" value="${cur.modulos}" class="orc-base w-24"></label>
                 <label>kWp <input aria-label="Potência da simulação" data-orc-dim="kwp" type="number" min="0.01" step="0.01" value="${cur.kwp}" class="orc-base w-24"></label>
+                <label>Inversores <input aria-label="Inversores ou micros da simulação" data-orc-dim="inversores" type="number" min="1" step="1" value="${cur.inversores}" class="orc-base w-20"></label>
                 ${cur.artInclusa ? 'ART incluída no projeto da Rede' : ''}
               </div>
               <div id="orc-linhas" class="divide-y divide-neutral-800/70"></div>
@@ -413,7 +428,7 @@
     const d = compute();
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
-    TODAS.forEach((l) => {
+    defs().concat([DEDUCOES]).forEach((l) => {
       const res = document.querySelector(`[data-orc-res="${l.key}"]`);
       if (res) res.textContent = '− ' + money(d.valores[l.key]);
       const tag = document.querySelector(`[data-orc-adj="${l.key}"]`);
@@ -511,7 +526,7 @@
       const t = ev.target;
       if (t.matches('[data-orc-dim]')) {
         const k = t.getAttribute('data-orc-dim');
-        cur[k] = Math.max(0, k === 'modulos' ? Math.floor(num(t.value)) : num(t.value));
+        cur[k] = Math.max(0, k === 'modulos' || k === 'inversores' ? Math.floor(num(t.value)) : num(t.value));
         const projeto = CentroCustoCalc.projeto(cur.projetoRede, cur.kwp);
         cur.projetoPendente = projeto == null;
         cur.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
@@ -539,7 +554,7 @@
       const t = ev.target;
       if (t.matches('[data-orc-base]')) {
         const l = cur.linhas[t.getAttribute('data-orc-base')];
-        if (l) { l.b = linha(l.t, l.v, t.value).b; recalc(); }
+        if (l) { Object.assign(l, linha(l.t, l.v, t.value, l)); recalc(); }
       } else if (t.matches('[data-orc-ex-field="tipo"]')) {
         const wrap = t.closest('[data-orc-extra]'); if (!wrap) return;
         const i = parseInt(wrap.getAttribute('data-orc-extra'), 10);
@@ -606,7 +621,7 @@
         p_receita:       r2(alvo.receita),
         p_custos:        { kit: r2(alvo.kit) },
         p_extras:        alvo.extras.map((e) => ({ tipo: e.tipo === 'receita' ? 'receita' : 'despesa', rotulo: String(e.rotulo || ''), valor: r2(e.valor) })),
-        p_overrides:     { versao: 3, modulos: alvo.modulos, kwp: alvo.kwp, art_inclusa: alvo.artInclusa, projeto_rede: alvo.projetoRede, linhas: clone(alvo.linhas), margem_alvo: num(alvo.margem_alvo) },
+        p_overrides:     { versao: 3, modulos: alvo.modulos, kwp: alvo.kwp, inversores: alvo.inversores, art_inclusa: alvo.artInclusa, projeto_rede: alvo.projetoRede, linhas: clone(alvo.linhas), margem_alvo: num(alvo.margem_alvo) },
         p_total_custos:  d.totalCustos,
         p_lucro_liquido: d.lucroLiq,
         p_margem_pct:    d.margem,
@@ -727,6 +742,7 @@
     cur = {
       modulos: ov.versao >= 3 ? num(ov.modulos) : num(contexto.modulos),
       kwp: ov.versao >= 3 ? num(ov.kwp) : num(contexto.kwp),
+      inversores: ov.versao >= 3 && ov.inversores != null ? num(ov.inversores) : (num(contexto.inversores) || 1),
       // Cenário salvo com ART dentro do projeto (antes de 09/10) continua igual; o novo soma a ART.
       artInclusa: saved ? !!ov.art_inclusa : false,
       projetoRede: saved ? (ov.projeto_rede || {cobrar:false}) : centro.projeto_rede,

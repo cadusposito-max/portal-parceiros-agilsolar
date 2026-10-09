@@ -33,7 +33,7 @@ test('Unidade no modo custos: usa a unidade, dimensões e custo com frete; grava
  const r=await fixture('gestor','custos');
  assert.equal(r.status,200);assert.equal(r.data.kits[0].preco,12345.67);
  assert.equal(r.data.kits[0].preco_de,13996.95); // 12345,67 × 1,13375
- assert.deepEqual(r.prices[0],{p_franquia_id:'f',p_kit:6800,p_modulos:10,p_kwp:6.2});
+ assert.deepEqual(r.prices[0],{p_franquia_id:'f',p_kit:6800,p_modulos:10,p_kwp:6.2,p_inversores:1});
  assert.equal(r.writes[0].precificacao.linhas.instalacao.b,'modulo');
  assert.equal(r.data.kits[0].custo,undefined);assert.equal(r.data.kits[0].precificacao,undefined);
  assert.equal(r.data.kits[0].margem_alvo,22);

@@ -917,8 +917,28 @@
     return produtosKitsV2(container, seg, kits);
   }
 
+  // Custo do kit (produtos_custo, só admin): diz se o kit entra no preço por custos.
+  let custosKits = null, custosKitsCarregando = false;
+  function carregarCustosKits() {
+    if (!state.isAdmin || custosKits || custosKitsCarregando) return;
+    custosKitsCarregando = true;
+    supabaseClient.from('produtos_custo').select('produto_id').then(({ data, error }) => {
+      custosKitsCarregando = false;
+      if (error) return;
+      custosKits = new Set((data || []).map((c) => String(c.produto_id)));
+      if (document.body.dataset.v2screen === 'produtos' && has('renderContent')) renderContent();
+    });
+  }
+  window.uiV2InvalidarCustosKits = () => { custosKits = null; };
+  const seloPreco = (k) => {
+    if (k.preco_por === 'custos') return '<span class="v2-chip t-green" title="Preço calculado pelo centro de custo da unidade">Preço por custos</span>';
+    if (!state.isAdmin || !custosKits || k.linha === 'promocional') return '';
+    return custosKits.has(String(k.id)) ? '' : '<span class="v2-chip t-gray" title="Sem custo cadastrado: no modo custos, este kit continua no markup">Sem custo</span>';
+  };
+
   function produtosKitsV2(container, seg, todos) {
     if (state.isGestor && !state.isAdmin && state.franquiaId) state.adminKitsFranquia = state.franquiaId;
+    carregarCustosKits();
     const faixa = window.uiV2Screens.kitFaixa || 'all';
     let base = [...todos];
     if (_catalogoCategoria !== 'all') base = base.filter((k) => k.categoria === _catalogoCategoria);
@@ -947,7 +967,7 @@
       const ger = Number(k._estGeneration) || calcularGeracaoEstimada(Number(k.power) || 0, k.categoria);
       const id = esc(k.id);
       return `<div class="v2-card v2-pcard v2-kit ${inativo ? 'off' : ''}" onclick="openModalById('${id}')">
-        <div class="tags">${k.linha === 'promocional' ? `<span class="v2-chip t-green">${ic('tag')}Promocional</span>` : ''}${k.brand ? `<span class="v2-chip t-blue">${esc(k.brand)}</span>` : ''}<span class="v2-chip t-gray">${micro ? 'Microinversor' : 'Inversor'}</span>${k.tag ? `<span class="v2-chip t-orange">${ic('flame')}${esc(cap(k.tag))}</span>` : ''}${inativo ? '<span class="v2-chip t-gray">Fora de linha</span>' : ''}${seloVinculo(k)}</div>
+        <div class="tags">${k.linha === 'promocional' ? `<span class="v2-chip t-green">${ic('tag')}Promocional</span>` : ''}${k.brand ? `<span class="v2-chip t-blue">${esc(k.brand)}</span>` : ''}<span class="v2-chip t-gray">${micro ? 'Microinversor' : 'Inversor'}</span>${k.tag ? `<span class="v2-chip t-orange">${ic('flame')}${esc(cap(k.tag))}</span>` : ''}${inativo ? '<span class="v2-chip t-gray">Fora de linha</span>' : ''}${seloVinculo(k)}${seloPreco(k)}</div>
         <div><small class="muted" style="font-size:12px;font-weight:700">Kit fotovoltaico</small><div class="kp">${kwpTxt(k.power)} <small>kWp</small></div></div>
         <div class="kit">${ic('solar-panel')}<span title="${esc(k.name)}">${esc(k.name || 'Sem nome')}</span></div>
         <ul><li>${ic('cpu')}Categoria<b>${micro ? 'Microinversor' : 'Inversor string'}</b></li>${k.type ? `<li>${ic('home')}Tipo<b>${esc(cap(k.type))}</b></li>` : ''}<li>${ic('sun')}Geração média<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b></li></ul>
