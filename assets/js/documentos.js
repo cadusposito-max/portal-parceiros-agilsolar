@@ -687,7 +687,7 @@ async function abrirDocumentosCliente(clientId, origem) {
   const overlay = document.createElement('div');
   overlay.id = 'doc-overlay';
   overlay.className = 'fixed inset-0 z-[98] flex items-center justify-center bg-black/90 backdrop-blur-md p-3 md:p-6';
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharDocumentosVenda(); });
+  // Clicar fora NÃO fecha (perdia o que foi digitado) — só o X ou ESC.
   document.body.appendChild(overlay);
   _docRender();
 }
