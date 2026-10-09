@@ -10,6 +10,7 @@ Implementação local. A migração foi executada no banco em transações com R
 - A cotação salva as linhas, a margem, as dimensões e o modo usados. A DRE reaproveita esse retrato. Cenários de DRE antigos mantêm suas linhas salvas; não se adiciona automaticamente um projeto da Rede a eles.
 - O simulador do centro de custo compara preço e margem usando os valores da tela. Não altera os kits promocionais nem cria um piso artificial de preço.
 - A comparação também mostra quanto cabe em despesas adicionais mantendo 19,5% no preço promocional, ou o resultado que falta para atingir essa referência. Esse saldo não é uma tarifa de elétrica.
+- A opção de estimativa Helte preenche instalação em 70/módulo e reserva na elétrica de 48,24/kWp, apenas sob premissas comerciais compatíveis. Salvar continua explícito. A [engenharia reversa](ENGENHARIA-REVERSA.md) documenta os 33 kits, a margem média de 19,5% e as exceções; valores individuais variam. O comparador avisa quando a margem está abaixo da mínima.
 - Dados dimensionais ausentes, percentuais inviáveis e projeto acima da tabela impedem calcular o preço alvo.
 
 ## Evidências do banco
@@ -31,7 +32,7 @@ A planilha Helte enviada depois permite reconstruir custos históricos de kits c
 
 ## Verificação
 
-- 14 testes de cálculo e integração: dimensões, centavos/margem, bases antigas, dados ausentes, margem inviável, extras, faixas da Rede, markup padrão, permissões, snapshot, ausência de fallback silencioso e saldo de despesas com referências Helte.
+- 17 testes de cálculo e integração: dimensões, centavos/margem, bases antigas, dados ausentes, margem inviável, extras, faixas da Rede, markup padrão, permissões, snapshot, ausência de fallback silencioso, saldo de despesas e calibração reversa Helte.
 - 23 testes existentes de integração Belenus passaram.
 - Testes SQL com rollback: persistência de bases, projeto/ART sem duplicação, rejeição de entradas inválidas, restrição das RPCs e acesso sem autenticação.
 - Navegador com dados sintéticos em 1440 e 390 px: seleção de promocional, cálculo, salvar configuração, DRE e salvar cenário. Sem erros de JavaScript ou rolagem horizontal.

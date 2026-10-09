@@ -2623,6 +2623,13 @@
         <button type="button" onclick="finCcSalvar()" class="ml-auto px-4 py-2 fin-acc-chip border border-[color:var(--fin-border-30)] text-[10px] font-black uppercase tracking-widest">Salvar centro de custo</button>
       </div>
       <div class="mt-5 pt-4 border-t border-neutral-800"><div class="text-sm font-bold">Comparar com kit promocional</div>
+      <details class="text-[11px] text-neutral-500 my-3">
+        <summary class="cursor-pointer font-bold">Estimativa inicial pela referência Helte</summary>
+        <p class="my-2">Engenharia reversa de 33 promocionais de 09/10/2026: instalação de R$ 70 por módulo e reserva estimada de R$ 48,24 por kWp na elétrica. A reserva reúne despesas ainda não discriminadas; não é uma cotação de materiais. Na amostra de 2,48 a 12,40 kWp, resulta em margem média de 19,5%, com variação entre kits. Nove ficam abaixo de 18% no preço promocional. Os micros de 4 a 7 módulos continuam acima do preço por custos com alvo de 22%.</p>
+        <p class="my-2">Referência com imposto de 13,8% sobre venda menos kit, comissão de 8%, ART de R$ 110, placas de R$ 30, demais custos e contrato zerados. Projeto da Rede sem cobrança. Fora dessas condições, calibre a estimativa para a unidade.</p>
+        <button type="button" id="fin-cc-helte" onclick="finCcUsarHelte()" class="px-3 py-2 fin-acc-chip border border-[color:var(--fin-border-30)] disabled:opacity-50" ${CentroCustoCalc.aceitaReferenciaHelte(finCc.linhas, d.contrato, d.projeto_rede) ? '' : 'disabled'}>Testar instalação de R$ 70/módulo e elétrica de R$ 48,24/kWp</button>
+        <p class="mt-2">Preenche os dois custos na tela. Para usar nas próximas cotações, salve o centro de custo. Margens e preços promocionais permanecem como cadastrados.</p>
+      </details>
       <p class="text-[11px] text-neutral-500 my-2">Informe o custo completo com frete. A margem de 19,5% é uma referência informada, não um custo cadastrado. Usa os valores da tela, mesmo antes de salvar.</p>
       <select id="fin-cc-promo" aria-label="Kit promocional" onchange="finCcPromo()" class="fin-acc-focus w-full px-2 py-2 bg-neutral-950 border border-neutral-800 text-sm"><option value="">Simulação livre</option>${(state.data || []).filter(p => p.ativo !== false && p.linha === 'promocional' && (!p.franquia_id || p.franquia_id === finCc.fid)).map(p=>`<option value="${escapeHTML(p.id)}">${escapeHTML(p.name)} · ${formatCurrency(p.price)}</option>`).join('')}</select>
       <div class="flex flex-wrap gap-3 mt-3">${[['kit','Custo do kit + frete'],['modulos','Módulos'],['kwp','Potência (kWp)'],['venda','Preço promocional']].map(([k,n])=>`<label class="text-[11px]">${n}<input id="fin-cc-sim-${k}" type="number" min="0" step="${k === 'modulos' ? '1' : '.01'}" oninput="finCcSimular()" class="${finCcInput} w-32 block"></label>`).join('')}</div>
@@ -2644,6 +2651,8 @@
     const el = document.getElementById('fin-cc-sim-result'); if (!el || !finCc) return;
     const saldoEl = document.getElementById('fin-cc-sim-saldo');
     if (saldoEl) saldoEl.textContent = '';
+    const helteBtn = document.getElementById('fin-cc-helte');
+    if (helteBtn) helteBtn.disabled = !CentroCustoCalc.aceitaReferenciaHelte(finCc.linhas, finCc.data.contrato, finCc.data.projeto_rede);
     const get = k => Number(document.getElementById('fin-cc-sim-' + k)?.value) || 0;
     finCc.sim = {promo:document.getElementById('fin-cc-promo').value,kit:get('kit'),modulos:get('modulos'),kwp:get('kwp'),venda:get('venda')};
     const rede = finCc.data.projeto_rede, projeto = CentroCustoCalc.projeto(rede, get('kwp'));
@@ -2654,6 +2663,9 @@
     const d = CentroCustoCalc.calcular({linhas,kit:get('kit'),modulos:get('modulos'),kwp:get('kwp'),venda:get('venda'),margem:finCc.malvo});
     el.textContent = d.erros.length ? d.erros.join(' ') : 'Venda por custos: ' + formatCurrency(d.vendaAlvo) + ' · alvo ' + finCc.malvo + '%' + (get('venda') > 0 ? ' · margem no promocional: ' + d.margem + '% · ' + (d.vendaAlvo >= get('venda') ? 'Promocional mantém o melhor preço.' : 'Preço por custos ficou abaixo do promocional; confira composição e custos.') : '') + (Number(finCc.linhas.eletrica.v) === 0 ? ' Elétrica está zerada: valide antes de vender.' : '');
     const saldo = CentroCustoCalc.saldoParaMargem(d, 19.5);
+    if (!d.erros.length && d.receita > 0 && d.lucroLiq / d.receita * 100 < finCc.mmin) {
+      el.textContent += ' Margem no promocional abaixo da mínima de ' + finCc.mmin + '%.';
+    }
     if (saldoEl && saldo !== null) {
       saldoEl.textContent = (saldo >= 0
         ? 'No preço promocional, cabem até ' + formatCurrency(saldo) + ' de despesas adicionais para manter 19,5% de margem.'
@@ -2662,6 +2674,13 @@
     }
   }
   function finCcUnidade(fid) { if (state.isAdmin) renderCentroCusto(fid); }
+  function finCcUsarHelte() {
+    if (!finCc || !CentroCustoCalc.aceitaReferenciaHelte(finCc.linhas, finCc.data.contrato, finCc.data.projeto_rede)) return;
+    finCc.linhas.instalacao = {t:'brl',v:CentroCustoCalc.referenciaHelte.instalacaoModulo,b:'modulo'};
+    finCc.linhas.eletrica = {t:'brl',v:CentroCustoCalc.referenciaHelte.eletricaKwp,b:'kwp'};
+    finCcPintar();
+    finToast('Estimativa preenchida. Confira a simulação e salve para usar nas novas cotações.', 'success');
+  }
   function finCcTipo(k, t) {
     const l = finCc && finCc.linhas[k]; if (!l || l.t === t) return;
     l.t = t; l.v = 0; l.b = 'v'; // base de cálculo é a venda de cada proposta: aqui não há como converter
@@ -2938,7 +2957,7 @@
     finExportRelatorio,
     // config
     finSalvarConfig, finToggleFinEnabled,
-    finCcPromo, finCcSimular, finCcUnidade, finCcTipo, finCcBase, finCcValor, finCcMargem, finCcSalvar,
+    finCcPromo, finCcSimular, finCcUnidade, finCcUsarHelte, finCcTipo, finCcBase, finCcValor, finCcMargem, finCcSalvar,
   });
 
 })();

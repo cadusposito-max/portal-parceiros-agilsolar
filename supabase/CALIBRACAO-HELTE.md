@@ -1,5 +1,7 @@
 # Conferência da referência Helte — 09/10/2026
 
+Esta é a conferência inicial, sem reserva de elétrica. A [engenharia reversa posterior](ENGENHARIA-REVERSA.md) recompõe os três kits divergentes e oferece uma estimativa de R$ 48,24/kWp, calibrada com os 33 promocionais sob a hipótese de margem média de 19,5%.
+
 Fonte: `Helte_RONMA620W_ate150_DRE_relacao_30-09.xlsx`, fornecida pelo usuário. A aba Preços informa 06/10/2026; o nome do arquivo indica 30/09. A referência usa RONMA 620 W, estrutura para telha cerâmica e frete para Araçatuba-SP. Não representa uma cotação atual de qualquer distribuidora ou cidade.
 
 O arquivo original foi somente lido. As 5.911 fórmulas não têm resultados em cache. Os custos foram reconstruídos a partir das fórmulas e dos valores de entrada, para os 293 kits (146 com inversor, 147 com microinversor). A comparação com os 64 valores cotados manualmente nas colunas N de Kits Inversor e L de Kits Micro teve diferença absoluta máxima de R$ 0,07.

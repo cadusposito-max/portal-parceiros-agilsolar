@@ -1,0 +1,309 @@
+{
+  "fonte": "Helte_RONMA620W_ate150_DRE_relacao_30-09.xlsx",
+  "dataPrecos": "2026-10-06",
+  "dataCatalogo": "2026-10-09",
+  "localFrete": "Araçatuba-SP",
+  "estrutura": "Telha cerâmica",
+  "precos": {
+    "MODULO": 548,
+    "PERFIL": 44.64,
+    "FIXACAO_4": 135.65,
+    "FIXACAO_2": 72.72,
+    "CABO": 5.87,
+    "CONECTOR": 12,
+    "MICRO": 942.49,
+    "FIXMICRO": 9,
+    "FRETE_MIN": 400,
+    "FRETE_1": 0.038494,
+    "FRETE_2": 0.031394,
+    "LIMITE": 25000
+  },
+  "inversores": [
+    {
+      "wp": 3300,
+      "preco": 1399,
+      "pares": 1
+    },
+    {
+      "wp": 5000,
+      "preco": 1590,
+      "pares": 2
+    },
+    {
+      "wp": 6000,
+      "preco": 1690,
+      "pares": 2
+    },
+    {
+      "wp": 7500,
+      "preco": 2600,
+      "pares": 2
+    }
+  ],
+  "promos": [
+    {
+      "modulos": 5,
+      "kwp": 3.1,
+      "micro": false,
+      "preco": 8997,
+      "inversorWp": 3300,
+      "inversores": 1
+    },
+    {
+      "modulos": 6,
+      "kwp": 3.72,
+      "micro": false,
+      "preco": 9897,
+      "inversorWp": 3300,
+      "inversores": 1
+    },
+    {
+      "modulos": 7,
+      "kwp": 4.34,
+      "micro": false,
+      "preco": 10897,
+      "inversorWp": 3300,
+      "inversores": 1
+    },
+    {
+      "modulos": 8,
+      "kwp": 4.96,
+      "micro": false,
+      "preco": 11897,
+      "inversorWp": 3300,
+      "inversores": 1
+    },
+    {
+      "modulos": 9,
+      "kwp": 5.58,
+      "micro": false,
+      "preco": 13997,
+      "inversorWp": 5000,
+      "inversores": 1
+    },
+    {
+      "modulos": 10,
+      "kwp": 6.2,
+      "micro": false,
+      "preco": 14997,
+      "inversorWp": 5000,
+      "inversores": 1
+    },
+    {
+      "modulos": 11,
+      "kwp": 6.82,
+      "micro": false,
+      "preco": 15997,
+      "inversorWp": 5000,
+      "inversores": 1
+    },
+    {
+      "modulos": 12,
+      "kwp": 7.44,
+      "micro": false,
+      "preco": 16997,
+      "inversorWp": 5000,
+      "inversores": 1
+    },
+    {
+      "modulos": 13,
+      "kwp": 8.06,
+      "micro": false,
+      "preco": 18197,
+      "inversorWp": 6000,
+      "inversores": 1
+    },
+    {
+      "modulos": 14,
+      "kwp": 8.68,
+      "micro": false,
+      "preco": 19897,
+      "inversorWp": 6000,
+      "inversores": 1
+    },
+    {
+      "modulos": 15,
+      "kwp": 9.3,
+      "micro": false,
+      "preco": 20597,
+      "inversorWp": 6000,
+      "inversores": 1
+    },
+    {
+      "modulos": 16,
+      "kwp": 9.92,
+      "micro": false,
+      "preco": 21697,
+      "inversorWp": 6000,
+      "inversores": 1
+    },
+    {
+      "modulos": 17,
+      "kwp": 10.54,
+      "micro": false,
+      "preco": 23897,
+      "inversorWp": 6000,
+      "inversores": 1
+    },
+    {
+      "modulos": 18,
+      "kwp": 11.16,
+      "micro": false,
+      "preco": 24897,
+      "inversorWp": 7500,
+      "inversores": 1
+    },
+    {
+      "modulos": 19,
+      "kwp": 11.78,
+      "micro": false,
+      "preco": 25997,
+      "inversorWp": 7500,
+      "inversores": 1
+    },
+    {
+      "modulos": 20,
+      "kwp": 12.4,
+      "micro": false,
+      "preco": 26997,
+      "inversorWp": 7500,
+      "inversores": 1
+    },
+    {
+      "modulos": 4,
+      "kwp": 2.48,
+      "micro": true,
+      "preco": 8029.29,
+      "inversorWp": 2250,
+      "inversores": 1
+    },
+    {
+      "modulos": 5,
+      "kwp": 3.1,
+      "micro": true,
+      "preco": 10171.29,
+      "inversorWp": 2250,
+      "inversores": 2
+    },
+    {
+      "modulos": 6,
+      "kwp": 3.72,
+      "micro": true,
+      "preco": 11135.19,
+      "inversorWp": 2250,
+      "inversores": 2
+    },
+    {
+      "modulos": 7,
+      "kwp": 4.34,
+      "micro": true,
+      "preco": 12420.39,
+      "inversorWp": 2250,
+      "inversores": 2
+    },
+    {
+      "modulos": 8,
+      "kwp": 4.96,
+      "micro": true,
+      "preco": 12697,
+      "inversorWp": 2250,
+      "inversores": 2
+    },
+    {
+      "modulos": 9,
+      "kwp": 5.58,
+      "micro": true,
+      "preco": 15297,
+      "inversorWp": 2250,
+      "inversores": 3
+    },
+    {
+      "modulos": 10,
+      "kwp": 6.2,
+      "micro": true,
+      "preco": 16297,
+      "inversorWp": 2250,
+      "inversores": 3
+    },
+    {
+      "modulos": 11,
+      "kwp": 6.82,
+      "micro": true,
+      "preco": 17497,
+      "inversorWp": 2250,
+      "inversores": 3
+    },
+    {
+      "modulos": 12,
+      "kwp": 7.44,
+      "micro": true,
+      "preco": 18497,
+      "inversorWp": 2250,
+      "inversores": 3
+    },
+    {
+      "modulos": 13,
+      "kwp": 8.06,
+      "micro": true,
+      "preco": 21197,
+      "inversorWp": 2250,
+      "inversores": 4
+    },
+    {
+      "modulos": 14,
+      "kwp": 8.68,
+      "micro": true,
+      "preco": 22197,
+      "inversorWp": 2250,
+      "inversores": 4
+    },
+    {
+      "modulos": 15,
+      "kwp": 9.3,
+      "micro": true,
+      "preco": 23397,
+      "inversorWp": 2250,
+      "inversores": 4
+    },
+    {
+      "modulos": 16,
+      "kwp": 9.92,
+      "micro": true,
+      "preco": 24397,
+      "inversorWp": 2250,
+      "inversores": 4
+    },
+    {
+      "modulos": 17,
+      "kwp": 10.54,
+      "micro": true,
+      "preco": 27197,
+      "inversorWp": 2250,
+      "inversores": 5
+    },
+    {
+      "modulos": 18,
+      "kwp": 11.16,
+      "micro": true,
+      "preco": 28197,
+      "inversorWp": 2250,
+      "inversores": 5
+    },
+    {
+      "modulos": 19,
+      "kwp": 11.78,
+      "micro": true,
+      "preco": 29397,
+      "inversorWp": 2250,
+      "inversores": 5
+    },
+    {
+      "modulos": 20,
+      "kwp": 12.4,
+      "micro": true,
+      "preco": 30397,
+      "inversorWp": 2250,
+      "inversores": 5
+    }
+  ]
+}

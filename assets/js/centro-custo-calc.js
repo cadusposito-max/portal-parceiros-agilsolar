@@ -62,6 +62,16 @@
         !Number.isFinite(margem) || margem < 0 || margem >= 100) return null;
     return Math.floor((resultado.lucroLiq - resultado.receita * margem / 100) * 100 + 1e-7) / 100;
   }
-  root.CentroCustoCalc = { linha, valor, calcular, projeto, bases, saldoParaMargem };
+  // Estimativa comercial histórica, calculada por scripts/calibrar-centro-custo.cjs.
+  // Não representa cotação de material elétrico. Não carrega custos de kits no cliente.
+  const referenciaHelte = Object.freeze({eletricaKwp:48.24, instalacaoModulo:70});
+  function aceitaReferenciaHelte(linhas, contrato, rede) {
+    if (!rede || rede.cobrar !== false || !contrato?.royalties || !contrato?.publicidade) return false;
+    const esperado = {imposto:['pct',13.8,'vk'], comissao:['pct',8,'v'], projeto:['brl',110,'v'], placas:['brl',30,'v']};
+    return Object.entries(esperado).every(([k,[t,v,b]]) => linhas[k]?.t === t && n(linhas[k].v) === v && linhas[k].b === b)
+      && Object.entries(linhas).every(([k,l]) => k in esperado || ['eletrica','instalacao'].includes(k) || n(l.v) === 0)
+      && Object.values(contrato || {}).every(l => n(l.v) === 0);
+  }
+  root.CentroCustoCalc = { linha, valor, calcular, projeto, bases, saldoParaMargem, referenciaHelte, aceitaReferenciaHelte };
   if (typeof module !== 'undefined') module.exports = root.CentroCustoCalc;
 })(typeof window === 'undefined' ? globalThis : window);
