@@ -5,6 +5,7 @@ claude-design/uploads/*
 Thumbs.db
 .DS_Store
 node_modules/
+supabase/.temp/
 
 # Config local do Claude Code (preview, permissões)
 .claude/

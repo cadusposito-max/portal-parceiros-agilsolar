@@ -1346,7 +1346,9 @@
 
   // lista do projeto: documentos do envio + os que chegaram depois, já numerados e com nome de arquivo
   function docsProjeto(p) {
-    const snap = ((p.snapshot && p.snapshot.docs) || []).map((a) => ({ ...a, novo: false }));
+    // O conteúdo permanece congelado; a identificação das contas acompanha o cadastro.
+    const contasAtuais = new Map(((E.docsNovos || {})[p.id] || []).filter((a) => a.tipo === 'conta_energia').map((a) => [a.id, a.slot]));
+    const snap = ((p.snapshot && p.snapshot.docs) || []).map((a) => ({ ...a, ...(a.tipo === 'conta_energia' && contasAtuais.has(a.id) ? { slot: contasAtuais.get(a.id) } : {}), novo: false }));
     const ids = new Set(snap.map((a) => a.id));
     const novos = ((E.docsNovos || {})[p.id] || []).filter((a) => !ids.has(a.id) && !ehTec(a)).map((a) => ({ ...a, novo: true }));
     const ord = (a) => { const i = DOC_ORDEM.indexOf(a.tipo); return i < 0 ? 99 : i; };
@@ -1356,8 +1358,9 @@
     const vistos = {};
     return todos.map((a, i) => {
       vistos[a.tipo] = (vistos[a.tipo] || 0) + 1;
-      const base = DOC_LABEL[a.tipo] || a.tipo;
-      const sufixo = a.slot ? ' ' + (SLOT_LABEL[a.slot] || a.slot) : (porTipo[a.tipo] > 1 ? ' ' + vistos[a.tipo] : '');
+      const conta = a.tipo === 'conta_energia';
+      const base = conta ? (a.slot === 'geradora' ? 'Conta geradora' : a.slot === 'compensacao' ? 'Conta de compensação' : 'Conta de energia · a identificar') : DOC_LABEL[a.tipo] || a.tipo;
+      const sufixo = conta ? (porTipo[a.tipo] > 1 ? ' ' + vistos[a.tipo] : '') : a.slot ? ' ' + (SLOT_LABEL[a.slot] || a.slot) : (porTipo[a.tipo] > 1 ? ' ' + vistos[a.tipo] : '');
       const rotulo = base + sufixo;
       return { ...a, n: i + 1, rotulo, arquivo: nomeArq(String(i + 1).padStart(2, '0') + ' ' + rotulo + (a.novo ? ' (depois do envio)' : '')) + '.' + extDe(a) };
     });
@@ -1383,6 +1386,10 @@
       const q = snapDocs.filter((a) => a.tipo === tipo);
       const depois = novos.some((a) => a.tipo === tipo);
       let ok = q.length > 0, extra = q.length > 1 ? '×' + q.length : '';
+      if (tipo === 'conta_energia' && q.length) {
+        ok = q.filter((a) => a.slot === 'geradora').length === 1 && q.every((a) => ['geradora', 'compensacao'].includes(a.slot));
+        if (!ok) extra = 'a identificar';
+      }
       if (tipo === 'caixa_medicao') { const sl = new Set(q.map((a) => a.slot).filter(Boolean)).size; ok = sl >= 4; extra = q.length ? sl + '/4' : ''; }
       if (tipo === 'localizacao_padrao' && !ok && loc) { ok = true; extra = 'texto'; }
       const cls = ok ? '' : depois ? 'dep' : 'no';
@@ -1418,6 +1425,13 @@
   }
 
   // URLs assinadas (1 h; renova com 50 min) e arquivos que chegaram depois do envio
+  function contasAtualizadas(clienteId) {
+    (E.projetos || []).filter((p) => p.cliente_id === clienteId).forEach((p) => {
+      if (E.docsNovos) delete E.docsNovos[p.id];
+      if (E.aberto === p.id) assinarDocs(p).catch((e) => console.warn('[eng] atualizar contas', e));
+    });
+  }
+
   async function assinarDocs(p) {
     E.urls = E.urls || {};
     E.docsNovos = E.docsNovos || {};
@@ -2138,7 +2152,7 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     franquia: (v) => { E.fr = v; pintar(); },
     view: (v) => { E.view = v; lsSet('eng_view', v); pintar(); },
     filtro: (k) => { E[k] = !E[k]; pintar(); },
-    anxArquivos, anxDrop, anxColar, anxExcluir, corrAnexar,
+    anxArquivos, anxDrop, anxColar, anxExcluir, corrAnexar, contasAtualizadas,
     docZip, docPasta, docBaixar, docProb, docReprovar, docPedir, docVer, docFechar: fecharVisor, docIr: visorIr,
     docProbLimpar: () => { E.prob = {}; pintarDrawer(); },
     trilho: (id) => { E.trilhoAberto[id] = true; pintar(); },

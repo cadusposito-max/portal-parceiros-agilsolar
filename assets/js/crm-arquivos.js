@@ -23,7 +23,7 @@ const CRM_ARQ_MIME_POR_EXT = {
 const CRM_DOCS_CHECKLIST = [
   { grupo: 'Cadastro', icon: 'id-card', itens: [
     { tipo: 'rg_cnh', label: 'RG / CNH do titular', dica: 'Dentro da validade e com foto legível. Sem CNH, vale RG + CPF.' },
-    { tipo: 'conta_energia', label: 'Conta de energia', dica: 'Fatura atual da UC e, se houver, a da unidade de compensação.' },
+    { tipo: 'conta_energia', label: 'Conta de energia', dica: 'Marque qual conta é a geradora e quais são de compensação.' },
   ] },
   { grupo: 'Vistoria', icon: 'camera', itens: [
     { tipo: 'foto_padrao', label: 'Foto do padrão', dica: 'Alta qualidade, com os componentes da instalação visíveis.' },
@@ -56,6 +56,16 @@ const CRM_ARQ_PASTAS_EXTRAS = [
 let _crmArq = { clienteId: null, rows: [], urls: {}, loading: false, erro: null, enviando: null, abertos: new Set() };
 let _crmArqUploadCtx = null;
 let _crmArqRep = {}; // tipo -> { trocado, rotulos } da reprovação da engenharia em aberto
+const CRM_CONTA_FUNCOES = { geradora: 'Geradora', compensacao: 'Compensação' };
+let _crmArqClassificando = null;
+
+function _crmArqContasResumo(rows) {
+  const contas = rows.filter((r) => r.tipo === 'conta_energia');
+  const geradoras = contas.filter((r) => r.slot === 'geradora').length;
+  const compensacoes = contas.filter((r) => r.slot === 'compensacao').length;
+  const pendentes = contas.length - geradoras - compensacoes;
+  return { geradoras, compensacoes, pendentes, completo: geradoras === 1 && pendentes === 0 };
+}
 
 // Mesma regra do ícone empresa/pessoa (ui-v2-screens.js): tipo salvo no contrato,
 // senão CPF/CNPJ pelos dígitos, senão nome típico de empresa.
@@ -119,6 +129,7 @@ async function _crmArqAssinar(rows) {
 // --- PROGRESSO (usado pela aba e, depois, pelo bloqueio de envio à engenharia) ---
 function _crmArqItemFeito(item, rows, client) {
   const doTipo = rows.filter((r) => r.tipo === item.tipo);
+  if (item.tipo === 'conta_energia') return _crmArqContasResumo(doTipo).completo;
   if (item.slots) return item.slots.every(([slot]) => doTipo.some((r) => r.slot === slot));
   if (item.campo && String(client?.padrao_localizacao || '').trim()) return true;
   return doTipo.length > 0;
@@ -243,7 +254,10 @@ function _crmArqItemHTML(item, rows, client, obrigatorio) {
   const enviando = _crmArq.enviando === item.tipo;
 
   let resumo;
-  if (item.slots) {
+  if (item.tipo === 'conta_energia' && doTipo.length) {
+    const c = _crmArqContasResumo(doTipo);
+    resumo = c.pendentes ? `${c.pendentes} a identificar` : c.geradoras !== 1 ? 'Marque a geradora' : `1 geradora · ${c.compensacoes} compensação(ões)`;
+  } else if (item.slots) {
     const n = item.slots.filter(([s]) => doTipo.some((r) => r.slot === s)).length;
     resumo = `${n} de ${item.slots.length} fotos`;
   } else if (item.campo && String(client.padrao_localizacao || '').trim()) {
@@ -320,6 +334,7 @@ function _crmArqThumbHTML(row, legenda) {
 }
 
 function _crmArqGradeHTML(doTipo, item) {
+  if (item.tipo === 'conta_energia') return _crmArqContasHTML(doTipo);
   const tiles = doTipo.map((r) => _crmArqThumbHTML(r)).join('');
   const add = `
     <button onclick="crmArqEscolher('${item.tipo}')" class="h-full min-h-[132px] border border-dashed border-neutral-700 hover:border-orange-500/60 text-neutral-500 hover:text-orange-400 flex flex-col items-center justify-center gap-1.5 transition-colors">
@@ -327,6 +342,61 @@ function _crmArqGradeHTML(doTipo, item) {
       <span class="text-[9px] font-black uppercase tracking-widest">Anexar</span>
     </button>`;
   return `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">${tiles}${add}</div>`;
+}
+
+function _crmArqContasHTML(rows) {
+  const busy = _crmArqClassificando?.clienteId === _crmArq.clienteId;
+  const c = _crmArqContasResumo(rows);
+  return `<div class="crm-contas">${rows.map((r) => {
+    const url = _crmArq.urls[r.storage_path] || '';
+    const nome = escapeHTML(r.nome_original || 'Conta de energia');
+    const funcao = CRM_CONTA_FUNCOES[r.slot];
+    return `<div class="crm-conta" data-conta-id="${r.id}">
+      <div class="crm-conta-arquivo">
+        <a ${url ? `href="${escapeHTML(url)}" target="_blank" rel="noopener"` : ''} class="crm-conta-link">
+          <i data-lucide="${String(r.mime || '').startsWith('image/') ? 'image' : 'file-text'}" aria-hidden="true"></i>
+          <span><strong>${nome}</strong><small>${funcao ? `Conta ${funcao === 'Geradora' ? 'geradora' : 'de compensação'}` : 'Anexada · falta identificar'}</small></span>
+        </a>
+        <button type="button" class="crm-conta-excluir" onclick="crmArqExcluir('${r.id}')" ${busy ? 'disabled' : ''} aria-label="Excluir ${nome}"><i data-lucide="trash-2" aria-hidden="true"></i></button>
+      </div>
+      <div class="crm-conta-classificar"><span>Esta conta é:</span><div class="crm-conta-opcoes" role="group" aria-label="Identificação de ${nome}">
+        ${Object.entries(CRM_CONTA_FUNCOES).map(([key, label]) => `<button type="button" onclick="crmArqClassificarConta('${r.id}', '${key}')" aria-pressed="${r.slot === key}" ${busy ? 'disabled' : ''}><i data-lucide="${r.slot === key ? 'check' : key === 'geradora' ? 'zap' : 'arrow-right-left'}" aria-hidden="true"></i>${label}</button>`).join('')}
+      </div></div>
+    </div>`;
+  }).join('')}
+    <button type="button" class="crm-conta-adicionar" onclick="crmArqEscolher('conta_energia')" ${_crmArq.enviando === 'conta_energia' ? 'disabled' : ''}><i data-lucide="plus" aria-hidden="true"></i>${rows.length ? 'Anexar outra conta' : 'Anexar conta'}</button>
+    ${rows.length ? `<div class="crm-conta-resumo" aria-live="polite">${busy ? 'Salvando identificação…' : `${c.geradoras} geradora${c.geradoras === 1 ? '' : 's'} · ${c.compensacoes} ${c.compensacoes === 1 ? 'compensação' : 'compensações'}${c.pendentes ? ` · ${c.pendentes} a identificar` : ''}`}<span>1 item no checklist</span></div>` : ''}
+  </div>`;
+}
+
+async function crmArqClassificarConta(id, funcao) {
+  const client = typeof _crm360Client === 'function' ? _crm360Client() : null;
+  const row = _crmArq.rows.find((r) => r.id === id && r.tipo === 'conta_energia');
+  if (!client || _crmArq.clienteId !== client.id || !row || !CRM_CONTA_FUNCOES[funcao] || row.slot === funcao || _crmArqClassificando) return;
+  const context = _crmArq;
+  const anterior = row.slot || null;
+  _crmArqClassificando = { clienteId: client.id, id };
+  crmArqRender();
+  try {
+    const { data, error } = await supabaseClient.rpc('crm_classificar_conta_energia', { p_arquivo: id, p_funcao: funcao });
+    if (error) throw error;
+    if (!Array.isArray(data) || !data.some((r) => r.arquivo_id === id && r.funcao === funcao)) throw new Error('A identificação não foi salva.');
+    if (_crmArq === context) {
+      const salvos = new Map(data.map((r) => [r.arquivo_id, r.funcao]));
+      _crmArq.rows.forEach((r) => { if (salvos.has(r.id)) r.slot = salvos.get(r.id); });
+    }
+    if (window.EV?.contasAtualizadas) window.EV.contasAtualizadas(client.id);
+    showToast(`Conta identificada como ${CRM_CONTA_FUNCOES[funcao].toLowerCase()}.`);
+    _crmArqTimeline(client, `Conta de energia identificada como ${CRM_CONTA_FUNCOES[funcao].toLowerCase()}: ${row.nome_original || 'arquivo'}`,
+      { acao: 'identificado', tipo: 'conta_energia', arquivo_id: id, funcao, anterior, contas: data })
+      .catch((e) => console.warn('[crm-arquivos] Falha ao registrar identificação na timeline.', e));
+  } catch (e) {
+    console.error('[crm-arquivos] Falha ao identificar conta.', e);
+    showToast('Não foi possível salvar a identificação. Tente novamente.');
+  } finally {
+    _crmArqClassificando = null;
+    crmArqRender();
+  }
 }
 
 function _crmArqSlotsHTML(item, doTipo) {

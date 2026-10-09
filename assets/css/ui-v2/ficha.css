@@ -292,6 +292,36 @@ html[data-ui="v2"] body .v2f textarea#crm360-observacoes { resize: none; overflo
   html[data-ui="v2"] .v2f-lmq { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
 
+/* Identificação das contas no mesmo item do checklist. */
+.crm-contas { display: grid; gap: 10px; }
+.crm-conta { min-width: 0; padding: 15px; background: var(--v2-card, #171717); color: var(--v2-ink, #eee); border: 1px solid var(--v2-line, #333); border-radius: 12px; }
+.crm-conta-arquivo, .crm-conta-link { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.crm-conta-link { flex: 1; color: inherit; text-decoration: none; }
+.crm-conta-link > svg { width: 25px; height: 25px; flex: none; color: var(--v2-blue-text, #5cc3f2); }
+.crm-conta-link > span { min-width: 0; overflow-wrap: anywhere; }
+.crm-conta-link strong { display: block; font-size: 13px; }
+.crm-conta-link small { display: block; font-size: 11px; margin-top: 3px; color: var(--v2-ink-2, #aaa); }
+.crm-conta-excluir { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--v2-ink-2, #aaa); cursor: pointer; }
+.crm-conta-excluir svg { width: 15px; height: 15px; }
+.crm-conta-excluir:hover { color: var(--v2-red, #ef4444); background: var(--v2-hover, #222); }
+.crm-conta-classificar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--v2-line, #333); }
+.crm-conta-classificar > span { font-size: 12px; color: var(--v2-ink-2, #aaa); }
+.crm-conta-opcoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.crm-conta-opcoes button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 12px; border: 1px solid var(--v2-line-strong, #444); border-radius: 8px; background: var(--v2-card, #171717); color: var(--v2-ink-2, #aaa); font: inherit; font-size: 12px; cursor: pointer; }
+.crm-conta-opcoes button[aria-pressed="true"] { background: var(--v2-blue-50, #102a3a); color: var(--v2-blue-text, #5cc3f2); border-color: var(--v2-blue, #008fd4); font-weight: 700; }
+.crm-conta-opcoes svg, .crm-conta-adicionar svg { width: 15px; height: 15px; flex: none; }
+.crm-conta-adicionar { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px; border: 1px dashed var(--v2-line-strong, #444); border-radius: 10px; background: transparent; color: var(--v2-blue-text, #5cc3f2); font: inherit; font-size: 12px; cursor: pointer; }
+.crm-conta-resumo { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; font-size: 11px; color: var(--v2-ink-2, #aaa); }
+.crm-contas button:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 480px) {
+  .crm-conta { padding: 12px; }
+  .crm-conta-opcoes { width: 100%; }
+  .crm-conta-opcoes button { flex: 1; }
+}
+@media (pointer: coarse) {
+  .crm-conta-opcoes button, .crm-conta-excluir { min-height: 44px; min-width: 44px; }
+}
+
 /* ---- cabeçalho da ficha no celular: ~metade da altura de antes ----
    Nome numa linha; status, selos e etiquetas na linha de baixo; telefone/cidade
    numa linha; Nova proposta + WhatsApp + Ligar + "⋯" (contrato, registrar venda);
