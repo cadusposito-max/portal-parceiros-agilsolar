@@ -155,7 +155,7 @@ function renderHeaderUser() {
     avatarEl.onclick = openProfileModal;
   }
   if (nameEl)   nameEl.textContent = displayName;
-  if (roleEl)   roleEl.textContent = state.isAdmin ? 'Administrador' : state.isGestor ? 'Gestor' : state.isTecnico ? 'Técnico' : 'Vendedor';
+  if (roleEl)   roleEl.textContent = papelUsuarioLabel();
   if (wrapEl)   wrapEl.classList.replace('hidden', 'flex');
 
   if (state.isAdmin) hydrateAdminPreferences();
@@ -484,6 +484,16 @@ function getActiveTabsForEnvironment() {
   // bloqueado", então nem aparece.
   if (state.isAdmin || state.isGestor) return TABS;
   return TABS.filter((t) => !TABS_GESTAO.includes(t.id));
+}
+
+// Nome do perfil do usuário logado (cabeçalho, launcher e menu do visual novo).
+function papelUsuarioLabel() {
+  if (state.isAdmin) return 'Administrador';
+  if (state.isGestor) return 'Gestor';
+  if (state.isTecnico) return 'Técnico';
+  if (state.isCoordenador) return 'Coordenador técnico';
+  if (state.role === 'engenheiro') return 'Engenheiro';
+  return 'Vendedor';
 }
 
 function getActiveTabId() {
@@ -861,7 +871,7 @@ function showLauncher() {
   const displayName = (state.profile?.nome) || (typeof getFirstName === 'function' ? getFirstName() : '') || '';
   const email       = state.currentUser ? state.currentUser.email : '';
   const initial     = (displayName || email).charAt(0).toUpperCase();
-  const roleLabel   = state.isAdmin ? 'Administrador' : state.isGestor ? 'Gestor' : state.isTecnico ? 'Técnico' : 'Vendedor';
+  const roleLabel   = papelUsuarioLabel();
 
   const nameEl = document.getElementById('launcher-user-name');
   const roleEl = document.getElementById('launcher-user-role');

@@ -60,7 +60,7 @@
   function userInfo() {
     const nome = (state.profile && state.profile.nome) || (has('getFirstName') ? getFirstName() : '') || (state.currentUser && state.currentUser.email) || '';
     const email = (state.currentUser && state.currentUser.email) || '';
-    const role = state.isAdmin ? 'Administrador' : state.isGestor ? 'Gestor' : state.isTecnico ? 'Técnico' : 'Vendedor';
+    const role = has('papelUsuarioLabel') ? papelUsuarioLabel() : 'Vendedor';
     const raw = (state.profile && state.profile.avatar_url) || '';
     const url = raw && has('safeImageUrl') ? safeImageUrl(raw, '') : '';
     const inicial = (nome || email || '?').trim().charAt(0).toUpperCase();
