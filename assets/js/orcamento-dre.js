@@ -186,7 +186,7 @@
   }
 
   function compute() {
-    const d = CentroCustoCalc.calcular({ linhas: cur.linhas, venda: num(cur.receita), kit: num(cur.kit), modulos: cur.modulos, kwp: cur.kwp, inversores: cur.inversores, margem: cur.margem_alvo,
+    const d = CentroCustoCalc.calcular({ linhas: cur.linhas, venda: num(cur.receita), kit: num(cur.kit), modulos: cur.modulos, kwp: cur.kwp, inversores: cur.inversores, kwInversor: cur.kwInversor, margem: cur.margem_alvo,
       extrasReceita: cur.extras.filter(e=>e.tipo === 'receita').reduce((s,e)=>s+num(e.valor),0),
       extrasDespesa: cur.extras.filter(e=>e.tipo !== 'receita').reduce((s,e)=>s+num(e.valor),0) });
     if (cur.projetoPendente) { d.erros.push('Projeto fora da tabela da Rede. Configure a faixa antes de precificar.'); d.vendaAlvo = null; }
@@ -336,6 +336,7 @@
                 <label>Módulos <input aria-label="Módulos da simulação" data-orc-dim="modulos" type="number" min="1" step="1" value="${cur.modulos}" class="orc-base w-24"></label>
                 <label>kWp <input aria-label="Potência da simulação" data-orc-dim="kwp" type="number" min="0.01" step="0.01" value="${cur.kwp}" class="orc-base w-24"></label>
                 <label>Inversores <input aria-label="Inversores ou micros da simulação" data-orc-dim="inversores" type="number" min="1" step="1" value="${cur.inversores}" class="orc-base w-20"></label>
+                <label>kW inversor <input aria-label="Potência total de inversor (kW)" data-orc-dim="kwInversor" type="number" min="0" step="0.01" value="${cur.kwInversor}" class="orc-base w-20"></label>
                 ${cur.artInclusa ? 'ART incluída no projeto da Rede' : ''}
               </div>
               <div id="orc-linhas" class="divide-y divide-neutral-800/70"></div>
@@ -621,7 +622,7 @@
         p_receita:       r2(alvo.receita),
         p_custos:        { kit: r2(alvo.kit) },
         p_extras:        alvo.extras.map((e) => ({ tipo: e.tipo === 'receita' ? 'receita' : 'despesa', rotulo: String(e.rotulo || ''), valor: r2(e.valor) })),
-        p_overrides:     { versao: 3, modulos: alvo.modulos, kwp: alvo.kwp, inversores: alvo.inversores, art_inclusa: alvo.artInclusa, projeto_rede: alvo.projetoRede, linhas: clone(alvo.linhas), margem_alvo: num(alvo.margem_alvo) },
+        p_overrides:     { versao: 3, modulos: alvo.modulos, kwp: alvo.kwp, inversores: alvo.inversores, kw_inversor: alvo.kwInversor, art_inclusa: alvo.artInclusa, projeto_rede: alvo.projetoRede, linhas: clone(alvo.linhas), margem_alvo: num(alvo.margem_alvo) },
         p_total_custos:  d.totalCustos,
         p_lucro_liquido: d.lucroLiq,
         p_margem_pct:    d.margem,
@@ -743,6 +744,7 @@
       modulos: ov.versao >= 3 ? num(ov.modulos) : num(contexto.modulos),
       kwp: ov.versao >= 3 ? num(ov.kwp) : num(contexto.kwp),
       inversores: ov.versao >= 3 && ov.inversores != null ? num(ov.inversores) : (num(contexto.inversores) || 1),
+      kwInversor: ov.versao >= 3 && ov.kw_inversor != null ? num(ov.kw_inversor) : num(contexto.kw_inversor),
       // Cenário salvo com ART dentro do projeto (antes de 09/10) continua igual; o novo soma a ART.
       artInclusa: saved ? !!ov.art_inclusa : false,
       projetoRede: saved ? (ov.projeto_rede || {cobrar:false}) : centro.projeto_rede,

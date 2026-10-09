@@ -615,7 +615,7 @@ Deno.serve(async (req) => {
         let { preco, preco_de } = precificar(r.custo, r.micro);
         let precificacao: any = {modo:'markup', ...REGRA};
         if (modo === 'custos') {
-          precificacao = await rest('rpc/cc_preco_dimensionado', {method:'POST', body:JSON.stringify({p_franquia_id:conta.franquia_id ?? null,p_kit:r.custo,p_modulos:placas,p_kwp:r.kwp,p_inversores:r.qtdInv ?? 1})});
+          precificacao = await rest('rpc/cc_preco_dimensionado', {method:'POST', body:JSON.stringify({p_franquia_id:conta.franquia_id ?? null,p_kit:r.custo,p_modulos:placas,p_kwp:r.kwp,p_inversores:r.qtdInv ?? 1,p_kw_inversor:Math.round(Number(r.inv.potenciaNominalSaida) * (r.qtdInv ?? 1) * 1000) / 1000})});
           preco = Number(precificacao.venda);
           if (!Number.isFinite(preco) || preco <= 0) throw new Error('Preço por custos inválido. Revise o centro de custo da unidade.');
           preco_de = precoDe(preco);

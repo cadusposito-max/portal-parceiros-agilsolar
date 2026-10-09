@@ -36,3 +36,11 @@ test('Formas novas sem dado: tabela vazia ou sem inversores bloqueiam o preço',
  assert.equal(c.calcular({linhas:{...base,el:c.linha('brl',0,'faixa',{faixas:[]})},kit:5000,modulos:10,kwp:6.2,inversores:1,margem:22}).vendaAlvo,null);
  assert.equal(c.calcular({linhas:{...base,inv:c.linha('brl',40,'inversor')},kit:5000,modulos:10,kwp:6.2,inversores:0,margem:22}).vendaAlvo,null);
 });
+test('R$ por kW do inversor: valor × potência total de inversor (potência × quantidade)',()=>{
+ const l=c.linha('brl',120,'kw_inversor');assert.equal(l.b,'kw_inversor');
+ assert.equal(c.valor(l,0,0,{kwInversor:11.25}),1350); // 5 micros de 2,25 kW
+ const base={imposto:{t:'pct',v:13.8,b:'vk'},comissao:{t:'pct',v:8,b:'v'},el:l};
+ assert.equal(c.calcular({linhas:base,kit:8000,modulos:10,kwp:6.2,inversores:1,kwInversor:0,margem:22}).vendaAlvo,null);
+ const a={linhas:base,kit:8000,modulos:10,kwp:6.2,inversores:1,kwInversor:5,margem:22};
+ const d=c.calcular(a),v=c.calcular({...a,venda:d.vendaAlvo});assert.equal(v.valores.el,600);assert.ok(v.lucroLiq/v.receita>=.22-1e-7);
+});

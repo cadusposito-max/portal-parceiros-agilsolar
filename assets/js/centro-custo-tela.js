@@ -34,7 +34,7 @@
   function formas() {
     const c = calc();
     const out = [['brl:v', c.bases.v], ['brl:modulo', c.bases.modulo], ['brl:kwp', c.bases.kwp]];
-    if (temNovasBases()) out.push(['brl:inversor', c.bases.inversor], ['brl:faixa', c.bases.faixa]);
+    if (temNovasBases()) out.push(['brl:inversor', c.bases.inversor], ['brl:kw_inversor', c.bases.kw_inversor], ['brl:faixa', c.bases.faixa]);
     out.push(['pct:v', c.basesPct.v], ['pct:vk', c.basesPct.vk]);
     if (temNovasBases()) out.push(['pct:kit', c.basesPct.kit]);
     return out;
@@ -62,10 +62,14 @@
       fid: alvo, data, linhas, sujo: false,
       mmin: num(data.margem_min), malvo: num(data.margem_alvo),
       modo: data.modo_preco === 'custos' ? 'custos' : 'markup',
-      sim: simAnterior || { kitId: '', modulos: 10, kwp: 6.2, inversores: 1, kit: '' },
+      sim: simAnterior || { kitId: '', modulos: 10, kwp: 6.2, inversores: 1, kwInversor: 5, kit: '' },
       custos: cc && cc.custos,
     };
     if (state.isAdmin && !cc.custos) carregarCustos();
+    // Potência dos inversores vem do cadastro de equipamentos (catálogo das distribuidoras).
+    if (typeof carregarCatalogoDistribuidoras === 'function' && !(typeof _catalogoDistrib !== 'undefined' && _catalogoDistrib && _catalogoDistrib.carregado)) {
+      carregarCatalogoDistribuidoras().then(() => { if (!cc) return; if (cc.sim.kitId) aplicarKit(cc.sim.kitId); pintar(); }).catch(() => {});
+    }
     if (!simAnterior) escolherKitPadrao();
     pintar();
   }
@@ -94,8 +98,17 @@
     cc.sim.modulos = num(k.modulo_qtd) || cc.sim.modulos;
     cc.sim.kwp = num(k.power) || cc.sim.kwp;
     cc.sim.inversores = num(k.inversor_qtd) || 1;
+    cc.sim.kwInversor = kwInversorDoKit(k) || cc.sim.kwInversor;
     const custo = cc.custos && cc.custos.get(String(k.id));
     cc.sim.kit = custo || '';
+  }
+
+  // kW de inversor do kit = potência do inversor (cadastro de equipamentos) × quantidade.
+  function kwInversorDoKit(k) {
+    const eq = typeof _catalogoDistrib !== 'undefined' && _catalogoDistrib ? _catalogoDistrib.equipamentos || [] : [];
+    const inv = eq.find((e) => String(e.id) === String(k.inversor_id));
+    const w = num(inv && inv.potencia_wp);
+    return w > 0 ? Math.round(w / 1000 * (num(k.inversor_qtd) || 1) * 1000) / 1000 : 0;
   }
 
   // ---------------------------------------------------------------- desenhar
@@ -190,6 +203,7 @@
             <label>Módulos<input type="number" min="1" step="1" value="${cc.sim.modulos}" oninput="CentroCustoTela.dim('modulos', this.value)"></label>
             <label>kWp<input type="number" min="0.01" step="0.01" value="${cc.sim.kwp}" oninput="CentroCustoTela.dim('kwp', this.value)"></label>
             <label>Inversores<input type="number" min="1" step="1" value="${cc.sim.inversores}" oninput="CentroCustoTela.dim('inversores', this.value)"></label>
+            <label>kW do inversor (total)<input type="number" min="0" step="0.01" value="${cc.sim.kwInversor}" oninput="CentroCustoTela.dim('kwInversor', this.value)"></label>
             <label>Custo do kit c/ frete<input type="number" min="0" step="0.01" value="${cc.sim.kit}" placeholder="${state.isAdmin ? 'sem custo cadastrado' : 'informe o custo'}" oninput="CentroCustoTela.dim('kit', this.value)"></label>
           </div>
           <div id="cc-sim-out" aria-live="polite"></div>
@@ -217,7 +231,7 @@
     const { linhas, projetoFora } = linhasCompletas(num(s.kwp));
     if (projetoFora) { out.innerHTML = '<p class="cc-aviso">Projeto fora da tabela da Rede para essa potência. Configure a faixa em Rede → Unidades.</p>'; return; }
     if (!(kit > 0)) { out.innerHTML = `<p class="cc-hint">${state.isAdmin ? 'Esse kit não tem custo cadastrado. Informe o custo do kit com frete para simular (cadastre em Produtos para entrar no preço).' : 'Informe o custo do kit com frete para simular.'}</p>`; return; }
-    const base = { linhas, kit, modulos: num(s.modulos), kwp: num(s.kwp), inversores: num(s.inversores), margem: cc.malvo };
+    const base = { linhas, kit, modulos: num(s.modulos), kwp: num(s.kwp), inversores: num(s.inversores), kwInversor: num(s.kwInversor), margem: cc.malvo };
     const alvo = calc().calcular(base);
     if (alvo.erros.length) { out.innerHTML = `<p class="cc-aviso">${esc(alvo.erros.join(' '))}</p>`; return; }
     const r = calc().calcular({ ...base, venda: alvo.vendaAlvo });
@@ -252,7 +266,7 @@
       if (!custo) return;
       const { linhas, projetoFora } = linhasCompletas(num(p.power));
       if (projetoFora) return;
-      const a = calc().calcular({ linhas, kit: custo, modulos: num(p.modulo_qtd), kwp: num(p.power), inversores: num(p.inversor_qtd) || 1, margem: cc.malvo });
+      const a = calc().calcular({ linhas, kit: custo, modulos: num(p.modulo_qtd), kwp: num(p.power), inversores: num(p.inversor_qtd) || 1, kwInversor: kwInversorDoKit(p), margem: cc.malvo });
       if (a.vendaAlvo == null) return;
       total++;
       if (a.vendaAlvo + 0.005 >= num(p.price)) ok++; else falham.push(p.name);

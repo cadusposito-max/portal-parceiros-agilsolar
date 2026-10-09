@@ -1,13 +1,14 @@
 /* Cálculo puro compartilhado pelo centro de custo, pela DRE e pelos testes. Valores em R$.
    Mesma conta do banco (private.cc_preco_dimensionado). Linha = { t, v, b, faixas?, nome? }:
-   - t 'brl', b: v (fixo por obra) | modulo | kwp | inversor (qtd de inversores/micros) | faixa (tabela por kWp)
+   - t 'brl', b: v (fixo por obra) | modulo | kwp | inversor (qtd de inversores/micros) |
+     kw_inversor (kW de inversor: potência × quantidade) | faixa (tabela por kWp)
    - t 'pct', b: v (% da venda) | vk (% da venda − kit) | kit (% do custo do kit)
    Linhas personalizadas usam chave extra_* e levam nome. */
 (function (root) {
   'use strict';
   const n = v => Number(v) || 0;
   const r2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
-  const bases = { v: 'R$ fixo por obra', modulo: 'R$ por módulo', kwp: 'R$ por kWp', inversor: 'R$ por inversor/micro', faixa: 'Tabela por faixa de kWp' };
+  const bases = { v: 'R$ fixo por obra', modulo: 'R$ por módulo', kwp: 'R$ por kWp', inversor: 'R$ por inversor/micro', kw_inversor: 'R$ por kW do inversor', faixa: 'Tabela por faixa de kWp' };
   const basesPct = { v: '% da venda', vk: '% da venda − kit', kit: '% do custo do kit' };
   const ehExtra = k => /^extra_[a-z0-9]{1,20}$/.test(String(k));
   function faixasLimpa(faixas) {
@@ -34,6 +35,7 @@
     if (l.b === 'modulo') return n(contexto.modulos);
     if (l.b === 'kwp') return n(contexto.kwp);
     if (l.b === 'inversor') return n(contexto.inversores);
+    if (l.b === 'kw_inversor') return n(contexto.kwInversor);
     return 1;
   }
   // Parte da linha que não depende da venda (R$ e % do kit).
@@ -52,8 +54,8 @@
     const faixa = (rede.faixas || []).find(f => kwp > 0 && kwp <= n(f.ate));
     return faixa ? n(faixa.valor) : null;
   }
-  function calcular({ linhas, kit, venda = 0, modulos = 0, kwp = 0, inversores = 0, margem = 0, extrasReceita = 0, extrasDespesa = 0 }) {
-    const contexto = { modulos, kwp, inversores }, valores = {};
+  function calcular({ linhas, kit, venda = 0, modulos = 0, kwp = 0, inversores = 0, kwInversor = 0, margem = 0, extrasReceita = 0, extrasDespesa = 0 }) {
+    const contexto = { modulos, kwp, inversores, kwInversor }, valores = {};
     const erros = [];
     let P = 0, Q = 0, F = 0;
     Object.entries(linhas || {}).forEach(([k, l]) => {
@@ -62,7 +64,8 @@
           if (!faixasLimpa(l.faixas).length) erros.push('Preencha a tabela por faixa de kWp.');
           else if (!(n(kwp) > 0)) erros.push('Informe a potência em kWp.');
         } else if (n(l.v) > 0 && quantidade(l, contexto) <= 0) {
-          erros.push(l.b === 'modulo' ? 'Informe a quantidade de módulos.' : l.b === 'inversor' ? 'Informe a quantidade de inversores.' : 'Informe a potência em kWp.');
+          erros.push(l.b === 'modulo' ? 'Informe a quantidade de módulos.' : l.b === 'inversor' ? 'Informe a quantidade de inversores.'
+            : l.b === 'kw_inversor' ? 'Informe a potência do inversor (kW).' : 'Informe a potência em kWp.');
         }
         F += fixoDaLinha(l, kit, contexto);
       } else if (l.b === 'kit') F += fixoDaLinha(l, kit, contexto);
