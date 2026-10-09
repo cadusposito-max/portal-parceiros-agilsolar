@@ -298,6 +298,9 @@
     const omFlag = state.omFlags ? state.omFlags[client.id] : null;
     const podeProposta = typeof canOperateClientProposalFlow !== 'function' || canOperateClientProposalFlow(client);
     const docs = has('_crm360DocsAtivo') && _crm360DocsAtivo();
+    // tarefas.js: nova tarefa já com este cliente (some se a tabela não existe)
+    const tarefaBtn = has('tarefasNova') && has('tarefasDisponivel') && tarefasDisponivel()
+      ? `tarefasNova({ cliente: { id: '${esc(client.id)}', nome: decodeURIComponent('${encodeURIComponent(client.nome || 'Cliente').replace(/'/g, '%27')}') } })` : '';
     const tabs = [['dados', 'id-card', 'Dados'], ['timeline', 'history', 'Timeline'], ['propostas', 'file-text', 'Propostas', propostas.length]];
     tabs.push(['vendas', 'trophy', 'Vendas', vendas.length], ['financiamento', 'landmark', 'Financ.']);
     if (has('renderCrmArquivosTab')) tabs.push(['arquivos', 'paperclip', 'Arquivos', `<span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`]);
@@ -394,11 +397,13 @@
               ${tel ? `<a class="v2-sq" href="tel:+55${tel}" title="Ligar">${ic('phone')}</a>` : ''}
               ${docs ? `<button class="v2-sq v2f-dsk" onclick="abrirDocumentosCliente('${esc(client.id)}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}
               <button class="v2-sq v2f-dsk" onclick="openFechaVenda('${esc(client.id)}')" title="Registrar venda">${ic('trophy')}</button>
+              ${tarefaBtn ? `<button class="v2-sq v2f-dsk" onclick="${tarefaBtn}" title="Criar tarefa sobre este cliente">${ic('list-plus')}</button>` : ''}
               <div class="crm-menu v2f-mob">
                 <button type="button" class="v2-sq" title="Mais ações" onclick="crmMenuToggle(event, this)">${ic('ellipsis')}</button>
                 <div class="crm-menu-pop">
                   ${docs ? `<button type="button" onclick="crmMenuFechar(); abrirDocumentosCliente('${esc(client.id)}')">${ic('file-signature')}Contrato e procuração</button>` : ''}
                   <button type="button" onclick="crmMenuFechar(); openFechaVenda('${esc(client.id)}')">${ic('trophy')}Registrar venda</button>
+                  ${tarefaBtn ? `<button type="button" onclick="crmMenuFechar(); ${tarefaBtn}">${ic('list-plus')}Criar tarefa</button>` : ''}
                 </div>
               </div>
               <button class="v2-sq v2f-exp" onclick="uiV2Ficha.cheia()" title="${full ? 'Voltar ao painel lateral' : 'Abrir em tela cheia'}">${ic(full ? 'minimize-2' : 'maximize-2')}</button>
@@ -419,6 +424,7 @@
         </div>
 
         <div id="crm360-scroll" class="v2f-body">
+          ${has('tarefasFichaHTML') ? tarefasFichaHTML(client) : ''}
           ${grade}
         </div>
       </div>`;

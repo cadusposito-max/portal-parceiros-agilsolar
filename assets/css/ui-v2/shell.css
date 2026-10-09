@@ -224,7 +224,7 @@ html[data-ui="v2"] .v2-msearch { display: none !important; }
   html[data-ui="v2"] .v2-top h1 { font-size: 23px; }
   /* "Comercial" já está na pílula de ambiente; sininho foi pro topo fixo e o "?" pro menu da foto */
   html[data-ui="v2"] .v2-top :is(.v2-crumb, .v2-grow) { display: none; }
-  html[data-ui="v2"] .v2-top :is(.v2-scope, .v2-admin, [data-v2="notif"], [data-v2="ajuda"]) { display: none !important; }
+  html[data-ui="v2"] .v2-top :is(.v2-scope, .v2-admin, [data-v2="notif"], [data-v2="tarefas"], [data-v2="ajuda"]) { display: none !important; }
   html[data-ui="v2"] .v2-top .v2-icb { width: 44px; height: 44px; }
   /* tela inicial: busca vira barra larga embaixo da saudação, com o chat do lado */
   html[data-ui="v2"] .v2-top.home { flex-wrap: wrap; row-gap: 14px; }

@@ -34,6 +34,12 @@
     eng_enviado: ['inbox', 'pu'],
     os: ['wrench', 'gr'],
     comunicado: ['newspaper', 'gy'],
+    // tarefas internas (tarefas.js)
+    tarefa: ['list-checks', 'or'],
+    tarefa_feita: ['circle-check', 'gr'],
+    tarefa_cm: ['message-square', 'bl'],
+    tarefa_prazo: ['clock', 'or'],
+    tarefa_atrasada: ['alarm-clock', 'or'],
   };
   const EM_DESTAQUE = new Set(['proposta_vista', 'os']);
 
@@ -143,6 +149,8 @@
       } else if (a.tela === 'comunicado' && a.id) {
         if (has('fetchComunicados')) await fetchComunicados();
         if (has('openDashComunicadoModalById')) openDashComunicadoModalById(encodeURIComponent(a.id));
+      } else if (a.tela === 'tarefa' && a.id) {
+        if (has('tarefasAbrir')) tarefasAbrir(a.id);
       } else if (a.tela === 'propostas') {
         if (state.environment !== 'comercial' && has('setEnvironment')) setEnvironment('comercial');
         if (has('setTab')) setTab('propostas');

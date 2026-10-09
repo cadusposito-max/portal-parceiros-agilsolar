@@ -152,6 +152,7 @@
     const unread = (state.chat && state.chat.unreadTotal) || 0;
     const notifOn = has('notifAbrir') && has('notifDisponivel') && notifDisponivel();
     const notifCnt = notifOn && has('notifNaoLidas') ? notifNaoLidas() : 0;
+    const tarefasOn = has('tarefasToggle') && has('tarefasDisponivel') && tarefasDisponivel();
     const canAdmin = has('userCanAccessAdminPanel') && userCanAccessAdminPanel();
     const multiEnv = Object.keys(ENVS).filter(envAllowed).length > 1;
     const meta = window.uiV2PageMeta;
@@ -162,7 +163,7 @@
     // Troca de aba, título e contador do chat não mudam a estrutura: só
     // atualiza esses pontos, sem recriar menu e ícones (era ~40ms por vez).
     const sig = JSON.stringify([k, T.map((t) => [t.id, t.label, t.icon]), u.nome, u.email, u.role, u.avatar, u.unidade, cta && cta[0], chatOn, canAdmin, multiEnv,
-      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn]);
+      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn, tarefasOn]);
     // celular: a tela inicial ganha a barra de busca grande (ver shell.css)
     const top = $('#v2-top');
     if (top) top.classList.toggle('home', !!T[0] && cur === T[0].id);
@@ -180,10 +181,13 @@
 
     // celular: o sininho mora aqui; a busca e o chat ficam na barra de cima e o "?" vai pro menu da foto
     const sinoHTML = notifOn ? `<button class="v2-icb" data-v2="notif" title="Notificações" aria-label="Notificações" aria-expanded="false">${ic('bell')}${notifCnt ? `<span class="cnt">${notifCnt > 99 ? '99+' : notifCnt}</span>` : ''}</button>` : '';
+    // tarefas (tarefas.js pinta o contador depois; aqui o botão já nasce com o valor atual)
+    const tc = tarefasOn && has('tarefasContagem') ? tarefasContagem() : { n: 0, late: false };
+    const tarefasHTML = tarefasOn ? `<button class="v2-icb" data-v2="tarefas" title="Tarefas" aria-label="Tarefas" aria-expanded="false">${ic('list-checks')}${tc.n ? `<span class="cnt${tc.late ? ' tf-late' : ''}">${tc.n > 99 ? '99+' : tc.n}</span>` : ''}</button>` : '';
     $('#v2-mtop').classList.toggle('multi', multiEnv);
     $('#v2-mtop').innerHTML = `${LOGO}
       ${multiEnv ? `<button class="v2-envbtn" data-v2="sheet" data-target="v2-sheet-env"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${ic('chevron-down', 'class="chev"')}</button>` : ''}
-      <span class="v2-grow"></span>${sinoHTML}
+      <span class="v2-grow"></span>${tarefasHTML}${sinoHTML}
       <button class="v2-av" data-v2="sheet" data-target="v2-sheet-user" aria-label="Menu da conta">${u.avatar}</button>`;
 
     $('#v2-top').innerHTML = `
@@ -193,7 +197,7 @@
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>
       ${scopeButton()}
       ${has('ajudaAbrir') ? `<button class="v2-icb" data-v2="ajuda" title="Central de ajuda" aria-label="Central de ajuda" aria-expanded="false">${ic('circle-help')}</button>` : ''}
-      ${sinoHTML}
+      ${tarefasHTML}${sinoHTML}
       ${chatOn ? `<button class="v2-icb" data-v2="chat" title="Mensagens da equipe">${ic('message-circle')}${unread ? `<span class="cnt">${unread > 99 ? '99+' : unread}</span>` : ''}</button>` : ''}
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
@@ -385,6 +389,7 @@
       case 'chat': if (has('_chatToggleShell')) _chatToggleShell(); break;
       case 'ajuda': if (has('ajudaAbrir')) ajudaAbrir(t); break;
       case 'notif': if (has('notifAbrir')) notifAbrir(t); break;
+      case 'tarefas': if (has('tarefasToggle')) tarefasToggle(); break;
       case 'logout': if (has('handleLogout')) handleLogout(); break;
       case 'palette': openPalette(); break;
       case 'palclose': closePalette(); break;
