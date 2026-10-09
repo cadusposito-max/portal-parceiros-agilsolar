@@ -516,6 +516,31 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
   return resultados;
 }
 
+// ---------------------------------------------------------------- piso promocional
+// No modo custos o preço não fica abaixo do kit promocional equivalente: mesmo tipo
+// (inversor ou micro) e mesmo número de placas, pelo preço que a unidade vende
+// (precos_franquia). O que passa do preço por custos é ajuste comercial (receita),
+// não despesa: fica separado no snapshot. Sem promocional equivalente, não há piso.
+const PISO_ADICIONAL_PCT = 0; // adicional mínimo sobre o promocional (planilha: B16)
+const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+async function pisoPromocional(franquiaId: string | null, micro: boolean, placas: number, vendaCustos: number) {
+  const categoria = micro ? "kitsMicro" : "kitsInversor";
+  const sem = (motivo: string) => ({ venda: vendaCustos, ajuste: 0, piso: { produto_id: null, motivo } });
+  if (!franquiaId) return sem("Unidade não identificada: sem piso promocional.");
+  const rows = await rest(`produtos?linha=eq.promocional&ativo=eq.true&categoria=eq.${categoria}&modulo_qtd=eq.${placas}`
+    + `&select=id,name,precos_franquia!inner(price)&precos_franquia.franquia_id=eq.${franquiaId}&order=created_at.asc`);
+  const ref = Array.isArray(rows) ? rows.find((x: any) => Number(x.precos_franquia?.[0]?.price) > 0) : null;
+  if (!ref) return sem(`Sem kit promocional ${micro ? "com microinversor" : "com inversor"} de ${placas} placas nesta unidade.`);
+  const precoPromo = Number(ref.precos_franquia[0].price);
+  const valor = Math.ceil(precoPromo * (1 + PISO_ADICIONAL_PCT / 100) * 100 - 1e-7) / 100;
+  const ajuste = valor > vendaCustos ? r2(valor - vendaCustos) : 0;
+  return {
+    venda: r2(vendaCustos + ajuste), ajuste,
+    piso: { produto_id: ref.id, nome: ref.name, preco_promocional: precoPromo, adicional_pct: PISO_ADICIONAL_PCT, valor },
+  };
+}
+
 const nomeInv = (inv: any) => {
   const kw = Number(inv.potenciaNominalSaida);
   return `${String(inv.fabricante || "").toUpperCase()} ${String(kw).replace(".", ",")}KW`;
@@ -601,8 +626,11 @@ Deno.serve(async (req) => {
         let precificacao: any = {modo:'markup', ...REGRA};
         if (modo === 'custos') {
           precificacao = await rest('rpc/cc_preco_dimensionado', {method:'POST', body:JSON.stringify({p_franquia_id:conta.franquia_id ?? null,p_kit:r.custo,p_modulos:placas,p_kwp:r.kwp})});
-          preco = Number(precificacao.venda);
-          if (!Number.isFinite(preco) || preco <= 0) throw new Error('Preço por custos inválido. Revise o centro de custo.');
+          const vendaCustos = Number(precificacao.venda);
+          if (!Number.isFinite(vendaCustos) || vendaCustos <= 0) throw new Error('Preço por custos inválido. Revise o centro de custo.');
+          const p = await pisoPromocional(precificacao.franquia_id ?? conta.franquia_id ?? null, r.micro, placas, vendaCustos);
+          preco = p.venda;
+          precificacao = { ...precificacao, venda: preco, venda_custos: vendaCustos, ajuste_comercial: p.ajuste, piso: p.piso };
           preco_de = preco; // sem preço de referência fictício no modo custos
         }
         const invNome = r.micro ? `${r.qtdInv}x MICROINVERSOR ${String(r.inv.fabricante).toUpperCase()}` : `INV. ${nomeInv(r.inv)}`;
@@ -620,7 +648,8 @@ Deno.serve(async (req) => {
         saida.push({
           cotacao_id: row.id, titulo, categoria: row.categoria, kwp: r.kwp, placas, marca: row.marca, preco, preco_de,
           inversor: invNome, itens: r.itens, modo_precificacao:modo,
-          ...((admin || String(conta.role).toLowerCase() === 'gestor') && modo === 'custos' ? {margem_alvo:precificacao.margem_alvo} : {}),
+          ...((admin || String(conta.role).toLowerCase() === 'gestor') && modo === 'custos'
+            ? {margem_alvo:precificacao.margem_alvo, venda_custos:precificacao.venda_custos, ajuste_comercial:precificacao.ajuste_comercial, piso:precificacao.piso} : {}),
           ...(admin ? { custo: r.custo, detalhe_custo: r.detalhe } : {}),
         });
       }

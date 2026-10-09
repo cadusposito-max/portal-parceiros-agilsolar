@@ -64,7 +64,7 @@
   }
   // Estimativa comercial histórica, calculada por scripts/calibrar-centro-custo.cjs.
   // Não representa cotação de material elétrico. Não carrega custos de kits no cliente.
-  const referenciaHelte = Object.freeze({eletricaKwp:48.24, instalacaoModulo:70});
+  const referenciaHelte = Object.freeze({eletricaKwp:139.83, instalacaoModulo:70});
   function aceitaReferenciaHelte(linhas, contrato, rede) {
     if (!rede || rede.cobrar !== false || !contrato?.royalties || !contrato?.publicidade) return false;
     const esperado = {imposto:['pct',13.8,'vk'], comissao:['pct',8,'v'], projeto:['brl',110,'v'], placas:['brl',30,'v']};

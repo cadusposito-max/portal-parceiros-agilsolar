@@ -720,7 +720,7 @@
         </div>
       </div>
       <div>
-      <div class="rd-card rd-mb"><h3>${ic('ruler')}Projetos de engenharia por kWp</h3><p class="rd-sub">Tabela da engenharia (ART inclusa). Vale para todas as unidades que cobram projetos e não têm tabela própria. Cada campo salva ao sair.</p>
+      <div class="rd-card rd-mb"><h3>${ic('ruler')}Projetos de engenharia por kWp</h3><p class="rd-sub">Tabela da engenharia (sem ART: a ART entra no centro de custo da unidade). Vale para todas as unidades que cobram projetos e não têm tabela própria. Cada campo salva ao sair.</p>
         ${faixasTabela(faixasPadrao(), 'pad', true)}
       </div>
       <div class="rd-card"><h3>${ic('calendar-clock')}Como a plataforma fecha o mês</h3><p class="rd-sub">Regras usadas nos números da Rede</p>

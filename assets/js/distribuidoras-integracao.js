@@ -158,6 +158,8 @@ function pbCotacaoKits() {
     _custo: k.custo,
     _margem: k.margem_alvo,
     _modo: k.modo_precificacao || 'markup',
+    _ajuste: Number(k.ajuste_comercial) || 0,
+    _piso: k.piso || null,
     _inversor: k.inversor,
   }));
 }
@@ -190,6 +192,9 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
         <div class="pbd-kit-d">${escapeHTML(String(k.power).replace('.', ','))} kWp · Distribuidora: ${escapeHTML(info.nome)} · frete incluso</div>
         ${custo}
         <div class="pbd-kit-nota">${k._modo === 'custos' ? 'Custos + margem alvo' : 'Markup atual'}</div>
+        ${k._modo === 'custos' && k._piso ? `<div class="pbd-kit-nota">${k._ajuste > 0
+          ? `Piso promocional (${escapeHTML(k._piso.nome || '')}): ajuste comercial de ${formatCurrency(k._ajuste)}`
+          : k._piso.produto_id ? 'Acima do promocional equivalente' : escapeHTML(k._piso.motivo || 'Sem promocional equivalente')}</div>` : ''}
         <div class="pbd-kit-f">
           <div>
             ${temDe ? `<div class="pbd-kit-de">De: ${formatCurrency(k.list_price)}</div>` : ''}

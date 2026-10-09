@@ -5,7 +5,7 @@ const c = require('../../assets/js/centro-custo-calc.js');
 
 test('Reconstrução dos inversores segue equipamento e conectores do catálogo, não a faixa de módulos', () => {
   const rows = analisar().resultado.rows;
-  for (const [modulos,custo] of [[8,7105.18],[13,10800.85],[17,13549.83]]) {
+  for (const [modulos,custo] of [[8,7027.42],[13,10674.13],[17,13378.23]]) {
     assert.equal(rows.find(r => !r.micro && r.modulos === modulos).kit, custo);
   }
 });
@@ -15,10 +15,11 @@ test('Calibração reversa reproduz a margem média de 33 kits e a estimativa of
   assert.equal(a.tarifa, c.referenciaHelte.eletricaKwp);
   assert.equal(a.resultado.quantidade, 33);
   assert.equal(a.resultado.margemMedia, 19.5);
-  assert.equal(a.resultado.margemPonderada, 19.02);
-  assert.equal(a.resultado.abaixoMinima, 9);
+  assert.equal(a.resultado.margemPonderada, 19.28);
+  assert.equal(a.resultado.abaixoMinima, 0);
+  // Preço da Matriz (o que o vendedor vê): só o inversor de 17 e o micro de 4 ficam acima do preço por custos.
   assert.deepEqual(a.resultado.rows.filter(r => r.alvo < r.preco).map(r => [r.micro,r.modulos]),
-    [[true,4],[true,5],[true,6],[true,7]]);
+    [[false,17],[true,4]]);
 });
 
 test('Referência só pode preencher custos com as mesmas premissas comerciais', () => {

@@ -2613,7 +2613,7 @@
         </div>
         ${seletor}
       </div>
-      <div class="text-[11px] text-neutral-500 mb-3">Instalação e elétrica aceitam R$ por módulo ou por kWp. Projeto de engenharia vem de Rede → Unidades; quando inclui ART, a ART abaixo não é somada novamente.</div>
+      <div class="text-[11px] text-neutral-500 mb-3">Instalação e elétrica aceitam R$ por módulo ou por kWp. Projeto de engenharia vem de Rede → Unidades; a ART é à parte e soma junto.</div>
       ${FIN_CC_LINHAS.map(([k, n]) => row(k, n)).join('')}
       ${contrato('Royalties', (d.contrato || {}).royalties)}
       ${contrato('Fundo de publicidade', (d.contrato || {}).publicidade)}
@@ -2625,9 +2625,9 @@
       <div class="mt-5 pt-4 border-t border-neutral-800"><div class="text-sm font-bold">Comparar com kit promocional</div>
       <details class="text-[11px] text-neutral-500 my-3">
         <summary class="cursor-pointer font-bold">Estimativa inicial pela referência Helte</summary>
-        <p class="my-2">Engenharia reversa de 33 promocionais de 09/10/2026: instalação de R$ 70 por módulo e reserva estimada de R$ 48,24 por kWp na elétrica. A reserva reúne despesas ainda não discriminadas; não é uma cotação de materiais. Na amostra de 2,48 a 12,40 kWp, resulta em margem média de 19,5%, com variação entre kits. Nove ficam abaixo de 18% no preço promocional. Os micros de 4 a 7 módulos continuam acima do preço por custos com alvo de 22%.</p>
+        <p class="my-2">Engenharia reversa de 33 promocionais (preço da Matriz, cabo de R$ 4,25/m, 09/10/2026): instalação de R$ 70 por módulo e reserva estimada de R$ 139,83 por kWp na elétrica. A reserva reúne despesas ainda não discriminadas; não é uma cotação de materiais. Na amostra de 2,48 a 12,40 kWp, resulta em margem média de 19,5%, com variação entre kits; nenhum fica abaixo de 18% no preço promocional. Com alvo de 22%, só o inversor de 17 e o micro de 4 módulos ficam acima do preço por custos; nas cotações, o piso promocional cobre esses casos.</p>
         <p class="my-2">Referência com imposto de 13,8% sobre venda menos kit, comissão de 8%, ART de R$ 110, placas de R$ 30, demais custos e contrato zerados. Projeto da Rede sem cobrança. Fora dessas condições, calibre a estimativa para a unidade.</p>
-        <button type="button" id="fin-cc-helte" onclick="finCcUsarHelte()" class="px-3 py-2 fin-acc-chip border border-[color:var(--fin-border-30)] disabled:opacity-50" ${CentroCustoCalc.aceitaReferenciaHelte(finCc.linhas, d.contrato, d.projeto_rede) ? '' : 'disabled'}>Testar instalação de R$ 70/módulo e elétrica de R$ 48,24/kWp</button>
+        <button type="button" id="fin-cc-helte" onclick="finCcUsarHelte()" class="px-3 py-2 fin-acc-chip border border-[color:var(--fin-border-30)] disabled:opacity-50" ${CentroCustoCalc.aceitaReferenciaHelte(finCc.linhas, d.contrato, d.projeto_rede) ? '' : 'disabled'}>Testar instalação de R$ 70/módulo e elétrica de R$ 139,83/kWp</button>
         <p class="mt-2">Preenche os dois custos na tela. Para usar nas próximas cotações, salve o centro de custo. Margens e preços promocionais permanecem como cadastrados.</p>
       </details>
       <p class="text-[11px] text-neutral-500 my-2">Informe o custo completo com frete. A margem de 19,5% é uma referência informada, não um custo cadastrado. Usa os valores da tela, mesmo antes de salvar.</p>
@@ -2658,7 +2658,6 @@
     const rede = finCc.data.projeto_rede, projeto = CentroCustoCalc.projeto(rede, get('kwp'));
     if (projeto == null) { el.textContent = 'Projeto fora da tabela da Rede: informe a potência ou configure a faixa antes de precificar.'; return; }
     const linhas = {...finCc.linhas, ...finCc.data.contrato};
-    if (rede?.cobrar) linhas.projeto = {t:'brl',v:0,b:'v'};
     linhas.projeto_rede = {t:'brl',v:projeto,b:'v'};
     const d = CentroCustoCalc.calcular({linhas,kit:get('kit'),modulos:get('modulos'),kwp:get('kwp'),venda:get('venda'),margem:finCc.malvo});
     el.textContent = d.erros.length ? d.erros.join(' ') : 'Venda por custos: ' + formatCurrency(d.vendaAlvo) + ' · alvo ' + finCc.malvo + '%' + (get('venda') > 0 ? ' · margem no promocional: ' + d.margem + '% · ' + (d.vendaAlvo >= get('venda') ? 'Promocional mantém o melhor preço.' : 'Preço por custos ficou abaixo do promocional; confira composição e custos.') : '') + (Number(finCc.linhas.eletrica.v) === 0 ? ' Elétrica está zerada: valide antes de vender.' : '');

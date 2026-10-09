@@ -119,7 +119,6 @@ begin
   if cobrar then
     select (value->>'valor')::numeric into proj from jsonb_array_elements(faixas) with ordinality where p_kwp <= (value->>'ate')::numeric order by ordinality limit 1;
     if proj is null then raise exception 'Projeto fora da tabela da Rede; configure a faixa de kWp antes de precificar.';end if;
-    linhas := jsonb_set(linhas,'{projeto}', '{"t":"brl","v":0,"b":"v"}');
   end if;
   linhas := linhas || jsonb_build_object('projeto_rede',jsonb_build_object('t','brl','v',proj,'b','v'),
     'royalties',jsonb_build_object('t','pct','v',roy,'b','v'),'publicidade',jsonb_build_object('t','pct','v',pub,'b','v'));
@@ -145,7 +144,7 @@ begin
     exit when venda*(1-m)>=soma;
     venda:=venda+.01;
   end loop;
-  return jsonb_build_object('modo','custos','versao',3,'venda',venda,'margem_alvo',m*100,'linhas',linhas,'modulos',p_modulos,'kwp',p_kwp,'fixo',fixo,'projeto_rede',proj,'art_inclusa',cobrar,'franquia_id',fid);
+  return jsonb_build_object('modo','custos','versao',3,'venda',venda,'margem_alvo',m*100,'linhas',linhas,'modulos',p_modulos,'kwp',p_kwp,'fixo',fixo,'projeto_rede',proj,'art_inclusa',false,'franquia_id',fid);
 end $$;
 revoke all on function private.cc_preco_dimensionado(uuid,numeric,integer,numeric) from public,anon,authenticated;
 grant execute on function private.cc_preco_dimensionado(uuid,numeric,integer,numeric) to service_role;

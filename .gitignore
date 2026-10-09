@@ -11,3 +11,6 @@ node_modules/
 
 # Prévia estática de relatório usada em desenvolvimento
 _preview-relatorio.html
+
+# Pacotes de repasse (zip grande, fica só no disco)
+outputs/**/*.zip

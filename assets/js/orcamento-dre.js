@@ -27,7 +27,7 @@
   const LINHAS = [
     { key: 'imposto',     rotulo: 'Impostos' },
     { key: 'projeto',     rotulo: 'ART' },
-    { key: 'projeto_rede', rotulo: 'Projeto da Rede (ART inclusa)', contrato: true },
+    { key: 'projeto_rede', rotulo: 'Projeto da Rede', contrato: true },
     { key: 'instalacao',  rotulo: 'Instalação' },
     { key: 'eletrica',    rotulo: 'Elétrica' },
     { key: 'placas',      rotulo: 'Placas de advertência' },
@@ -557,7 +557,7 @@
         TODAS.forEach((l) => { if ((!l.contrato || podeContrato()) && cur.padrao[l.key]) cur.linhas[l.key] = clone(cur.padrao[l.key]); });
         cur.margem_alvo = cur.margem_alvo_padrao;
         cur.projetoRede = cur.projetoRedePadrao;
-        cur.artInclusa = !!cur.projetoRede?.cobrar;
+        cur.artInclusa = false; // ART é à parte do projeto da Rede (decisão de 09/10)
         const projeto = CentroCustoCalc.projeto(cur.projetoRede, cur.kwp);
         cur.projetoPendente = projeto == null;
         cur.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
@@ -645,7 +645,7 @@
     alvo.receita = seed.receita; alvo.kit = seed.kit; alvo.extras = seed.extras;
     alvo.linhas = clone(alvo.padrao);
     alvo.projetoRede = alvo.projetoRedePadrao;
-    alvo.artInclusa = !!alvo.projetoRede?.cobrar;
+    alvo.artInclusa = false;
     const projeto = CentroCustoCalc.projeto(alvo.projetoRede, alvo.kwp);
     alvo.projetoPendente = projeto == null;
     alvo.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
@@ -711,7 +711,6 @@
     } catch (err) { toastSafe('Não foi possível carregar os custos e o tamanho do sistema. Tente novamente.'); return; }
     const projeto = CentroCustoCalc.projeto(centro.projeto_rede, num(contexto.kwp));
     centro.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
-    if (centro.projeto_rede?.cobrar) centro.linhas.projeto = linha('brl', 0, 'v');
     const legacy = dbSaved ? null : loadLocalLegacy(propostaId);
     const saved = dbSaved || legacy;
     const seed = seedFromProposta(p);
@@ -723,7 +722,8 @@
     cur = {
       modulos: ov.versao >= 3 ? num(ov.modulos) : num(contexto.modulos),
       kwp: ov.versao >= 3 ? num(ov.kwp) : num(contexto.kwp),
-      artInclusa: saved ? !!ov.art_inclusa : !!centro.projeto_rede?.cobrar,
+      // Cenário salvo com ART dentro do projeto (antes de 09/10) continua igual; o novo soma a ART.
+      artInclusa: saved ? !!ov.art_inclusa : false,
       projetoRede: saved ? (ov.projeto_rede || {cobrar:false}) : centro.projeto_rede,
       projetoRedePadrao: centro.projeto_rede,
       projetoPendente: !saved && projeto == null,

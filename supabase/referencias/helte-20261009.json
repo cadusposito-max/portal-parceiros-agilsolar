@@ -9,7 +9,7 @@
     "PERFIL": 44.64,
     "FIXACAO_4": 135.65,
     "FIXACAO_2": 72.72,
-    "CABO": 5.87,
+    "CABO": 4.25,
     "CONECTOR": 12,
     "MICRO": 942.49,
     "FIXMICRO": 9,
@@ -45,7 +45,7 @@
       "modulos": 5,
       "kwp": 3.1,
       "micro": false,
-      "preco": 8997,
+      "preco": 9236.85,
       "inversorWp": 3300,
       "inversores": 1
     },
@@ -53,7 +53,7 @@
       "modulos": 6,
       "kwp": 3.72,
       "micro": false,
-      "preco": 9897,
+      "preco": 10286.85,
       "inversorWp": 3300,
       "inversores": 1
     },
@@ -61,7 +61,7 @@
       "modulos": 7,
       "kwp": 4.34,
       "micro": false,
-      "preco": 10897,
+      "preco": 11651.85,
       "inversorWp": 3300,
       "inversores": 1
     },
@@ -69,7 +69,7 @@
       "modulos": 8,
       "kwp": 4.96,
       "micro": false,
-      "preco": 11897,
+      "preco": 13016.85,
       "inversorWp": 3300,
       "inversores": 1
     },
@@ -77,7 +77,7 @@
       "modulos": 9,
       "kwp": 5.58,
       "micro": false,
-      "preco": 13997,
+      "preco": 14276.85,
       "inversorWp": 5000,
       "inversores": 1
     },
@@ -85,7 +85,7 @@
       "modulos": 10,
       "kwp": 6.2,
       "micro": false,
-      "preco": 14997,
+      "preco": 15326.85,
       "inversorWp": 5000,
       "inversores": 1
     },
@@ -93,7 +93,7 @@
       "modulos": 11,
       "kwp": 6.82,
       "micro": false,
-      "preco": 15997,
+      "preco": 16691.85,
       "inversorWp": 5000,
       "inversores": 1
     },
@@ -101,7 +101,7 @@
       "modulos": 12,
       "kwp": 7.44,
       "micro": false,
-      "preco": 16997,
+      "preco": 17741.85,
       "inversorWp": 5000,
       "inversores": 1
     },
@@ -109,7 +109,7 @@
       "modulos": 13,
       "kwp": 8.06,
       "micro": false,
-      "preco": 18197,
+      "preco": 19001.85,
       "inversorWp": 6000,
       "inversores": 1
     },
@@ -117,7 +117,7 @@
       "modulos": 14,
       "kwp": 8.68,
       "micro": false,
-      "preco": 19897,
+      "preco": 20261.85,
       "inversorWp": 6000,
       "inversores": 1
     },
@@ -125,7 +125,7 @@
       "modulos": 15,
       "kwp": 9.3,
       "micro": false,
-      "preco": 20597,
+      "preco": 21626.85,
       "inversorWp": 6000,
       "inversores": 1
     },
@@ -133,7 +133,7 @@
       "modulos": 16,
       "kwp": 9.92,
       "micro": false,
-      "preco": 21697,
+      "preco": 22676.85,
       "inversorWp": 6000,
       "inversores": 1
     },
@@ -141,7 +141,7 @@
       "modulos": 17,
       "kwp": 10.54,
       "micro": false,
-      "preco": 23897,
+      "preco": 25721.85,
       "inversorWp": 6000,
       "inversores": 1
     },
@@ -149,7 +149,7 @@
       "modulos": 18,
       "kwp": 11.16,
       "micro": false,
-      "preco": 24897,
+      "preco": 26771.85,
       "inversorWp": 7500,
       "inversores": 1
     },
@@ -157,7 +157,7 @@
       "modulos": 19,
       "kwp": 11.78,
       "micro": false,
-      "preco": 25997,
+      "preco": 28136.85,
       "inversorWp": 7500,
       "inversores": 1
     },
@@ -165,7 +165,7 @@
       "modulos": 20,
       "kwp": 12.4,
       "micro": false,
-      "preco": 26997,
+      "preco": 28976.85,
       "inversorWp": 7500,
       "inversores": 1
     },
@@ -205,7 +205,7 @@
       "modulos": 8,
       "kwp": 4.96,
       "micro": true,
-      "preco": 12697,
+      "preco": 13598.49,
       "inversorWp": 2250,
       "inversores": 2
     },
@@ -213,7 +213,7 @@
       "modulos": 9,
       "kwp": 5.58,
       "micro": true,
-      "preco": 15297,
+      "preco": 16383.09,
       "inversorWp": 2250,
       "inversores": 3
     },
@@ -221,7 +221,7 @@
       "modulos": 10,
       "kwp": 6.2,
       "micro": true,
-      "preco": 16297,
+      "preco": 17454.09,
       "inversorWp": 2250,
       "inversores": 3
     },
@@ -229,7 +229,7 @@
       "modulos": 11,
       "kwp": 6.82,
       "micro": true,
-      "preco": 17497,
+      "preco": 18739.29,
       "inversorWp": 2250,
       "inversores": 3
     },
@@ -237,7 +237,7 @@
       "modulos": 12,
       "kwp": 7.44,
       "micro": true,
-      "preco": 18497,
+      "preco": 19810.29,
       "inversorWp": 2250,
       "inversores": 3
     },
@@ -245,7 +245,7 @@
       "modulos": 13,
       "kwp": 8.06,
       "micro": true,
-      "preco": 21197,
+      "preco": 22701.99,
       "inversorWp": 2250,
       "inversores": 4
     },
@@ -253,7 +253,7 @@
       "modulos": 14,
       "kwp": 8.68,
       "micro": true,
-      "preco": 22197,
+      "preco": 23772.99,
       "inversorWp": 2250,
       "inversores": 4
     },
@@ -261,7 +261,7 @@
       "modulos": 15,
       "kwp": 9.3,
       "micro": true,
-      "preco": 23397,
+      "preco": 25058.19,
       "inversorWp": 2250,
       "inversores": 4
     },
@@ -269,7 +269,7 @@
       "modulos": 16,
       "kwp": 9.92,
       "micro": true,
-      "preco": 24397,
+      "preco": 26129.19,
       "inversorWp": 2250,
       "inversores": 4
     },
@@ -277,7 +277,7 @@
       "modulos": 17,
       "kwp": 10.54,
       "micro": true,
-      "preco": 27197,
+      "preco": 29127.99,
       "inversorWp": 2250,
       "inversores": 5
     },
@@ -285,7 +285,7 @@
       "modulos": 18,
       "kwp": 11.16,
       "micro": true,
-      "preco": 28197,
+      "preco": 30198.99,
       "inversorWp": 2250,
       "inversores": 5
     },
@@ -293,7 +293,7 @@
       "modulos": 19,
       "kwp": 11.78,
       "micro": true,
-      "preco": 29397,
+      "preco": 31484.19,
       "inversorWp": 2250,
       "inversores": 5
     },
@@ -301,9 +301,11 @@
       "modulos": 20,
       "kwp": 12.4,
       "micro": true,
-      "preco": 30397,
+      "preco": 32555.19,
       "inversorWp": 2250,
       "inversores": 5
     }
-  ]
+  ],
+  "dataCabo": "2026-10-08",
+  "precoPromocional": "precos_franquia da Matriz (o que o vendedor vê), consultado em 09/10/2026"
 }

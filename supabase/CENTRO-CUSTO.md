@@ -5,12 +5,13 @@ Implementação local. A migração foi executada no banco em transações com R
 ## Comportamento
 
 - Linhas em R$ aceitam valor fixo, por módulo ou por kWp. Linhas percentuais continuam aceitando venda e venda menos kit.
-- Projeto c/ ART passa a se chamar ART. O projeto da Rede usa a faixa de kWp e o indicador de cobrança da unidade. Como a tabela da Rede informa ART inclusa, a ART adicional é suprimida nas unidades com essa cobrança. Confirmar essa interpretação comercial antes da ativação.
+- Projeto c/ ART passa a se chamar ART. O projeto da Rede usa a faixa de kWp e o indicador de cobrança da unidade. **A ART é à parte do projeto da Rede (decisão do usuário, 09/10) e soma sempre.** Cenários de DRE salvos antes com ART dentro do projeto continuam como foram salvos.
 - Admin e gestor podem escolher Markup atual ou Custos + margem alvo nas novas cotações da distribuidora. Markup permanece o padrão. O custo com frete vem da cotação no servidor; o navegador não define esse preço.
 - A cotação salva as linhas, a margem, as dimensões e o modo usados. A DRE reaproveita esse retrato. Cenários de DRE antigos mantêm suas linhas salvas; não se adiciona automaticamente um projeto da Rede a eles.
-- O simulador do centro de custo compara preço e margem usando os valores da tela. Não altera os kits promocionais nem cria um piso artificial de preço.
+- O simulador do centro de custo compara preço e margem usando os valores da tela. Não altera os kits promocionais.
+- Piso promocional (cotação no modo custos): o preço final é o maior entre o preço por custos e o preço, na unidade, do kit promocional do mesmo tipo (inversor ou micro) com o mesmo número de placas. A diferença fica como ajuste comercial (receita), separada das despesas no snapshot. Sem promocional equivalente (ex.: mais de 20 placas), não há piso.
 - A comparação também mostra quanto cabe em despesas adicionais mantendo 19,5% no preço promocional, ou o resultado que falta para atingir essa referência. Esse saldo não é uma tarifa de elétrica.
-- A opção de estimativa Helte preenche instalação em 70/módulo e reserva na elétrica de 48,24/kWp, apenas sob premissas comerciais compatíveis. Salvar continua explícito. A [engenharia reversa](ENGENHARIA-REVERSA.md) documenta os 33 kits, a margem média de 19,5% e as exceções; valores individuais variam. O comparador avisa quando a margem está abaixo da mínima.
+- A opção de estimativa Helte preenche instalação em 70/módulo e reserva na elétrica de 139,83/kWp (preço da Matriz, cabo 4,25), apenas sob premissas comerciais compatíveis. Salvar continua explícito. A [engenharia reversa](ENGENHARIA-REVERSA.md) documenta os 33 kits, a margem média de 19,5% e as exceções; valores individuais variam. O comparador avisa quando a margem está abaixo da mínima.
 - Dados dimensionais ausentes, percentuais inviáveis e projeto acima da tabela impedem calcular o preço alvo.
 
 ## Evidências do banco

@@ -1,5 +1,9 @@
 # Calibração reversa dos promocionais — 09/10/2026
 
+> **Revisão de 09/10 (tarde) — vale esta.** A primeira calibração comparou com o preço *base* dos kits (`produtos.price`), mas o vendedor vê o preço da unidade (`precos_franquia`), que na Matriz fica de 0% a 9,4% acima. O cabo de 4 mm também caiu de R$ 5,87 para R$ 4,25/m na Helte (08/10). Refeita com o preço da Matriz e o cabo atual (`referencias/helte-20261009.json`), a reserva passa a **R$ 139,83/kWp**: margem média de 19,5% (ponderada 19,28%), nenhum promocional abaixo de 18% e, com alvo de 22%, só o inversor de 17 e o micro de 4 módulos ficam acima do preço por custos. Sem os micros de 4 a 7, a tarifa seria 133,55/kWp. Os números abaixo são da primeira versão e ficam como histórico.
+>
+> Decisões do usuário na revisão: ART é à parte do projeto da Rede (soma sempre); o piso promocional compara com o kit promocional do **mesmo tipo e mesmo número de placas**, pelo preço da unidade, e está implementado na cotação (modo custos) com o ajuste comercial separado no snapshot (`venda_custos`, `ajuste_comercial`, `piso`).
+
 Estimativa inicial disponível no centro de custo: **instalação de R$ 70 por módulo e reserva de R$ 48,24 por kWp na linha Elétrica**. O valor da elétrica é uma hipótese comercial derivada da margem média de 19,5% indicada pelo usuário. Inclui todo custo residual não discriminado, não apenas material elétrico comprovado. Não representa uma medição de despesa nem deve ser somado novamente a outra reserva para os mesmos itens.
 
 O valor é oferecido como opção de teste, sem salvar automaticamente ou mudar o modo padrão de markup. Ao salvar o centro de custo, a reserva passa a participar normalmente de Custos + margem alvo e da DRE. A função e a migração da implementação principal precisam estar publicadas para ativar o fluxo completo.
