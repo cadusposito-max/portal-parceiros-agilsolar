@@ -2556,7 +2556,7 @@
      (Rede, só admin) e aparecem travados. A calculadora da proposta parte daqui. */
   const FIN_CC_LINHAS = [
     ['imposto', 'Impostos do CNPJ'], ['comissao', 'Comissão de venda'],
-    ['projeto', 'ART'], ['instalacao', 'Instalação'], ['eletrica', 'Elétrica'],
+    ['projeto', 'ART'], ['instalacao', 'Instalação'], ['eletrica_fixa', 'Elétrica (fixa por obra)'], ['eletrica', 'Elétrica (cresce com o sistema)'],
     ['placas', 'Placas de advertência'], ['ajuda', 'Ajuda de custo instalação'], ['vistoria', 'Vistoria'],
     ['outros', 'Outros custos'], ['deducoes', 'Deduções'],
   ];
@@ -2573,7 +2573,7 @@
     try { data = await finRpc('get_centro_custo', { p_franquia_id: alvo }); } catch (_) { host.innerHTML = '<div class="text-[11px] text-neutral-500 font-bold">Centro de custo indisponível.</div>'; return; }
     const linhas = {};
     FIN_CC_LINHAS.forEach(([k]) => { const l = (data.linhas || {})[k] || { t:'brl', v:0, b:'v' }; linhas[k] = CentroCustoCalc.linha(l.t, l.v, l.b); });
-    finCc = { fid: alvo, data, linhas, mmin: Number(data.margem_min) || 0, malvo: Number(data.margem_alvo) || 0 };
+    finCc = { fid: alvo, data, linhas, mmin: Number(data.margem_min) || 0, malvo: Number(data.margem_alvo) || 0, modo: data.modo_preco === 'custos' ? 'custos' : 'markup' };
     finCcPintar();
   }
 
@@ -2613,8 +2613,15 @@
         </div>
         ${seletor}
       </div>
-      <div class="text-[11px] text-neutral-500 mb-3">Instalação e elétrica aceitam R$ por módulo ou por kWp. Projeto de engenharia vem de Rede → Unidades; a ART é à parte e soma junto.</div>
-      ${FIN_CC_LINHAS.map(([k, n]) => row(k, n)).join('')}
+      ${'modo_preco' in d ? `<div class="py-3 mb-3 border-y border-neutral-800/70">
+        <div class="text-[12px] font-bold text-neutral-300 mb-2">Como a unidade calcula o preço dos kits</div>
+        <div class="inline-flex border border-neutral-800">${[['markup','Markup atual'],['custos','Custos + margem alvo']].map(([m, n]) => `<button type="button" onclick="finCcModo('${m}')" class="px-3 py-1.5 text-[11px] font-black ${finCc.modo === m ? 'fin-acc-chip' : 'text-neutral-500'}">${n}</button>`).join('')}</div>
+        <div class="text-[11px] text-neutral-500 mt-2">${finCc.modo === 'custos'
+          ? 'Kits do catálogo e cotações das distribuidoras saem do custo do kit + custos abaixo + margem alvo. Kits promocionais mantêm o preço próprio.' + (d.modo_preco === 'custos' ? ` Hoje ${Number(d.kits_custos) || 0} kits da unidade estão com preço por custos.` : ' Vale depois de salvar.')
+          : 'Preço do kit como hoje (tabela da Matriz). Para testar o preço por custos, escolha a outra opção e salve; dá para voltar a qualquer momento.'}</div>
+      </div>` : ''}
+      <div class="text-[11px] text-neutral-500 mb-3">Instalação e elétrica aceitam R$ fixo, por módulo ou por kWp. Projeto de engenharia vem de Rede → Unidades; a ART é à parte e soma junto.</div>
+      ${FIN_CC_LINHAS.filter(([k]) => k !== 'eletrica_fixa' || 'eletrica_fixa' in (d.linhas || {})).map(([k, n]) => row(k, n)).join('')}
       ${contrato('Royalties', (d.contrato || {}).royalties)}
       ${contrato('Fundo de publicidade', (d.contrato || {}).publicidade)}
       <div class="flex flex-wrap items-end gap-3 pt-3 border-t border-neutral-800/70">
@@ -2625,9 +2632,9 @@
       <div class="mt-5 pt-4 border-t border-neutral-800"><div class="text-sm font-bold">Comparar com kit promocional</div>
       <details class="text-[11px] text-neutral-500 my-3">
         <summary class="cursor-pointer font-bold">Estimativa inicial pela referência Helte</summary>
-        <p class="my-2">Engenharia reversa de 33 promocionais (preço da Matriz, cabo de R$ 4,25/m, 09/10/2026): instalação de R$ 70 por módulo e reserva estimada de R$ 139,83 por kWp na elétrica. A reserva reúne despesas ainda não discriminadas; não é uma cotação de materiais. Na amostra de 2,48 a 12,40 kWp, resulta em margem média de 19,5%, com variação entre kits; nenhum fica abaixo de 18% no preço promocional. Com alvo de 22%, só o inversor de 17 e o micro de 4 módulos ficam acima do preço por custos; nas cotações, o piso promocional cobre esses casos.</p>
+        <p class="my-2">Engenharia reversa dos 33 promocionais (preço da Matriz, custo Helte com cabo de R$ 4,25/m, 09/10/2026): instalação de R$ 70 por módulo e elétrica de R$ 345 fixa por obra + R$ 118,50 por kWp. É a menor elétrica com que todos os promocionais empatam ou ficam mais baratos que o preço por custos com margem de 22% (em média 6,6% abaixo). Estimativa, não cotação de materiais: troque pelos valores reais quando tiver.</p>
         <p class="my-2">Referência com imposto de 13,8% sobre venda menos kit, comissão de 8%, ART de R$ 110, placas de R$ 30, demais custos e contrato zerados. Projeto da Rede sem cobrança. Fora dessas condições, calibre a estimativa para a unidade.</p>
-        <button type="button" id="fin-cc-helte" onclick="finCcUsarHelte()" class="px-3 py-2 fin-acc-chip border border-[color:var(--fin-border-30)] disabled:opacity-50" ${CentroCustoCalc.aceitaReferenciaHelte(finCc.linhas, d.contrato, d.projeto_rede) ? '' : 'disabled'}>Testar instalação de R$ 70/módulo e elétrica de R$ 139,83/kWp</button>
+        <button type="button" id="fin-cc-helte" onclick="finCcUsarHelte()" class="px-3 py-2 fin-acc-chip border border-[color:var(--fin-border-30)] disabled:opacity-50" ${CentroCustoCalc.aceitaReferenciaHelte(finCc.linhas, d.contrato, d.projeto_rede) ? '' : 'disabled'}>Testar instalação de R$ 70/módulo e elétrica de R$ 345 + R$ 118,50/kWp</button>
         <p class="mt-2">Preenche os dois custos na tela. Para usar nas próximas cotações, salve o centro de custo. Margens e preços promocionais permanecem como cadastrados.</p>
       </details>
       <p class="text-[11px] text-neutral-500 my-2">Informe o custo completo com frete. A margem de 19,5% é uma referência informada, não um custo cadastrado. Usa os valores da tela, mesmo antes de salvar.</p>
@@ -2660,7 +2667,7 @@
     const linhas = {...finCc.linhas, ...finCc.data.contrato};
     linhas.projeto_rede = {t:'brl',v:projeto,b:'v'};
     const d = CentroCustoCalc.calcular({linhas,kit:get('kit'),modulos:get('modulos'),kwp:get('kwp'),venda:get('venda'),margem:finCc.malvo});
-    el.textContent = d.erros.length ? d.erros.join(' ') : 'Venda por custos: ' + formatCurrency(d.vendaAlvo) + ' · alvo ' + finCc.malvo + '%' + (get('venda') > 0 ? ' · margem no promocional: ' + d.margem + '% · ' + (d.vendaAlvo >= get('venda') ? 'Promocional mantém o melhor preço.' : 'Preço por custos ficou abaixo do promocional; confira composição e custos.') : '') + (Number(finCc.linhas.eletrica.v) === 0 ? ' Elétrica está zerada: valide antes de vender.' : '');
+    el.textContent = d.erros.length ? d.erros.join(' ') : 'Venda por custos: ' + formatCurrency(d.vendaAlvo) + ' · alvo ' + finCc.malvo + '%' + (get('venda') > 0 ? ' · margem no promocional: ' + d.margem + '% · ' + (d.vendaAlvo >= get('venda') ? 'Promocional mantém o melhor preço.' : 'Preço por custos ficou abaixo do promocional; confira composição e custos.') : '') + (Number(finCc.linhas.eletrica.v) === 0 && Number(finCc.linhas.eletrica_fixa.v) === 0 ? ' Elétrica está zerada: valide antes de vender.' : '');
     const saldo = CentroCustoCalc.saldoParaMargem(d, 19.5);
     if (!d.erros.length && d.receita > 0 && d.lucroLiq / d.receita * 100 < finCc.mmin) {
       el.textContent += ' Margem no promocional abaixo da mínima de ' + finCc.mmin + '%.';
@@ -2676,6 +2683,7 @@
   function finCcUsarHelte() {
     if (!finCc || !CentroCustoCalc.aceitaReferenciaHelte(finCc.linhas, finCc.data.contrato, finCc.data.projeto_rede)) return;
     finCc.linhas.instalacao = {t:'brl',v:CentroCustoCalc.referenciaHelte.instalacaoModulo,b:'modulo'};
+    finCc.linhas.eletrica_fixa = {t:'brl',v:CentroCustoCalc.referenciaHelte.eletricaFixa,b:'v'};
     finCc.linhas.eletrica = {t:'brl',v:CentroCustoCalc.referenciaHelte.eletricaKwp,b:'kwp'};
     finCcPintar();
     finToast('Estimativa preenchida. Confira a simulação e salve para usar nas novas cotações.', 'success');
@@ -2688,15 +2696,18 @@
   function finCcBase(k, b) { const l = finCc && finCc.linhas[k]; if (l) l.b = CentroCustoCalc.linha(l.t, l.v, b).b; finCcSimular(); }
   function finCcValor(k, v) { const l = finCc && finCc.linhas[k]; if (l) l.v = Math.max(0, parseFloat(v) || 0); finCcSimular(); }
   function finCcMargem(campo, v) { if (finCc) finCc[campo] = parseFloat(v) || 0; finCcSimular(); }
+  function finCcModo(m) { if (!finCc) return; finCc.modo = m === 'custos' ? 'custos' : 'markup'; finCcPintar(); }
   async function finCcSalvar() {
     if (!finCc) return;
     const ruim = FIN_CC_LINHAS.find(([k]) => finCc.linhas[k].t === 'pct' && finCc.linhas[k].v > 100);
     if (ruim) { finToast(`${ruim[1]}: percentual acima de 100`, 'warn'); return; }
     if (finCc.mmin < 0 || finCc.malvo < finCc.mmin || finCc.malvo >= 100) { finToast('Margem mínima ≥ 0 e alvo ≥ mínima, abaixo de 100%.', 'warn'); return; }
     let data;
-    try { data = await finRpc('set_centro_custo', { p_franquia_id: finCc.fid, p_linhas: finCc.linhas, p_margem_min: finCc.mmin, p_margem_alvo: finCc.malvo }); } catch (_) { return; }
-    finCc.data = data; finCcPintar();
-    finToast('Centro de custo salvo', 'ok');
+    try { data = await finRpc('set_centro_custo', { p_franquia_id: finCc.fid, p_linhas: finCc.linhas, p_margem_min: finCc.mmin, p_margem_alvo: finCc.malvo, ...('modo_preco' in finCc.data ? { p_modo_preco: finCc.modo } : {}) }); } catch (_) { return; }
+    finCc.data = data; finCc.modo = data.modo_preco === 'custos' ? 'custos' : 'markup'; finCcPintar();
+    finToast(finCc.modo === 'custos' ? `Centro de custo salvo · ${Number(data.kits_custos) || 0} kits com preço por custos` : 'Centro de custo salvo', 'ok');
+    // A lista de kits do orçamento passa a usar o preço novo da unidade.
+    if (typeof fetchProducts === 'function' && String(finCc.fid) === String(state.franquiaId)) fetchProducts();
   }
 
   async function renderFinConfig() {
@@ -2956,7 +2967,7 @@
     finExportRelatorio,
     // config
     finSalvarConfig, finToggleFinEnabled,
-    finCcPromo, finCcSimular, finCcUnidade, finCcUsarHelte, finCcTipo, finCcBase, finCcValor, finCcMargem, finCcSalvar,
+    finCcPromo, finCcSimular, finCcUnidade, finCcUsarHelte, finCcTipo, finCcBase, finCcValor, finCcMargem, finCcModo, finCcSalvar,
   });
 
 })();

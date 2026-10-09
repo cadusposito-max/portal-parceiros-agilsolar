@@ -29,6 +29,7 @@
     { key: 'projeto',     rotulo: 'ART' },
     { key: 'projeto_rede', rotulo: 'Projeto da Rede', contrato: true },
     { key: 'instalacao',  rotulo: 'Instalação' },
+    { key: 'eletrica_fixa', rotulo: 'Elétrica (fixa por obra)' },
     { key: 'eletrica',    rotulo: 'Elétrica' },
     { key: 'placas',      rotulo: 'Placas de advertência' },
     { key: 'ajuda',       rotulo: 'Ajuda de custo instalação' },
@@ -63,6 +64,7 @@
     out.publicidade = linha('pct', p.publicidade, 'v');
     out.deducoes = linha('pct', p.deducoes, 'v');
     LEGADO_RS.forEach((k) => { out[k] = linha('brl', 0, 'v'); });
+    out.eletrica_fixa = linha('brl', 0, 'v');
     return { linhas: out, margem_min: p.margem_min, margem_alvo: p.margem_alvo, nome: null, fallback: true };
   }
 
@@ -91,10 +93,13 @@
     const ov = saved.overrides || {};
     if (ov.versao >= 2 && ov.linhas && typeof ov.linhas === 'object') {
       TODAS.forEach((l) => { const s = ov.linhas[l.key]; if (s) linhas[l.key] = linha(s.t, s.v, s.b); });
+      // Cenário salvo antes da elétrica fixa (09/10) não ganha a linha nova.
+      if (!ov.linhas.eletrica_fixa) linhas.eletrica_fixa = linha('brl', 0, 'v');
       return linhas;
     }
     const custos = saved.custos || {};
     LEGADO_RS.forEach((k) => { linhas[k] = linha('brl', num(custos[k]), 'v'); });
+    linhas.eletrica_fixa = linha('brl', 0, 'v');
     ['imposto', 'comissao', 'deducoes'].forEach((k) => { if (ov[k] != null) linhas[k] = linha('brl', ov[k], 'v'); });
     if (ov.royalties != null) { linhas.royalties = linha('brl', ov.royalties, 'v'); linhas.publicidade = linha('brl', 0, 'v'); }
     return linhas;

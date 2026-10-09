@@ -62,14 +62,15 @@
         !Number.isFinite(margem) || margem < 0 || margem >= 100) return null;
     return Math.floor((resultado.lucroLiq - resultado.receita * margem / 100) * 100 + 1e-7) / 100;
   }
-  // Estimativa comercial histórica, calculada por scripts/calibrar-centro-custo.cjs.
-  // Não representa cotação de material elétrico. Não carrega custos de kits no cliente.
-  const referenciaHelte = Object.freeze({eletricaKwp:139.83, instalacaoModulo:70});
+  // Estimativa da Matriz calculada por scripts/calibrar-centro-custo.cjs: menor elétrica
+  // (fixa por obra + por kWp) com que os 33 promocionais empatam ou ficam abaixo do preço
+  // por custos com margem de 22%. Não é cotação de material elétrico.
+  const referenciaHelte = Object.freeze({instalacaoModulo:70, eletricaFixa:345, eletricaKwp:118.5});
   function aceitaReferenciaHelte(linhas, contrato, rede) {
     if (!rede || rede.cobrar !== false || !contrato?.royalties || !contrato?.publicidade) return false;
     const esperado = {imposto:['pct',13.8,'vk'], comissao:['pct',8,'v'], projeto:['brl',110,'v'], placas:['brl',30,'v']};
     return Object.entries(esperado).every(([k,[t,v,b]]) => linhas[k]?.t === t && n(linhas[k].v) === v && linhas[k].b === b)
-      && Object.entries(linhas).every(([k,l]) => k in esperado || ['eletrica','instalacao'].includes(k) || n(l.v) === 0)
+      && Object.entries(linhas).every(([k,l]) => k in esperado || ['eletrica','eletrica_fixa','instalacao'].includes(k) || n(l.v) === 0)
       && Object.values(contrato || {}).every(l => n(l.v) === 0);
   }
   root.CentroCustoCalc = { linha, valor, calcular, projeto, bases, saldoParaMargem, referenciaHelte, aceitaReferenciaHelte };

@@ -516,29 +516,21 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
   return resultados;
 }
 
-// ---------------------------------------------------------------- piso promocional
-// No modo custos o preço não fica abaixo do kit promocional equivalente: mesmo tipo
-// (inversor ou micro) e mesmo número de placas, pelo preço que a unidade vende
-// (precos_franquia). O que passa do preço por custos é ajuste comercial (receita),
-// não despesa: fica separado no snapshot. Sem promocional equivalente, não há piso.
-const PISO_ADICIONAL_PCT = 0; // adicional mínimo sobre o promocional (planilha: B16)
-const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-
-async function pisoPromocional(franquiaId: string | null, micro: boolean, placas: number, vendaCustos: number) {
-  const categoria = micro ? "kitsMicro" : "kitsInversor";
-  const sem = (motivo: string) => ({ venda: vendaCustos, ajuste: 0, piso: { produto_id: null, motivo } });
-  if (!franquiaId) return sem("Unidade não identificada: sem piso promocional.");
-  const rows = await rest(`produtos?linha=eq.promocional&ativo=eq.true&categoria=eq.${categoria}&modulo_qtd=eq.${placas}`
-    + `&select=id,name,precos_franquia!inner(price)&precos_franquia.franquia_id=eq.${franquiaId}&order=created_at.asc`);
-  const ref = Array.isArray(rows) ? rows.find((x: any) => Number(x.precos_franquia?.[0]?.price) > 0) : null;
-  if (!ref) return sem(`Sem kit promocional ${micro ? "com microinversor" : "com inversor"} de ${placas} placas nesta unidade.`);
-  const precoPromo = Number(ref.precos_franquia[0].price);
-  const valor = Math.ceil(precoPromo * (1 + PISO_ADICIONAL_PCT / 100) * 100 - 1e-7) / 100;
-  const ajuste = valor > vendaCustos ? r2(valor - vendaCustos) : 0;
-  return {
-    venda: r2(vendaCustos + ajuste), ajuste,
-    piso: { produto_id: ref.id, nome: ref.name, preco_promocional: precoPromo, adicional_pct: PISO_ADICIONAL_PCT, valor },
-  };
+// ---------------------------------------------------------------- modo de preço da unidade
+// Cada unidade escolhe no centro de custo (Financeiro → Config): 'markup' (REGRA acima)
+// ou 'custos' (kit + custos da unidade + imposto + comissão + margem alvo, via
+// cc_preco_dimensionado). Sem centro de custo salvo: markup.
+async function modoDaUnidade(franquiaId: string | null): Promise<"markup" | "custos"> {
+  if (!franquiaId) return "markup";
+  // Sem a coluna (migration 20261009180000 ainda não aplicada) ou sem linha: markup.
+  const rows = await rest(`fin_centro_custo?franquia_id=eq.${franquiaId}&select=modo_preco`).catch(() => []);
+  return Array.isArray(rows) && rows[0]?.modo_preco === "custos" ? "custos" : "markup";
+}
+// "De" igual ao dos kits: +13,38% (acima de R$ 30 mil o desconto cresce pela raiz do preço).
+function precoDe(preco: number) {
+  const pct = REGRA.de_pct / 100;
+  const de = preco <= REGRA.de_lim ? preco * (1 + pct) : preco + pct * REGRA.de_lim * Math.sqrt(preco / REGRA.de_lim);
+  return Math.round(de * 100) / 100;
 }
 
 const nomeInv = (inv: any) => {
@@ -606,9 +598,7 @@ Deno.serve(async (req) => {
     if (!cred.ativo) return json(409, { error: "A integração com a Belenus está desligada" });
     const placas = Math.round(Number(body?.placas));
     if (!Number.isFinite(placas) || placas < 4 || placas > 150) return json(400, { error: "Informe de 4 a 150 placas" });
-    const modo = body?.precificacao === 'custos' ? 'custos' : 'markup';
-    if (body?.precificacao && !['custos','markup'].includes(body.precificacao)) return json(400, {error:'Modo de precificação inválido.'});
-    if (modo === 'custos' && !admin && String(conta.role).toLowerCase() !== 'gestor') return json(403, {error:'Somente admin ou gestor pode testar custos + margem.'});
+    const modo = await modoDaUnidade(conta.franquia_id ?? null);
     try {
       const cat = await catalogo(bel, provedor);
       await bel.login();
@@ -626,12 +616,9 @@ Deno.serve(async (req) => {
         let precificacao: any = {modo:'markup', ...REGRA};
         if (modo === 'custos') {
           precificacao = await rest('rpc/cc_preco_dimensionado', {method:'POST', body:JSON.stringify({p_franquia_id:conta.franquia_id ?? null,p_kit:r.custo,p_modulos:placas,p_kwp:r.kwp})});
-          const vendaCustos = Number(precificacao.venda);
-          if (!Number.isFinite(vendaCustos) || vendaCustos <= 0) throw new Error('Preço por custos inválido. Revise o centro de custo.');
-          const p = await pisoPromocional(precificacao.franquia_id ?? conta.franquia_id ?? null, r.micro, placas, vendaCustos);
-          preco = p.venda;
-          precificacao = { ...precificacao, venda: preco, venda_custos: vendaCustos, ajuste_comercial: p.ajuste, piso: p.piso };
-          preco_de = preco; // sem preço de referência fictício no modo custos
+          preco = Number(precificacao.venda);
+          if (!Number.isFinite(preco) || preco <= 0) throw new Error('Preço por custos inválido. Revise o centro de custo da unidade.');
+          preco_de = precoDe(preco);
         }
         const invNome = r.micro ? `${r.qtdInv}x MICROINVERSOR ${String(r.inv.fabricante).toUpperCase()}` : `INV. ${nomeInv(r.inv)}`;
         const titulo = `KIT ${placas} MOD. ${r.mod.potencia}W + ${invNome}`;
@@ -648,8 +635,7 @@ Deno.serve(async (req) => {
         saida.push({
           cotacao_id: row.id, titulo, categoria: row.categoria, kwp: r.kwp, placas, marca: row.marca, preco, preco_de,
           inversor: invNome, itens: r.itens, modo_precificacao:modo,
-          ...((admin || String(conta.role).toLowerCase() === 'gestor') && modo === 'custos'
-            ? {margem_alvo:precificacao.margem_alvo, venda_custos:precificacao.venda_custos, ajuste_comercial:precificacao.ajuste_comercial, piso:precificacao.piso} : {}),
+          ...((admin || String(conta.role).toLowerCase() === 'gestor') && modo === 'custos' ? {margem_alvo:precificacao.margem_alvo} : {}),
           ...(admin ? { custo: r.custo, detalhe_custo: r.detalhe } : {}),
         });
       }

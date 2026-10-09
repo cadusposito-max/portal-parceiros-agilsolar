@@ -30,6 +30,13 @@ function resolveBestPositiveValue(values, fallback) {
 
 function resolveProductPrices(produto) {
   const franchiseRows = Array.isArray(produto.precos_franquia) ? produto.precos_franquia : [];
+  // Unidade no modo "custos + margem": o banco calcula price_custos (centro de custo) e ele
+  // vale no lugar do preço do markup. Promocionais nunca têm price_custos.
+  const custos = franchiseRows.map(r => Number(r?.price_custos)).find(v => Number.isFinite(v) && v > 0);
+  if (custos) {
+    const deCustos = franchiseRows.map(r => Number(r?.list_price_custos)).find(v => Number.isFinite(v) && v > 0) || 0;
+    return { price: custos, list_price: Math.max(deCustos, custos), preco_por: 'custos' };
+  }
   const price = resolveBestPositiveValue(franchiseRows.map(r => r?.price), produto.price);
   const listPriceRaw = resolveBestPositiveValue(franchiseRows.map(r => r?.list_price), produto.list_price);
   const listPrice = Math.max(listPriceRaw, price);
@@ -147,6 +154,20 @@ async function createAdminUserWithConfirmedEmail(params = {}) {
   return data;
 }
 
+// Produtos com o preço da unidade. price_custos só existe depois da migration
+// 20261009180000_preco_por_custos: sem ela, repete sem essas colunas (preço do markup).
+async function selectProdutosDaUnidade(franquiaId) {
+  const cols = (extra) => `
+    id, categoria, name, brand, power, type, description, tag, ativo, created_at, price, list_price, franquia_id, linha,
+    modulo_id, modulo_qtd, inversor_id, inversor_qtd, distribuidora_id,
+    precos_franquia!inner(price, list_price${extra})`;
+  const consulta = (extra) => supabaseClient.from('produtos').select(cols(extra))
+    .eq('precos_franquia.franquia_id', franquiaId).order('power', { ascending: true });
+  const r = await consulta(', price_custos, list_price_custos');
+  if (r.error && /price_custos|list_price_custos/.test(String(r.error.message || ''))) return consulta('');
+  return r;
+}
+
 async function fetchProducts() {
   if (!state.currentUser) return;
 
@@ -159,15 +180,7 @@ async function fetchProducts() {
 
     if (targetFranquiaId) {
       // Admin com franquia alvo: carrega preços daquela franquia
-      const { data, error } = await supabaseClient
-        .from('produtos')
-        .select(`
-          id, categoria, name, brand, power, type, description, tag, ativo, created_at, price, list_price, franquia_id, linha,
-          modulo_id, modulo_qtd, inversor_id, inversor_qtd, distribuidora_id,
-          precos_franquia!inner(price, list_price)
-        `)
-        .eq('precos_franquia.franquia_id', targetFranquiaId)
-        .order('power', { ascending: true });
+      const { data, error } = await selectProdutosDaUnidade(targetFranquiaId);
       if (!error) {
         state.data = (data || []).map(p => enrichProductForUI({
           ...p,
@@ -184,15 +197,7 @@ async function fetchProducts() {
     }
   } else {
     // JOIN com precos_franquia para retornar o preço correto da franquia do vendedor
-    const { data, error } = await supabaseClient
-      .from('produtos')
-      .select(`
-        id, categoria, name, brand, power, type, description, tag, created_at, price, list_price, franquia_id, ativo, linha,
-        modulo_id, modulo_qtd, inversor_id, inversor_qtd, distribuidora_id,
-        precos_franquia!inner(price, list_price)
-      `)
-      .eq('precos_franquia.franquia_id', state.franquiaId)
-      .order('power', { ascending: true });
+    const { data, error } = await selectProdutosDaUnidade(state.franquiaId);
 
     if (!error) {
       // Achata o resultado: substitui price/list_price pelo valor da franquia
