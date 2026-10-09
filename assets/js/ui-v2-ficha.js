@@ -370,8 +370,9 @@
     const grade = _crm360Tab === 'dados'
       ? `<div class="v2f-dadosaba">
             ${leadMetaCardHTML(client)}
-            <div class="v2f-card"><h3>${ic('user-cog')}Contato e endereço</h3><div class="v2f-fields v2f-fields4">${camposDados}
+            <div class="v2f-card" id="crm360-dados-card"><h3>${ic('user-cog')}Contato e endereço</h3><div class="v2f-fields v2f-fields4">${camposDados}
             </div></div>
+            ${has('crm360RepresentanteHTML') ? crm360RepresentanteHTML(client, true) : ''}
             <div class="v2f-dadosrow">${cardProx}${vistoriaCardHTML(client)}</div>
             <div class="v2f-savebar">${btnSalvar}</div>
           </div>`
@@ -452,6 +453,7 @@
       if (docInput) ligarMascara(docInput, 'auto');
       if (cepInput) ligarMascara(cepInput, 'cep');
     }
+    if (has('crm360LigarReceita')) crm360LigarReceita();
     if (_crm360Tab === 'financiamento' && has('renderFinanciamento')) renderFinanciamento();
     if (_crm360Tab === 'propostas' && state.isAdmin && has('preencherSelosPrecificacao')) preencherSelosPrecificacao();
 

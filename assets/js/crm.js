@@ -498,7 +498,7 @@ function renderCrm360() {
           <div class="${_crm360AbaLarga() ? 'hidden' : ''} lg:col-span-2 p-5 md:p-6 border-b lg:border-b-0 lg:border-r border-neutral-800 space-y-4">
             <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><i data-lucide="user-cog" class="w-3.5 h-3.5"></i> Dados do cliente</p>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div id="crm360-dados-card" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               ${crm360Field('Nome', `<input id="crm360-nome" value="${escapeHTML(client.nome || '')}" class="crm360-input uppercase">`, 'sm:col-span-2')}
               ${crm360Field('Telefone', `<input id="crm360-telefone" value="${escapeHTML(client.telefone || '')}" class="crm360-input font-mono">`)}
               ${crm360Field('E-mail', `<input id="crm360-email" type="email" value="${escapeHTML(client.email || '')}" class="crm360-input">`)}
@@ -514,6 +514,7 @@ function renderCrm360() {
               ${crm360CamposDocumentosHTML(client)}
               ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="2" class="crm360-input">${escapeHTML(client.observacoes || '')}</textarea>`, 'sm:col-span-2')}
             </div>
+            ${crm360RepresentanteHTML(client, false)}
 
             <div class="pt-3 border-t border-neutral-800/60 space-y-3">
               <p class="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><i data-lucide="alarm-clock" class="w-3.5 h-3.5"></i> Próxima ação (follow-up)</p>
@@ -552,6 +553,7 @@ function renderCrm360() {
   if (telInput) telInput.addEventListener('input', formatarTelefone);
   ligarMascara(document.getElementById('crm360-documento'), 'auto');
   ligarMascara(document.getElementById('crm360-cep'), 'cep');
+  crm360LigarReceita();
 
   if (_crm360Tab === 'financiamento' && typeof renderFinanciamento === 'function') renderFinanciamento();
   // Selo de margem da precificação interna (só admin; preenchido async).
@@ -573,12 +575,125 @@ function crm360CamposDocumentosHTML(client) {
   const opt = (valor, lista) => lista.map(([v, l]) => `<option value="${v}" ${String(valor || '') === v ? 'selected' : ''}>${l}</option>`).join('');
   return `
     ${crm360Field('Complemento', `<input id="crm360-complemento" value="${escapeHTML(client.complemento || '')}" class="crm360-input">`)}
-    ${crm360Field('RG', `<input id="crm360-rg" value="${escapeHTML(client.rg || '')}" class="crm360-input font-mono">`)}
-    ${crm360Field('Órgão emissor', `<input id="crm360-rg-orgao" value="${escapeHTML(client.rg_orgao || '')}" placeholder="SP/SSP" class="crm360-input uppercase">`)}
-    ${crm360Field('Gênero', `<select id="crm360-genero" class="crm360-input">${opt(client.genero, [['', '—'], ['M', 'Masculino'], ['F', 'Feminino']])}</select>`)}
-    ${crm360Field('Estado civil', `<select id="crm360-estado-civil" class="crm360-input">${opt(client.estado_civil, [['', '—'], ['solteiro', 'Solteiro(a)'], ['casado', 'Casado(a)'], ['divorciado', 'Divorciado(a)'], ['separado', 'Separado(a) judicialmente'], ['viuvo', 'Viúvo(a)'], ['uniao_estavel', 'União estável']])}</select>`)}
-    ${crm360Field('Nacionalidade', `<input id="crm360-nacionalidade" value="${escapeHTML(client.nacionalidade || '')}" placeholder="BRASILEIRO(A)" class="crm360-input uppercase">`)}
-    ${crm360Field('Profissão', `<input id="crm360-profissao" value="${escapeHTML(client.profissao || '')}" class="crm360-input uppercase">`)}`;
+    ${crm360Field('RG', `<input id="crm360-rg" value="${escapeHTML(client.rg || '')}" class="crm360-input font-mono">`, 'crm360-so-pf')}
+    ${crm360Field('Órgão emissor', `<input id="crm360-rg-orgao" value="${escapeHTML(client.rg_orgao || '')}" placeholder="SP/SSP" class="crm360-input uppercase">`, 'crm360-so-pf')}
+    ${crm360Field('Gênero', `<select id="crm360-genero" class="crm360-input">${opt(client.genero, CRM360_GENEROS)}</select>`, 'crm360-so-pf')}
+    ${crm360Field('Estado civil', `<select id="crm360-estado-civil" class="crm360-input">${opt(client.estado_civil, CRM360_ESTADOS_CIVIS)}</select>`, 'crm360-so-pf')}
+    ${crm360Field('Nacionalidade', `<input id="crm360-nacionalidade" value="${escapeHTML(client.nacionalidade || '')}" placeholder="BRASILEIRO(A)" class="crm360-input uppercase">`, 'crm360-so-pf')}
+    ${crm360Field('Profissão', `<input id="crm360-profissao" value="${escapeHTML(client.profissao || '')}" class="crm360-input uppercase">`, 'crm360-so-pf')}`;
+}
+
+const CRM360_GENEROS = [['', '—'], ['M', 'Masculino'], ['F', 'Feminino']];
+const CRM360_ESTADOS_CIVIS = [['', '—'], ['solteiro', 'Solteiro(a)'], ['casado', 'Casado(a)'], ['divorciado', 'Divorciado(a)'], ['separado', 'Separado(a) judicialmente'], ['viuvo', 'Viúvo(a)'], ['uniao_estavel', 'União estável']];
+// Campos do representante na ficha → chaves de documentos_dados.cliente.representante
+// (o terceiro item diz se o valor vai em caixa alta)
+const CRM360_REP_CAMPOS = [
+  ['nome', 'crm360-rep-nome', true], ['profissao', 'crm360-rep-profissao', true], ['cpf', 'crm360-rep-cpf'],
+  ['rg', 'crm360-rep-rg'], ['rg_orgao', 'crm360-rep-rg-orgao', true], ['genero', 'crm360-rep-genero'],
+  ['estado_civil', 'crm360-rep-estado-civil'], ['nacionalidade', 'crm360-rep-nacionalidade', true],
+];
+
+function _crm360EhCnpj(valor) {
+  return digitsOnly(valor).length === 14;
+}
+
+// Cliente PJ: quem assina pela empresa. Grava em documentos_dados.cliente.representante,
+// o mesmo lugar que o modal de contrato/procuração lê (não precisa digitar de novo lá).
+// Só aparece com CNPJ no documento (crm360AjustarTipoPessoa troca na hora).
+function crm360RepresentanteHTML(client, v2) {
+  if (!_crm360DocsAtivo()) return '';
+  const rep = client.documentos_dados?.cliente?.representante || {};
+  const opt = (valor, lista) => lista.map(([v, l]) => `<option value="${v}" ${String(valor || '') === v ? 'selected' : ''}>${l}</option>`).join('');
+  const txt = (id, k, cls = '', ph = '') => `<input id="${id}" value="${escapeHTML(rep[k] || '')}" ${ph ? `placeholder="${ph}"` : ''} class="crm360-input ${cls}">`;
+  const campos = `
+    ${crm360Field('Nome completo', txt('crm360-rep-nome', 'nome', 'uppercase'), v2 ? 'span2' : 'sm:col-span-2')}
+    ${crm360Field('Cargo / profissão', txt('crm360-rep-profissao', 'profissao', 'uppercase', 'SÓCIO-ADMINISTRADOR'))}
+    ${crm360Field('CPF', txt('crm360-rep-cpf', 'cpf', 'font-mono', '000.000.000-00'))}
+    ${crm360Field('RG', txt('crm360-rep-rg', 'rg', 'font-mono'))}
+    ${crm360Field('Órgão emissor', txt('crm360-rep-rg-orgao', 'rg_orgao', 'uppercase', 'SP/SSP'))}
+    ${crm360Field('Gênero', `<select id="crm360-rep-genero" class="crm360-input">${opt(rep.genero, CRM360_GENEROS)}</select>`)}
+    ${crm360Field('Estado civil', `<select id="crm360-rep-estado-civil" class="crm360-input">${opt(rep.estado_civil, CRM360_ESTADOS_CIVIS)}</select>`)}
+    ${crm360Field('Nacionalidade', txt('crm360-rep-nacionalidade', 'nacionalidade', 'uppercase', 'BRASILEIRO(A)'))}`;
+  const pj = _crm360EhCnpj(client.documento);
+  return v2
+    ? `<div class="v2f-card" id="crm360-rep-card" style="${pj ? '' : 'display:none'}"><h3><i data-lucide="id-card"></i>Representante legal<span class="v2f-h3sub">quem assina pela empresa no contrato</span></h3><div class="v2f-fields v2f-fields4">${campos}</div></div>`
+    : `<div id="crm360-rep-card" class="pt-3 border-t border-neutral-800/60 space-y-3" style="${pj ? '' : 'display:none'}">
+        <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><i data-lucide="id-card" class="w-3.5 h-3.5"></i> Representante legal (assina pela empresa)</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${campos}</div>
+      </div>`;
+}
+
+// CPF ↔ CNPJ: dados pessoais do cliente só valem para PF; na PJ entra o representante.
+function crm360AjustarTipoPessoa() {
+  const doc = document.getElementById('crm360-documento');
+  if (!doc) return;
+  const pj = _crm360EhCnpj(doc.value);
+  document.querySelectorAll('.crm360-so-pf').forEach((el) => { el.style.display = pj ? 'none' : ''; });
+  const rep = document.getElementById('crm360-rep-card');
+  if (rep) rep.style.display = pj ? '' : 'none';
+}
+
+// Pós-render da aba Dados (ficha antiga e nova): troca PF/PJ e consulta o CNPJ na Receita.
+function crm360LigarReceita() {
+  const doc = document.getElementById('crm360-documento');
+  if (!doc) return;
+  doc.addEventListener('input', crm360AjustarTipoPessoa);
+  crm360AjustarTipoPessoa();
+  if (typeof ligarMascara === 'function') ligarMascara(document.getElementById('crm360-rep-cpf'), 'cpf');
+  if (typeof cnpjReceitaLigar !== 'function') return;
+  const el = (id) => document.getElementById(id);
+  const campo = (rotulo, id, valor, extra = {}) => {
+    const input = el(id);
+    if (!input || !valor) return null;
+    return {
+      rotulo, valor, el: input, atual: input.value,
+      aplicar: (v) => { input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); },
+      ...extra,
+    };
+  };
+  cnpjReceitaLigar(doc, {
+    ancora: () => el('crm360-dados-card'),
+    montar: async (r) => {
+      // cidade pelo código IBGE (a Receita manda o nome sem acento)
+      let mun = null;
+      if (r.ibge && typeof loadMunicipios === 'function') {
+        const lista = await loadMunicipios();
+        mun = lista.find((m) => String(m.ibge) === String(r.ibge)) || null;
+      }
+      const cidade = mun ? `${mun.nome}/${mun.uf}` : (r.municipio ? `${r.municipio}/${r.uf}` : '');
+      const vazio = (id) => !String(el(id)?.value || '').trim();
+      return {
+        campos: [
+          campo('Nome', 'crm360-nome', r.razao_social),
+          campo('Endereço', 'crm360-endereco', r.logradouro),
+          campo('Número', 'crm360-numero', r.numero),
+          campo('Complemento', 'crm360-complemento', r.complemento),
+          campo('Bairro', 'crm360-bairro', r.bairro),
+          campo('CEP', 'crm360-cep', r.cep),
+          campo('Cidade/UF', 'crm360-cidade', cidade, {
+            igual: (atual) => Boolean(mun) && typeof normalizeCityText === 'function' && normalizeCityText(String(atual).split('/')[0]) === normalizeCityText(mun.nome),
+            aplicar: () => {
+              el('crm360-cidade').value = mun ? `${mun.nome.toUpperCase()}/${mun.uf}` : cidade.toUpperCase();
+              _crm360Cidade = mun;
+            },
+          }),
+          // telefone/e-mail da ficha costumam ser os do contato: só vêm marcados se estiverem vazios
+          campo('Telefone', 'crm360-telefone', r.telefone, { padrao: vazio('crm360-telefone') }),
+          campo('E-mail', 'crm360-email', r.email, { padrao: vazio('crm360-email') }),
+        ],
+        socios: Boolean(el('crm360-rep-nome')),
+        onSocio: (s) => {
+          el('crm360-rep-nome').value = s.nome;
+          el('crm360-rep-profissao').value = s.cargo_contrato;
+          crm360AjustarTipoPessoa();
+          ['crm360-rep-nome', 'crm360-rep-profissao'].forEach((id) => {
+            const e = el(id);
+            e.classList.remove('cnpj-rf-flash'); void e.offsetWidth; e.classList.add('cnpj-rf-flash');
+          });
+        },
+      };
+    },
+  });
 }
 
 function crm360Field(label, inputHTML, extraCls = '') {
@@ -1137,6 +1252,39 @@ async function crmSaveClient360() {
   if (!documentoValido(payload.documento)) { showToast('CPF/CNPJ inválido — confira os números.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }
   if (!cidadeTexto) { showToast('Cidade é obrigatória.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }
 
+  // Representante do cliente PJ → rascunho do contrato (documentos_dados.cliente.representante)
+  const ddAntes = client.documentos_dados || null;
+  const tipoDoc = { 11: 'PF', 14: 'PJ' }[digitsOnly(payload.documento).length];
+  const repMudancas = [];
+  let dd = null;
+  if (tipoDoc === 'PJ' && document.getElementById('crm360-rep-nome')) {
+    const repAntes = ddAntes?.cliente?.representante || {};
+    const rep = { ...repAntes };
+    CRM360_REP_CAMPOS.forEach(([k, id, caixaAlta]) => {
+      const v = document.getElementById(id).value.trim();
+      if (v || repAntes[k] != null) rep[k] = caixaAlta ? v.toUpperCase() : v;
+    });
+    if (rep.cpf && (digitsOnly(rep.cpf).length !== 11 || !documentoValido(rep.cpf))) {
+      showToast('CPF do representante inválido — confira os números.'); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return;
+    }
+    const rotulo = Object.fromEntries([...CRM360_GENEROS, ...CRM360_ESTADOS_CIVIS].filter(([v]) => v));
+    const nomes = { nome: 'representante', profissao: 'cargo do representante', cpf: 'CPF do representante', rg: 'RG do representante', rg_orgao: 'órgão emissor do representante', genero: 'gênero do representante', estado_civil: 'estado civil do representante', nacionalidade: 'nacionalidade do representante' };
+    CRM360_REP_CAMPOS.forEach(([k]) => {
+      const de = String(repAntes[k] ?? '').trim(), para = String(rep[k] ?? '').trim();
+      if (de !== para) repMudancas.push({ campo: nomes[k], de: rotulo[de] || de, para: rotulo[para] || para });
+    });
+    if (repMudancas.length) {
+      dd = JSON.parse(JSON.stringify(ddAntes || {}));
+      dd.cliente = { ...(dd.cliente || {}), representante: rep };
+    }
+  }
+  // CPF ↔ CNPJ trocado: o rascunho do contrato acompanha (senão abre PF/PJ errado)
+  if (tipoDoc && (dd || (ddAntes && ddAntes.tipo_pessoa && ddAntes.tipo_pessoa !== tipoDoc))) {
+    dd = dd || JSON.parse(JSON.stringify(ddAntes));
+    dd.tipo_pessoa = tipoDoc;
+  }
+  if (dd) payload.documentos_dados = dd;
+
   if (mun) {
     payload.cidade = `${mun.nome.toUpperCase()}/${mun.uf}`;
     payload.cidade_ibge = mun.ibge;
@@ -1148,7 +1296,7 @@ async function crmSaveClient360() {
     payload.cidade = cidadeTexto.toUpperCase();
   }
 
-  const mudancas = crmMudancasCadastro(client, payload);
+  const mudancas = crmMudancasCadastro(client, payload).concat(repMudancas);
   const proximaAntes = client.proxima_acao_em;
 
   const { error } = await supabaseClient.from('clientes').update(payload).eq('id', client.id);

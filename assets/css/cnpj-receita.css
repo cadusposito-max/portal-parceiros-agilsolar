@@ -1,0 +1,67 @@
+/* Painel "Achamos esse CNPJ na Receita" (assets/js/cnpj-receita.js).
+   Base = visual antigo (escuro/laranja); html[data-ui="v2"] = visual novo. */
+.cnpj-rf-wrap { position: relative; display: block; }
+.cnpj-rf-btn {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border: 0; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(234,88,12,.15); color: #fb923c;
+}
+.cnpj-rf-btn[hidden] { display: none; }
+.cnpj-rf-btn svg { width: 16px; height: 16px; }
+.cnpj-rf-btn.busy svg { animation: cnpj-rf-spin .8s linear infinite; }
+@keyframes cnpj-rf-spin { to { transform: rotate(360deg); } }
+
+.cnpj-rf {
+  border: 1.5px solid #ea580c; background: #0a0a0a; color: #e5e5e5;
+  padding: 14px 16px; margin: 12px 0; font-size: 13px;
+}
+.cnpj-rf-top { display: flex; align-items: center; gap: 8px; }
+.cnpj-rf-top > svg { width: 18px; height: 18px; color: #fb923c; flex: none; }
+.cnpj-rf-top b { font-size: 14px; font-weight: 800; min-width: 0; overflow-wrap: anywhere; }
+.cnpj-rf-top em { font-style: normal; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; flex: none; }
+.cnpj-rf-top em.ok { background: rgba(34,197,94,.15); color: #4ade80; }
+.cnpj-rf-top em.bad { background: rgba(239,68,68,.15); color: #f87171; }
+.cnpj-rf-x { margin-left: auto; border: 0; background: none; color: inherit; opacity: .6; cursor: pointer; padding: 4px; flex: none; }
+.cnpj-rf-x:hover { opacity: 1; }
+.cnpj-rf-x svg { width: 16px; height: 16px; }
+.cnpj-rf-hint { margin: 8px 0 4px; font-size: 12px; color: #a3a3a3; }
+.cnpj-rf-alerta { margin: 8px 0 0; font-size: 12px; font-weight: 700; color: #f87171; }
+.cnpj-rf-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.08); cursor: pointer; flex-wrap: wrap; }
+.cnpj-rf-row:first-child { border-top: 0; }
+.cnpj-rf-row .k { width: 92px; flex: none; font-size: 12px; color: #a3a3a3; }
+.cnpj-rf-row .v { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.cnpj-rf-row s { font-size: 12px; color: #737373; }
+.cnpj-rf-row .eq { font-size: 11px; color: #737373; }
+.cnpj-rf-row input:disabled + .k { opacity: .6; }
+.cnpj-rf-sec { margin-top: 14px; font-weight: 800; font-size: 13px; }
+.cnpj-rf-sec span { font-weight: 500; color: #a3a3a3; }
+.cnpj-rf-soc { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-top: 6px; border: 1px solid rgba(255,255,255,.12); cursor: pointer; flex-wrap: wrap; }
+.cnpj-rf-soc:has(input:checked) { border-color: #ea580c; background: rgba(234,88,12,.08); }
+.cnpj-rf-soc b { font-weight: 700; flex: 1; min-width: 0; }
+.cnpj-rf-soc span { font-size: 12px; color: #a3a3a3; }
+.cnpj-rf-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.cnpj-rf-foot button { height: 38px; padding: 0 14px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.18); background: transparent; color: inherit; }
+.cnpj-rf-foot .cnpj-rf-ok { background: #ea580c; border-color: #ea580c; color: #000; }
+.cnpj-rf-foot svg { width: 16px; height: 16px; }
+.cnpj-rf-flash { animation: cnpj-rf-flash 1.4s ease-out; }
+@keyframes cnpj-rf-flash { 0%, 40% { box-shadow: 0 0 0 3px rgba(234,88,12,.45); } 100% { box-shadow: 0 0 0 3px transparent; } }
+
+/* visual novo */
+html[data-ui="v2"] .cnpj-rf-btn { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+html[data-ui="v2"] .cnpj-rf { border-color: var(--v2-blue); background: var(--v2-card); color: var(--v2-ink); border-radius: 22px; padding: 16px 18px; margin: 0; }
+html[data-ui="v2"] .cnpj-rf-top > svg { color: var(--v2-blue); }
+html[data-ui="v2"] .cnpj-rf-top em.ok { background: rgba(31,169,113,.12); color: #12764E; }
+html[data-ui="v2"] .cnpj-rf-top em.bad { background: rgba(229,72,77,.12); color: var(--v2-red); }
+html[data-ui="v2"] .cnpj-rf-hint, html[data-ui="v2"] .cnpj-rf-row .k, html[data-ui="v2"] .cnpj-rf-sec span, html[data-ui="v2"] .cnpj-rf-soc span { color: var(--v2-ink-2); }
+html[data-ui="v2"] .cnpj-rf-row { border-top-color: var(--v2-line); }
+html[data-ui="v2"] .cnpj-rf-row s, html[data-ui="v2"] .cnpj-rf-row .eq { color: var(--v2-gray); }
+html[data-ui="v2"] .cnpj-rf-alerta { color: var(--v2-red); }
+html[data-ui="v2"] .cnpj-rf-soc { border-color: var(--v2-line-strong); border-radius: 12px; }
+html[data-ui="v2"] .cnpj-rf-soc:has(input:checked) { border-color: var(--v2-blue); background: var(--v2-blue-50); }
+html[data-ui="v2"] .cnpj-rf-foot button { border-radius: 12px; border-color: var(--v2-line-strong); }
+html[data-ui="v2"] .cnpj-rf-foot .cnpj-rf-ok { background: var(--v2-blue); border-color: var(--v2-blue); color: #fff; }
+html[data-ui="v2"] .cnpj-rf-foot .cnpj-rf-ok:hover { background: var(--v2-blue-hover); }
+html[data-ui="v2"] .cnpj-rf-flash { animation-name: cnpj-rf-flash-v2; }
+@keyframes cnpj-rf-flash-v2 { 0%, 40% { box-shadow: 0 0 0 3px rgba(47,128,237,.35); } 100% { box-shadow: 0 0 0 3px transparent; } }
+@media (max-width: 760px) { .cnpj-rf-row .k { width: 72px; } }

@@ -936,8 +936,54 @@ function _docRender() {
     ligarMascara(document.getElementById('doc-tit-rep-cpf'), 'cpf');
     ligarMascara(document.getElementById('doc-tit-end-cep'), 'cep');
   }
+  if (typeof cnpjReceitaLigar === 'function') {
+    if (pj) _docLigarReceita('doc-cpf', 'doc-nome', 'doc-end', 'doc-rep');
+    if (tit.outro_titular && titPj) _docLigarReceita('doc-tit-cpf', 'doc-tit-nome', 'doc-tit-end', 'doc-tit-rep');
+  }
   _docAtualizarSoma();
   lucide.createIcons();
+}
+
+// CNPJ do cliente/titular: consulta a Receita e oferece preencher razão social,
+// endereço e o responsável legal (cnpj-receita.js). Só mexe nos campos da tela.
+function _docLigarReceita(cpfId, nomeId, endPrefixo, repPrefixo) {
+  const el = (id) => document.getElementById(id);
+  const doc = el(cpfId);
+  if (!doc) return;
+  const campo = (rotulo, id, valor) => {
+    const input = el(id);
+    if (!input || !valor) return null;
+    return { rotulo, valor, el: input, atual: input.value, aplicar: (v) => { input.value = v; input.dispatchEvent(new Event('input', { bubbles: true })); } };
+  };
+  cnpjReceitaLigar(doc, {
+    ancora: () => doc.closest('.grid'),
+    montar: async (r) => {
+      // cidade pelo código IBGE (a Receita manda o nome sem acento)
+      let cidade = r.municipio;
+      if (r.ibge && typeof loadMunicipios === 'function') {
+        const mun = (await loadMunicipios()).find((m) => String(m.ibge) === String(r.ibge));
+        if (mun) cidade = mun.nome;
+      }
+      return {
+        campos: [
+          campo('Razão social', nomeId, r.razao_social),
+          campo('Rua / Av.', `${endPrefixo}-logradouro`, r.logradouro),
+          campo('Número', `${endPrefixo}-numero`, r.numero),
+          campo('Complemento', `${endPrefixo}-complemento`, r.complemento),
+          campo('Bairro', `${endPrefixo}-bairro`, r.bairro),
+          campo('Cidade', `${endPrefixo}-cidade`, cidade),
+          campo('UF', `${endPrefixo}-uf`, r.uf),
+          campo('CEP', `${endPrefixo}-cep`, r.cep),
+        ],
+        socios: Boolean(el(`${repPrefixo}-nome`)),
+        onSocio: (s) => {
+          el(`${repPrefixo}-nome`).value = s.nome;
+          if (el(`${repPrefixo}-profissao`)) el(`${repPrefixo}-profissao`).value = s.cargo_contrato;
+        },
+        depois: () => _docLer(),
+      };
+    },
+  });
 }
 
 // Lê o formulário de volta para _docCtx.dados. Campo que não está na tela

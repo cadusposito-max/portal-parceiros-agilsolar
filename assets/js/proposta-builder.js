@@ -1671,9 +1671,10 @@ async function confirmarFechaVenda() {
     if (fichaAberta && typeof renderCrm360 === 'function') renderCrm360();
 
     // Matriz: oferece gerar contrato/procuração na sequência — só se ainda não
-    // foram feitos antes da venda (o comum é fazer antes, pela ficha do cliente)
+    // foram feitos antes da venda (o comum é fazer antes, pela ficha do cliente).
+    // `origem` só existe depois que o modal salvou; a ficha grava só o representante.
     const novaVendaId = novaVenda && novaVenda[0] && novaVenda[0].id;
-    if (novaVendaId && !client.documentos_dados && typeof canGerarDocumentos === 'function' && canGerarDocumentos()) {
+    if (novaVendaId && !client.documentos_dados?.origem && typeof canGerarDocumentos === 'function' && canGerarDocumentos()) {
       setTimeout(() => showConfirmModal('Venda registrada! Gerar contrato e procuração agora?', () => abrirDocumentosVenda(novaVendaId), 'GERAR AGORA', false), 900);
     }
 
