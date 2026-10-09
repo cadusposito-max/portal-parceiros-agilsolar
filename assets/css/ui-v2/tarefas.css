@@ -125,6 +125,14 @@ html[data-ui="v2"] .v2-icb .cnt.tf-late { background: var(--v2-red); color: #fff
 }
 .tf-fld textarea { resize: vertical; min-height: 64px; }
 .tf-fld input:focus, .tf-fld select:focus, .tf-fld textarea:focus { outline: none; border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
+/* "Para quem" com a lista suspensa da plataforma (ui-v2-select.js), no formato dos outros campos */
+#tf-modal select.v2-dd-src { display: none !important; }
+html[data-ui="v2"] #tf-modal .v2-dd {
+  width: 100%; max-width: none; height: 44px; justify-content: space-between; padding: 0 12px;
+  border: 1px solid var(--v2-line-strong); border-radius: 12px !important; background: var(--v2-soft); box-shadow: none;
+  color: var(--v2-ink); font-size: 14px; font-weight: 600;
+}
+html[data-ui="v2"] #tf-modal .v2-dd.open, html[data-ui="v2"] #tf-modal .v2-dd:focus-visible { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
 .tf-err { display: block; margin-top: 5px; font-size: 12px; font-style: normal; font-weight: 700; color: var(--v2-red); }
 .tf-dica { display: flex; gap: 8px; align-items: center; margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--v2-blue-50); color: var(--v2-blue-text); font-size: 12px; font-weight: 600; }
 .tf-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

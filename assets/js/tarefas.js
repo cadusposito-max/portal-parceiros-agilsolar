@@ -378,6 +378,7 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    if (document.querySelector('.v2-ddpop.on')) return; // Esc fecha só a lista suspensa
     if (document.getElementById('tf-modal')) { fecharModal(); return; }
     if (painelAberto()) fecharPainel();
   });
@@ -394,6 +395,27 @@
     return (state.clientes || []).filter((c) => n(c.nome).includes(alvo) || (dig.length >= 4 && String(c.telefone || '').replace(/\D/g, '').includes(dig))).slice(0, 6);
   }
 
+  // "Para quem": eu primeiro, depois agrupado por unidade (a minha antes), com a função
+  // de cada um (diferencia nomes repetidos e entra na busca)
+  const FUNCAO = { vendedor: 'Vendedor', gestor: 'Gestor', admin: 'Admin', engenheiro: 'Engenharia', coordenador_tecnico: 'Coord. técnico', tecnico: 'Técnico' };
+  const nomeBonito = (n) => (/@/.test(n) || n !== n.toUpperCase() ? n
+    : n.toLocaleLowerCase('pt-BR').replace(/(^|\s)(\S)/g, (_, a, b) => a + b.toLocaleUpperCase('pt-BR')));
+  function opcoesPara(lista, para) {
+    const op = (d, txt) => `<option value="${d.user_id}" ${d.user_id === para ? 'selected' : ''}>${esc(txt)}</option>`;
+    const eu = lista.find((d) => d.eu);
+    const minhaUnidade = eu && eu.unidade;
+    const grupos = new Map();
+    lista.filter((d) => !d.eu).forEach((d) => {
+      const g = d.unidade || 'Sem unidade';
+      if (!grupos.has(g)) grupos.set(g, []);
+      grupos.get(g).push(d);
+    });
+    const nomes = [...grupos.keys()].sort((a, b) => (a === minhaUnidade ? -1 : b === minhaUnidade ? 1 : a.localeCompare(b, 'pt-BR')));
+    return (eu ? op(eu, 'Eu mesmo (lembrete)') : '')
+      + nomes.map((g) => `<optgroup label="${esc(g)}">${grupos.get(g)
+        .map((d) => op(d, `${nomeBonito(String(d.nome || ''))}${FUNCAO[d.role] ? ` · ${FUNCAO[d.role]}` : ''}`)).join('')}</optgroup>`).join('');
+  }
+
   async function abrirModal(opts = {}) {
     fecharModal();
     const t = opts.tarefa || null;
@@ -401,7 +423,7 @@
     const lista = await destinatarios();
     const eu = TF.uid;
     const para = t ? t.para_user : (opts.para || eu);
-    const ops = lista.map((d) => `<option value="${d.user_id}" ${d.user_id === para ? 'selected' : ''}>${d.eu ? 'Eu mesmo (lembrete)' : esc(d.nome) + (d.unidade ? ` · ${esc(d.unidade)}` : '')}</option>`).join('');
+    const ops = opcoesPara(lista, para);
     const cli = t && t.cliente_id ? { id: t.cliente_id, nome: t.cliente_nome } : (opts.cliente || null);
     const prazo = t ? (t.prazo || '') : somaDias(1);
     const chips = [['Hoje', hoje()], ['Amanhã', somaDias(1)], ['Segunda', proxSegunda()], ['Sem prazo', '']];
@@ -411,7 +433,7 @@
     m.innerHTML = `<form class="tf-dlg" novalidate role="dialog" aria-label="${t ? 'Editar tarefa' : 'Nova tarefa'}">
         <div class="tf-dhd"><h3>${t ? 'Editar tarefa' : lista.length > 1 ? 'Nova tarefa' : 'Novo lembrete'}</h3><button type="button" class="tf-x" data-m="fechar" aria-label="Fechar">${ic('x')}</button></div>
         <div class="tf-dbd">
-          ${lista.length > 1 ? `<label class="tf-fld"><span>Para quem</span><select id="tf-f-para">${ops}</select></label>`
+          ${lista.length > 1 ? `<div class="tf-fld"><span>Para quem</span><select id="tf-f-para" class="v2-select" data-titulo="Para quem" aria-label="Para quem">${ops}</select></div>`
             : `<input type="hidden" id="tf-f-para" value="${eu}"><p class="tf-dica">${ic('info')}Lembrete só para você. Quem manda tarefa para a equipe é o gestor.</p>`}
           <label class="tf-fld"><span>O que precisa ser feito</span><input id="tf-f-tit" maxlength="140" autocomplete="off" placeholder="Anexar a conta de luz do cliente" value="${t ? esc(t.titulo) : ''}"><em class="tf-err" id="tf-f-err" hidden>Escreva o que precisa ser feito.</em></label>
           <label class="tf-fld"><span>Detalhes (opcional)</span><textarea id="tf-f-det" maxlength="1000" rows="2" placeholder="Ele mandou pelo WhatsApp ontem, só falta subir na ficha.">${t && t.detalhes ? esc(t.detalhes) : ''}</textarea></label>
@@ -430,6 +452,8 @@
         <div class="tf-dft"><button type="button" class="tf-btn" data-m="fechar">Cancelar</button><button type="submit" class="tf-btn pri" id="tf-f-ok">${t ? 'Salvar' : 'Enviar tarefa'}</button></div>
       </form>`;
     document.body.appendChild(m);
+    // lista suspensa da plataforma (ui-v2-select.js): com mais de 8 pessoas ganha a busca
+    if (window.uiV2Select) window.uiV2Select.scan(m);
     icones();
 
     const $ = (id) => document.getElementById(id);
