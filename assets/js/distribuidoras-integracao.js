@@ -22,7 +22,7 @@ let _integracoesAtivas = null;      // Map distribuidora_id -> provedor
 let _integracoesAtivasPromise = null;
 let _pbCot = { chave: '', placas: '', carregando: false, erro: '', kits: [] };
 const _pbCotOpcoes = {};                    // distribuidora_id -> { carregando, erro, modulos, padrao, marcas_inversor, marcas_micro }
-const _pbCotSel = { modulo: '', marca: '' }; // módulo (sku) e marca escolhidos pra cotar
+const _pbCotSel = { modulo: '', marca: '', precificacao:'markup' }; // módulo (sku) e marca escolhidos pra cotar
 
 async function carregarIntegracoesAtivas(force = false) {
   if (_integracoesAtivas && !force) return _integracoesAtivas;
@@ -137,6 +137,7 @@ function pbIntegracaoPreencherFiltros(selMod, selInv) {
 function pbIntegracaoEscolher(campo, value) {
   if (campo === 'modulo') _pbCotSel.modulo = String(value || '');
   if (campo === 'inversor') _pbCotSel.marca = String(value || '');
+  if (campo === 'precificacao') _pbCotSel.precificacao = value === 'custos' ? 'custos' : 'markup';
   _pbCot.kits = []; _pbCot.erro = '';
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbFornecimentoSync();
@@ -156,6 +157,7 @@ function pbCotacaoKits() {
     distribuidora_id: _pbFornecimento.distribuidora,
     _custo: k.custo,
     _margem: k.margem_alvo,
+    _modo: k.modo_precificacao || 'markup',
     _inversor: k.inversor,
   }));
 }
@@ -187,6 +189,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
         <div class="pbd-kit-n">${escapeHTML(k.name)}</div>
         <div class="pbd-kit-d">${escapeHTML(String(k.power).replace('.', ','))} kWp · Distribuidora: ${escapeHTML(info.nome)} · frete incluso</div>
         ${custo}
+        <div class="pbd-kit-nota">${k._modo === 'custos' ? 'Custos + margem alvo' : 'Markup atual'}</div>
         <div class="pbd-kit-f">
           <div>
             ${temDe ? `<div class="pbd-kit-de">De: ${formatCurrency(k.list_price)}</div>` : ''}
@@ -216,6 +219,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
 
   return `
     <div class="pbd-sec">Cotar na ${escapeHTML(info.nome)}</div>
+    ${state.isAdmin || state.isGestor ? `<label class="pbd-mes" style="display:block;margin:8px 0"><span>Formação do preço</span><select aria-label="Formação do preço" class="pbd-input" onchange="pbIntegracaoEscolher('precificacao',this.value)" ${_pbCot.carregando ? 'disabled' : ''}><option value="markup"${_pbCotSel.precificacao !== 'custos' ? ' selected' : ''}>Markup atual</option><option value="custos"${_pbCotSel.precificacao === 'custos' ? ' selected' : ''}>Custos + margem alvo da unidade</option></select><small>Custos usa o centro de custo salvo em Financeiro → Config. Vale para a nova cotação.</small></label>` : ''}
     <div class="pbd-fornecimento-fields pb-cot-campos">
       <label class="pbd-mes"><span>Quantidade de placas</span>
         <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" placeholder="Ex.: 13"></label>
@@ -240,7 +244,7 @@ async function pbIntegracaoCotar() {
   pbFornecimentoSync();
   try {
     const { data, error } = await invocarDistribuidoras({
-      acao: 'cotar', provedor, placas, telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico',
+      acao: 'cotar', provedor, placas, precificacao: (state.isAdmin || state.isGestor) ? _pbCotSel.precificacao : 'markup', telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico',
       tipo: state.pbCategory === 'kitsMicro' ? 'micro' : 'inversor', modulo: _pbCotSel.modulo || null, marca: _pbCotSel.marca || null,
     });
     if (error) throw error;

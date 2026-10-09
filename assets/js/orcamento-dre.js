@@ -26,7 +26,8 @@
   // Linhas de custo, na ordem da demonstração. `contrato` = vem da Rede (só admin edita).
   const LINHAS = [
     { key: 'imposto',     rotulo: 'Impostos' },
-    { key: 'projeto',     rotulo: 'Projeto c/ ART' },
+    { key: 'projeto',     rotulo: 'ART' },
+    { key: 'projeto_rede', rotulo: 'Projeto da Rede (ART inclusa)', contrato: true },
     { key: 'instalacao',  rotulo: 'Instalação' },
     { key: 'eletrica',    rotulo: 'Elétrica' },
     { key: 'placas',      rotulo: 'Placas de advertência' },
@@ -50,7 +51,7 @@
   const pctFmt = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
   const lsKey = (id) => 'orc_dre_' + id;
   const podeContrato = () => !!(state && state.isAdmin);
-  const linha = (t, v, b) => ({ t: t === 'brl' ? 'brl' : 'pct', v: num(v), b: b === 'vk' ? 'vk' : 'v' });
+  const linha = CentroCustoCalc.linha;
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
   // ---- Centro de custo da unidade (com fallback) ------------------------
@@ -74,7 +75,7 @@
         const src = (l.contrato ? (data.contrato || {})[l.key] : (data.linhas || {})[l.key]) || null;
         out[l.key] = src ? linha(src.t, src.v, src.b) : (l.contrato ? linha('pct', 0, 'v') : linha('brl', 0, 'v'));
       });
-      return { linhas: out, margem_min: num(data.margem_min), margem_alvo: num(data.margem_alvo), nome: data.franquia_nome || null, fallback: false };
+      return { linhas: out, projeto_rede: data.projeto_rede, margem_min: num(data.margem_min), margem_alvo: num(data.margem_alvo), nome: data.franquia_nome || null, fallback: false };
     } catch (err) {
       console.warn('[precificacao] centro de custo indisponível; usando padrões', err);
       return padraoFallback();
@@ -88,7 +89,7 @@
     const linhas = clone(padrao);
     if (!saved) return linhas;
     const ov = saved.overrides || {};
-    if (ov.versao === 2 && ov.linhas && typeof ov.linhas === 'object') {
+    if (ov.versao >= 2 && ov.linhas && typeof ov.linhas === 'object') {
       TODAS.forEach((l) => { const s = ov.linhas[l.key]; if (s) linhas[l.key] = linha(s.t, s.v, s.b); });
       return linhas;
     }
@@ -155,7 +156,8 @@
       const c = custo.get(String(i.ref_id)) || 0;
       if (c > 0) { total += c * num(i.qtd); comCusto++; }
     });
-    return comCusto ? { valor: r2(total), itens: comCusto, de: doCatalogo.length } : null;
+    const equipamentos = itens.filter(i => i.tipo !== 'servico');
+    return comCusto === equipamentos.length && comCusto > 0 ? { valor: r2(total), itens: comCusto, de: doCatalogo.length } : null;
   }
 
   // ---- Cálculo --------------------------------------------------------
@@ -163,51 +165,22 @@
   // ou sobre venda − kit (como o imposto da planilha).
   function valorLinha(l, venda, kit) {
     if (!l) return 0;
-    if (l.t === 'brl') return r2(l.v);
-    const base = l.b === 'vk' ? venda - kit : venda;
-    return r2(base * num(l.v) / 100);
+    return CentroCustoCalc.valor(l, venda, kit, cur || {});
   }
 
   function compute() {
-    const venda = num(cur.receita);
-    const kit = num(cur.kit);
-    const extrasRec = cur.extras.filter((e) => e.tipo === 'receita').reduce((s, e) => s + num(e.valor), 0);
-    const extrasDesp = cur.extras.filter((e) => e.tipo === 'despesa').reduce((s, e) => s + num(e.valor), 0);
-    const receita = venda + extrasRec;
-
-    const valores = {};
-    TODAS.forEach((l) => { valores[l.key] = valorLinha(cur.linhas[l.key], venda, kit); });
-    const somaLinhas = LINHAS.reduce((s, l) => s + valores[l.key], 0);
-    const deducoes = valores.deducoes;
-
-    const totalCustos = r2(kit + somaLinhas + extrasDesp);
-    const lucro = r2(receita - totalCustos);
-    const lucroLiq = r2(lucro - deducoes);
-    const margem = receita > 0 ? r2(lucroLiq / receita * 100) : 0;
-
-    // Venda que atinge a margem-alvo. Linha em % da venda entra como P, em % de
-    // (venda − kit) como Q, em R$ como fixo F:
-    // V·(1 − P − Q − m) = kit + F − Q·kit + extrasDesp − extrasRec·(1 − m)
-    let P = 0, Q = 0, F = 0;
-    TODAS.forEach((l) => {
-      const x = cur.linhas[l.key]; if (!x) return;
-      if (x.t === 'brl') F += num(x.v);
-      else if (x.b === 'vk') Q += num(x.v) / 100;
-      else P += num(x.v) / 100;
-    });
-    const m = num(cur.margem_alvo) / 100;
-    const denom = 1 - P - Q - m;
-    const vendaAlvo = denom > 0
-      ? r2((kit + F - Q * kit + extrasDesp - extrasRec * (1 - m)) / denom)
-      : null;
-
-    return { receita, valores, deducoes, totalCustos, lucro, lucroLiq, margem, vendaAlvo };
+    const d = CentroCustoCalc.calcular({ linhas: cur.linhas, venda: num(cur.receita), kit: num(cur.kit), modulos: cur.modulos, kwp: cur.kwp, margem: cur.margem_alvo,
+      extrasReceita: cur.extras.filter(e=>e.tipo === 'receita').reduce((s,e)=>s+num(e.valor),0),
+      extrasDespesa: cur.extras.filter(e=>e.tipo !== 'receita').reduce((s,e)=>s+num(e.valor),0) });
+    if (cur.projetoPendente) { d.erros.push('Projeto fora da tabela da Rede. Configure a faixa antes de precificar.'); d.vendaAlvo = null; }
+    if (cur.centroFallback) { d.erros.push('Centro de custo indisponível. Reabra a proposta antes de precificar.'); d.vendaAlvo = null; }
+    return d;
   }
 
   function ajustado(key) {
     const a = cur.linhas[key], p = cur.padrao[key];
     if (!a || !p) return false;
-    return a.t !== p.t || r2(a.v) !== r2(p.v) || (a.t === 'pct' && a.b !== p.b);
+    return a.t !== p.t || r2(a.v) !== r2(p.v) || a.b !== p.b;
   }
 
   // ---- Render ---------------------------------------------------------
@@ -231,7 +204,7 @@
   // Royalties/fundo (contrato) ficam travados para quem não é admin.
   function linhaRow(def) {
     const l = cur.linhas[def.key];
-    const travada = def.contrato && !podeContrato();
+    const travada = def.key === 'projeto_rede' || (def.key === 'projeto' && cur.artInclusa) || (def.contrato && !podeContrato());
     const tag = `<span class="orc-adj" data-orc-adj="${def.key}" style="${ajustado(def.key) ? '' : 'display:none'}">ajustado<button type="button" data-orc-act="reset-linha" data-k="${def.key}" class="orc-adj-x" title="Voltar ao padrão da unidade"><i data-lucide="undo-2" class="w-3 h-3"></i></button></span>`;
     const nome = `<span class="orc-lbl font-bold text-neutral-300 text-sm">${escapeHTML(def.rotulo)}${def.contrato ? ' <span class="text-[10px] text-neutral-600 font-bold">· contrato</span>' : ''}</span>`;
     let ctrl;
@@ -246,7 +219,7 @@
         </div>`;
       const base = l.t === 'pct'
         ? `<select data-orc-base="${def.key}" class="orc-base">${Object.entries(BASES).map(([k, n]) => `<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`
-        : `<span class="orc-base orc-base-fixo">Fixo</span>`;
+        : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${Object.entries(CentroCustoCalc.bases).map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
       ctrl = seg + inp + base;
     }
     return `<div class="orc-row orc-linha px-5 py-2 lg:py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5" data-orc-row="${def.key}">
@@ -339,7 +312,12 @@
                 <span class="text-[12px] font-black text-emerald-400 w-4 text-center">+</span>
                 ${inputMoney('__receita__', cur.receita)}
               </div>
-              ${editRow('Kit fotovoltaico', 'kit', cur.kit)}
+              ${editRow('Kit fotovoltaico + frete', 'kit', cur.kit)}
+              <div class="px-5 py-2 flex flex-wrap gap-3 text-[11px] text-neutral-500">
+                <label>Módulos <input aria-label="Módulos da simulação" data-orc-dim="modulos" type="number" min="1" step="1" value="${cur.modulos}" class="orc-base w-24"></label>
+                <label>kWp <input aria-label="Potência da simulação" data-orc-dim="kwp" type="number" min="0.01" step="0.01" value="${cur.kwp}" class="orc-base w-24"></label>
+                ${cur.artInclusa ? 'ART incluída no projeto da Rede' : ''}
+              </div>
               <div id="orc-linhas" class="divide-y divide-neutral-800/70"></div>
 
               <!-- Linhas extras -->
@@ -452,7 +430,7 @@
     }
     const liqEl = document.getElementById('orc-tot-lucroliq');
     if (liqEl) liqEl.className = 'font-black num text-sm w-36 text-right pr-1 ' + (d.lucroLiq < 0 ? 'text-red-400' : 'text-emerald-400');
-    set('orc-venda-alvo', d.vendaAlvo == null ? 'inviável com esses %' : money(d.vendaAlvo));
+    set('orc-venda-alvo', d.vendaAlvo == null ? d.erros.join(' ') : money(d.vendaAlvo));
 
     // "Aplicar" só aparece quando a venda da calculadora difere do preço da proposta
     const aplicar = document.getElementById('orc-aplicar');
@@ -513,9 +491,9 @@
     const l = cur.linhas[key]; if (!l || l.t === tipo) return;
     const venda = num(cur.receita), kit = num(cur.kit);
     const atual = valorLinha(l, venda, kit);
-    if (tipo === 'brl') { l.t = 'brl'; l.v = r2(atual); }
+    if (tipo === 'brl') { l.t = 'brl'; l.b = 'v'; l.v = r2(atual); }
     else {
-      l.t = 'pct';
+      l.t = 'pct'; l.b = 'v';
       const base = l.b === 'vk' ? venda - kit : venda;
       l.v = base > 0 ? r2(atual / base * 100) : 0;
     }
@@ -526,7 +504,14 @@
     // Inputs de custo / receita (recalcula ao vivo)
     root.addEventListener('input', (ev) => {
       const t = ev.target;
-      if (t.matches('[data-orc-cost]')) {
+      if (t.matches('[data-orc-dim]')) {
+        const k = t.getAttribute('data-orc-dim');
+        cur[k] = Math.max(0, k === 'modulos' ? Math.floor(num(t.value)) : num(t.value));
+        const projeto = CentroCustoCalc.projeto(cur.projetoRede, cur.kwp);
+        cur.projetoPendente = projeto == null;
+        cur.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
+        recalc();
+      } else if (t.matches('[data-orc-cost]')) {
         const key = t.getAttribute('data-orc-cost');
         if (key === '__receita__') cur.receita = num(t.value);
         else if (key === 'kit') cur.kit = num(t.value);
@@ -549,7 +534,7 @@
       const t = ev.target;
       if (t.matches('[data-orc-base]')) {
         const l = cur.linhas[t.getAttribute('data-orc-base')];
-        if (l) { l.b = t.value === 'vk' ? 'vk' : 'v'; recalc(); }
+        if (l) { l.b = linha(l.t, l.v, t.value).b; recalc(); }
       } else if (t.matches('[data-orc-ex-field="tipo"]')) {
         const wrap = t.closest('[data-orc-extra]'); if (!wrap) return;
         const i = parseInt(wrap.getAttribute('data-orc-extra'), 10);
@@ -571,6 +556,11 @@
       else if (act === 'reset-todas') {
         TODAS.forEach((l) => { if ((!l.contrato || podeContrato()) && cur.padrao[l.key]) cur.linhas[l.key] = clone(cur.padrao[l.key]); });
         cur.margem_alvo = cur.margem_alvo_padrao;
+        cur.projetoRede = cur.projetoRedePadrao;
+        cur.artInclusa = !!cur.projetoRede?.cobrar;
+        const projeto = CentroCustoCalc.projeto(cur.projetoRede, cur.kwp);
+        cur.projetoPendente = projeto == null;
+        cur.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
         const a = document.querySelector('[data-orc-alvo]'); if (a) a.value = num(cur.margem_alvo);
         renderLinhas();
       }
@@ -611,7 +601,7 @@
         p_receita:       r2(alvo.receita),
         p_custos:        { kit: r2(alvo.kit) },
         p_extras:        alvo.extras.map((e) => ({ tipo: e.tipo === 'receita' ? 'receita' : 'despesa', rotulo: String(e.rotulo || ''), valor: r2(e.valor) })),
-        p_overrides:     { versao: 2, linhas: clone(alvo.linhas), margem_alvo: num(alvo.margem_alvo) },
+        p_overrides:     { versao: 3, modulos: alvo.modulos, kwp: alvo.kwp, art_inclusa: alvo.artInclusa, projeto_rede: alvo.projetoRede, linhas: clone(alvo.linhas), margem_alvo: num(alvo.margem_alvo) },
         p_total_custos:  d.totalCustos,
         p_lucro_liquido: d.lucroLiq,
         p_margem_pct:    d.margem,
@@ -654,6 +644,11 @@
     if (alvo.sugestaoKit) seed.kit = alvo.sugestaoKit.valor;
     alvo.receita = seed.receita; alvo.kit = seed.kit; alvo.extras = seed.extras;
     alvo.linhas = clone(alvo.padrao);
+    alvo.projetoRede = alvo.projetoRedePadrao;
+    alvo.artInclusa = !!alvo.projetoRede?.cobrar;
+    const projeto = CentroCustoCalc.projeto(alvo.projetoRede, alvo.kwp);
+    alvo.projetoPendente = projeto == null;
+    alvo.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
     alvo.margem_alvo = alvo.margem_alvo_padrao;
     alvo.origem = 'novo'; alvo.saved = null;
     if (cur !== alvo) return;
@@ -708,15 +703,30 @@
       return;
     }
     const centro = await loadCentroCusto(p.franquia_id);
+    let contexto;
+    try {
+      const {data,error} = await supabaseClient.rpc('get_cc_proposta_contexto', {p_proposta_id: propostaId});
+      if (error || !data) throw error || new Error('Contexto indisponível');
+      contexto = data;
+    } catch (err) { toastSafe('Não foi possível carregar os custos e o tamanho do sistema. Tente novamente.'); return; }
+    const projeto = CentroCustoCalc.projeto(centro.projeto_rede, num(contexto.kwp));
+    centro.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
+    if (centro.projeto_rede?.cobrar) centro.linhas.projeto = linha('brl', 0, 'v');
     const legacy = dbSaved ? null : loadLocalLegacy(propostaId);
     const saved = dbSaved || legacy;
     const seed = seedFromProposta(p);
     // Calculada sempre (também serve para "Apagar e recomeçar"); só preenche se não há nada salvo.
     let sugestaoKit = null;
-    try { sugestaoKit = await sugerirCustoKit(p); } catch (_) { sugestaoKit = null; }
+    try { sugestaoKit = contexto.custo > 0 ? {valor: contexto.custo, fonte:'cotacao'} : await sugerirCustoKit(p); } catch (_) { sugestaoKit = null; }
     if (sugestaoKit && !saved) seed.kit = sugestaoKit.valor;
     const ov = (saved && saved.overrides) || {};
     cur = {
+      modulos: ov.versao >= 3 ? num(ov.modulos) : num(contexto.modulos),
+      kwp: ov.versao >= 3 ? num(ov.kwp) : num(contexto.kwp),
+      artInclusa: saved ? !!ov.art_inclusa : !!centro.projeto_rede?.cobrar,
+      projetoRede: saved ? (ov.projeto_rede || {cobrar:false}) : centro.projeto_rede,
+      projetoRedePadrao: centro.projeto_rede,
+      projetoPendente: !saved && projeto == null,
       sugestaoKit: sugestaoKit,
       propostaId: propostaId,
       _proposta: p,
@@ -725,7 +735,7 @@
       centroFallback: centro.fallback,
       margem_min: centro.margem_min,
       margem_alvo_padrao: centro.margem_alvo,
-      margem_alvo: ov.versao === 2 && ov.margem_alvo != null ? num(ov.margem_alvo) : centro.margem_alvo,
+      margem_alvo: ov.versao >= 2 && ov.margem_alvo != null ? num(ov.margem_alvo) : centro.margem_alvo,
       origem: dbSaved ? 'banco' : (legacy ? 'local' : 'novo'),
       saved: dbSaved,
       receita: saved && saved.receita != null ? num(saved.receita) : seed.receita,
@@ -733,6 +743,15 @@
       extras: Array.isArray(saved && saved.extras) ? saved.extras : [],
       linhas: linhasDoSalvo(saved, centro.linhas),
     };
+    // Cenários antigos mantêm exatamente a composição que foi salva.
+    if (saved && ov.versao < 3) cur.linhas.projeto_rede = linha('brl', 0, 'v');
+    // Cotação conserva os custos e a margem usados quando seu preço foi calculado.
+    if (!saved && contexto.precificacao?.modo === 'custos' && contexto.precificacao.linhas) {
+      cur.linhas = clone(contexto.precificacao.linhas);
+      cur.margem_alvo = num(contexto.precificacao.margem_alvo);
+      cur.artInclusa = !!contexto.precificacao.art_inclusa;
+      cur.projetoPendente = false;
+    }
     buildOverlay(p);
   }
 
