@@ -5,7 +5,8 @@
 // "Enviadas" (o que eu mandei e o andamento). Faixa na ficha do cliente.
 // Quem pode mandar para quem, e os avisos, ficam no banco
 // (migration 20261010120000_tarefas: tarefa_salvar, tarefa_concluir,
-// tarefa_comentar, tarefa_excluir, tarefa_destinatarios). Aqui é só a tela.
+// tarefa_excluir, tarefa_destinatarios). Aqui é só a tela. Tarefa com cliente
+// entra na timeline dele (o banco grava em crm_atividades, tipo 'tarefa').
 // Sem a tabela (migration pendente), o ícone nem aparece.
 //
 // Depende de: config.js (state, supabaseClient), utils.js (escapeHTML,
@@ -57,7 +58,7 @@
   const ehGestor = () => !!(state.isAdmin || state.isGestor);
 
   // ---- dados ----------------------------------------------------------------------
-  const COLS = 'id,de_user,de_nome,para_user,para_nome,titulo,detalhes,cliente_id,cliente_nome,prazo,urgente,feita_em,comentarios,created_at,updated_at';
+  const COLS = 'id,de_user,de_nome,para_user,para_nome,titulo,detalhes,cliente_id,cliente_nome,prazo,urgente,feita_em,created_at,updated_at';
 
   async function carregar() {
     // RLS já devolve só as tarefas em que a pessoa mandou ou recebeu
@@ -125,20 +126,11 @@
     atualizarTudo();
     const { error } = await supabaseClient.rpc('tarefa_concluir', { p_id: id, p_feita: feita });
     if (error) { t.feita_em = antes; atualizarTudo(); toast(msgErro(error)); return; }
+    atualizarTimeline(t.cliente_id);
     if (feita) {
       const quem = t.de_user !== TF.uid ? ` ${primeiro(t.de_nome)} foi avisado.` : '';
       aviso(`Tarefa concluída.${quem}`, () => concluir(id, false));
     }
-  }
-
-  async function comentar(id) {
-    const inp = document.getElementById(`tf-cm-${id}`);
-    const tx = inp ? inp.value.trim() : '';
-    if (!tx) { if (inp) inp.focus(); return; }
-    inp.disabled = true;
-    const { error } = await supabaseClient.rpc('tarefa_comentar', { p_id: id, p_texto: tx });
-    if (error) { inp.disabled = false; toast(msgErro(error)); return; }
-    await recarregarUma(id);
   }
 
   async function excluir(id) {
@@ -147,7 +139,14 @@
     const { error } = await supabaseClient.rpc('tarefa_excluir', { p_id: id });
     if (error) { toast(msgErro(error)); return; }
     remover(id);
+    atualizarTimeline(t.cliente_id);
     toast('Tarefa excluída');
+  }
+
+  // a ficha aberta nesse cliente, na aba Timeline, mostra o registro novo na hora
+  function atualizarTimeline(clienteId) {
+    if (!clienteId || typeof _crm360ClientId === 'undefined' || String(_crm360ClientId) !== String(clienteId)) return;
+    if (typeof _crm360Tab !== 'undefined' && _crm360Tab === 'timeline' && has('crmFetchAtividades')) crmFetchAtividades(clienteId);
   }
 
   async function abrirCliente(id) {
@@ -214,7 +213,6 @@
     const lembrete = minha && mandei;
     const p = prazoTx(t.prazo);
     const origem = lembrete ? 'Lembrete seu' : minha ? `De ${esc(primeiro(t.de_nome))}` : `Para ${esc(primeiro(t.para_nome))}`;
-    const cms = Array.isArray(t.comentarios) ? t.comentarios : [];
 
     let estado;
     if (t.feita_em) estado = `<span>${feitaTx(t.feita_em)}</span>`;
@@ -230,12 +228,8 @@
           : `<span class="tf-pill ${p.cls === 'today' ? 'o' : 'n'}">${p.tx}</span>`)
       : '';
 
-    const ultimo = !minha && !aberta && cms.length ? `<div class="tf-meta tf-ult">${ic('message-square')}“${esc(cms[cms.length - 1].texto)}”</div>` : '';
-
     const detalhe = aberta ? `<div class="tf-more">
         ${t.detalhes ? `<p>${esc(t.detalhes)}</p>` : '<p class="tf-mudo">Sem detalhes.</p>'}
-        ${cms.map((c) => `<div class="tf-cm"><span class="tf-av sm">${esc(iniciais(c.nome))}</span><div><b>${esc(primeiro(c.nome))}</b> ${esc(c.texto)}</div></div>`).join('')}
-        ${lembrete ? '' : `<form class="tf-cmform" data-tf="cmform" data-id="${t.id}"><input id="tf-cm-${t.id}" maxlength="500" placeholder="${minha ? 'Comentar (ex.: cliente manda amanhã)' : 'Comentar ou cobrar'}" aria-label="Comentário"><button type="submit" class="tf-btn" title="Enviar comentário">${ic('send')}</button></form>`}
         <div class="tf-acts">
           ${t.cliente_id ? `<button type="button" class="tf-btn" data-tf="cli" data-id="${t.cliente_id}">${ic('external-link')}Abrir cliente</button>` : ''}
           ${mandei && !t.feita_em ? `<button type="button" class="tf-btn" data-tf="editar" data-id="${t.id}">${ic('pencil')}Editar</button>` : ''}
@@ -252,9 +246,7 @@
             ${t.urgente && !t.feita_em ? `<span class="tf-urg">${ic('zap')}Urgente</span>` : ''}
             <span>${origem}</span>${minha ? estado : ''}
             ${t.cliente_id ? `<button type="button" class="tf-cli" data-tf="cli" data-id="${t.cliente_id}">${ic('user')}${esc(t.cliente_nome || 'Cliente')}</button>` : ''}
-            ${cms.length && !aberta && minha ? `<span class="tf-ncm">${ic('message-square')}${cms.length}</span>` : ''}
           </div>
-          ${ultimo}
           ${detalhe}
         </div>
         ${pill}
@@ -314,12 +306,8 @@
     if (!p || !p.classList.contains('on')) return;
     const corpo = p.querySelector('.tf-body');
     const y = corpo ? corpo.scrollTop : 0;
-    // não apaga um comentário sendo digitado
-    const digitando = document.activeElement && document.activeElement.id && document.activeElement.id.startsWith('tf-cm-')
-      ? { id: document.activeElement.id, v: document.activeElement.value } : null;
     p.innerHTML = painelHTML();
     const c2 = p.querySelector('.tf-body'); if (c2) c2.scrollTop = y;
-    if (digitando) { const el = document.getElementById(digitando.id); if (el) { el.value = digitando.v; el.focus(); } }
     icones();
   }
 
@@ -334,12 +322,6 @@
     p.id = 'tf-painel';
     p.setAttribute('aria-label', 'Tarefas');
     p.addEventListener('click', onClickPainel);
-    p.addEventListener('submit', (e) => {
-      const f = e.target.closest('[data-tf="cmform"]');
-      if (!f) return;
-      e.preventDefault();
-      comentar(f.dataset.id);
-    });
     document.body.appendChild(p);
     return p;
   }
@@ -518,6 +500,7 @@
       if (error) { ok.disabled = false; toast(msgErro(error)); return; }
       fecharModal();
       await recarregarUma(data);
+      atualizarTimeline(args.p_cliente);
       const d = (TF.dest || []).find((x) => x.user_id === paraId);
       if (t) toast('Tarefa salva');
       else if (paraId === eu) toast('Lembrete criado');

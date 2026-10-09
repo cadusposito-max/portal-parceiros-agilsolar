@@ -21,6 +21,7 @@ const CRM_ATIVIDADE_META = {
   merge:        { icon: 'merge',          label: 'Mesclagem',     color: 'text-purple-400' },
   documento:    { icon: 'file-signature', label: 'Documento',     color: 'text-orange-300' },
   cadastro:     { icon: 'user-pen',       label: 'Cadastro',      color: 'text-neutral-400' },
+  tarefa:       { icon: 'list-checks',    label: 'Tarefa',        color: 'text-orange-300' },
   proposta_enviada: { icon: 'send',       label: 'Proposta enviada', color: 'text-yellow-400' },
   proposta_vista:   { icon: 'eye',        label: 'Proposta vista',   color: 'text-green-400' },
 };
@@ -743,6 +744,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
           texto = `Status: ${ev.meta.de || '—'} → ${ev.meta.para || '—'}${ev.meta.motivo ? ` (${ev.meta.motivo})` : ''}`;
         }
         if (!texto) texto = meta.label;
+        texto = crmTrocaEmailPorNome(texto);
         return `
           <div class="flex gap-3 py-2.5 border-b border-neutral-900 last:border-b-0">
             <div class="shrink-0 w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center ${meta.color}">
@@ -750,7 +752,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-neutral-300 text-[11px] leading-snug">${escapeHTML(texto)}</p>
-              <p class="text-neutral-600 text-[9px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(ev.data)} · ${crmTimeAgo(ev.data)}${ev.autor ? ` · ${escapeHTML(String(ev.autor).split('@')[0])}` : ''}</p>
+              <p class="text-neutral-600 text-[9px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(ev.data)} · ${crmTimeAgo(ev.data)}${ev.autor ? ` · ${escapeHTML(crmNomeAutor(ev.autor))}` : ''}</p>
             </div>
           </div>`;
       }).join('')}
@@ -898,17 +900,24 @@ async function crmVendaSalvar(id) {
     showToast('Não foi possível salvar: ' + error.message);
     return;
   }
+  // antes x depois, para a timeline mostrar o que mudou de fato
+  const formaNome = (k) => (VENDA_FORMAS_PAGAMENTO.find(([x]) => x === k) || [])[1] || k || '';
+  const mudancas = [
+    ['forma de pagamento', formaNome(v.forma_pagamento), formaNome(payload.forma_pagamento)],
+    ['detalhes do pagamento', v.pagamento_detalhes, payload.pagamento_detalhes],
+    ['observações', v.observacoes, payload.observacoes],
+  ].filter(([, de, para]) => String(de || '').trim() !== String(para || '').trim())
+    .map(([campo, de, para]) => ({ campo, de: de || '', para: para || '' }));
   Object.assign(v, data);
   _crmVendaEditando = null;
-  if (v.cliente_id) {
-    const forma = (VENDA_FORMAS_PAGAMENTO.find(([k]) => k === payload.forma_pagamento) || [])[1];
+  if (v.cliente_id && mudancas.length) {
     const { error: errTl } = await supabaseClient.from('crm_atividades').insert([{
       cliente_id: v.cliente_id,
       franquia_id: v.franquia_id || state.franquiaId,
       autor_email: state.currentUser?.email || 'sistema',
       tipo: 'venda',
-      descricao: `Pagamento e observações da venda atualizados${forma ? ' · ' + forma : ''}${payload.pagamento_detalhes ? ' · ' + payload.pagamento_detalhes : ''}`,
-      meta: { acao: 'venda_obs', venda_id: v.id },
+      descricao: `Venda alterada · ${crmDeParaTexto(mudancas)}`,
+      meta: { acao: 'venda_obs', venda_id: v.id, mudancas },
     }]);
     if (errTl) console.warn('[crmVendaSalvar] Salvo, mas falhou ao registrar na timeline.', errTl);
     if (_crm360ClientId === v.cliente_id) crmFetchAtividades(v.cliente_id);
@@ -1031,13 +1040,51 @@ const CRM_CAMPOS_CADASTRO = {
   estado_civil: 'estado civil', nacionalidade: 'nacionalidade', profissao: 'profissão',
 };
 
-function crmCamposAlterados(antes, depois) {
+// O que mudou no cadastro, com o valor de antes e o de agora
+// ([{ campo, de, para }]); vai para a timeline para dar para ver o que era.
+function crmMudancasCadastro(antes, depois) {
   // origem vazia é salva como CLIENT_ORIGEM_VAZIA — não conta como alteração
   const vazia = typeof CLIENT_ORIGEM_VAZIA !== 'undefined' ? CLIENT_ORIGEM_VAZIA : null;
   const norm = (v) => { const s = String(v ?? '').trim(); return s === vazia ? '' : s; };
+  const legivel = (k, v) => {
+    const s = norm(v);
+    if (k === 'origem' && s) {
+      const o = typeof CLIENT_ORIGENS !== 'undefined' ? CLIENT_ORIGENS.find((x) => x.v === s) : null;
+      const t = (o ? o.l : s).toLocaleLowerCase('pt-BR');
+      return t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1);
+    }
+    return s;
+  };
   return Object.keys(CRM_CAMPOS_CADASTRO)
     .filter((k) => k in depois && norm(antes[k]) !== norm(depois[k]))
-    .map((k) => CRM_CAMPOS_CADASTRO[k]);
+    .map((k) => ({ campo: CRM_CAMPOS_CADASTRO[k], de: legivel(k, antes[k]), para: legivel(k, depois[k]) }));
+}
+
+// Timeline: quem fez aparece pelo nome (não "cadusposito"), e e-mails da equipe
+// no texto ("distribuído para fulano@gmail.com") viram o nome cadastrado.
+// E-mail de cliente não está em state.vendedorNomes, então continua igual.
+function crmNomeAutor(email) {
+  const e = String(email || '').trim();
+  if (!e.includes('@')) return e;
+  return typeof dashVendedorNome === 'function' ? dashVendedorNome(e) : e.split('@')[0];
+}
+function crmTrocaEmailPorNome(texto) {
+  const nomes = state.vendedorNomes || {};
+  return String(texto || '').replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, (e) => {
+    const n = nomes[e.toLowerCase()];
+    return n && String(n).trim() ? String(n).trim() : e;
+  });
+}
+
+// "10/10 14:30"
+function crmDataHora(iso) {
+  return iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '';
+}
+
+// "nome: JOSE → JOSÉ DA SILVA · telefone: vazio → (16) 99999-0000"
+function crmDeParaTexto(mudancas) {
+  const curto = (s) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return !t ? 'vazio' : t.length > 80 ? `${t.slice(0, 77)}...` : t; };
+  return mudancas.map((m) => `${m.campo}: ${curto(m.de)} → ${curto(m.para)}`).join(' · ');
 }
 
 async function crmSaveClient360() {
@@ -1101,7 +1148,8 @@ async function crmSaveClient360() {
     payload.cidade = cidadeTexto.toUpperCase();
   }
 
-  const camposAlterados = crmCamposAlterados(client, payload);
+  const mudancas = crmMudancasCadastro(client, payload);
+  const proximaAntes = client.proxima_acao_em;
 
   const { error } = await supabaseClient.from('clientes').update(payload).eq('id', client.id);
   if (error) {
@@ -1113,15 +1161,15 @@ async function crmSaveClient360() {
 
   Object.assign(client, payload);
 
-  // Edição do cadastro vira atividade na timeline (quais campos mudaram)
-  if (camposAlterados.length) {
+  // Edição do cadastro vira atividade na timeline (o que era → o que ficou)
+  if (mudancas.length) {
     supabaseClient.from('crm_atividades').insert([{
       cliente_id: client.id,
       franquia_id: client.franquia_id,
       autor_email: state.currentUser?.email || 'sistema',
       tipo: 'cadastro',
-      descricao: `Cadastro atualizado: ${camposAlterados.join(', ')}`,
-      meta: { campos: camposAlterados },
+      descricao: `Cadastro alterado · ${crmDeParaTexto(mudancas)}`,
+      meta: { campos: mudancas.map((m) => m.campo), mudancas },
     }]).then(() => crmFetchAtividades(client.id));
   }
 
@@ -1130,14 +1178,20 @@ async function crmSaveClient360() {
     enrichClienteHsp(client.id, mun).then(() => { if (_crm360ClientId === client.id) renderCrm360(); });
   }
 
-  // Follow-up novo/alterado vira atividade na timeline
-  if (proximaMudou && proximaEm) {
+  // Follow-up novo/remarcado/removido vira atividade na timeline (com a data de antes)
+  if (proximaMudou && (proximaEm || proximaAntes)) {
+    const descricao = !proximaEm
+      ? `Follow-up removido (estava para ${crmDataHora(proximaAntes)})`
+      : proximaAntes
+        ? `Follow-up remarcado de ${crmDataHora(proximaAntes)} para ${crmDataHora(proximaEm)}${proximaNota ? `: ${proximaNota}` : ''}`
+        : `Follow-up agendado para ${crmDataHora(proximaEm)}${proximaNota ? `: ${proximaNota}` : ''}`;
     supabaseClient.from('crm_atividades').insert([{
       cliente_id: client.id,
       franquia_id: client.franquia_id,
       autor_email: state.currentUser?.email || 'sistema',
       tipo: 'proxima_acao',
-      descricao: `Follow-up agendado para ${formatDate(proximaEm)}${proximaNota ? `: ${proximaNota}` : ''}`,
+      descricao,
+      meta: { de: proximaAntes || null, para: proximaEm },
     }]).then(() => crmFetchAtividades(client.id));
   }
 

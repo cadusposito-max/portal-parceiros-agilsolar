@@ -136,10 +136,14 @@
       if (st === 'realizada') return `Vistoria realizada${resp}`;
       return `Vistoria com pendência${depois.vistoria_obs ? `: ${depois.vistoria_obs}` : ''}`;
     }
-    if (st === 'agendada' && depois.vistoria_data !== antes.vistoria_data) return `Vistoria reagendada para ${fmtData(depois.vistoria_data)}${resp}`;
-    if (st && (depois.vistoria_obs !== antes.vistoria_obs || depois.vistoria_responsavel !== antes.vistoria_responsavel)) {
-      return `Vistoria atualizada${depois.vistoria_obs ? `: ${depois.vistoria_obs}` : ''}${resp}`;
+    if (st === 'agendada' && depois.vistoria_data !== antes.vistoria_data) {
+      return `Vistoria reagendada${antes.vistoria_data ? ` de ${fmtData(antes.vistoria_data)}` : ''} para ${fmtData(depois.vistoria_data)}${resp}`;
     }
+    // o que mudou, com o valor de antes
+    const partes = [];
+    if (depois.vistoria_responsavel !== antes.vistoria_responsavel) partes.push(`responsável: ${antes.vistoria_responsavel || 'vazio'} → ${depois.vistoria_responsavel || 'vazio'}`);
+    if (depois.vistoria_obs !== antes.vistoria_obs) partes.push(`observação: ${antes.vistoria_obs || 'vazio'} → ${depois.vistoria_obs || 'vazio'}`);
+    if (st && partes.length) return `Vistoria alterada · ${partes.join(' · ')}`;
     return '';
   }
   if (typeof CRM_ATIVIDADE_META !== 'undefined') CRM_ATIVIDADE_META.vistoria = { icon: 'clipboard-check', label: 'Vistoria', color: 'text-sky-400' };

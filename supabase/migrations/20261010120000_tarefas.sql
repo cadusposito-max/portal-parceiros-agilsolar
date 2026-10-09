@@ -9,9 +9,11 @@
 -- Avisos (todos pela public.notificar, da migration 20261007_notificacoes):
 --   * tarefa nova -> quem recebe (push só se "urgente");
 --   * concluída -> quem mandou (desfazer apaga o aviso ainda não lido);
---   * comentário -> o outro lado (agrupado por tarefa);
 --   * 1x no dia do prazo -> quem recebe; 1x quando atrasa -> quem mandou
 --     (tarefas_avisar_prazos, rodada pelo pg_cron às 8h de Brasília).
+-- Tarefa ligada a cliente vai para a timeline dele (crm_atividades, tipo
+-- 'tarefa'): criada, concluída e excluída. Desfazer a conclusão apaga o registro.
+-- Sem comentários: o que precisar de conversa vai pelo chat.
 -- ============================================================================
 
 create table if not exists public.tarefas (
@@ -27,7 +29,6 @@ create table if not exists public.tarefas (
   prazo           date,
   urgente         boolean not null default false,
   feita_em        timestamptz,
-  comentarios     jsonb not null default '[]'::jsonb,  -- [{autor, nome, texto, em}]
   aviso_prazo_em  timestamptz,
   aviso_atraso_em timestamptz,
   created_at      timestamptz not null default now(),
@@ -92,6 +93,31 @@ returns text language sql immutable as $$
                    case when p_prazo is not null then 'prazo ' || to_char(p_prazo, 'DD/MM') end);
 $$;
 
+-- timeline do cliente (crm_atividades, tipo 'tarefa'); autor = quem fez a ação.
+-- Só registra se a tarefa tem cliente; nunca derruba a tarefa.
+create or replace function public.tarefa_timeline(t public.tarefas, p_evento text, p_desc text)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_fr uuid; v_email text;
+begin
+  if t.cliente_id is null then return; end if;
+  select franquia_id into v_fr from public.clientes where id = t.cliente_id;
+  if v_fr is null then return; end if;
+  select email into v_email from public.user_accounts where user_id = auth.uid();
+  insert into public.crm_atividades (cliente_id, franquia_id, autor_email, tipo, descricao, meta)
+  values (t.cliente_id, v_fr, coalesce(v_email, auth.jwt() ->> 'email', 'sistema'), 'tarefa', left(p_desc, 300),
+          jsonb_build_object('tarefa_id', t.id, 'evento', p_evento, 'de', t.de_nome, 'para', t.para_nome, 'prazo', t.prazo));
+exception when others then
+  raise warning '[tarefa_timeline] %', sqlerrm;
+end $$;
+
+-- "Tarefa para Marcos: Anexar a conta de luz (prazo 10/10)" / "Lembrete: ..."
+create or replace function public.tarefa_timeline_criada(t public.tarefas)
+returns void language sql security definer set search_path = public as $$
+  select public.tarefa_timeline(t, 'criada',
+    case when t.de_user = t.para_user then 'Lembrete: ' else 'Tarefa para ' || public.tarefa_primeiro_nome(t.para_nome) || ': ' end
+    || t.titulo || coalesce(' (prazo ' || to_char(t.prazo, 'DD/MM') || ')', ''));
+$$;
+
 -- ---------------------------------------------------------------------------
 -- para quem posso mandar (a lista do "Para quem")
 -- ---------------------------------------------------------------------------
@@ -120,7 +146,7 @@ declare
   v_tit text := left(trim(coalesce(p_titulo, '')), 140);
   v_det text := nullif(left(trim(coalesce(p_detalhes, '')), 1000), '');
   v_de_nome text; v_para_nome text; v_cli_nome text;
-  v_antes public.tarefas; v_id uuid;
+  v_antes public.tarefas; v_depois public.tarefas; v_id uuid;
 begin
   if v_me is null then raise exception 'Entre na plataforma de novo.'; end if;
   if v_tit = '' then raise exception 'Escreva o que precisa ser feito.'; end if;
@@ -135,7 +161,9 @@ begin
   if p_id is null then
     insert into public.tarefas (de_user, de_nome, para_user, para_nome, titulo, detalhes, cliente_id, cliente_nome, prazo, urgente)
     values (v_me, v_de_nome, p_para, v_para_nome, v_tit, v_det, p_cliente, v_cli_nome, p_prazo, coalesce(p_urgente, false))
-    returning id into v_id;
+    returning * into v_depois;
+    v_id := v_depois.id;
+    perform public.tarefa_timeline_criada(v_depois);
   else
     select * into v_antes from public.tarefas where id = p_id for update;
     if not found or (v_antes.de_user <> v_me and not public.is_admin()) then raise exception 'Tarefa não encontrada.'; end if;
@@ -147,7 +175,10 @@ begin
            aviso_atraso_em = case when p_prazo is distinct from v_antes.prazo then null else aviso_atraso_em end,
            updated_at = now()
      where id = p_id
-    returning id into v_id;
+    returning * into v_depois;
+    v_id := v_depois.id;
+    -- ligou a tarefa a um cliente (ou trocou de cliente) na edição: entra na timeline dele
+    if p_cliente is distinct from v_antes.cliente_id then perform public.tarefa_timeline_criada(v_depois); end if;
   end if;
 
   -- avisa quem recebe na criação ou quando a tarefa troca de dono (notificar ignora o próprio autor)
@@ -165,15 +196,29 @@ end $$;
 -- ---------------------------------------------------------------------------
 create or replace function public.tarefa_concluir(p_id uuid, p_feita boolean default true)
 returns void language plpgsql security definer set search_path = public as $$
-declare t public.tarefas;
+declare t public.tarefas; v_estava_feita boolean;
 begin
-  update public.tarefas
-     set feita_em = case when p_feita then coalesce(feita_em, now()) end, updated_at = now()
-   where id = p_id and para_user = auth.uid()
-  returning * into t;
+  select feita_em is not null into v_estava_feita from public.tarefas where id = p_id and para_user = auth.uid() for update;
   if not found then raise exception 'Tarefa não encontrada.'; end if;
-  if t.de_user = t.para_user then return; end if;
+  if v_estava_feita = coalesce(p_feita, true) then return; end if;  -- clique repetido
 
+  update public.tarefas
+     set feita_em = case when p_feita then now() end, updated_at = now()
+   where id = p_id
+  returning * into t;
+
+  if p_feita then
+    perform public.tarefa_timeline(t, 'concluida',
+      case when t.de_user = t.para_user then 'Lembrete concluído: ' || t.titulo
+           else 'Tarefa concluída por ' || public.tarefa_primeiro_nome(t.para_nome) || ': ' || t.titulo end);
+  else
+    -- "Desfazer": tira da timeline o registro da conclusão
+    delete from public.crm_atividades
+     where tipo = 'tarefa' and cliente_id = t.cliente_id
+       and meta ->> 'tarefa_id' = t.id::text and meta ->> 'evento' = 'concluida';
+  end if;
+
+  if t.de_user = t.para_user then return; end if;
   if p_feita then
     perform public.notificar(t.de_user, 'tarefa_feita',
       public.tarefa_primeiro_nome(t.para_nome) || ' concluiu uma tarefa',
@@ -185,41 +230,20 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
--- comentar (quem mandou ou quem recebeu)
--- ---------------------------------------------------------------------------
-create or replace function public.tarefa_comentar(p_id uuid, p_texto text)
-returns void language plpgsql security definer set search_path = public as $$
-declare
-  v_me uuid := auth.uid();
-  v_tx text := left(trim(coalesce(p_texto, '')), 500);
-  v_nome text; t public.tarefas; v_outro uuid;
-begin
-  if v_tx = '' then raise exception 'Escreva o comentário.'; end if;
-  select coalesce(nullif(trim(nome), ''), email) into v_nome from public.user_accounts where user_id = v_me;
-  update public.tarefas
-     set comentarios = comentarios || jsonb_build_array(jsonb_build_object('autor', v_me, 'nome', v_nome, 'texto', v_tx, 'em', now())),
-         updated_at = now()
-   where id = p_id and v_me in (de_user, para_user)
-  returning * into t;
-  if not found then raise exception 'Tarefa não encontrada.'; end if;
-
-  v_outro := case when v_me = t.de_user then t.para_user else t.de_user end;
-  if v_outro <> v_me then
-    perform public.notificar(v_outro, 'tarefa_cm',
-      public.tarefa_primeiro_nome(v_nome) || ' comentou: ' || t.titulo, v_tx,
-      jsonb_build_object('tela', 'tarefa', 'id', t.id), 'tarefa_cm:' || t.id::text, false);
-  end if;
-end $$;
-
--- ---------------------------------------------------------------------------
--- excluir (quem mandou ou admin). Some também o aviso ainda não lido.
+-- excluir (quem mandou ou admin). Some também o aviso ainda não lido;
+-- tarefa aberta excluída fica registrada na timeline do cliente.
 -- ---------------------------------------------------------------------------
 create or replace function public.tarefa_excluir(p_id uuid)
 returns void language plpgsql security definer set search_path = public as $$
+declare t public.tarefas;
 begin
-  delete from public.tarefas where id = p_id and (de_user = auth.uid() or public.is_admin());
+  delete from public.tarefas where id = p_id and (de_user = auth.uid() or public.is_admin())
+  returning * into t;
   if not found then raise exception 'Tarefa não encontrada.'; end if;
   delete from public.notificacoes where lida_em is null and alvo ->> 'tela' = 'tarefa' and alvo ->> 'id' = p_id::text;
+  if t.feita_em is null then
+    perform public.tarefa_timeline(t, 'excluida', 'Tarefa cancelada: ' || t.titulo);
+  end if;
 end $$;
 
 -- ---------------------------------------------------------------------------
@@ -257,14 +281,18 @@ revoke all on function public.tarefa_cliente_visivel(uuid) from public, anon;
 revoke all on function public.tarefa_destinatarios() from public, anon;
 revoke all on function public.tarefa_salvar(uuid, uuid, text, text, uuid, date, boolean) from public, anon;
 revoke all on function public.tarefa_concluir(uuid, boolean) from public, anon;
-revoke all on function public.tarefa_comentar(uuid, text) from public, anon;
 revoke all on function public.tarefa_excluir(uuid) from public, anon;
+revoke all on function public.tarefa_timeline(public.tarefas, text, text) from public, anon, authenticated;
+revoke all on function public.tarefa_timeline_criada(public.tarefas) from public, anon, authenticated;
 revoke all on function public.tarefas_avisar_prazos() from public, anon, authenticated;
 grant execute on function public.tarefa_destinatarios() to authenticated;
 grant execute on function public.tarefa_salvar(uuid, uuid, text, text, uuid, date, boolean) to authenticated;
 grant execute on function public.tarefa_concluir(uuid, boolean) to authenticated;
-grant execute on function public.tarefa_comentar(uuid, text) to authenticated;
 grant execute on function public.tarefa_excluir(uuid) to authenticated;
+
+-- versão anterior desta migration tinha comentários nas tarefas (tirados a pedido)
+drop function if exists public.tarefa_comentar(uuid, text);
+alter table public.tarefas drop column if exists comentarios;
 
 -- ---------------------------------------------------------------------------
 -- agenda diária (8h de Brasília = 11h UTC). Se o pg_cron não puder ser ligado

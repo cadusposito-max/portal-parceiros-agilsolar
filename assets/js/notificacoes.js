@@ -37,7 +37,6 @@
     // tarefas internas (tarefas.js)
     tarefa: ['list-checks', 'or'],
     tarefa_feita: ['circle-check', 'gr'],
-    tarefa_cm: ['message-square', 'bl'],
     tarefa_prazo: ['clock', 'or'],
     tarefa_atrasada: ['alarm-clock', 'or'],
   };
