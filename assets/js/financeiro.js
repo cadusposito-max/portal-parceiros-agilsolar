@@ -2626,7 +2626,8 @@
       <p class="text-[11px] text-neutral-500 my-2">Informe o custo completo com frete. A margem de 19,5% é uma referência informada, não um custo cadastrado. Usa os valores da tela, mesmo antes de salvar.</p>
       <select id="fin-cc-promo" aria-label="Kit promocional" onchange="finCcPromo()" class="fin-acc-focus w-full px-2 py-2 bg-neutral-950 border border-neutral-800 text-sm"><option value="">Simulação livre</option>${(state.data || []).filter(p => p.ativo !== false && p.linha === 'promocional' && (!p.franquia_id || p.franquia_id === finCc.fid)).map(p=>`<option value="${escapeHTML(p.id)}">${escapeHTML(p.name)} · ${formatCurrency(p.price)}</option>`).join('')}</select>
       <div class="flex flex-wrap gap-3 mt-3">${[['kit','Custo do kit + frete'],['modulos','Módulos'],['kwp','Potência (kWp)'],['venda','Preço promocional']].map(([k,n])=>`<label class="text-[11px]">${n}<input id="fin-cc-sim-${k}" type="number" min="0" step="${k === 'modulos' ? '1' : '.01'}" oninput="finCcSimular()" class="${finCcInput} w-32 block"></label>`).join('')}</div>
-      <div id="fin-cc-sim-result" role="status" class="text-sm mt-3"></div></div>`;
+      <div id="fin-cc-sim-result" role="status" class="text-sm mt-3"></div>
+      <div id="fin-cc-sim-saldo" role="status" class="text-[11px] text-neutral-500 mt-2"></div></div>`;
     if (finCc.sim) {
       document.getElementById('fin-cc-promo').value = finCc.sim.promo || '';
       ['kit','modulos','kwp','venda'].forEach(k => { document.getElementById('fin-cc-sim-' + k).value = finCc.sim[k] || ''; });
@@ -2641,6 +2642,8 @@
   }
   function finCcSimular() {
     const el = document.getElementById('fin-cc-sim-result'); if (!el || !finCc) return;
+    const saldoEl = document.getElementById('fin-cc-sim-saldo');
+    if (saldoEl) saldoEl.textContent = '';
     const get = k => Number(document.getElementById('fin-cc-sim-' + k)?.value) || 0;
     finCc.sim = {promo:document.getElementById('fin-cc-promo').value,kit:get('kit'),modulos:get('modulos'),kwp:get('kwp'),venda:get('venda')};
     const rede = finCc.data.projeto_rede, projeto = CentroCustoCalc.projeto(rede, get('kwp'));
@@ -2650,6 +2653,13 @@
     linhas.projeto_rede = {t:'brl',v:projeto,b:'v'};
     const d = CentroCustoCalc.calcular({linhas,kit:get('kit'),modulos:get('modulos'),kwp:get('kwp'),venda:get('venda'),margem:finCc.malvo});
     el.textContent = d.erros.length ? d.erros.join(' ') : 'Venda por custos: ' + formatCurrency(d.vendaAlvo) + ' · alvo ' + finCc.malvo + '%' + (get('venda') > 0 ? ' · margem no promocional: ' + d.margem + '% · ' + (d.vendaAlvo >= get('venda') ? 'Promocional mantém o melhor preço.' : 'Preço por custos ficou abaixo do promocional; confira composição e custos.') : '') + (Number(finCc.linhas.eletrica.v) === 0 ? ' Elétrica está zerada: valide antes de vender.' : '');
+    const saldo = CentroCustoCalc.saldoParaMargem(d, 19.5);
+    if (saldoEl && saldo !== null) {
+      saldoEl.textContent = (saldo >= 0
+        ? 'No preço promocional, cabem até ' + formatCurrency(saldo) + ' de despesas adicionais para manter 19,5% de margem.'
+        : 'No preço promocional, faltam ' + formatCurrency(-saldo) + ' de resultado para atingir 19,5% de margem, mesmo antes de despesas adicionais.')
+        + ' Considera todos os custos preenchidos acima. Esse saldo não estima o custo da elétrica; confira materiais e serviços que ainda faltam.';
+    }
   }
   function finCcUnidade(fid) { if (state.isAdmin) renderCentroCusto(fid); }
   function finCcTipo(k, t) {

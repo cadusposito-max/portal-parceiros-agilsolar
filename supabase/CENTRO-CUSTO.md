@@ -9,6 +9,7 @@ Implementação local. A migração foi executada no banco em transações com R
 - Admin e gestor podem escolher Markup atual ou Custos + margem alvo nas novas cotações da distribuidora. Markup permanece o padrão. O custo com frete vem da cotação no servidor; o navegador não define esse preço.
 - A cotação salva as linhas, a margem, as dimensões e o modo usados. A DRE reaproveita esse retrato. Cenários de DRE antigos mantêm suas linhas salvas; não se adiciona automaticamente um projeto da Rede a eles.
 - O simulador do centro de custo compara preço e margem usando os valores da tela. Não altera os kits promocionais nem cria um piso artificial de preço.
+- A comparação também mostra quanto cabe em despesas adicionais mantendo 19,5% no preço promocional, ou o resultado que falta para atingir essa referência. Esse saldo não é uma tarifa de elétrica.
 - Dados dimensionais ausentes, percentuais inviáveis e projeto acima da tabela impedem calcular o preço alvo.
 
 ## Evidências do banco
@@ -19,6 +20,8 @@ Matriz: imposto 13,8% sobre venda menos kit; comissão 8% sobre venda; ART cadas
 
 Existe um cadastro anterior em custos_extras com Material CA de 150/kWp, mas ele não comprova o custo atual. Esse número foi usado apenas em testes sintéticos, não aplicado à unidade. A referência de 19,5% dos promocionais foi fornecida pelo usuário; não é margem auditada.
 
+A planilha Helte enviada depois permite reconstruir custos históricos de kits com frete. A [conferência detalhada](CALIBRACAO-HELTE.md) compara 30 promocionais com composição aproximadamente compatível e separa três com inversores divergentes. Vinte dos 30 já ficam abaixo de 22% de margem antes da elétrica, usando instalação por módulo. A origem deixa serviços zerados e não permite definir a tarifa real de elétrica.
+
 ## Ativação e calibração
 
 1. Aplicar a migração 20261009122917_centro_custo_dimensionado.sql.
@@ -28,7 +31,7 @@ Existe um cadastro anterior em custos_extras com Material CA de 150/kWp, mas ele
 
 ## Verificação
 
-- 10 testes de cálculo e integração: dimensões, centavos/margem, bases antigas, dados ausentes, margem inviável, extras, faixas da Rede, markup padrão, permissões, snapshot e ausência de fallback silencioso.
+- 14 testes de cálculo e integração: dimensões, centavos/margem, bases antigas, dados ausentes, margem inviável, extras, faixas da Rede, markup padrão, permissões, snapshot, ausência de fallback silencioso e saldo de despesas com referências Helte.
 - 23 testes existentes de integração Belenus passaram.
 - Testes SQL com rollback: persistência de bases, projeto/ART sem duplicação, rejeição de entradas inválidas, restrição das RPCs e acesso sem autenticação.
 - Navegador com dados sintéticos em 1440 e 390 px: seleção de promocional, cálculo, salvar configuração, DRE e salvar cenário. Sem erros de JavaScript ou rolagem horizontal.

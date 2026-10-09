@@ -55,6 +55,13 @@
     }
     return { receita, valores, totalCustos, lucro, lucroLiq, deducoes, margem: receita > 0 ? r2(lucroLiq / receita * 100) : 0, vendaAlvo, erros: [...new Set(erros)] };
   }
-  root.CentroCustoCalc = { linha, valor, calcular, projeto, bases };
+  // Despesa adicional fora do kit que cabe no preço informado, preservando a margem.
+  // Usa o lucro após arredondamento de cada linha e limita a verba a centavos inteiros.
+  function saldoParaMargem(resultado, margem) {
+    if (!resultado || resultado.erros.length || !(resultado.receita > 0) ||
+        !Number.isFinite(margem) || margem < 0 || margem >= 100) return null;
+    return Math.floor((resultado.lucroLiq - resultado.receita * margem / 100) * 100 + 1e-7) / 100;
+  }
+  root.CentroCustoCalc = { linha, valor, calcular, projeto, bases, saldoParaMargem };
   if (typeof module !== 'undefined') module.exports = root.CentroCustoCalc;
 })(typeof window === 'undefined' ? globalThis : window);
