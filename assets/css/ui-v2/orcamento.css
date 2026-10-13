@@ -85,6 +85,9 @@ html[data-ui="v2"] body .pbl-busca input {
 html[data-ui="v2"] body .pbl-busca input:focus { outline: none; border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
 html[data-ui="v2"] body #orcamento-builder-slot #pb-kit-fornecimento-slot #pb-fornecimento-panel { padding: 0 18px; }
 html[data-ui="v2"] .pbl { padding: 10px 18px 16px; }
+/* theme-light.css (visual antigo) pinta a lista de cinza e a 1ª div de branco com borda: aqui ela fica no próprio card */
+html[data-ui="v2"] body #pb-products-container.pbl { background: transparent !important; }
+html[data-ui="v2"] body #pb-products-container > .pbl-lista { background: transparent !important; border: 0 !important; }
 html[data-ui="v2"] .pbl-info { font-size: 12px; color: var(--v2-ink-2); margin: 4px 0 10px; }
 html[data-ui="v2"] .pbl-lista { display: flex; flex-direction: column; gap: 6px; }
 html[data-ui="v2"] .pbl-row {
