@@ -36,6 +36,17 @@ function linkPublico(caminho) {
   return base + '/' + String(caminho).replace(/^\/+/, '');
 }
 
+// Link da proposta pro cliente: curto (/p/<codigo>, rewrite no vercel.json)
+// quando a proposta já tem código; senão o formato antigo ?id=<uuid>.
+// Aceita a proposta ou só o id (procura em state.propostas).
+function linkProposta(proposta) {
+  const p = (proposta && typeof proposta === 'object') ? proposta
+    : (((typeof state !== 'undefined' && state.propostas) || []).find((x) => x.id === proposta) || { id: proposta });
+  return p.codigo
+    ? linkPublico('p/' + encodeURIComponent(p.codigo))
+    : linkPublico('proposta.html?id=' + encodeURIComponent(p.id));
+}
+
 // --- ESTADO GLOBAL DA APLICACAO ---
 let state = {
   data: [],

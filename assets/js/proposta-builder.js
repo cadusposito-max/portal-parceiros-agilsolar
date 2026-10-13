@@ -1008,7 +1008,7 @@ async function handleEquipamentosProposalSubmit(event) {
 
     if (error) throw error;
 
-    const linkFinal = linkPublico('proposta.html?id=' + data[0].id);
+    const linkFinal = linkProposta(data[0]);
     handleProposalLinkOpen(linkFinal, popupRef);
 
     if (!client.status || client.status === 'NOVO') await cycleClientStatus(client.id, 'NOVO');
@@ -1195,7 +1195,7 @@ function copiarLinkExistente(id, btnElement) {
   btnElement.innerHTML = '<i class="w-3 h-3 inline" data-lucide="check"></i> Copiado!';
   lucide.createIcons();
 
-  const linkFinal = linkPublico(`proposta.html?id=${id}`);
+  const linkFinal = linkProposta(id);
   copiarTextoBlindado(linkFinal);
   showToast('LINK DA PROPOSTA COPIADO!');
 
@@ -1244,7 +1244,7 @@ async function copyProposalLink(kit, event) {
 
     if (error) throw error;
 
-    const linkFinal = linkPublico(`proposta.html?id=${data[0].id}`);
+    const linkFinal = linkProposta(data[0]);
 
     handleProposalLinkOpen(linkFinal, popupRef);
 
@@ -1426,7 +1426,7 @@ function showProposalSharePanel(propostaId, link) {
           : '<p class="text-yellow-500/90 text-[10px] font-bold uppercase tracking-widest">Cliente sem WhatsApp cadastrado — envie o link copiado por outro canal.</p>'}
         <button onclick="copiarTextoBlindado('${link}'); marcarPropostaEnviada('${propostaId}'); showToast('LINK COPIADO!')" class="btn btn-secondary btn-block"><i data-lucide="copy"></i> Copiar link de novo</button>
         <a href="${link}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block"><i data-lucide="external-link"></i> Abrir link</a>
-        <a href="${link.replace('/proposta.html?', '/proposta-pdf.html?')}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block"><i data-lucide="file-down"></i> Baixar PDF</a>
+        <a href="proposta-pdf.html?id=${encodeURIComponent(propostaId)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block"><i data-lucide="file-down"></i> Baixar PDF</a>
         ${typeof orcamentoAberto === 'function' && orcamentoAberto() ? `
         <div class="pb-share-next flex flex-wrap justify-center gap-x-5 gap-y-2 pt-2">
           <button onclick="closeProposalSharePanel()" class="btn btn-ghost btn-sm"><i data-lucide="plus"></i> Fazer outro orçamento</button>

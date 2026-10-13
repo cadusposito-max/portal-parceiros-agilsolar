@@ -1,5 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/p/:codigo",
+      "destination": "/proposta.html"
+    },
+    {
+      "source": "/o/:token",
+      "destination": "/proposta-om.html"
+    },
+    {
+      "source": "/c/:token",
+      "destination": "/proposta-corretiva.html"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -142,6 +156,45 @@
     },
     {
       "source": "/assets/proposta.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/p/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/o/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/c/(.*)",
       "headers": [
         {
           "key": "Cache-Control",

@@ -105,7 +105,7 @@ function escapeHTML(str) {
     .replace(/'/g, '&#039;');
 }
 
-const DEFAULT_SAFE_IMAGE_FALLBACK = 'assets/img/logo-light.png';
+const DEFAULT_SAFE_IMAGE_FALLBACK = '/assets/img/logo-light.png';
 
 function _normalizeSafeImageUrl(rawUrl, { allowDataUrl = false, allowBlobUrl = false } = {}) {
   if (typeof rawUrl !== 'string') return '';

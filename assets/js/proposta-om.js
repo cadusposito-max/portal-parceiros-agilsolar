@@ -12,7 +12,8 @@ if (typeof initAnalytics === 'function') {
 
 const params      = new URLSearchParams(window.location.search);
 const mockId      = params.get('mock');
-const publicToken = params.get('t');
+// Link curto /o/<token> ou /c/<token> (rewrite do vercel.json); ?t= segue valendo.
+const publicToken = params.get('t') || (window.location.pathname.match(/^\/[oc]\/([A-Za-z0-9]{6,64})\/?$/) || [])[1] || null;
 
 const STORAGE_KEY = (id) => `om-proposta-public-${id}`;
 

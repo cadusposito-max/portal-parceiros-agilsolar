@@ -3216,8 +3216,6 @@ function renderOMRoute(container, tabId) {
 // Manutenção corretiva usa uma página própria (proposta-corretiva.html);
 // os demais tipos usam proposta-om.html.
 // =======================================================================
-const OM_PROPOSTA_PUBLIC_PATH    = 'proposta-om.html';
-const OM_PROPOSTA_CORRETIVA_PATH = 'proposta-corretiva.html';
 const OM_TIPO_CORRETIVA          = 'Manutenção corretiva';
 
 function omIsCorretiva(tipo) {
@@ -3225,12 +3223,11 @@ function omIsCorretiva(tipo) {
 }
 
 function omPublicLink(token, tipo) {
-  const path = omIsCorretiva(tipo) ? OM_PROPOSTA_CORRETIVA_PATH : OM_PROPOSTA_PUBLIC_PATH;
-  // O painel agora é um SPA com roteador por hash (#app/...), então recortar
-  // window.location.href jogava o link para dentro do #hash. O arquivo público
-  // é estático na raiz — linkPublico (config.js) monta no domínio oficial.
-  const base = linkPublico(path);
-  return `${base}?t=${encodeURIComponent(token)}`;
+  // Link curto: /o/<token> (O&M) e /c/<token> (corretiva) — rewrites do
+  // vercel.json pra proposta-om.html / proposta-corretiva.html, que também
+  // aceitam o antigo ?t=. linkPublico (config.js) monta no domínio oficial.
+  const prefixo = omIsCorretiva(tipo) ? 'c/' : 'o/';
+  return linkPublico(prefixo + encodeURIComponent(token));
 }
 
 function omAbrirPropostaPublica(token, tipo) {

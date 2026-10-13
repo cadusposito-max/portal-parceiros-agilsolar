@@ -58,7 +58,7 @@ function initProposalQuickActions() {
       window.history.back();
       return;
     }
-    window.location.href = 'index.html';
+    window.location.href = '/index.html';
   });
 
   btnCopy.addEventListener('click', () => {
@@ -196,7 +196,10 @@ function gerarOpcoesParcelamento(valorBase, taxasCartao) {
 // CARREGAR E RENDERIZAR PROPOSTA
 // ==========================================
 const urlParams  = new URLSearchParams(window.location.search);
-const propostaId = urlParams.get('id');
+// Link curto /p/<codigo> (rewrite do vercel.json pra esta página): o código é
+// trocado pelo id no carregamento. Links antigos ?id=<uuid> seguem valendo.
+const codigoCurto = (window.location.pathname.match(/^\/p\/([A-Za-z0-9]{6,32})\/?$/) || [])[1] || null;
+let propostaId = urlParams.get('id');
 
 function isValidProposalId(value) {
   const raw = String(value || '').trim();
@@ -204,6 +207,12 @@ function isValidProposalId(value) {
 }
 
 async function carregarProposta() {
+  if (!propostaId && codigoCurto) {
+    try {
+      const { data: idDoCodigo } = await supabaseClient.rpc('proposta_por_codigo', { p_codigo: codigoCurto });
+      propostaId = idDoCodigo || null;
+    } catch (_) { propostaId = null; }
+  }
   if (!propostaId || !isValidProposalId(propostaId)) { showError(); return; }
   try {
     const { data, error } = await supabaseClient
@@ -334,7 +343,7 @@ function renderData(data) {
 
   const pdfBtn = document.getElementById('btn-download-pdf');
   if (pdfBtn) {
-    pdfBtn.href = 'proposta-pdf.html?id=' + encodeURIComponent(propostaId);
+    pdfBtn.href = '/proposta-pdf.html?id=' + encodeURIComponent(propostaId);
     pdfBtn.classList.remove('hidden');
     pdfBtn.addEventListener('click', () => {
       if (typeof captureEvent === 'function') captureEvent('public_proposal_pdf_clicked', {});

@@ -1180,7 +1180,7 @@
     vendasLimite: 40,
     maisVendas() { this.vendasLimite += 40; if (has('renderContent')) renderContent(); },
     copiarLink(id) {
-      const url = linkPublico('proposta.html?id=' + encodeURIComponent(id));
+      const url = linkProposta(id);
       const ok = () => has('showToast') && showToast('LINK DA PROPOSTA COPIADO');
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, () => window.prompt('Copie o link:', url));
       else window.prompt('Copie o link:', url);

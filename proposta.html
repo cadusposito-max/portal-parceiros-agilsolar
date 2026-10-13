@@ -32,14 +32,14 @@
     <script src="https://unpkg.com/posthog-js@1.364.2/dist/array.js"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="assets/img/icon.png">
-    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="/assets/img/icon.png">
+    <link rel="manifest" href="/manifest.webmanifest">
     <meta name="theme-color" content="#050505">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Agil Solar">
-    <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+    <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
 
     <script>
         tailwind.config = {
@@ -64,8 +64,8 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="assets/css/main.css">
-    <link rel="stylesheet" href="assets/css/theme-light.css" id="theme-light-css" disabled>
+    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="stylesheet" href="/assets/css/theme-light.css" id="theme-light-css" disabled>
 </head>
 <body class="selection:bg-orange-500 selection:text-white min-h-screen flex flex-col items-center relative">
 
@@ -128,7 +128,7 @@
 
     <!-- Header / Logo -->
     <div class="flex justify-center items-center mb-4 relative">
-        <img src="assets/img/logo.png" alt="Ágil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png" class="w-48 md:w-64 h-auto" onerror="this.style.display='none'">
+        <img src="/assets/img/logo.png" alt="Ágil Solar" data-theme-logo="true" data-logo-dark="assets/img/logo.png" data-logo-light="assets/img/logo-light.png" class="w-48 md:w-64 h-auto" onerror="this.style.display='none'">
         <button id="proposta-theme-btn" onclick="togglePropostaTheme()"
             title="Alternar modo claro/escuro"
             class="absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-all">
@@ -485,12 +485,12 @@
 
 <!-- ?v= obrigatório: só o proposta.html tem no-store no vercel.json; os JS
      abaixo dependem deste query-string para furar o cache da CDN. -->
-<script src="assets/js/config.js?v=20260714-catalogo"></script>
-<script src="assets/js/analytics.js?v=20260713-auditoria"></script>
-<script src="assets/js/utils.js?v=20260713-auditoria"></script>
-<script src="assets/js/geracao-chart.js?v=20260916-pdf"></script>
-<script src="assets/js/proposta-calc.js?v=20261006-cartao"></script>
-<script src="assets/js/proposta.js?v=20261006-cartao"></script>
+<script src="/assets/js/config.js?v=20261013-link"></script>
+<script src="/assets/js/analytics.js?v=20260713-auditoria"></script>
+<script src="/assets/js/utils.js?v=20261013-link"></script>
+<script src="/assets/js/geracao-chart.js?v=20260916-pdf"></script>
+<script src="/assets/js/proposta-calc.js?v=20261006-cartao"></script>
+<script src="/assets/js/proposta.js?v=20261013-link"></script>
 <script>
 (function() {
   // Apply proposal-specific theme from sessionStorage, fallback to localStorage
