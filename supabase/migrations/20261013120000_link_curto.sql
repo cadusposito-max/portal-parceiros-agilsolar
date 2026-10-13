@@ -1,15 +1,15 @@
 -- ============================================================================
 -- Link curto das propostas: plataforma.agilsolar.com.br/p/<codigo>
 --
--- Código aleatório de 10 caracteres (letras e números, sem os que confundem:
--- 0/O, 1/l/I). ~58 bits: não dá pra chutar nem tem sequência. Os links antigos
+-- Código aleatório de 20 caracteres (letras e números, sem os que confundem:
+-- 0/O, 1/l/I). ~116 bits: não dá pra chutar nem tem sequência. Os links antigos
 -- (?id=<uuid> e ?t=<token>) continuam valendo.
 --
 -- Orçamento: coluna propostas.codigo + RPC proposta_por_codigo (código → id).
 -- O&M: o próprio public_token passa a nascer curto (os tokens antigos ficam).
 -- ============================================================================
 
-create or replace function public.gerar_codigo_curto(p_len int default 10)
+create or replace function public.gerar_codigo_curto(p_len int default 20)
 returns text
 language plpgsql
 volatile
