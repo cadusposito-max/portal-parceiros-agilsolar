@@ -1414,23 +1414,26 @@ function showProposalSharePanel(propostaId, link) {
   overlay.id = 'pb-share-overlay';
   overlay.className = 'fixed inset-0 z-[97] flex items-center justify-center bg-black/90 backdrop-blur-md p-4';
   overlay.innerHTML = `
-    <div class="bg-neutral-900 border-2 border-green-600/40 w-full max-w-sm shadow-[0_0_50px_rgba(22,163,74,0.15)] animate-fade-in-up">
-      <div class="flex justify-between items-center p-5 border-b border-neutral-800 bg-black/50">
-        <p class="text-green-500 text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4"></i> Proposta gerada!</p>
-        <button onclick="closeProposalSharePanel()" class="text-neutral-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <div class="pbs-card bg-neutral-900 border-2 border-green-600/40 w-full max-w-sm animate-fade-in-up">
+      <div class="pbs-hd flex justify-between items-center p-5 border-b border-neutral-800">
+        <span class="pbs-ic"><i data-lucide="check"></i></span>
+        <p class="pbs-tit text-green-500 text-xs font-black uppercase tracking-[0.2em]">Proposta pronta!</p>
+        <button onclick="closeProposalSharePanel()" class="pbs-x text-neutral-500 hover:text-white" aria-label="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <p class="pbs-sub text-neutral-400 text-xs">O link já foi copiado. Agora é só mandar para <b>${escapeHTML(nomeBonito)}</b>.</p>
       </div>
-      <div class="p-5 space-y-3">
-        <p class="text-neutral-400 text-xs leading-relaxed">O link já foi copiado. Agora é só mandar para <b class="text-white">${escapeHTML(nomeBonito)}</b>:</p>
+      <div class="pbs-body p-5 space-y-3">
         ${waLink
-          ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${propostaId}')" class="btn btn-success btn-lg btn-block"><i data-lucide="message-circle"></i> Enviar no WhatsApp</a>`
-          : '<p class="text-yellow-500/90 text-[10px] font-bold uppercase tracking-widest">Cliente sem WhatsApp cadastrado — envie o link copiado por outro canal.</p>'}
-        <button onclick="copiarTextoBlindado('${link}'); marcarPropostaEnviada('${propostaId}'); showToast('LINK COPIADO!')" class="btn btn-secondary btn-block"><i data-lucide="copy"></i> Copiar link de novo</button>
-        <a href="${link}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block"><i data-lucide="external-link"></i> Abrir link</a>
-        <a href="proposta-pdf.html?id=${encodeURIComponent(propostaId)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block"><i data-lucide="file-down"></i> Baixar PDF</a>
+          ? `<a href="${waLink}" target="_blank" rel="noopener noreferrer" onclick="marcarPropostaEnviada('${propostaId}')" class="pbs-wa btn btn-success btn-lg btn-block"><i data-lucide="message-circle"></i> Enviar no WhatsApp</a>`
+          : '<p class="pbs-aviso text-yellow-500/90 text-[10px] font-bold uppercase tracking-widest">Cliente sem WhatsApp cadastrado. Envie o link copiado por outro canal.</p>'}
+        <div class="pbs-tiles space-y-3">
+          <button onclick="copiarTextoBlindado('${link}'); marcarPropostaEnviada('${propostaId}'); showToast('LINK COPIADO!'); _pbShareCopiado(this)" class="pbs-tile btn btn-secondary btn-block"><i data-lucide="copy"></i> <span>Copiar link</span></button>
+          <a href="${link}" target="_blank" rel="noopener noreferrer" class="pbs-tile btn btn-secondary btn-block"><i data-lucide="external-link"></i> <span>Abrir</span></a>
+          <a href="proposta-pdf.html?id=${encodeURIComponent(propostaId)}" target="_blank" rel="noopener noreferrer" class="pbs-tile btn btn-secondary btn-block"><i data-lucide="file-down"></i> <span>Baixar PDF</span></a>
+        </div>
         ${typeof orcamentoAberto === 'function' && orcamentoAberto() ? `
         <div class="pb-share-next flex flex-wrap justify-center gap-x-5 gap-y-2 pt-2">
-          <button onclick="closeProposalSharePanel()" class="btn btn-ghost btn-sm"><i data-lucide="plus"></i> Fazer outro orçamento</button>
-          <button onclick="closeProposalSharePanel(); orcamentoVerFicha()" class="btn btn-ghost btn-sm"><i data-lucide="id-card"></i> Ir para a ficha</button>
+          <button onclick="closeProposalSharePanel()" class="btn btn-ghost btn-sm"><i data-lucide="plus"></i> <span>Outro orçamento</span></button>
+          <button onclick="closeProposalSharePanel(); orcamentoVerFicha()" class="btn btn-ghost btn-sm"><i data-lucide="id-card"></i> <span>Ir para a ficha</span></button>
         </div>` : ''}
       </div>
     </div>`;
@@ -1438,6 +1441,19 @@ function showProposalSharePanel(propostaId, link) {
   document.body.appendChild(overlay);
   document.addEventListener('keydown', _pbShareOnKeydown);
   lucide.createIcons();
+}
+
+// "Copiar link" fica verde por um instante, pra confirmar o clique ali mesmo.
+function _pbShareCopiado(btn) {
+  btn.classList.add('ok');
+  btn.innerHTML = '<i data-lucide="check"></i> <span>Copiado</span>';
+  lucide.createIcons();
+  setTimeout(() => {
+    if (!btn.isConnected) return;
+    btn.classList.remove('ok');
+    btn.innerHTML = '<i data-lucide="copy"></i> <span>Copiar link</span>';
+    lucide.createIcons();
+  }, 1600);
 }
 
 function _pbShareOnKeydown(event) {

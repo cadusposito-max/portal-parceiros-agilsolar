@@ -569,3 +569,78 @@ html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in button { display: fl
 html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in button svg { width: 18px; height: 18px; }
 html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in button.perigo { background: color-mix(in srgb, var(--v2-red) 12%, var(--v2-card)); color: var(--v2-red); }
 html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in button.cancelar { justify-content: center; background: transparent; color: var(--v2-ink-2); }
+
+/* ==========================================
+   Painel "Proposta pronta!" (proposta-builder.js · showProposalSharePanel)
+   WhatsApp é o único botão cheio; copiar/abrir/PDF viram quadrados lado a lado.
+   ========================================== */
+html[data-ui="v2"] body #pb-share-overlay {
+  --pbs-green-50: rgba(31,169,113,.12); --pbs-green-text: #14774F;
+  background: var(--v2-scrim) !important; backdrop-filter: none !important;
+}
+html[data-ui="v2"][data-theme="dark"] body #pb-share-overlay { --pbs-green-50: rgba(31,169,113,.18); --pbs-green-text: #4FD3A0; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-card {
+  background: var(--v2-card) !important; border: 0 !important; border-radius: 28px !important;
+  box-shadow: var(--v2-shadow-pop) !important; max-width: 420px !important; color: var(--v2-ink);
+}
+html[data-ui="v2"] body #pb-share-overlay .pbs-hd {
+  display: grid !important; grid-template-columns: auto 1fr auto; column-gap: 14px; align-items: center;
+  background: transparent !important; border: 0 !important; padding: 22px 20px 4px 24px !important;
+}
+html[data-ui="v2"] .pbs-ic { grid-row: span 2; width: 48px; height: 48px; border-radius: 16px; background: var(--v2-green); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(31,169,113,.28); }
+html[data-ui="v2"] .pbs-ic svg { width: 24px; height: 24px; stroke-width: 3; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-tit {
+  grid-column: 2; margin: 0 0 2px; font-size: 20px !important; line-height: 1.25 !important; font-weight: 800 !important; letter-spacing: -.01em !important;
+  text-transform: none !important; color: var(--v2-ink) !important;
+}
+html[data-ui="v2"] body #pb-share-overlay .pbs-sub {
+  grid-column: 2; margin: 0; font-size: 13px !important; font-weight: 500; line-height: 1.4; color: var(--v2-ink-2) !important;
+}
+html[data-ui="v2"] body #pb-share-overlay .pbs-sub b { color: var(--v2-ink); font-weight: 800; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-x { grid-column: 3; grid-row: 1 / span 2; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; color: var(--v2-gray) !important; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-x:hover { background: var(--v2-bg); color: var(--v2-ink) !important; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-body { padding: 16px 24px 20px !important; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-body > * + * { margin-top: 10px !important; }
+
+html[data-ui="v2"] body #pb-share-overlay .pbs-wa {
+  height: 54px; border: 0 !important; border-radius: 14px !important; background: var(--v2-green) !important; color: #fff !important;
+  font-size: 15px !important; font-weight: 800 !important; letter-spacing: 0 !important; text-transform: none !important;
+  box-shadow: 0 8px 20px rgba(31,169,113,.3) !important; display: flex; align-items: center; justify-content: center; gap: 8px; transform: none !important;
+}
+html[data-ui="v2"] body #pb-share-overlay .pbs-wa:hover { filter: brightness(.94); }
+html[data-ui="v2"] body #pb-share-overlay .pbs-wa svg { width: 20px; height: 20px; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-aviso {
+  margin: 0; border-radius: 14px; background: var(--v2-orange-50); color: var(--v2-orange-text) !important; padding: 11px 12px;
+  font-size: 13px !important; font-weight: 600 !important; line-height: 1.45; text-transform: none !important; letter-spacing: 0 !important;
+}
+
+html[data-ui="v2"] body #pb-share-overlay .pbs-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-tiles > * { margin: 0 !important; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-tile {
+  height: 76px; padding: 0 4px !important; border: 0 !important; border-radius: 14px !important;
+  background: var(--v2-blue-50) !important; color: var(--v2-blue-text) !important; box-shadow: none !important;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  font-size: 12.5px !important; font-weight: 800 !important; letter-spacing: 0 !important; text-transform: none !important; transform: none !important;
+}
+html[data-ui="v2"] body #pb-share-overlay .pbs-tile svg { width: 22px; height: 22px; color: var(--v2-blue); margin: 0 !important; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-tile:hover { background: var(--v2-blue) !important; color: #fff !important; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-tile:hover svg { color: #fff; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-tile.ok { background: var(--pbs-green-50) !important; color: var(--pbs-green-text) !important; }
+html[data-ui="v2"] body #pb-share-overlay .pbs-tile.ok svg { color: var(--v2-green); }
+
+html[data-ui="v2"] body #pb-share-overlay .pb-share-next {
+  display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px !important; padding-top: 16px !important; border-top: 1px solid var(--v2-line);
+}
+html[data-ui="v2"] body #pb-share-overlay .pb-share-next .btn {
+  height: 42px; margin: 0; border-radius: 12px !important; background: var(--v2-bg) !important; color: var(--v2-ink) !important;
+  font-size: 13px !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+html[data-ui="v2"] body #pb-share-overlay .pb-share-next .btn:hover { background: var(--v2-hover) !important; }
+html[data-ui="v2"] body #pb-share-overlay .pb-share-next .btn svg { width: 16px; height: 16px; color: var(--v2-ink-2); }
+
+@media (max-width: 760px) {
+  html[data-ui="v2"] body #pb-share-overlay { align-items: flex-end !important; padding: 0 !important; }
+  html[data-ui="v2"] body #pb-share-overlay .pbs-card { max-width: none !important; border-radius: 28px 28px 0 0 !important; padding-bottom: env(safe-area-inset-bottom); }
+  html[data-ui="v2"] body #pb-share-overlay .pbs-hd { padding-top: 26px !important; }
+}

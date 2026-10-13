@@ -56,7 +56,6 @@ html[data-ui="v2"] .orcamento-resumo small { display: block; font-size: 12px; co
 html[data-ui="v2"] .orcamento-resumo strong { display: block; margin-top: 3px; font-size: 15px; font-weight: 800; overflow-wrap: anywhere; }
 html[data-ui="v2"] body #orcamento-gerar { flex-shrink: 0; min-height: 46px; text-transform: none; }
 html[data-ui="v2"] body #orcamento-gerar:disabled { opacity: .5; cursor: not-allowed; box-shadow: none !important; }
-html[data-ui="v2"] .pb-share-next { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; }
 
 @media (max-width: 1000px) {
   html[data-ui="v2"] body #orcamento-builder-slot #pb-mode-bar { grid-column: 1 / -1; grid-row: 2; padding-top: 0; justify-content: flex-end; }
