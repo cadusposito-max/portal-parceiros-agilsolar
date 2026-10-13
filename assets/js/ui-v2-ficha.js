@@ -388,8 +388,8 @@
                 <button class="v2-chip dot ${ST_CLS[status] || 't-gray'} v2f-stchip" onclick="openClientStatusMenu(event, '${esc(client.id)}')" title="Alterar status">${ST[status] || status}${ic('chevron-down')}</button>
                 ${omFlag ? '<span class="v2-chip t-blue">O&amp;M</span>' : ''}${has('engFichaChip') ? engFichaChip(client) : ''}${window.uiV2LeadMeta ? window.uiV2LeadMeta.chip(client, true) : ''}</h2>
               <div class="sub">
-                <span>${ic('phone')}${esc(client.telefone || '—')}</span>
-                <span>${ic('map-pin')}${esc(client.cidade || 'sem cidade')}${Number(client.hsp) > 0 ? ` · HSP ${esc(String(client.hsp).replace('.', ','))}` : ''}</span>
+                <span class="v2f-tel">${ic('phone')}${esc(client.telefone || '—')}</span>
+                <span class="v2f-cid">${ic('map-pin')}<em>${esc(client.cidade || 'sem cidade')}${Number(client.hsp) > 0 ? ` · HSP ${esc(String(client.hsp).replace('.', ','))}` : ''}</em></span>
                 <span class="v2f-dsk">${ic('calendar')}desde ${esc(formatDate(client.created_at))}</span>
               </div>
               ${has('etqFichaHTML') ? etqFichaHTML(client) : ''}

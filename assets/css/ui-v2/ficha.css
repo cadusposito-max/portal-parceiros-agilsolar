@@ -21,7 +21,8 @@ html[data-ui="v2"] .v2f-stchip { border: 0; cursor: pointer; font-family: inheri
 html[data-ui="v2"] .v2f-stchip svg { width: 14px !important; height: 14px !important; }
 html[data-ui="v2"] .v2f-top .sub { font-size: 13px; color: var(--v2-gray); font-weight: 500; margin-top: 6px; display: flex; gap: 6px 14px; flex-wrap: wrap; }
 html[data-ui="v2"] .v2f-top .sub span { display: flex; gap: 5px; align-items: center; }
-html[data-ui="v2"] .v2f-top .sub svg { width: 14px !important; height: 14px !important; }
+html[data-ui="v2"] .v2f-top .sub svg { width: 14px !important; height: 14px !important; flex: none; }
+html[data-ui="v2"] .v2f-top .sub em { font-style: normal; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 html[data-ui="v2"] .v2f-lost { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: #B42318; display: flex; gap: 6px; align-items: center; }
 html[data-ui="v2"][data-theme="dark"] .v2f-lost { color: #F59A9A; }
 html[data-ui="v2"] .v2f-lost svg { width: 14px !important; height: 14px !important; }
@@ -352,6 +353,11 @@ html[data-ui="v2"] .v2f .v2f-mob { display: none; }
   html[data-ui="v2"] .v2f-top .sub,
   html[data-ui="v2"] .v2f.compacto .v2f-top .sub { display: flex; order: 5; flex: 1 0 100%; flex-wrap: nowrap; gap: 12px; margin-top: 4px; overflow: hidden; }
   html[data-ui="v2"] .v2f-top .sub span { white-space: nowrap; min-width: 0; }
+  /* telefone nunca encolhe; se não couber, a cidade desce pra linha de baixo (antes um passava por cima do outro) */
+  html[data-ui="v2"] .v2f-top .sub,
+  html[data-ui="v2"] .v2f.compacto .v2f-top .sub { flex-wrap: wrap; row-gap: 3px; }
+  html[data-ui="v2"] .v2f-top .sub .v2f-tel { flex: none; }
+  html[data-ui="v2"] .v2f-top .sub .v2f-cid { flex: 0 1 auto; overflow: hidden; }
   html[data-ui="v2"] .v2f-lost { order: 6; flex: 1 0 100%; }
 
   html[data-ui="v2"] .v2f-acts { margin-top: 2px; }
