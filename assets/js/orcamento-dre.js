@@ -55,6 +55,18 @@
   let cur = null; // { propostaId, receita, kit, extras:[], linhas:{}, padrao:{}, margem_min, margem_alvo, ... }
 
   const num = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+  // Campos digitáveis são texto (inputmode decimal): no celular o teclado pt-BR
+  // manda vírgula, e um <input type="number"> com "1500,50" devolve "" → virava 0.
+  // Aceita "1500,50", "1.500,50", "1500.50" e "1.500".
+  function numIn(v) {
+    let s = String(v == null ? '' : v).trim().replace(/\s|R\$|%/g, '');
+    if (!s) return 0;
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    else if ((s.match(/\./g) || []).length > 1 || /^-?\d{1,3}\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+  const fmtIn = (v) => String(Math.round((Number(v) || 0) * 100) / 100).replace('.', ',');
   const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
   const money = (v) => formatCurrency(Number(v) || 0);
   const pctFmt = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
@@ -204,7 +216,7 @@
   function inputMoney(key, value) {
     return `<div class="relative w-36 orc-money">
         <span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">R$</span>
-        <input type="number" step="0.01" data-orc-cost="${key}" value="${num(value)}"
+        <input type="text" inputmode="decimal" autocomplete="off" data-orc-cost="${key}" value="${fmtIn(value)}"
           class="w-full pl-7 pr-2 py-1.5 lg:py-1 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm">
       </div>`;
   }
@@ -233,7 +245,7 @@
       const seg = `<span class="orc-seg"><button type="button" data-orc-tipo="pct" data-k="${def.key}" class="${l.t === 'pct' ? 'on' : ''}">%</button><button type="button" data-orc-tipo="brl" data-k="${def.key}" class="${l.t === 'brl' ? 'on' : ''}">R$</button></span>`;
       const inp = `<div class="relative orc-money orc-money-sm">
           <span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">${l.t === 'pct' ? '%' : 'R$'}</span>
-          <input type="number" min="0" step="${l.t === 'pct' ? '0.1' : '0.01'}" data-orc-linha="${def.key}" value="${num(l.v)}"
+          <input type="text" inputmode="decimal" autocomplete="off" data-orc-linha="${def.key}" value="${fmtIn(l.v)}"
             class="w-full pl-7 pr-2 py-1.5 lg:py-1 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm">
         </div>`;
       const base = l.t === 'pct'
@@ -265,7 +277,7 @@
         </select>
         <input type="text" data-orc-ex-field="rotulo" value="${escapeHTML(e.rotulo || '')}" placeholder="Descrição"
           class="flex-1 min-w-0 px-2 py-1.5 bg-neutral-950 border border-neutral-800 text-white text-[11px] font-bold">
-        <input type="number" step="0.01" data-orc-ex-field="valor" value="${num(e.valor)}"
+        <input type="text" inputmode="decimal" autocomplete="off" data-orc-ex-field="valor" value="${fmtIn(e.valor)}"
           class="w-28 px-2 py-1.5 bg-neutral-950 border border-neutral-800 text-white num font-black text-[11px] text-right">
         <button type="button" data-orc-act="del-extra" class="w-7 h-7 grid place-items-center text-neutral-500 hover:text-red-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
       </div>`;
@@ -333,10 +345,10 @@
               </div>
               ${editRow('Kit fotovoltaico + frete', 'kit', cur.kit)}
               <div class="px-5 py-2 flex flex-wrap gap-3 text-[11px] text-neutral-500">
-                <label>Módulos <input aria-label="Módulos da simulação" data-orc-dim="modulos" type="number" min="1" step="1" value="${cur.modulos}" class="orc-base w-24"></label>
-                <label>kWp <input aria-label="Potência da simulação" data-orc-dim="kwp" type="number" min="0.01" step="0.01" value="${cur.kwp}" class="orc-base w-24"></label>
-                <label>Inversores <input aria-label="Inversores ou micros da simulação" data-orc-dim="inversores" type="number" min="1" step="1" value="${cur.inversores}" class="orc-base w-20"></label>
-                <label>kW inversor <input aria-label="Potência total de inversor (kW)" data-orc-dim="kwInversor" type="number" min="0" step="0.01" value="${cur.kwInversor}" class="orc-base w-20"></label>
+                <label>Módulos <input aria-label="Módulos da simulação" data-orc-dim="modulos" type="text" inputmode="numeric" autocomplete="off" value="${fmtIn(cur.modulos)}" class="orc-base w-24"></label>
+                <label>kWp <input aria-label="Potência da simulação" data-orc-dim="kwp" type="text" inputmode="decimal" autocomplete="off" value="${fmtIn(cur.kwp)}" class="orc-base w-24"></label>
+                <label>Inversores <input aria-label="Inversores ou micros da simulação" data-orc-dim="inversores" type="text" inputmode="numeric" autocomplete="off" value="${fmtIn(cur.inversores)}" class="orc-base w-20"></label>
+                <label>kW inversor <input aria-label="Potência total de inversor (kW)" data-orc-dim="kwInversor" type="text" inputmode="decimal" autocomplete="off" value="${fmtIn(cur.kwInversor)}" class="orc-base w-20"></label>
                 ${cur.artInclusa ? 'ART incluída no projeto da Rede' : ''}
               </div>
               <div id="orc-linhas" class="divide-y divide-neutral-800/70"></div>
@@ -393,7 +405,7 @@
             <!-- Preço para a margem-alvo -->
             <div class="orc-alvo order-3 lg:order-none border border-neutral-800 px-5 py-3 flex flex-wrap items-center gap-3 bg-neutral-950/40">
               <span class="text-[11px] font-bold text-neutral-400 flex-1 min-w-[180px]">Venda para margem-alvo de
-                <span class="relative inline-block w-20 orc-money orc-money-sm align-middle"><input type="number" min="0" max="99" step="0.5" data-orc-alvo value="${num(cur.margem_alvo)}"
+                <span class="relative inline-block w-20 orc-money orc-money-sm align-middle"><input type="text" inputmode="decimal" autocomplete="off" data-orc-alvo value="${fmtIn(cur.margem_alvo)}"
                   class="w-full pl-2 pr-6 py-1 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">%</span></span></span>
               <span id="orc-venda-alvo" class="font-black num text-sm text-white">—</span>
               <button type="button" data-orc-act="usar-alvo" class="orc-usar px-3 py-1.5 bg-neutral-900 border border-neutral-800 hover:border-emerald-500/60 text-emerald-400 text-[10px] font-black uppercase tracking-widest">Usar</button>
@@ -422,6 +434,7 @@
     renderExtras();
     renderLinhas();
     if (window.lucide) lucide.createIcons();
+    cur._snap = estado(cur);
   }
 
   // Atualiza só resultados/totais/KPIs (não re-renderiza inputs → preserva foco).
@@ -503,7 +516,7 @@
     if (d.vendaAlvo == null) return;
     cur.receita = d.vendaAlvo;
     const inp = document.querySelector('[data-orc-cost="__receita__"]');
-    if (inp) inp.value = d.vendaAlvo;
+    if (inp) inp.value = fmtIn(d.vendaAlvo);
     recalc();
   }
 
@@ -527,27 +540,27 @@
       const t = ev.target;
       if (t.matches('[data-orc-dim]')) {
         const k = t.getAttribute('data-orc-dim');
-        cur[k] = Math.max(0, k === 'modulos' || k === 'inversores' ? Math.floor(num(t.value)) : num(t.value));
+        cur[k] = Math.max(0, k === 'modulos' || k === 'inversores' ? Math.floor(numIn(t.value)) : numIn(t.value));
         const projeto = CentroCustoCalc.projeto(cur.projetoRede, cur.kwp);
         cur.projetoPendente = projeto == null;
         cur.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
         recalc();
       } else if (t.matches('[data-orc-cost]')) {
         const key = t.getAttribute('data-orc-cost');
-        if (key === '__receita__') cur.receita = num(t.value);
-        else if (key === 'kit') cur.kit = num(t.value);
+        if (key === '__receita__') cur.receita = numIn(t.value);
+        else if (key === 'kit') cur.kit = numIn(t.value);
         recalc();
       } else if (t.matches('[data-orc-linha]')) {
         const l = cur.linhas[t.getAttribute('data-orc-linha')];
-        if (l) { l.v = Math.max(0, num(t.value)); recalc(); }
+        if (l) { l.v = Math.max(0, numIn(t.value)); recalc(); }
       } else if (t.matches('[data-orc-alvo]')) {
-        cur.margem_alvo = Math.min(99, Math.max(0, num(t.value)));
+        cur.margem_alvo = Math.min(99, Math.max(0, numIn(t.value)));
         recalc();
       } else if (t.matches('[data-orc-ex-field]')) {
         const wrap = t.closest('[data-orc-extra]'); if (!wrap) return;
         const i = parseInt(wrap.getAttribute('data-orc-extra'), 10);
         const field = t.getAttribute('data-orc-ex-field');
-        if (cur.extras[i]) { cur.extras[i][field] = field === 'valor' ? num(t.value) : t.value; recalc(); }
+        if (cur.extras[i]) { cur.extras[i][field] = field === 'valor' ? numIn(t.value) : t.value; recalc(); }
       }
     });
     // Selects de tipo das linhas extras
@@ -575,6 +588,7 @@
         if (def && (!def.contrato || podeContrato()) && cur.padrao[k]) { cur.linhas[k] = clone(cur.padrao[k]); renderLinhas(); }
       }
       else if (act === 'reset-todas') {
+        if (TODAS.some((l) => ajustado(l.key)) && !confirm('Voltar todos os custos ao padrão da unidade?\n\nOs ajustes feitos nesta proposta serão descartados.')) return;
         TODAS.forEach((l) => { if ((!l.contrato || podeContrato()) && cur.padrao[l.key]) cur.linhas[l.key] = clone(cur.padrao[l.key]); });
         cur.margem_alvo = cur.margem_alvo_padrao;
         cur.projetoRede = cur.projetoRedePadrao;
@@ -582,7 +596,7 @@
         const projeto = CentroCustoCalc.projeto(cur.projetoRede, cur.kwp);
         cur.projetoPendente = projeto == null;
         cur.linhas.projeto_rede = linha('brl', projeto || 0, 'v');
-        const a = document.querySelector('[data-orc-alvo]'); if (a) a.value = num(cur.margem_alvo);
+        const a = document.querySelector('[data-orc-alvo]'); if (a) a.value = fmtIn(cur.margem_alvo);
         renderLinhas();
       }
       else if (act === 'save') { saveScenario(); }
@@ -596,14 +610,20 @@
         cur.extras.splice(i, 1); renderExtras(); recalc();
       }
     });
-    // Fecha ao clicar no backdrop ou ESC
-    root.addEventListener('mousedown', (ev) => { if (ev.target === root) closeOverlay(); });
+    // Fecha ao clicar no backdrop (só tela larga: no celular a borda é estreita e
+    // o toque sem querer fechava e perdia o que foi digitado) ou ESC
+    root.addEventListener('mousedown', (ev) => { if (ev.target === root && window.matchMedia('(min-width: 768px)').matches) closeOverlay(); });
     document.addEventListener('keydown', onKeydown);
   }
 
   function onKeydown(ev) { if (ev.key === 'Escape') closeOverlay(); }
 
-  function closeOverlay() {
+  // Alterações não salvas: compara com o estado da última abertura/gravação.
+  const estado = (c) => JSON.stringify({ r: r2(c.receita), k: r2(c.kit), e: c.extras, l: c.linhas, m: num(c.margem_alvo), d: [c.modulos, c.kwp, c.inversores, c.kwInversor] });
+  const sujo = () => !!cur && cur._snap !== estado(cur);
+
+  function closeOverlay(force) {
+    if (force !== true && sujo() && !confirm('Sair sem salvar?\n\nO que foi alterado nesta precificação será perdido.')) return;
     const el = document.getElementById('orc-dre-overlay');
     if (el) el.remove();
     document.removeEventListener('keydown', onKeydown);
@@ -616,6 +636,7 @@
     _salvando = true;
     const alvo = cur;
     const d = compute();
+    const snap = estado(alvo);
     try {
       const { error } = await supabaseClient.rpc('save_proposta_precificacao', {
         p_proposta_id:   alvo.propostaId,
@@ -630,6 +651,7 @@
       if (error) throw error;
       try { localStorage.removeItem(lsKey(alvo.propostaId)); } catch (_) {}
       alvo.origem = 'banco';
+      alvo._snap = snap;
       try { alvo.saved = await loadSaved(alvo.propostaId); } catch (_) { alvo.saved = { updated_at: new Date().toISOString() }; }
       const info = document.getElementById('orc-salvo-info');
       if (info && cur === alvo) { info.textContent = fmtSalvoEm(alvo.saved); info.className = 'text-[10px] font-bold mt-1 text-neutral-500'; }
@@ -646,7 +668,8 @@
 
   async function resetScenario() {
     if (!cur || !cur._proposta) return;
-    if (cur.origem === 'banco' && !confirm('Apagar a precificação salva desta proposta?')) return;
+    if (cur.origem === 'banco' ? !confirm('Apagar a precificação salva desta proposta?')
+      : sujo() && !confirm('Descartar o que foi digitado e recomeçar do valor da venda?')) return;
     const alvo = cur;
     try {
       if (alvo.origem === 'banco') {
@@ -710,7 +733,17 @@
   }
 
   // ---- API pública ----------------------------------------------------
+  // No celular a rede demora: o toque repetido no botão montava a tela de novo
+  // por cima do que já estava sendo digitado (parecia "resetar sozinho").
+  let _abrindo = false;
   async function openOrcamentoDre(propostaId) {
+    if (_abrindo || document.getElementById('orc-dre-overlay')) return;
+    _abrindo = true;
+    const aviso = setTimeout(() => toastSafe('Abrindo precificação…'), 400);
+    try { await abrir(propostaId); } finally { clearTimeout(aviso); _abrindo = false; }
+  }
+
+  async function abrir(propostaId) {
     if (!(state && (state.isAdmin || state.isGestor))) return;
     const p = (state.propostas || []).find((x) => String(x.id) === String(propostaId));
     if (!p) { toastSafe('Proposta não encontrada'); return; }
