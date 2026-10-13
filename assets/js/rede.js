@@ -1,5 +1,7 @@
 // ==========================================================================
-// AMBIENTE REDE — 6º ambiente, só ADMIN.
+// AMBIENTE REDE — 6º ambiente. Admin vê a rede inteira; o franqueado
+// (gestor com user_accounts.franqueado) vê só a própria unidade como "Minha
+// unidade": resumo, DRE com lançamentos, centro de custo e taxas só leitura.
 // Controle de cada unidade: CNPJs (vários por unidade), impostos por CNPJ,
 // taxas da franquia, DRE por unidade e receitas da franqueadora.
 //
@@ -13,7 +15,8 @@
 // - projetos de engenharia: RPC rede_projetos (kWp de cada projeto) × faixa de
 //   kWp (rede_padroes.projeto_faixas ou tabela própria da unidade); ajuste ou
 //   isenção por projeto em rede_projeto_taxas.
-// Toda a leitura/escrita é protegida no banco por is_admin().
+// Toda a leitura/escrita é protegida no banco por is_admin(); o franqueado
+// passa por franqueado_franquia_id() (lê a unidade dele e lança custos).
 // ==========================================================================
 (function () {
   'use strict';
@@ -53,6 +56,9 @@
   const icons = () => { if (typeof queueAppLucideCreateIcons === 'function') queueAppLucideCreateIcons(); else if (window.lucide) window.lucide.createIcons(); };
   const nomeCurto = (n) => String(n || '').replace(/^\s*[áa]gil\s*solar\s*[-–·]?\s*/i, '') || n;
   const digits = (s) => String(s || '').replace(/\D/g, '');
+  // franqueado: só a unidade dele, sem editar o que é da Rede
+  const FQ = () => !state.isAdmin && !!state.isFranqueado;
+  const UT_FRANQUEADO = ['resumo', 'resultado', 'custo', 'taxas'];
 
   function hojeSP() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); }
   function mesAtual() { return hojeSP().slice(0, 7); }
@@ -81,8 +87,9 @@
     const dia = ehAtual ? Number(hojeSP().slice(8, 10)) : null;
     const meses = [5, 4, 3, 2, 1, 0].map((i) => addMes(mes, -i));
     const sb = supabaseClient;
+    const qFr = sb.from('franquias').select('id, nome, cidade, uf, tipo, ativo, inicio_operacao, hsp_medio, created_at').order('nome');
     const [fr, emp, imp, tx, pad, lan, mov, usr, prj] = await Promise.all([
-      sb.from('franquias').select('id, nome, cidade, uf, tipo, ativo, inicio_operacao, hsp_medio, created_at').order('nome'),
+      FQ() ? qFr.eq('id', state.franquiaId) : qFr,
       sb.from('rede_empresas').select('*').order('principal', { ascending: false }).order('razao_social'),
       sb.from('rede_impostos').select('*').order('created_at'),
       sb.from('rede_taxas').select('*'),
@@ -245,7 +252,7 @@
   };
   function meta() {
     let [title, sub] = TITULOS[R.tab] || TITULOS.visao;
-    if (R.tab === 'unidades' && R.unit && R.data) { const f = franquia(R.unit); if (f) { title = f.nome; sub = 'Unidade da rede'; } }
+    if (R.tab === 'unidades' && R.unit && R.data) { const f = franquia(R.unit); if (f) { title = f.nome; sub = FQ() ? 'Minha unidade' : 'Unidade da rede'; } }
     window.uiV2PageMeta = { key: 'rede:' + R.tab, title, sub };
     if (window.uiV2Shell) window.uiV2Shell.refresh();
   }
@@ -253,12 +260,16 @@
   async function renderRedeRoute(container, tab) {
     R.container = container;
     R.tab = tab || 'visao';
-    if (!state.isAdmin) {
+    if (!state.isAdmin && !(FQ() && state.franquiaId)) {
       container.innerHTML = '<div class="rd"><div class="rd-card rd-empty"><div class="ic">' + ic('lock') + '</div><b>Acesso restrito</b>O ambiente Rede é só para administradores.</div></div>';
       icons();
       return;
     }
     if (!R.mes) R.mes = mesAtual();
+    if (FQ()) {
+      R.tab = 'unidades'; R.unit = state.franquiaId;
+      if (!UT_FRANQUEADO.includes(R.utab)) R.utab = 'resumo';
+    }
     if (R.tab !== 'unidades') R.unit = null;
     meta();
     if (!R.data || R.data.key !== R.mes) {
@@ -427,14 +438,18 @@
     const f = franquia(R.unit);
     if (!f) { R.unit = null; return telaUnidades(); }
     const ym = D().mes, c = calc(f, ym), p = calc(f, addMes(ym, -1)), s = status(f, c), cu = cidadeUf(f);
-    const UT = [['resumo', 'layout-dashboard', 'Resumo'], ['empresas', 'building-2', 'Empresas (CNPJs)'], ['taxas', 'percent', 'Impostos e taxas'], ['resultado', 'sheet', 'Resultado'], ['equipe', 'users', 'Equipe']];
-    const corpo = { resumo: uResumo, empresas: uEmpresas, taxas: uTaxas, resultado: uResultado, equipe: uEquipe }[R.utab] || uResumo;
+    const fq = FQ();
+    const UT = fq
+      ? [['resumo', 'layout-dashboard', 'Resumo'], ['resultado', 'sheet', 'Resultado (DRE)'], ['custo', 'calculator', 'Centro de custo'], ['taxas', 'lock', 'Impostos e taxas']]
+      : [['resumo', 'layout-dashboard', 'Resumo'], ['empresas', 'building-2', 'Empresas (CNPJs)'], ['taxas', 'percent', 'Impostos e taxas'], ['resultado', 'sheet', 'Resultado'], ['equipe', 'users', 'Equipe']];
+    const corpo = { resumo: uResumo, empresas: uEmpresas, taxas: fq ? uTaxasLeitura : uTaxas, resultado: uResultado, equipe: uEquipe, custo: uCentroCusto }[R.utab] || uResumo;
+    if (R.utab === 'custo') setTimeout(() => { if (window.CentroCustoTela) window.CentroCustoTela.render(f.id); });
     return `
-    <button class="rd-back" onclick="redeVoltarUnidades()">${ic('chevron-left')}Todas as unidades</button>
+    ${fq ? '' : `<button class="rd-back" onclick="redeVoltarUnidades()">${ic('chevron-left')}Todas as unidades</button>`}
     <div class="rd-uhead">
       <div style="display:flex;gap:14px;align-items:center;min-width:0"><div class="av">${ic(f.tipo === 'propria' ? 'building' : 'store')}</div>
         <div style="min-width:0"><h2>${esc(f.nome)}</h2><div class="rd-muted" style="margin-top:3px">${esc(cu.cidade)}${cu.uf ? '/' + esc(cu.uf) : ''} · ${f.tipo === 'propria' ? 'Unidade própria' : 'Franquia'}${f.inicio_operacao ? ' desde ' + esc(new Date(f.inicio_operacao + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })) : ''}</div></div></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="rd-pill ${s[0]}">${s[1]}</span><button class="rd-btn sm" onclick="redeEditarUnidade('${f.id}')">${ic('pencil')}Editar dados</button></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="rd-pill ${s[0]}">${s[1]}</span>${fq ? '' : `<button class="rd-btn sm" onclick="redeEditarUnidade('${f.id}')">${ic('pencil')}Editar dados</button>`}</div>
     </div>
     <div class="rd-tabs">${UT.map(([id, i, n]) => `<button class="rd-tab ${R.utab === id ? 'on' : ''}" onclick="redeUnidadeAba('${id}')">${ic(i)}${n}</button>`).join('')}</div>
     ${corpo(f, c, p)}`;
@@ -457,7 +472,7 @@
         ${serie.some((v) => v) ? barrasEmpilhadas([serie], ['#008FD4'], d.meses, 5, 600, 190) : `<div class="rd-empty"><div class="ic">${ic('bar-chart-3')}</div><b>Sem vendas registradas</b>Nenhuma venda nos últimos 6 meses.</div>`}
       </div>
       <div class="rd-card"><h3>Cadastro</h3><p class="rd-sub">Dados da unidade</p>
-        ${[['Tipo', fr ? 'Franquia' : 'Unidade própria'], ['Cidade', `${esc(cidadeUf(f).cidade)}/${esc(cidadeUf(f).uf) || '—'}`], ['Início', f.inicio_operacao ? new Date(f.inicio_operacao + 'T12:00:00').toLocaleDateString('pt-BR') : '—'], ['Usuários ativos', usuarios],
+        ${[['Tipo', fr ? 'Franquia' : 'Unidade própria'], ['Cidade', `${esc(cidadeUf(f).cidade)}/${esc(cidadeUf(f).uf) || '—'}`], ['Início', f.inicio_operacao ? new Date(f.inicio_operacao + 'T12:00:00').toLocaleDateString('pt-BR') : '—'], ...(FQ() ? [] : [['Usuários ativos', usuarios]]),
           ['CNPJ principal', emps[0] ? esc(emps[0].cnpj) : '<span class="rd-neg">não cadastrado</span>'], ['Propostas no mês', `${c.propostas} · ${brl(c.valorPropostas)}`], ['Projetos de engenharia', c.nproj]]
           .map(([a, b]) => `<div class="rd-line"><span class="rd-muted">${a}</span><b style="text-align:right">${b}</b></div>`).join('')}
       </div>
@@ -553,6 +568,52 @@
     </div>`;
   }
 
+  // visão do franqueado: o que a Rede definiu para a unidade, sem editar
+  function uTaxasLeitura(f) {
+    const t = taxasDe(f.id), fr = f.tipo === 'franquia', ym = D().mes;
+    const emps = empresasDe(f.id);
+    const v = (n, val) => `<div class="rd-line"><div class="nm">${n}</div><b>${val}</b></div>`;
+    const base = { total: 'Faturamento total', servicos: 'Só serviços (sem kit)', bruto: 'Resultado bruto' }[t.royalties_base] || 'Faturamento total';
+    const proprias = faixasProprias(f.id);
+    return `
+    <div class="rd-tip rd-mb">${ic('lock')}Definido pela Rede. Para mudar alguma alíquota ou taxa, fale com a franqueadora.</div>
+    <div class="rd-grid rd-two rd-mb">
+      <div class="rd-card">
+        <h3>${ic('receipt')}Impostos por CNPJ</h3><p class="rd-sub">Alíquotas vigentes em ${mesNome(ym).toLowerCase()}.</p>
+        ${emps.length ? emps.map((e) => { const lst = impostosVigentes(e.id, ym); const tot = lst.reduce((s, i) => s + num(i.aliquota), 0); return `
+          <div class="rd-imp">
+            <div class="hd"><div><b>${esc(e.razao_social)}</b><div class="rd-muted">${esc(REGIMES[e.regime] || 'Regime não informado')} · ${esc([e.municipio, e.uf].filter(Boolean).join('/') || '—')}</div></div><span class="rd-tag ${lst.length ? '' : 'bad'}">${lst.length ? 'soma ' + pct(tot, 2) : 'sem impostos'}</span></div>
+            ${lst.map((i) => `<div class="rd-line"><div class="nm"><span>${esc(i.nome)}</span><span class="rd-tag">${BASES[i.base] || i.base}</span></div><b>${pct(i.aliquota, 2)}</b></div>`).join('')}
+          </div>`; }).join('') : `<div class="rd-empty"><div class="ic">${ic('building-2')}</div><b>Nenhum CNPJ</b>A Rede ainda não cadastrou o CNPJ da unidade.</div>`}
+      </div>
+      <div class="rd-card">
+        <h3>${ic('landmark')}Taxas da franquia</h3><p class="rd-sub">${fr ? 'O que a unidade paga à franqueadora.' : 'Unidade própria: normalmente não paga royalties nem fundo.'}</p>
+        ${v('Royalties', pct(t.royalties_pct))}${v('Base dos royalties', base)}
+        ${num(t.royalties_minimo) ? v('Mínimo mensal de royalties', brlC(num(t.royalties_minimo))) : ''}
+        ${v('Fundo de publicidade', pct(t.publicidade_pct))}
+        ${num(t.mensalidade) ? v('Mensalidade da plataforma', brlC(num(t.mensalidade))) : ''}
+      </div>
+    </div>
+    <div class="rd-grid rd-two">
+      <div class="rd-card">
+        <h3>${ic('ruler')}Projetos de engenharia</h3><p class="rd-sub">Cada projeto enviado à engenharia é cobrado pela faixa de kWp.</p>
+        ${cobraProjetos(f) ? faixasTabela(proprias || faixasPadrao(), f.id, false) : `<div class="rd-tip">${ic('info')}Esta unidade não paga projetos de engenharia.</div>`}
+      </div>
+      <div class="rd-card">
+        <h3>${ic('calculator')}Estimativas do DRE</h3><p class="rd-sub">Usadas enquanto a unidade não lança os custos reais do mês.</p>
+        ${v('Parte do faturamento que é equipamento (kit)', pct(t.equipamentos_pct))}
+        ${v('Custo do kit sobre a venda de equipamento', pct(t.custo_equip_pct))}
+        ${v('Custo de instalação sobre a venda de serviço', pct(t.custo_serv_pct))}
+        ${v('Comissão de venda', pct(t.comissao_pct))}
+      </div>
+    </div>`;
+  }
+
+  // centro de custo da unidade: a tela é a mesma do Financeiro (centro-custo-tela.js)
+  function uCentroCusto() {
+    return `<div id="fin-cc" class="rd-card"><div class="rd-loading">${ic('loader-2')}Carregando o centro de custo...</div></div>`;
+  }
+
   // tabela de faixas; alvo = 'pad' (padrão da rede) ou id da unidade. Editável salva ao sair do campo.
   function faixasTabela(faixas, alvo, editavel) {
     const a = `'${alvo}'`;
@@ -602,9 +663,10 @@
     };
     return cab + `<div class="rd-projs">${c.projs.map((p) => `<div class="rd-proj">
         <div class="inf"><b>${p.numero ? '#' + p.numero + ' · ' : ''}${esc(p.cliente_nome || 'Cliente')}</b><div class="rd-muted">${num(p.kwp) > 0 ? kwpTxt(p.kwp) + ' kWp · ' : ''}${esc(statusTxt(p.status))} ${tag(p)}</div></div>
-        <div class="act"><div class="rd-in money"><span>R$</span><input inputmode="decimal" aria-label="Valor do projeto" value="${p.taxa.tipo === 'combinar' || p.taxa.tipo === 'sem_kwp' ? '' : pctIn(p.taxa.v)}" placeholder="informar" ${p.isento ? 'disabled' : ''} onchange="redeProjetoValor('${p.id}',this.value)"></div>
-        <button class="rd-btn sm ${p.isento ? '' : 'ghost'}" onclick="redeProjetoIsento('${p.id}',${!p.isento})">${p.isento ? 'Cobrar' : 'Isentar'}</button></div>
-      </div>`).join('')}<div class="rd-tip">${ic('info')}O valor vem da faixa de kWp. Mudar o valor ou isentar vale só para aquele projeto; apagar o valor volta para a faixa.</div></div>`;
+        ${FQ() ? `<div class="act"><b>${p.isento ? 'isento' : p.taxa.tipo === 'combinar' || p.taxa.tipo === 'sem_kwp' ? 'a definir' : brlC(num(p.taxa.v))}</b></div>`
+          : `<div class="act"><div class="rd-in money"><span>R$</span><input inputmode="decimal" aria-label="Valor do projeto" value="${p.taxa.tipo === 'combinar' || p.taxa.tipo === 'sem_kwp' ? '' : pctIn(p.taxa.v)}" placeholder="informar" ${p.isento ? 'disabled' : ''} onchange="redeProjetoValor('${p.id}',this.value)"></div>
+        <button class="rd-btn sm ${p.isento ? '' : 'ghost'}" onclick="redeProjetoIsento('${p.id}',${!p.isento})">${p.isento ? 'Cobrar' : 'Isentar'}</button></div>`}
+      </div>`).join('')}<div class="rd-tip">${ic('info')}${FQ() ? 'O valor vem da faixa de kWp combinada com a Rede. Projeto "a definir" a Rede informa o valor.' : 'O valor vem da faixa de kWp. Mudar o valor ou isentar vale só para aquele projeto; apagar o valor volta para a faixa.'}</div></div>`;
   }
 
   function uResultado(f, c) {
@@ -765,8 +827,8 @@
     if (state.redeActiveTab !== 'unidades') { setTab('unidades'); return; }
     pintar(); window.scrollTo(0, 0);
   }
-  function redeVoltarUnidades() { R.unit = null; pintar(); window.scrollTo(0, 0); }
-  function redeUnidadeAba(aba) { R.utab = aba; pintar(); }
+  function redeVoltarUnidades() { if (FQ()) return; R.unit = null; pintar(); window.scrollTo(0, 0); }
+  function redeUnidadeAba(aba) { if (FQ() && !UT_FRANQUEADO.includes(aba)) return; R.utab = aba; pintar(); }
 
   // ------------------------------------------------------------ ações: unidade
   function unidadeForm(f) {

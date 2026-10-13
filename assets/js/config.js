@@ -180,6 +180,7 @@ let state = {
 
   // Permissoes
   isAdmin: false,
+  isFranqueado: false,      // gestor com acesso extra na própria unidade (franqRefreshAccess)
   isGestor: false,
   isTecnico: false,
 
@@ -378,4 +379,8 @@ const REDE_TABS = [
   { id: 'dre',          label: 'RESULTADO (DRE)',          icon: 'sheet' },
   { id: 'franqueadora', label: 'RECEITAS DA FRANQUEADORA', icon: 'landmark' },
   { id: 'padroes',      label: 'PADRÕES DA REDE',          icon: 'sliders-horizontal' }
+];
+// Franqueado entra no mesmo ambiente, mas só vê a própria unidade.
+const REDE_TABS_FRANQUEADO = [
+  { id: 'unidades',     label: 'MINHA UNIDADE',            icon: 'store' }
 ];

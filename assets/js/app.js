@@ -469,6 +469,7 @@ function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
   if (state.environment === 'rede' && state.isAdmin) return REDE_TABS;
+  if (state.environment === 'rede' && state.isFranqueado) return REDE_TABS_FRANQUEADO;
   if (state.environment === 'engenharia' && state.canEng) return ENG_TABS;
   if (state.environment === 'vistoria' && state.canVis) return VISTORIA_TABS;
   if (state.environment === 'financeiro' && state.canFin) return FIN_TABS;
@@ -489,6 +490,7 @@ function getActiveTabsForEnvironment() {
 // Nome do perfil do usuário logado (cabeçalho, launcher e menu do visual novo).
 function papelUsuarioLabel() {
   if (state.isAdmin) return 'Administrador';
+  if (state.isFranqueado) return 'Franqueado';
   if (state.isGestor) return 'Gestor';
   if (state.isTecnico) return 'Técnico';
   if (state.isCoordenador) return 'Coordenador técnico';
@@ -571,6 +573,24 @@ async function engRefreshAccess() {
       })
       .catch((e) => console.warn('[eng] projetos', e));
   }
+}
+
+// Franqueado = gestor com acesso extra na própria unidade (DRE, aplicar preço).
+// A marca vive em user_accounts.franqueado; o banco confere em is_franqueado().
+async function franqRefreshAccess() {
+  state.isFranqueado = false;
+  if (!state.isGestor) return;
+  try {
+    const { data, error } = await supabaseClient.rpc('is_franqueado');
+    state.isFranqueado = !error && data === true;
+  } catch (_) {
+    state.isFranqueado = false;
+  }
+}
+
+// Ambiente Rede: admin vê a rede inteira; franqueado vê só a unidade dele.
+function podeRede() {
+  return Boolean(state.isAdmin || state.isFranqueado);
 }
 
 function renderEnvSwitcher() {
@@ -836,7 +856,7 @@ function closeOmMoreMenuOnOutside(ev) {
 function setEnvironment(env) {
   if (state.isTecnico) return; // técnico não troca de ambiente
   if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede') return;
-  if (env === 'rede' && !state.isAdmin) return; // Rede é só admin
+  if (env === 'rede' && !podeRede()) return; // Rede: admin ou franqueado
   if (env === 'om' && !state.canOM) return; // sem acesso ao O&M
   if (env === 'financeiro' && !state.canFin) return; // sem acesso ao Financeiro
   if (env === 'vistoria' && !state.canVis) return; // sem acesso à Vistoria
@@ -950,7 +970,7 @@ function launcherGuardarUltimoEnv(env) {
 // ambiente já é o atual — caso do Comercial, que é o default).
 function enterEnvironment(env) {
   if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede') return;
-  if (env === 'rede' && !state.isAdmin) return;
+  if (env === 'rede' && !podeRede()) return;
   if (env === 'om' && !state.canOM) return;
   if (env === 'financeiro' && !state.canFin) return;
   if (env === 'vistoria' && !state.canVis) return;
@@ -968,7 +988,7 @@ function enterEnvironment(env) {
   if (env === 'financeiro') state.finActiveTab = 'visao';
   if (env === 'vistoria') state.vistoriaActiveTab = 'visao';
   if (env === 'engenharia') state.engActiveTab = 'visao';
-  if (env === 'rede') state.redeActiveTab = 'visao';
+  if (env === 'rede') state.redeActiveTab = state.isAdmin ? 'visao' : 'unidades';
   renderTabs();
   renderContent();
   appRouteSync(false);
@@ -1114,7 +1134,8 @@ function appRouteParse(rawHash) {
   if (env === 'financeiro' && !state.canFin) return null;
   if (env === 'vistoria' && !state.canVis) return null;
   if (env === 'engenharia' && !state.canEng) return null;
-  if (env === 'rede' && !state.isAdmin) return null;
+  if (env === 'rede' && !podeRede()) return null;
+  if (env === 'rede' && !state.isAdmin && !REDE_TABS_FRANQUEADO.some((t) => t.id === tab)) return null;
   if (!tabsByEnv[env].includes(tab)) return null;
   if (env === 'comercial' && TABS_GESTAO.includes(tab) && !(state.isAdmin || state.isGestor)) return null;
 

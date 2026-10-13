@@ -692,6 +692,9 @@ function _roleBadge(role) {
   if (normalized === 'admin') {
     return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-purple-300 border-purple-700 bg-purple-900/30">ADMIN</span>';
   }
+  if (normalized === 'franqueado') {
+    return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-amber-300 border-amber-700 bg-amber-900/30">FRANQUEADO</span>';
+  }
   if (normalized === 'gestor') {
     return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-blue-300 border-blue-700 bg-blue-900/30">GESTOR</span>';
   }
@@ -707,9 +710,20 @@ function _roleBadge(role) {
 async function fetchAdminUsuarios() {
   if (!_requireAdmin()) return [];
 
-  const { data, error } = await supabaseClient.rpc('admin_list_users_chat');
+  const [{ data, error }, fq] = await Promise.all([
+    supabaseClient.rpc('admin_list_users_chat'),
+    supabaseClient.from('user_accounts').select('user_id').eq('franqueado', true),
+  ]);
   if (error) throw error;
-  return data || [];
+  // franqueado = gestor com a marca user_accounts.franqueado
+  const franqueados = new Set(fq.error ? [] : (fq.data || []).map(r => r.user_id));
+  return (data || []).map(u => ({ ...u, franqueado: franqueados.has(u.user_id) }));
+}
+
+// Perfil exibido no Admin: o franqueado é gravado como gestor + marca.
+function _papelAdmin(u) {
+  const role = _normalizeAdminRole(u && u.role);
+  return role === 'gestor' && u.franqueado ? 'franqueado' : role;
 }
 
 // Lista carregada por último: a busca filtra em memória em vez de ir ao
@@ -786,7 +800,7 @@ async function renderAdminUsuarios(container, { useCache = false } = {}) {
 
   const filteredItems = items.filter(item => {
     const isAtivo = item.ativo !== false;
-    const role = (item.role || 'vendedor').toLowerCase();
+    const role = _papelAdmin(item);
     const franquiaId = item.franquia_id || '__none__';
 
     if (statusFilter === 'ativos' && !isAtivo) return false;
@@ -815,7 +829,7 @@ async function renderAdminUsuarios(container, { useCache = false } = {}) {
         <div class="flex-1 min-w-0">
           <div class="flex flex-wrap items-center gap-2">
             <p class="text-white font-bold text-sm truncate">${escapeHTML(item.nome || item.email || '—')}</p>
-            ${_roleBadge(item.role)}
+            ${_roleBadge(_papelAdmin(item))}
             ${_statusBadge(item.ativo !== false)}
             ${_chatAccessBadge(item.chat_enabled === true)}
           </div>
@@ -881,6 +895,7 @@ async function renderAdminUsuarios(container, { useCache = false } = {}) {
         <option value="all" ${roleFilter === 'all' ? 'selected' : ''}>TODOS PERFIS</option>
         <option value="admin" ${roleFilter === 'admin' ? 'selected' : ''}>ADMIN</option>
         <option value="gestor" ${roleFilter === 'gestor' ? 'selected' : ''}>GESTOR</option>
+        <option value="franqueado" ${roleFilter === 'franqueado' ? 'selected' : ''}>FRANQUEADO</option>
         <option value="vendedor" ${roleFilter === 'vendedor' ? 'selected' : ''}>VENDEDOR</option>
         <option value="tecnico" ${roleFilter === 'tecnico' ? 'selected' : ''}>TÉCNICO</option>
         <option value="engenheiro" ${roleFilter === 'engenheiro' ? 'selected' : ''}>ENGENHEIRO</option>
@@ -965,7 +980,7 @@ async function openAdminUsuarioForm(userId) {
     }
   }
 
-  const defaultRole = _normalizeAdminRole(current?.role || 'vendedor');
+  const defaultRole = current ? _papelAdmin(current) : 'vendedor';
   const defaultFranquia = current?.franquia_id || state.franquiaId || franquias[0]?.id || '';
   const defaultChatEnabled = current?.chat_enabled === true;
   const defaultOmEnabled = current?.om_enabled === true;
@@ -985,6 +1000,7 @@ async function openAdminUsuarioForm(userId) {
         <select id="au-role" class="${_selectCls}">
           <option value="vendedor" ${defaultRole === 'vendedor' ? 'selected' : ''}>VENDEDOR</option>
           <option value="gestor" ${defaultRole === 'gestor' ? 'selected' : ''}>GESTOR</option>
+          <option value="franqueado" ${defaultRole === 'franqueado' ? 'selected' : ''}>FRANQUEADO (gestor + DRE e preço)</option>
           <option value="admin" ${defaultRole === 'admin' ? 'selected' : ''}>ADMIN</option>
           <option value="tecnico" ${defaultRole === 'tecnico' ? 'selected' : ''}>TÉCNICO</option>
           <option value="engenheiro" ${defaultRole === 'engenheiro' ? 'selected' : ''}>ENGENHEIRO (Matriz)</option>
@@ -1026,7 +1042,11 @@ async function openAdminUsuarioForm(userId) {
     </div>`;
 
   openAdminModal(userId ? 'EDITAR USUARIO' : 'NOVO USUARIO', fieldsHTML, async () => {
-    const roleValue = document.getElementById('au-role').value;
+    const papel = document.getElementById('au-role').value;
+    const roleValue = papel === 'franqueado' ? 'gestor' : papel;
+    // só mexe na marca quando há franqueado no caminho (agora ou antes)
+    const mexeFranqueado = papel === 'franqueado' || current?.franqueado === true;
+    const setFranqueado = (uid) => supabaseClient.rpc('admin_set_user_franqueado', { p_user_id: uid, p_franqueado: papel === 'franqueado' });
     const chatEnabled = document.getElementById('au-chat-enabled').checked;
     const omEnabled = document.getElementById('au-om-enabled').checked;
     const finEnabled = document.getElementById('au-fin-enabled').checked;
@@ -1047,6 +1067,11 @@ async function openAdminUsuarioForm(userId) {
         ...payload,
       });
       if (error) { showToast('ERRO: ' + error.message); return; }
+
+      if (mexeFranqueado) {
+        const { error: fqError } = await setFranqueado(userId);
+        if (fqError) { showToast('ERRO FRANQUEADO: ' + fqError.message); return; }
+      }
 
       const { error: chatError } = await supabaseClient.rpc('admin_set_user_chat_access', {
         p_user_id: userId,
@@ -1099,6 +1124,14 @@ async function openAdminUsuarioForm(userId) {
         closeAdminModal();
         showToast('USUARIO CRIADO, MAS PERFIL NAO FOI SINCRONIZADO: ' + syncError.message);
         return;
+      }
+      if (mexeFranqueado) {
+        const { error: fqError } = await setFranqueado(newUserId);
+        if (fqError) {
+          closeAdminModal();
+          showToast('USUARIO CRIADO COMO GESTOR, MAS A MARCA DE FRANQUEADO FALHOU: ' + fqError.message);
+          return;
+        }
       }
 
       const { error: chatError } = await supabaseClient.rpc('admin_set_user_chat_access', {

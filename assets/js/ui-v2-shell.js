@@ -37,7 +37,8 @@
     financeiro: { n: 'Financeiro', i: 'wallet', d: 'Recebíveis, pagamentos e margem', cta: null },
     vistoria: { n: 'Vistoria', i: 'clipboard-check', d: 'Agenda, checklists e laudos', cta: ['Nova vistoria', 'visNovaVistoria'] },
     engenharia: { n: 'Engenharia', i: 'ruler', d: 'Projetos, OS e catálogo técnico', cta: null },
-    rede: { n: 'Rede', i: 'network', d: 'Unidades, CNPJs, impostos e resultado', cta: null },
+    // franqueado entra no mesmo ambiente, só com a unidade dele
+    rede: { get n() { return state.isAdmin ? 'Rede' : 'Minha unidade'; }, i: 'network', get d() { return state.isAdmin ? 'Unidades, CNPJs, impostos e resultado' : 'Resultado, custos e taxas da sua unidade'; }, cta: null },
   };
   function envAllowed(k) {
     if (state.isTecnico) return k === 'om';
@@ -46,7 +47,7 @@
     if (k === 'financeiro') return !!state.canFin;
     if (k === 'vistoria') return !!state.canVis;
     if (k === 'engenharia') return !!state.canEng;
-    if (k === 'rede') return !!state.isAdmin;
+    if (k === 'rede') return !!(state.isAdmin || state.isFranqueado);
     return false;
   }
   const envKey = () => (ENVS[state.environment] ? state.environment : 'comercial');

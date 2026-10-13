@@ -72,6 +72,8 @@
   const pctFmt = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
   const lsKey = (id) => 'orc_dre_' + id;
   const podeContrato = () => !!(state && state.isAdmin);
+  // Aplicar preço na proposta: admin ou franqueado da unidade (o banco confere a unidade).
+  const podeAplicar = () => !!(state && (state.isAdmin || state.isFranqueado));
   const linha = CentroCustoCalc.linha;
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
@@ -319,7 +321,7 @@
 
   // Celular: tela cheia com resumo fixo no topo, cartões rolando e barra de
   // ações embaixo. Mesmos data-orc-* e ids do desktop (wireEvents e recalc servem aos dois).
-  function htmlMobile(p, titulo, cliente, isAdmin, unidade) {
+  function htmlMobile(p, titulo, cliente, aplica, unidade) {
     const campo = (id, rot, attr, v, pre) => `
       <label class="orc-m-l" for="${id}">${rot}</label>
       <div class="orc-m-campo">${pre ? `<span>${pre}</span>` : ''}<input id="${id}" type="text" inputmode="decimal" autocomplete="off" ${attr} value="${fmtIn(v)}"></div>`;
@@ -379,7 +381,7 @@
           <div class="orc-m-rr fin"><span>Lucro líquido</span><b id="orc-tot-lucroliq" class="num">—</b></div>
         </section>
 
-        <p class="orc-m-nota">Só admin e o gestor da unidade veem. Ajustes valem só para esta proposta.${isAdmin ? '' : ' Para mudar o preço da proposta, fale com o admin.'}${cur.centroFallback ? ' <span class="orc-aviso">Centro de custo indisponível agora; usando os percentuais padrão do Financeiro.</span>' : ''}</p>
+        <p class="orc-m-nota">Só admin e o gestor da unidade veem. Ajustes valem só para esta proposta.${aplica ? '' : ' Para mudar o preço da proposta, fale com o admin.'}${cur.centroFallback ? ' <span class="orc-aviso">Centro de custo indisponível agora; usando os percentuais padrão do Financeiro.</span>' : ''}</p>
       </div>
 
       <div class="orc-m-bar">
@@ -415,7 +417,7 @@
     cur._mob = window.matchMedia('(max-width: 767px)').matches;
     if (cur._mob) {
       el.className = 'fixed inset-0 z-[130] orc-mob';
-      el.innerHTML = htmlMobile(p, titulo, cliente, isAdmin, unidade);
+      el.innerHTML = htmlMobile(p, titulo, cliente, podeAplicar(), unidade);
       document.body.appendChild(el);
       wireEvents(el);
       renderExtras();
@@ -535,12 +537,12 @@
 
             <!-- Ações -->
             <div class="order-4 lg:order-none flex flex-wrap lg:flex-col lg:items-stretch items-center gap-2">
-              <button type="button" data-orc-act="aplicar" id="orc-aplicar" style="${isAdmin ? '' : 'display:none'}" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="badge-dollar-sign" class="w-4 h-4"></i><span id="orc-aplicar-tx">Aplicar na proposta</span></button>
+              <button type="button" data-orc-act="aplicar" id="orc-aplicar" style="${podeAplicar() ? '' : 'display:none'}" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="badge-dollar-sign" class="w-4 h-4"></i><span id="orc-aplicar-tx">Aplicar na proposta</span></button>
               <button type="button" data-orc-act="save" class="orc-btn pri px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="save" class="w-4 h-4"></i>Salvar</button>
               <button type="button" data-orc-act="reset" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-red-500/60 text-neutral-300 text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i>Apagar e recomeçar</button>
               <button type="button" data-orc-act="close" class="orc-btn px-4 py-2.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 text-[11px] font-black uppercase tracking-widest ml-auto lg:ml-0">Fechar</button>
             </div>
-            <p class="orc-nota order-5 lg:order-none lg:mt-auto text-[10px] text-neutral-600 font-bold leading-relaxed">Visível só para admin e para o gestor da unidade. Os custos partem do centro de custo da unidade (Financeiro → Config); royalties e fundo vêm do contrato. Ajustes aqui valem só para esta proposta — linha com "ajustado" saiu do padrão.${isAdmin ? '' : ' Para mudar o preço da proposta, fale com o admin.'}${cur.centroFallback ? ' <span class="orc-aviso text-yellow-500">Centro de custo indisponível agora; usando os percentuais padrão do Financeiro.</span>' : ''}</p>
+            <p class="orc-nota order-5 lg:order-none lg:mt-auto text-[10px] text-neutral-600 font-bold leading-relaxed">Visível só para admin e para o gestor da unidade. Os custos partem do centro de custo da unidade (Financeiro → Config); royalties e fundo vêm do contrato. Ajustes aqui valem só para esta proposta — linha com "ajustado" saiu do padrão.${podeAplicar() ? '' : ' Para mudar o preço da proposta, fale com o admin.'}${cur.centroFallback ? ' <span class="orc-aviso text-yellow-500">Centro de custo indisponível agora; usando os percentuais padrão do Financeiro.</span>' : ''}</p>
           </div>
         </div>
       </div>`;
@@ -613,7 +615,7 @@
 
     // "Aplicar" só aparece quando a venda da calculadora difere do preço da proposta
     const aplicar = document.getElementById('orc-aplicar');
-    if (aplicar && cur._proposta && state && state.isAdmin) {
+    if (aplicar && cur._proposta && podeAplicar()) {
       const igual = r2(cur.receita) === r2(precoProposta(cur._proposta)) || !(r2(cur.receita) > 0);
       aplicar.style.display = igual ? 'none' : '';
       set('orc-aplicar-tx', cur._mob ? `Aplicar ${money(r2(cur.receita))}` : `Aplicar ${money(r2(cur.receita))} na proposta`);
