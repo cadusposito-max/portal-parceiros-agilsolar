@@ -2050,8 +2050,8 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     }
     const ps = projetosDoCliente(client.id);
     const vendas = (typeof _crm360ClientRows === 'function' ? _crm360ClientRows().vendas : []) || [];
-    const enviadas = new Set(ps.map((p) => p.venda_id));
-    const livres = vendas.filter((v) => !enviadas.has(v.id));
+    // 1 card = 1 projeto: com projeto no card não há envio novo (trocar a venda atualiza o projeto no banco)
+    const livres = ps.length ? [] : vendas;
     const pode = podeEnviar();
     return `<div class="rd eg">
       ${ps.map((p) => `<div class="rd-card rd-mb eg-fproj" onclick="EV.abrir('${p.id}')"><div class="rd-ch"><div><b>${pnum(p)} · ${esc(kitCurto(p))}</b><div class="rd-muted">Enviado em ${dataBR(p.created_at)} por ${esc(p.enviado_por_nome || '—')} · ${dias(p.status_desde)} dia(s) neste status</div></div><div style="display:flex;gap:6px;flex-wrap:wrap">${stPill(p)}${compPill(p)}</div></div>
