@@ -128,7 +128,7 @@ function pbLinhaEscolher(linha) {
   state.pbLinha = linha;
   // Filtros de marca/distribuidora só existem no catálogo: trocar de linha começa do zero.
   pbFornecimentoReset();
-  if (typeof _pbd !== 'undefined' && _pbd) _pbd.verMais = false;
+  if (typeof _pbListaTodos !== 'undefined') _pbListaTodos = false;
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbFornecimentoSync();
 }

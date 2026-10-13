@@ -21,6 +21,9 @@ const TOUR_META = 'tour_orcamento_visto_em';
 const _tourVis = (sel) => [...document.querySelectorAll(sel)].find((el) => el.getClientRects().length) || null;
 const _tourBloco = (sel) => document.querySelector(sel)?.closest('.space-y-1') || null;
 const _tourDropCidade = () => _tourVis('#client-form .cidade-autocomplete-dropdown');
+// Gerar: no computador fica na coluna da direita; no celular, no rodapé.
+const _tourGerar = () => _tourVis('#orcamento-lado-gerar') || _tourVis('#orcamento-gerar');
+const _tourGerarCaixa = () => (_tourVis('#orcamento-lado-gerar') ? _tourVis('#orcamento-lado') : _tourVis('.orcamento-footer'));
 const _tourModalProposta = () => {
   const ov = document.getElementById('client-modal-overlay');
   return Boolean(ov && !ov.classList.contains('hidden') && ov.dataset.proposalFlow === 'true');
@@ -86,7 +89,7 @@ const TOUR_PASSOS = [
   {
     id: 'porta', alvo: () => _tourVis('#orcamento-builder-slot #pb-porta'), senaoVolta: 'nova',
     titulo: () => 'Formas de montar o orçamento',
-    texto: () => '<b>Escolher kit</b>: quando você já sabe qual kit oferecer.<br><b>Dimensionar sistema</b>: quando você tem a conta de luz e deseja que a plataforma recomende o kit.<br><br>Selecione <b>Dimensionar sistema</b>.',
+    texto: () => '<b>Lista de kits</b>: quando você já sabe qual kit oferecer.<br><b>Pelo consumo</b>: quando você tem a conta de luz e deseja que a plataforma recomende o kit.<br><br>Selecione <b>Pelo consumo</b>.',
     esperar: () => state.pbPorta === 'dim',
   },
   {
@@ -103,7 +106,7 @@ const TOUR_PASSOS = [
     alvo: () => _tourVis('#pbd-box-media'),
     titulo: () => 'Média de consumo',
     texto: () => 'Informe a média mensal de consumo do cliente, em kWh, e selecione <b>Próximo</b>.<br><br>Quando quiser mais precisão, utilize o preenchimento mês a mês.',
-    validar: () => (_tourVis('#pbd-resultado .pbd-kit') ? '' : 'Informe a média de consumo para continuar.'),
+    validar: () => (_tourVis('#orcamento-lado .orc-kit') || _tourVis('#pbd-resultado .pbd-kit') ? '' : 'Informe a média de consumo para continuar.'),
   },
   {
     id: 'ligacao', alvo: () => _tourVis('[data-pbd-ligacao]')?.parentElement, senaoVolta: 'porta',
@@ -116,13 +119,12 @@ const TOUR_PASSOS = [
     texto: () => 'Selecione o tipo de sistema. A recomendação de kits é atualizada automaticamente.',
   },
   {
-    id: 'kit', alvo: () => _tourVis('#pbd-resultado .pbd-kit'), senaoVolta: 'porta',
+    id: 'kit', alvo: () => _tourVis('#orcamento-lado .orc-kit') || _tourVis('#orcamento-lado'), senaoVolta: 'porta',
     titulo: () => 'Kit recomendado',
-    texto: () => 'Este é o kit <b>de menor preço que atende à média de consumo</b> do cliente. Logo abaixo, são exibidas outras opções semelhantes.<br><br>Selecione o kit para continuar.',
-    esperar: () => Boolean(document.querySelector('#orcamento-builder-slot .orcamento-kit-selecionado')),
+    texto: () => 'Este é o kit <b>de menor preço que atende à média de consumo</b> do cliente.<br><br>Em <b>Ajustar</b>, você troca por um kit com um módulo a menos ou a mais. Em <b>Ver todos os kits</b>, escolhe outro na lista.',
   },
   {
-    id: 'gerar', alvo: () => _tourVis('.orcamento-footer'), anel: () => _tourVis('#orcamento-gerar'), senaoVolta: 'porta',
+    id: 'gerar', alvo: () => _tourGerarCaixa(), anel: () => _tourGerar(), senaoVolta: 'porta',
     titulo: () => 'Revisar e gerar',
     texto: () => 'Confira o kit selecionado e o valor. Se estiver tudo correto, selecione <b>Gerar proposta</b>.',
     esperar: () => Boolean(document.getElementById('pb-share-overlay')),

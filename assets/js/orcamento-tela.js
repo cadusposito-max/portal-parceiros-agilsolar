@@ -3,6 +3,12 @@
 // ==========================================
 // Reaproveita o construtor existente, movendo seu painel (e seus listeners).
 // Cadastro/busca continuam no popup; a ficha fica como atalho de consulta.
+//
+// Layout: topo com o cliente e o seletor único (Promocionais · Catálogo
+// completo · Personalizada); à esquerda o construtor (consumo ou lista de
+// kits); à direita uma coluna de tamanho fixo com o kit da vez, o Gerar e o
+// ajuste de um módulo a menos/a mais. No celular a coluna desce e o Gerar fica
+// no rodapé. A Personalizada usa a tela inteira e o rodapé, como antes.
 let _orcamentoClientId = null;
 let _orcamentoKitId = null;
 let _orcamentoOrigemFicha = null;
@@ -96,6 +102,33 @@ function orcamentoVerFicha() {
   openCrm360(id, 'propostas');
 }
 
+// Seletor do topo: as duas linhas de kits + a Personalizada (admin e gestor).
+function _orcamentoLinhasHTML() {
+  const opcoes = [
+    ['promocional', 'tag', 'Promocionais'],
+    ['catalogo', 'layout-grid', 'Catálogo completo'],
+    ...(canUsePersonalizada() ? [['personalizada', 'lock', 'Personalizada']] : []),
+  ];
+  return `<div id="orcamento-linha" class="orcamento-linha" role="group" aria-label="Tipo de orçamento">${opcoes.map(([v, ic, t]) =>
+    `<button type="button" data-orc-linha="${v}" onclick="orcamentoEscolherLinha('${v}')"><i data-lucide="${ic}"></i><span>${t}</span></button>`).join('')}</div>`;
+}
+
+function _orcamentoLinhaAtual() {
+  if (state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA) return 'personalizada';
+  return typeof pbLinhaAtual === 'function' ? pbLinhaAtual() : 'promocional';
+}
+
+function orcamentoEscolherLinha(v) {
+  if (_orcamentoGerando || v === _orcamentoLinhaAtual()) return;
+  if (v === 'personalizada') {
+    setPBProposalMode(PB_PROPOSAL_MODES.PERSONALIZADA);
+    return;
+  }
+  if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL) setPBProposalMode(PB_PROPOSAL_MODES.PROMOCIONAL);
+  if (typeof pbLinhaEscolher === 'function') pbLinhaEscolher(v);
+  orcamentoAtualizarResumo();
+}
+
 function renderOrcamento() {
   const client = (state.clientes || []).find((c) => c.id === _orcamentoClientId);
   if (!client || !canOperateClientProposalFlow(client)) { closeOrcamento(); return; }
@@ -114,8 +147,12 @@ function renderOrcamento() {
       <header class="orcamento-header">
         <button type="button" class="btn btn-secondary" onclick="orcamentoVoltar()"><i data-lucide="arrow-left"></i> Voltar</button>
         <div class="orcamento-cliente"><h1>Orçamento · ${escapeHTML(client.nome || '')}</h1><p>${info}</p></div>
+        ${_orcamentoLinhasHTML()}
       </header>
-      <div id="orcamento-builder-slot"></div>
+      <div class="orcamento-corpo">
+        <div id="orcamento-builder-slot"></div>
+        <aside id="orcamento-lado" class="orcamento-lado" aria-label="Kit do orçamento" aria-live="polite"></aside>
+      </div>
       <footer class="orcamento-footer">
         <div class="orcamento-resumo" aria-live="polite"><small id="orcamento-selecao-label">Selecionado</small><strong id="orcamento-selecao">Escolha um kit para continuar</strong></div>
         <button type="button" id="orcamento-gerar" class="btn btn-primary" onclick="orcamentoGerar(event)" disabled><i data-lucide="file-text"></i> Gerar proposta</button>
@@ -125,19 +162,20 @@ function renderOrcamento() {
   const slot = document.getElementById('orcamento-builder-slot');
   if (panel && slot) slot.appendChild(panel);
 
-  const bar = document.getElementById('pb-mode-bar');
-  if (bar && !document.getElementById('orcamento-modo')) {
-    const label = document.createElement('label');
-    label.className = 'orcamento-modo';
-    label.innerHTML = `<select id="orcamento-modo" class="v2-select" aria-label="Tipo de proposta" data-titulo="Tipo de proposta" onchange="setPBProposalMode(this.value)"><option value="PROMOCIONAL">Promocional</option>${canUsePersonalizada() ? '<option value="PERSONALIZADA">Personalizada</option>' : ''}</select>`;
-    bar.appendChild(label);
-  }
   if (panel && !panel.dataset.orcamentoBound) {
     panel.dataset.orcamentoBound = '1';
     panel.addEventListener('click', (e) => {
       if (!orcamentoAberto() || e.target.closest('button, input, select, a')) return;
       const card = e.target.closest('[data-orcamento-kit]');
       if (card) orcamentoSelecionarKit(card.dataset.orcamentoKit);
+    });
+    // Linhas da lista são role="button": Enter/espaço escolhem o kit.
+    panel.addEventListener('keydown', (e) => {
+      if (!orcamentoAberto() || (e.key !== 'Enter' && e.key !== ' ')) return;
+      const card = e.target.closest('[data-orcamento-kit][role="button"]');
+      if (!card || card !== e.target) return;
+      e.preventDefault();
+      orcamentoSelecionarKit(card.dataset.orcamentoKit);
     });
   }
   pbEmbedSetup(client);
@@ -162,22 +200,39 @@ function _orcamentoAcharKit(id) {
   return kit && (typeof pbKitCompativel !== 'function' || pbKitCompativel(kit)) ? kit : null;
 }
 
+function _orcamentoResumoDim() {
+  return typeof pbDimResumo === 'function' ? pbDimResumo() : null;
+}
+
+// Kit da vez: o que o vendedor escolheu ou, sem escolha, o recomendado pelo consumo.
+function _orcamentoKitAtual(r = _orcamentoResumoDim()) {
+  return _orcamentoAcharKit(_orcamentoKitId) || (r?.recomendado ? _orcamentoAcharKit(r.recomendado.id) : null);
+}
+
 function orcamentoLimparKit() {
   _orcamentoKitId = null;
   orcamentoAtualizarResumo();
 }
 
+function orcamentoVerLista() {
+  if (typeof pbSetPorta === 'function') pbSetPorta('kit');
+  document.getElementById('orcamento-builder-slot')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function orcamentoAtualizarResumo() {
   if (!orcamentoAberto()) return;
   const personalizada = state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA;
-  const mode = document.getElementById('orcamento-modo');
-  if (mode) {
-    mode.value = state.pbProposalMode;
-    const custom = mode.querySelector('option[value="PERSONALIZADA"]');
-    if (custom) custom.disabled = !canUsePersonalizada();
-    if (window.uiV2Select) window.uiV2Select.scan(mode.parentElement);
-  }
-  const kit = _orcamentoAcharKit(_orcamentoKitId);
+  const linha = _orcamentoLinhaAtual();
+  document.querySelectorAll('#orcamento-linha [data-orc-linha]').forEach((b) => {
+    const on = b.dataset.orcLinha === linha;
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-pressed', String(on));
+    b.disabled = _orcamentoGerando && !on;
+  });
+  document.querySelector('.orcamento-tela')?.classList.toggle('is-personalizada', personalizada);
+
+  const r = personalizada ? null : _orcamentoResumoDim();
+  const kit = personalizada ? null : _orcamentoKitAtual(r);
   let texto = 'Escolha um kit para continuar';
   let valido = Boolean(kit);
   if (personalizada) {
@@ -193,12 +248,15 @@ function orcamentoAtualizarResumo() {
   const label = document.getElementById('orcamento-selecao-label');
   const resumo = document.getElementById('orcamento-selecao');
   const btn = document.getElementById('orcamento-gerar');
-  if (label) label.textContent = personalizada ? 'Personalizada' : 'Selecionado';
+  if (label) label.textContent = personalizada ? 'Personalizada' : (kit && r?.recomendado && String(r.recomendado.id) === String(kit.id) && !_orcamentoKitId ? 'Recomendado' : 'Selecionado');
   if (resumo) resumo.textContent = texto;
   if (btn) btn.disabled = !valido || _orcamentoGerando;
+
+  const atualId = kit ? String(kit.id) : null;
   document.querySelectorAll('#orcamento-builder-slot [data-orcamento-kit]').forEach((card) => {
-    const on = !personalizada && card.dataset.orcamentoKit === _orcamentoKitId;
+    const on = !personalizada && card.dataset.orcamentoKit === atualId;
     card.classList.toggle('orcamento-kit-selecionado', on);
+    if (card.getAttribute('role') === 'button') card.setAttribute('aria-pressed', String(on));
     const b = card.querySelector('button[data-kit-id]');
     if (b) {
       b.setAttribute('aria-pressed', String(on));
@@ -206,28 +264,133 @@ function orcamentoAtualizarResumo() {
       b.lastChild.textContent = on ? ' Selecionado' : ' Selecionar kit';
     }
   });
+
+  const lado = document.getElementById('orcamento-lado');
+  if (lado) {
+    lado.innerHTML = personalizada ? '' : _orcamentoLadoHTML(r, kit);
+    if (window.lucide) window.lucide.createIcons();
+  }
+}
+
+// ---------- coluna da direita ----------
+
+const _orcInt = (v) => Math.round(Number(v) || 0).toLocaleString('pt-BR');
+const _orcKwp = (v) => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function _orcamentoGeracao(kit) {
+  if (typeof pbDimGeracao === 'function') return pbDimGeracao(kit);
+  return calcularGeracaoEstimada(Number(kit.power) || 0, kit.categoria, Number(state.pbActiveClient?.hsp) || undefined) || 0;
+}
+
+// Kits vizinhos do mesmo conjunto (mesma marca e mesmo módulo): um a menos e
+// um a mais na potência. Na porta "Pelo consumo" respeita a ligação escolhida.
+function _orcamentoVizinhos(kit) {
+  if (!kit || String(kit.id).startsWith('cot:')) return { menor: null, maior: null };
+  const porConsumo = state.pbPorta === 'dim' && typeof _pbdServeLigacao === 'function' && typeof _pbd !== 'undefined' && _pbd;
+  const mesmos = (state.data || []).filter((k) => k.categoria === kit.categoria && k.ativo !== false && Number(k.price) > 0
+    && String(k.brand || '') === String(kit.brand || '')
+    && (!kit.modulo_id || String(k.modulo_id || '') === String(kit.modulo_id))
+    && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k))
+    && (!porConsumo || _pbdServeLigacao(k)));
+  const p = Number(kit.power) || 0;
+  const porPreco = (a, b) => Number(a.price) - Number(b.price);
+  const menor = mesmos.filter((k) => Number(k.power) < p).sort((a, b) => (Number(b.power) - Number(a.power)) || porPreco(a, b))[0] || null;
+  const maior = mesmos.filter((k) => Number(k.power) > p).sort((a, b) => (Number(a.power) - Number(b.power)) || porPreco(a, b))[0] || null;
+  return { menor, maior };
+}
+
+function _orcamentoAjusteHTML(kit, r) {
+  const { menor, maior } = _orcamentoVizinhos(kit);
+  if (!menor && !maior) return '';
+  const qtd = (k) => Number(k?.modulo_qtd) || 0;
+  const botao = (k, sinal) => {
+    if (!k) return `<button type="button" class="orc-aj-btn" disabled><b>${sinal === '-' ? 'Menor' : 'Maior'}</b><span>não tem</span></button>`;
+    const dif = Math.abs(qtd(k) - qtd(kit));
+    const titulo = qtd(k) && qtd(kit) && dif
+      ? `${sinal === '-' ? '−' : '+'} ${dif} ${dif === 1 ? 'módulo' : 'módulos'}`
+      : `${sinal === '-' ? 'Menor' : 'Maior'} · ${_orcKwp(k.power)} kWp`;
+    const pct = typeof pbDimCobertura === 'function' ? pbDimCobertura(k, r) : null;
+    return `<button type="button" class="orc-aj-btn" data-kit="${escapeHTML(String(k.id))}" onclick="orcamentoSelecionarKit(this.dataset.kit)">
+      <b>${titulo}</b><span>${_orcInt(_orcamentoGeracao(k))} kWh/mês${pct != null ? ` · cobre ${pct}%` : ''}</span></button>`;
+  };
+  return `<div class="orc-sec">Ajustar</div><div class="orc-aj">${botao(menor, '-')}${botao(maior, '+')}</div>`;
+}
+
+function _orcamentoKitCardHTML(kit, r, nota) {
+  const cotado = String(kit.id).startsWith('cot:');
+  const g = cotado ? 0 : _orcamentoGeracao(kit);
+  const pct = !cotado && typeof pbDimCobertura === 'function' ? pbDimCobertura(kit, r) : null;
+  const dist = typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(kit) : '';
+  const temDe = Number(kit.list_price) > Number(kit.price);
+  const detalhes = [`${_orcKwp(kit.power)} kWp`, g ? `~${_orcInt(g)} kWh/mês` : '', pct != null ? `cobre ${pct}% do consumo` : ''].filter(Boolean).join(' · ');
+  return `<div class="orc-kit">
+    <div class="orc-kit-n">${escapeHTML(kit.name || '')}</div>
+    <div class="orc-kit-d">${detalhes}</div>
+    ${dist ? `<div class="orc-kit-d">Distribuidora: ${escapeHTML(dist)}${cotado ? ' · frete incluso' : ''}</div>` : ''}
+    ${nota ? `<div class="orc-kit-nota">${escapeHTML(nota)}</div>` : ''}
+    <div class="orc-kit-preco">${temDe ? `<s>${formatCurrency(kit.list_price)}</s>` : ''}<b>${formatCurrency(kit.price)}</b></div>
+  </div>`;
+}
+
+function _orcamentoLadoHTML(r, kit) {
+  const dim = state.pbPorta === 'dim';
+  let html = '';
+  if (r) {
+    const mediaRot = r.porMes ? `Média (${r.preenchidos} ${r.preenchidos === 1 ? 'mês' : 'meses'})` : 'Média informada';
+    html += `<div class="orc-mets">
+      <div class="orc-met"><small>${mediaRot}</small><b>${_orcInt(r.media)} kWh</b></div>
+      <div class="orc-met"><small>Sistema necessário</small><b>${r.alvo > 0 ? _orcKwp(r.kwpNecessario) + ' kWp' : '—'}</b></div>
+    </div>
+    <p class="orc-met-s">Compensa ${_orcInt(r.alvo)} kWh (média − ${r.taxa} kWh da taxa mínima) · HSP ${String(r.hsp).replace('.', ',')}</p>`;
+    if (r.motivo) html += `<div class="orc-aviso">${escapeHTML(r.motivo)}</div>`;
+  }
+
+  if (!kit) {
+    const vazio = dim
+      ? (r?.integrada ? 'Cote na distribuidora (ao lado) e escolha um dos kits.' : r ? 'Nenhum kit para mostrar com essa seleção.' : 'Preencha o consumo e o kit recomendado aparece aqui.')
+      : 'Clique num kit da lista para escolher.';
+    html += `<div class="orc-sec"><i data-lucide="sparkles"></i> Kit</div><div class="orc-vazio">${vazio}</div>`;
+  } else {
+    const ehRec = Boolean(r?.recomendado && String(r.recomendado.id) === String(kit.id));
+    const titulo = ehRec ? (r.cobre ? '<i data-lucide="sparkles"></i> Kit recomendado' : '<i data-lucide="sparkles"></i> Mais próximo do consumo') : 'Kit escolhido';
+    const voltar = r?.recomendado && !ehRec
+      ? '<button type="button" class="orc-link" onclick="orcamentoLimparKit()">voltar ao recomendado</button>' : '';
+    html += `<div class="orc-sec">${titulo}${voltar}</div>${_orcamentoKitCardHTML(kit, r, ehRec ? r.nota : '')}`;
+  }
+
+  html += `<button type="button" id="orcamento-lado-gerar" class="btn btn-primary orc-gerar" onclick="orcamentoGerar(event)" ${kit && !_orcamentoGerando ? '' : 'disabled'}>
+    ${_orcamentoGerando ? '<i data-lucide="loader-2" class="animate-spin"></i> Gerando...' : `<i data-lucide="file-text"></i> Gerar proposta${kit ? ' · ' + formatCurrency(kit.price) : ''}`}</button>`;
+  if (kit) html += _orcamentoAjusteHTML(kit, r);
+  if (dim && !r?.integrada) {
+    const total = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false
+      && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k))).length;
+    if (total) html += `<button type="button" class="orc-link orc-ver-todos" onclick="orcamentoVerLista()">Ver todos os ${total} kits →</button>`;
+  }
+  return html;
 }
 
 async function orcamentoGerar(event) {
   if (_orcamentoGerando || event.currentTarget.disabled) return;
   const btn = event.currentTarget;
+  const personalizada = state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA;
+  const kit = personalizada ? null : _orcamentoKitAtual();
+  if (!personalizada && !kit) return;
   _orcamentoGerando = true;
   btn.disabled = true;
   const original = btn.innerHTML;
-  if (state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA) {
+  if (personalizada) {
     btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Gerando...';
     if (window.lucide) window.lucide.createIcons();
   }
   try {
-    if (state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA) {
+    if (personalizada) {
       await handleEquipamentosProposalSubmit({ preventDefault() {} });
     } else {
-      const kit = _orcamentoAcharKit(_orcamentoKitId);
-      if (kit) await copyProposalLink(kit, { currentTarget: btn });
+      await copyProposalLink(kit, { currentTarget: btn });
     }
   } finally {
     _orcamentoGerando = false;
-    if (state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA) btn.innerHTML = original;
+    if (personalizada) btn.innerHTML = original;
     orcamentoAtualizarResumo();
   }
 }

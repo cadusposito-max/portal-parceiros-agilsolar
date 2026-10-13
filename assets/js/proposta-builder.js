@@ -239,6 +239,7 @@ function pbEmbedSetup(client) {
   state.pbLinha        = 'promocional';
   state.pbSearch       = '';
   state.pbProposalMode = PB_PROPOSAL_MODES.PROMOCIONAL;
+  _pbListaTodos        = false;
   resetPBEquipDraft();
   if (typeof pbFornecimentoReset === 'function') pbFornecimentoReset();
 
@@ -306,39 +307,24 @@ function renderFinanciamento() {
 }
 
 function setPBTab(category) {
+  if (state.pbCategory === category) return;
+  if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) return;
   state.pbCategory = category;
+  _pbListaTodos = false;
   updatePBTabsUI();
+  // O kit escolhido era do outro tipo: volta a valer o recomendado (ou nenhum).
+  if (typeof _orcamentoKitId !== 'undefined' && _orcamentoKitId && !String(_orcamentoKitId).startsWith('cot:')) _orcamentoKitId = null;
   if (typeof pbFornecimentoRender === 'function') pbFornecimentoRender(); // opções do filtro dependem do tipo
   renderModalProducts();
 }
 
-function setPBViewMode(mode) {
-  state.pbViewMode = mode;
-  const btnGrid = document.getElementById('pb-btn-grid');
-  const btnList = document.getElementById('pb-btn-list');
-  if (mode === 'grid') {
-    btnGrid.className = 'p-2.5 transition-all bg-orange-500 text-black';
-    btnList.className = 'p-2.5 transition-all text-neutral-500 hover:text-white border-l border-neutral-800';
-  } else {
-    btnList.className = 'p-2.5 transition-all bg-orange-500 text-black';
-    btnGrid.className = 'p-2.5 transition-all text-neutral-500 hover:text-white border-l border-neutral-800';
-  }
-  renderModalProducts();
-}
-
 function updatePBTabsUI() {
-  const btnInv = document.getElementById('pb-tab-inversor');
-  const btnMic = document.getElementById('pb-tab-micro');
-  if (!btnInv || !btnMic) return;
-
-  const BASE   = 'flex-1 px-4 py-2.5 text-[10px] font-black uppercase transition-all whitespace-nowrap';
-  if (state.pbCategory === 'kitsInversor') {
-    btnInv.className = BASE + ' bg-orange-500 text-black';
-    btnMic.className = BASE + ' text-neutral-500 hover:text-white border-l border-neutral-800';
-  } else {
-    btnMic.className = BASE + ' bg-orange-500 text-black';
-    btnInv.className = BASE + ' text-neutral-500 hover:text-white';
-  }
+  [['pb-tab-inversor', 'kitsInversor'], ['pb-tab-micro', 'kitsMicro']].forEach(([id, cat]) => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.classList.toggle('is-on', state.pbCategory === cat);
+    b.setAttribute('aria-pressed', String(state.pbCategory === cat));
+  });
 }
 
 function setPBProposalMode(mode) {
@@ -1042,13 +1028,45 @@ async function handleEquipamentosProposalSubmit(event) {
 
 bindEquipUIEvents();
 
+// Lista de kits do orçamento: uma linha por kit; clicar escolhe e o Gerar fica
+// na coluna da direita. Com consumo informado, mostra primeiro os kits perto
+// dele (95% a 130% da média) e o resto fica atrás de "Mostrar os outros".
+let _pbListaTodos = false;
+
+function pbListaMostrarTodos(todos) {
+  _pbListaTodos = Boolean(todos);
+  renderModalProducts();
+}
+
+function _pbKitLinhaHTML(item, geracao, r) {
+  const id = escapeHTML(String(item.id));
+  const pct = r && r.media > 0 ? Math.round(geracao / r.media * 100) : null;
+  const rec = Boolean(r?.recomendado && String(r.recomendado.id) === String(item.id));
+  const dist = typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(item) : '';
+  const qtd = Number(item.modulo_qtd) > 0
+    ? `<b>${Number(item.modulo_qtd)}</b><small>mód.</small>`
+    : `<b>${_pbKwp(item.power)}</b><small>kWp</small>`;
+  const temDe = Number(item.list_price) > Number(item.price);
+  const faixa = pct == null ? '' : pct < 95 ? ' is-baixo' : pct <= 130 ? ' is-ok' : ' is-sobra';
+  return `
+    <div data-orcamento-kit="${id}" class="pbl-row" role="button" tabindex="0" aria-pressed="false" aria-label="Escolher ${escapeHTML(item.name)}">
+      <span class="pbl-qn">${qtd}</span>
+      <span class="pbl-tx">
+        <b>${_pbKwp(item.power)} kWp${rec ? '<i class="pbl-rec">Recomendado</i>' : ''}</b>
+        <small>${escapeHTML(item.name)}${dist ? ' · ' + escapeHTML(dist) : ''} · ~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês</small>
+      </span>
+      ${pct != null ? `<span class="pbl-pc${faixa}" title="Gera ${pct}% da média de consumo">${pct}%</span>` : ''}
+      <span class="pbl-pv">${temDe ? `<s>${formatCurrency(item.list_price)}</s>` : ''}<b>${formatCurrency(item.price)}</b></span>
+    </div>`;
+}
+
 function renderModalProducts() {
   const container = document.getElementById('pb-products-container');
   const emptyEl   = document.getElementById('pb-empty');
 
   if (!container || !emptyEl) return;
 
-  // Personalizada ou porta "Dimensionar" aberta: a lista de kits fica escondida.
+  // Personalizada ou porta "Pelo consumo" aberta: a lista de kits fica escondida.
   if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL || state.pbPorta === 'dim') {
     container.classList.add('hidden');
     emptyEl.classList.add('hidden');
@@ -1058,8 +1076,8 @@ function renderModalProducts() {
   // Distribuidora com integração (Admin → Distribuidoras): cota no servidor em vez da tabela.
   if (typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual()) {
     emptyEl.classList.add('hidden');
-    emptyEl.classList.remove('flex');
-    container.className = 'p-3 md:p-4 bg-[#050505]';
+    container.classList.remove('hidden');
+    container.className = 'pbl';
     container.innerHTML = pbIntegracaoPainelHTML(null);
     if (window.uiV2Select) window.uiV2Select.scan(container);
     if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
@@ -1074,16 +1092,16 @@ function renderModalProducts() {
   // HSP da cidade do cliente em atendimento: quando existe, a geração exibida
   // e usada na busca é recalculada com ele (senão vale o _estGeneration da franquia).
   const clienteHsp = Number(state.pbActiveClient?.hsp) > 0 ? Number(state.pbActiveClient.hsp) : null;
+  const geracaoDe = (item) => clienteHsp
+    ? (calcularGeracaoEstimada(item.power, item.categoria, clienteHsp) || 0)
+    : (Number(item._estGeneration ?? calcularGeracaoEstimada(item.power, item.categoria)) || 0);
 
   if (state.pbSearch) {
     const searchNum = parseInt(state.pbSearch, 10);
     list = list.filter(item => {
-      const estGeneration = clienteHsp
-        ? calcularGeracaoEstimada(item.power, item.categoria, clienteHsp)
-        : Number(item._estGeneration ?? calcularGeracaoEstimada(item.power, item.categoria));
       const searchBlob = item._searchBlob || `${item.name || ''} ${item.brand || ''} ${item.power || ''}`.toLowerCase();
       const textMatch = searchBlob.includes(state.pbSearch);
-      const generationMatch = !isNaN(searchNum) && Math.abs(estGeneration - searchNum) <= 50;
+      const generationMatch = !isNaN(searchNum) && Math.abs(geracaoDe(item) - searchNum) <= 50;
       return textMatch || generationMatch;
     });
   }
@@ -1094,85 +1112,38 @@ function renderModalProducts() {
     const txt = emptyEl.querySelector('p');
     if (txt) txt.textContent = motivo || 'Nenhum kit atende a este filtro';
     emptyEl.classList.remove('hidden');
-    emptyEl.classList.add('flex');
     return;
   }
 
   emptyEl.classList.add('hidden');
-  emptyEl.classList.remove('flex');
   container.classList.remove('hidden');
+  container.className = 'pbl';
 
-  // Sem scroll interno: o painel vive dentro da ficha CRM 360, que já rola.
-  container.className = state.pbViewMode === 'list'
-    ? 'p-3 md:p-4 flex flex-col gap-3 bg-[#050505]'
-    : 'p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-[#050505]';
-
-  container.innerHTML = list.map(item => {
-    const estGenerationNum  = clienteHsp
-      ? (calcularGeracaoEstimada(item.power, item.categoria, clienteHsp) || 0)
-      : (Number(item._estGeneration ?? calcularGeracaoEstimada(item.power, item.categoria)) || 0);
-    const estGeneration     = estGenerationNum.toFixed(0);
-    const formattedPrice    = formatCurrency(item.price);
-    const formattedListPrice= formatCurrency(item.list_price);
-    const safeId            = escapeHTML(String(item.id));
-    const safeName          = escapeHTML(item.name);
-    const safeBrand         = escapeHTML(item.brand);
-    const safePower         = escapeHTML(String(item.power));
-    const distribuidora = typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(item) : '';
-    const fornecedorHTML = distribuidora ? `<p class="text-neutral-500 text-xs mt-1">Distribuidora: ${escapeHTML(distribuidora)}</p>` : '';
-
-    // Cards container-aware: nada de breakpoints de viewport ditando linha/coluna
-    // (o painel vive dentro da ficha e a largura do container é quem manda).
-    // flex-wrap: quando falta espaço, preço e botão descem de linha em vez de
-    // esmagar o nome do kit.
-    if (state.pbViewMode === 'grid') {
-      return `
-        <div data-orcamento-kit="${safeId}" class="bg-[#0d0d0f] border border-neutral-800 hover:border-orange-500/40 p-4 flex flex-col gap-3 group transition-all">
-          <div class="flex justify-between items-start gap-2">
-            <span class="text-[9px] bg-orange-600/15 text-orange-500 px-2 py-0.5 font-black uppercase tracking-widest border border-orange-500/30">${safeBrand}</span>
-            <span class="text-[10px] text-neutral-600 line-through decoration-red-500/70 font-bold shrink-0">De: ${formattedListPrice}</span>
-          </div>
-          <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors">${safeName}</h3>
-          ${fornecedorHTML}
-          <div class="grid grid-cols-2 gap-2">
-            <div class="bg-black p-2 border border-neutral-800 flex flex-col items-center justify-center">
-              <span class="text-[8px] text-neutral-500 font-black uppercase tracking-widest">Potência</span>
-              <span class="text-orange-500 font-black flex items-center gap-1 mt-0.5 text-sm"><i data-lucide="zap" class="w-3 h-3"></i>${safePower} kWp</span>
-            </div>
-            <div class="bg-black p-2 border border-neutral-800 flex flex-col items-center justify-center">
-              <span class="text-[8px] text-neutral-500 font-black uppercase tracking-widest">Geração est.</span>
-              <span class="text-blue-400 font-black flex items-center gap-1 mt-0.5 text-sm"><i data-lucide="sun" class="w-3 h-3"></i>~${estGeneration} kWh</span>
-            </div>
-          </div>
-          <div class="mt-auto pt-3 border-t border-neutral-800/60 flex flex-wrap items-center justify-between gap-2">
-            <div class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-0.5 pr-1">${formattedPrice}</div>
-            <button data-kit-id="${safeId}" onclick="copyProposalLinkById(this.dataset.kitId, event)" aria-label="Gerar proposta para ${safeName}" class="btn btn-primary">
-              <i data-lucide="file-text"></i> GERAR
-            </button>
-          </div>
-        </div>`;
+  // Com consumo: só os kits perto dele (+ recomendado e o escolhido); o resto fica no botão.
+  const r = typeof pbDimResumo === 'function' ? pbDimResumo() : null;
+  const temConsumo = Boolean(r && r.media > 0);
+  let visiveis = list;
+  let rodape = '';
+  if (temConsumo && !state.pbSearch) {
+    const escolhido = typeof _orcamentoKitId !== 'undefined' ? _orcamentoKitId : null;
+    const perto = list.filter((k) => pbDimNaFaixa(k, r)
+      || (r.recomendado && String(r.recomendado.id) === String(k.id)) || String(k.id) === String(escolhido));
+    const resto = list.length - perto.length;
+    if (perto.length && resto > 0) {
+      if (_pbListaTodos) {
+        rodape = `<button type="button" class="pbl-mais" onclick="pbListaMostrarTodos(false)"><i data-lucide="chevron-up"></i> Mostrar só os kits perto do consumo</button>`;
+      } else {
+        visiveis = perto;
+        rodape = `<button type="button" class="pbl-mais" onclick="pbListaMostrarTodos(true)"><i data-lucide="chevron-down"></i> Mostrar os outros ${resto} ${resto === 1 ? 'kit' : 'kits'}</button>`;
+      }
     }
+  }
+  const tipoNome = state.pbCategory === 'kitsMicro' ? 'com microinversor' : 'com inversor';
+  const cabecalho = `<p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>`;
 
-    return `
-      <div data-orcamento-kit="${safeId}" class="bg-[#0d0d0f] border border-neutral-800 hover:border-orange-500/40 p-4 flex flex-wrap items-center gap-x-6 gap-y-3 group transition-all">
-        <div class="flex-1 min-w-[240px]">
-          <span class="text-[9px] bg-orange-600/15 text-orange-500 px-2 py-0.5 font-black uppercase tracking-widest border border-orange-500/30 inline-block">${safeBrand}</span>
-          <h3 class="text-white font-black text-sm uppercase leading-tight group-hover:text-orange-400 transition-colors mt-1.5">${safeName}</h3>
-          ${fornecedorHTML}
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[10px] font-bold">
-            <span class="text-orange-500 flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i>${safePower} kWp</span>
-            <span class="text-blue-400 flex items-center gap-1"><i data-lucide="sun" class="w-3 h-3"></i>~${estGeneration} kWh/mês</span>
-          </div>
-        </div>
-        <div class="text-right shrink-0 ml-auto">
-          <div class="text-[10px] text-neutral-600 line-through decoration-red-500/70 font-bold">De: ${formattedListPrice}</div>
-          <div class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400 tracking-tighter pb-0.5 pr-1">${formattedPrice}</div>
-        </div>
-        <button data-kit-id="${safeId}" onclick="copyProposalLinkById(this.dataset.kitId, event)" aria-label="Gerar proposta para ${safeName}" class="btn btn-primary shrink-0">
-          <i data-lucide="file-text"></i> GERAR PROPOSTA
-        </button>
-      </div>`;
-  }).join('');
+  container.innerHTML = cabecalho
+    + `<div class="pbl-lista">${visiveis.map((item) => _pbKitLinhaHTML(item, geracaoDe(item), r)).join('')}</div>`
+    + rodape;
 
   if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
   lucide.createIcons();

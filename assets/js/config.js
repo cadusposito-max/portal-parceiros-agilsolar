@@ -146,7 +146,6 @@ let state = {
   pbCategory: 'kitsInversor',
   pbLinha: 'promocional',        // 'promocional' (lista curta, preço promo) | 'catalogo' (todas as marcas)
   pbSearch: '',
-  pbViewMode: 'list',
   componentes: [],          // view pública (sem preço) — futuro montador de proposta
   equipamentos: [],         // catálogo completo p/ gestão admin (com preço/custo/inativos)
   pbEquipDraft: {

@@ -62,7 +62,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261002-legivel2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261008-linha" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261013-share" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261013-orcA" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261006-pers2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261008-alerta" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/tour.css?v=20261007-treino" data-ui-v2 media="not all">
@@ -645,33 +645,22 @@
         <p id="pb-linha-hint" class="pbd-hint"></p>
       </div>
 
-      <!-- ===== PORTA: DIMENSIONAR × ESCOLHER KIT (só no PROMOCIONAL · pb-dimensionar.js) ===== -->
-      <div id="pb-porta" class="pbd-porta hidden">
-        <button type="button" data-pb-porta="dim" class="pbd-porta-btn">
-          <i data-lucide="calculator"></i>
-          <span><span class="pbd-porta-t block">Dimensionar pelo consumo</span><span class="pbd-porta-s block">Calculo pelo consumo do cliente</span></span>
-        </button>
-        <button type="button" data-pb-porta="kit" class="pbd-porta-btn">
-          <i data-lucide="list"></i>
-          <span><span class="pbd-porta-t block">Escolher kit</span><span class="pbd-porta-s block">Já sei o kit (lista de sempre)</span></span>
-        </button>
+      <!-- ===== PORTA: PELO CONSUMO × LISTA DE KITS (só no PROMOCIONAL · pb-dimensionar.js) ===== -->
+      <div id="pb-porta" class="pbd-porta hidden" role="group" aria-label="Como escolher o kit">
+        <button type="button" data-pb-porta="dim" class="pbd-porta-btn"><i data-lucide="calculator"></i><span class="pbd-porta-t">Pelo consumo</span></button>
+        <button type="button" data-pb-porta="kit" class="pbd-porta-btn"><i data-lucide="list"></i><span class="pbd-porta-t">Lista de kits</span></button>
       </div>
       <div id="pb-dim-panel" class="pbd hidden"></div>
 
-      <!-- ===== TOOLBAR (só aparece no modo PROMOCIONAL) ===== -->
-      <div id="pb-promocional-toolbar" class="p-3 md:p-4 bg-neutral-900/60 border-b border-neutral-800/60 flex flex-wrap gap-3">
-        <div class="flex bg-black border border-neutral-800 shrink-0">
-          <button id="pb-tab-inversor" onclick="setPBTab('kitsInversor')" class="flex-1 px-4 py-2.5 text-[10px] font-black uppercase transition-all bg-orange-500 text-black whitespace-nowrap">Inversores</button>
-          <button id="pb-tab-micro" onclick="setPBTab('kitsMicro')" class="flex-1 px-4 py-2.5 text-[10px] font-black uppercase transition-all text-neutral-500 hover:text-white whitespace-nowrap border-l border-neutral-800">Microinversores</button>
-        </div>
-        <div class="relative flex-1 min-w-[220px] group">
-          <div class="absolute inset-0 bg-orange-500/10 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
-          <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-600 group-focus-within:text-orange-500 transition-colors"></i>
-          <input type="text" id="pb-search" placeholder="BUSCAR POTÊNCIA OU GERAÇÃO (EX: 500)" class="relative w-full pl-10 pr-4 py-2.5 bg-black border border-neutral-700 text-white focus:outline-none focus:border-orange-500 transition-all font-bold uppercase text-xs">
-        </div>
-        <div class="flex bg-black border border-neutral-800 shrink-0">
-          <button onclick="setPBViewMode('list')" id="pb-btn-list" class="p-2.5 transition-all bg-orange-500 text-black" title="Lista"><i data-lucide="list" class="w-4 h-4"></i></button>
-          <button onclick="setPBViewMode('grid')" id="pb-btn-grid" class="p-2.5 transition-all text-neutral-500 hover:text-white border-l border-neutral-800" title="Grade"><i data-lucide="grid" class="w-4 h-4"></i></button>
+      <!-- ===== LISTA DE KITS: busca + tipo (só no PROMOCIONAL, porta "Lista de kits") ===== -->
+      <div id="pb-promocional-toolbar" class="pbl-barra">
+        <label class="pbl-busca">
+          <i data-lucide="search"></i>
+          <input type="text" id="pb-search" placeholder="Buscar potência ou geração (ex.: 500)" aria-label="Buscar kit por potência ou geração" autocomplete="off">
+        </label>
+        <div class="pbl-tipo" role="group" aria-label="Tipo de sistema">
+          <button type="button" id="pb-tab-inversor" onclick="setPBTab('kitsInversor')">Inversor</button>
+          <button type="button" id="pb-tab-micro" onclick="setPBTab('kitsMicro')">Microinversor</button>
         </div>
       </div>
 
@@ -774,10 +763,10 @@
       </div>
 
       <div id="pb-kit-fornecimento-slot"></div>
-      <div id="pb-products-container" class="p-3 md:p-4 bg-[#050505]"></div>
-      <div id="pb-empty" class="hidden flex-col items-center justify-center p-10 bg-[#050505]">
-        <i data-lucide="search-x" class="w-12 h-12 text-neutral-700 mb-4"></i>
-        <p class="text-neutral-500 font-bold uppercase tracking-widest text-center">Nenhum kit atende a este filtro</p>
+      <div id="pb-products-container" class="pbl"></div>
+      <div id="pb-empty" class="pbl-vazio hidden">
+        <i data-lucide="search-x"></i>
+        <p>Nenhum kit atende a este filtro</p>
       </div>
   </div>
 </div>
@@ -1248,7 +1237,7 @@
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
 
   local('treino.js',           '20261007-treino');
-  local('config.js',           '20261013-link');
+  local('config.js',           '20261013-orcA');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20261013-link');
   local('scroll-x.js',         '20261007-sx');
@@ -1266,11 +1255,11 @@
   local('crm-metas.js',        '20260716-crm-loop');
   local('etiquetas.js',        '20261006-etq');
   local('analise.js',          '20261006-etq');
-  local('catalogo-distribuidoras.js', '20261008-linha');
+  local('catalogo-distribuidoras.js', '20261013-orcA');
   local('distribuidoras-integracao.js', '20261009-custos2');
   local('produtos.js',         '20261009-cc');
-  local('pb-dimensionar.js',   '20261008-linha');
-  local('proposta-builder.js', '20261013-share');
+  local('pb-dimensionar.js',   '20261013-orcA');
+  local('proposta-builder.js', '20261013-orcA');
   local('centro-custo-calc.js', '20261010-kwinv');
   local('centro-custo-tela.js', '20261010-kwinv');
   local('orcamento-dre.js',    '20261013-mobile');
@@ -1296,12 +1285,12 @@
   local('ui-v2-ficha.js',      '20261013-subcid');
   local('ui-v2-modais.js',     '20261006-fluxo');
   local('ui-v2-admin.js',      '20261008-leads');
-  local('orcamento-tela.js',   '20261007-dist');
+  local('orcamento-tela.js',   '20261013-orcA');
   local('update-notice.js',    '20260929-rel3');
   local('push.js',             '20261007-notif');
   local('leads-meta-avisos.js', '20261006-sw');
   local('admin-leads-meta.js', '20261008-leads');
-  local('tour-orcamento.js',   '20261007-mtop');
+  local('tour-orcamento.js',   '20261013-orcA');
   local('notificacoes.js',     '20261010-timeline');
   local('tarefas.js',          '20261010-timeline');
 })();
