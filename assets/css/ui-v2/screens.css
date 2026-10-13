@@ -244,6 +244,19 @@ html[data-ui="v2"] .v2s .v2-sq.wa:hover { background: rgba(31,169,113,.14); colo
 html[data-ui="v2"] .v2s .v2-sq svg { width: 16px !important; height: 16px !important; }
 html[data-ui="v2"] .v2s .v2-acts { display: flex; gap: 6px; justify-content: flex-end; }
 html[data-ui="v2"] .v2s .v2-more { display: flex; justify-content: center; }
+/* fim da lista: total do que está na tela + voltar ao topo (ui-v2-screens.js · fimListaHtml) */
+html[data-ui="v2"] .v2s .v2-fim { display: flex; align-items: center; gap: 12px; margin: 16px 4px 4px; font-size: 12.5px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .v2-fim::before,
+html[data-ui="v2"] .v2s .v2-fim::after { content: ""; flex: 1 1 16px; min-width: 16px; height: 1px; background: var(--v2-line-strong); }
+html[data-ui="v2"] .v2s .v2-fim .m { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 10px; min-width: 0; }
+html[data-ui="v2"] .v2s .v2-fim .m > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+html[data-ui="v2"] .v2s .v2-fim b { color: var(--v2-ink-2); font-weight: 800; }
+html[data-ui="v2"] .v2s .v2-fim svg { width: 15px !important; height: 15px !important; color: var(--v2-green); flex: none; }
+html[data-ui="v2"] .v2s .v2-fim button { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 4px 6px; border-radius: 8px; font: inherit; font-weight: 700; color: var(--v2-blue-text); cursor: pointer; white-space: nowrap; }
+html[data-ui="v2"] .v2s .v2-fim button:hover { background: var(--v2-blue-50); }
+html[data-ui="v2"] .v2s .v2-fim button svg { color: var(--v2-blue-text); width: 14px !important; height: 14px !important; }
+html[data-ui="v2"] .v2s .v2-card .v2-fim { margin-bottom: 0; }
+@media (max-width: 600px) { html[data-ui="v2"] .v2s .v2-fim .m { flex-direction: column; } }
 html[data-ui="v2"] .v2s .v2-alarm { color: #D14343; display: inline-flex; }
 html[data-ui="v2"] .v2s .v2-alarm svg { width: 14px !important; height: 14px !important; }
 

@@ -15,6 +15,20 @@
   const ic = (name, extra = '') => `<i data-lucide="${name}" ${extra}></i>`;
   const money = (v) => (has('formatCurrency') ? formatCurrency(Number(v) || 0) : 'R$ ' + (Number(v) || 0).toFixed(2));
   const moneyC = (v) => (has('formatCurrencyCompact') ? formatCurrencyCompact(Number(v) || 0) : money(v));
+
+  // Rodapé das listas: "Carregar mais · X de Y" enquanto falta; no fim, uma linha
+  // com o total, pra quem rolou até o fim não ter que voltar ao topo pra saber quantos são.
+  // nome = 'cliente|clientes'. "Voltar ao topo" só em lista comprida.
+  function fimListaHtml(total, nome) {
+    const [um, varios] = String(nome).split('|');
+    const n = Number(total) || 0;
+    const topo = n > 8 ? `<button type="button" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">${ic('arrow-up')}Voltar ao topo</button>` : '';
+    return `<div class="v2-fim"><div class="m"><span>${ic('circle-check')}Fim da lista · <b>${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}</b></span>${topo}</div></div>`;
+  }
+  function rodapeLista(mostrando, total, onclick, nome) {
+    if (total > mostrando) return `<div class="v2-more"><button class="v2-btn2" onclick="${onclick}">${ic('chevrons-down')}Carregar mais · ${mostrando} de ${total}</button></div>`;
+    return total ? fimListaHtml(total, nome) : '';
+  }
   const cap = (s) => { const t = String(s || '').toLocaleLowerCase('pt-BR'); return t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1); };
 
   // ---- ícone no lugar das iniciais: pessoa física x empresa ----
@@ -516,7 +530,7 @@
     return `<div class="v2-card" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
         <thead><tr><th>Cliente</th><th class="hide-m">Cidade</th><th class="hide-m">Status</th><th class="hide-m">Propostas</th><th class="hide-m">Em aberto</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Cadastro</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>
-      ${filtered.length > visiveis.length ? `<div class="v2-more"><button class="v2-btn2" onclick="clientesMostrarMais()">${ic('chevrons-down')}Carregar mais · ${visiveis.length} de ${filtered.length}</button></div>` : ''}`;
+      ${rodapeLista(visiveis.length, filtered.length, 'clientesMostrarMais()', 'cliente|clientes')}`;
   }
 
   // Kanban por etapa. editavel=true no Funil (arrasta e muda etapa);
@@ -696,7 +710,7 @@
       </div>
       <div class="v2-pills">${pill('ALL', 'Todas')}${pill('GERADA', 'Geradas')}${pill('ENVIADA', 'Enviadas')}${pill('VISTA', 'Vistas')}${pill('ACEITA', 'Aceitas')}</div>
       ${visible.length ? (vista === 'kanban' ? kanban() : lista()) : `<div class="v2-card v2-empty">${filtrosAtivos ? 'Nenhuma proposta com esses filtros.' : 'Nenhuma proposta gerada ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button></div></div>`}
-      ${filtered.length > visible.length ? `<div class="v2-more"><button class="v2-btn2" onclick="uiV2Screens.maisPropostas()">${ic('chevrons-down')}Carregar mais · ${visible.length} de ${filtered.length}</button></div>` : ''}`;
+      ${visible.length ? rodapeLista(visible.length, filtered.length, 'uiV2Screens.maisPropostas()', 'proposta|propostas') : ''}`;
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -805,7 +819,7 @@
         <div class="specs"><div><small>Potência</small><b>${kwpVenda(v)}</b></div><div><small>${showSeller ? 'Vendedor' : 'Venda'}</small><b>${showSeller ? esc(vendNome(v.vendedor_email).split(' ')[0] || '—') : esc(timeAgo(v.created_at))}</b></div><div><small>${state.isAdmin && state.adminViewAll ? 'Franquia' : 'Data'}</small><b>${state.isAdmin && state.adminViewAll && v.franquia_id ? esc(getFranquiaNameById(v.franquia_id)) : esc(formatDate(v.created_at))}</b></div></div>
         <div class="ft"><div class="price">${money(getSaleValue(v))}<small>valor da venda</small></div>${acoesVenda(v)}</div>
       </div>`).join('');
-    const mais = vendas.length > limite ? `<div class="v2-more"><button class="v2-btn2" onclick="uiV2Screens.maisVendas()">${ic('chevrons-down')}Carregar mais · ${limite} de ${vendas.length}</button></div>` : '';
+    const mais = rodapeLista(Math.min(limite, vendas.length), vendas.length, 'uiV2Screens.maisVendas()', 'venda|vendas');
     const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas</h3><small>Clique para abrir a ficha do cliente</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
 
     container.dataset.v2total = String(vendas.length); container.dataset.v2nome = 'venda|vendas';
@@ -871,8 +885,9 @@
     if (lotesProd.chave !== chave) { lotesProd.chave = chave; lotesProd.n = LOTE_PROD; }
     return lotesProd.n;
   }
-  const maisProdHtml = (mostrados, total) => (total > mostrados
-    ? `<div class="v2-more" id="v2-prod-more"><button class="v2-btn2" type="button">${ic('chevrons-down')}Carregar mais · ${mostrados} de ${total}</button></div>` : '');
+  const maisProdHtml = (mostrados, total, nome) => (total > mostrados
+    ? `<div class="v2-more" id="v2-prod-more"><button class="v2-btn2" type="button">${ic('chevrons-down')}Carregar mais · ${mostrados} de ${total}</button></div>`
+    : (total ? fimListaHtml(total, nome) : ''));
   function ligarLotes(container, alvoSel, lista, render) {
     if (lotesProd.obs) { lotesProd.obs.disconnect(); lotesProd.obs = null; }
     const alvo = container.querySelector(alvoSel);
@@ -888,7 +903,13 @@
       if (window.lucide) window.lucide.createIcons({ root: tmp });
       alvo.append(...tmp.children);
       lotesProd.n = ate;
-      if (ate >= lista.length) { if (lotesProd.obs) lotesProd.obs.disconnect(); lotesProd.obs = null; mais.remove(); return; }
+      if (ate >= lista.length) {
+        if (lotesProd.obs) lotesProd.obs.disconnect();
+        lotesProd.obs = null;
+        mais.outerHTML = fimListaHtml(lista.length, container.dataset.v2nome || 'item|itens');
+        if (window.lucide) window.lucide.createIcons({ root: container.querySelector('.v2-fim')?.parentElement || container });
+        return;
+      }
       mais.innerHTML = `<button class="v2-btn2" type="button">${ic('chevrons-down')}Carregar mais · ${ate} de ${lista.length}</button>`;
       if (window.lucide) window.lucide.createIcons({ root: mais });
       // observar de novo: se o fim da lista ainda estiver à vista, puxa outro lote
@@ -1006,7 +1027,7 @@
 
     const nKits = loteInicial(['kits', _catalogoCategoria, _catalogoStatus, _catalogoBusca, faixa, linhaF, vista, franqAtual].join('|'));
     const visiveis = lista.slice(0, nKits);
-    const maisKits = maisProdHtml(visiveis.length, lista.length);
+    const maisKits = maisProdHtml(visiveis.length, lista.length, 'kit|kits');
 
     container.dataset.v2total = String(lista.length); container.dataset.v2nome = 'kit|kits';
     container.innerHTML = `
@@ -1091,7 +1112,7 @@
 
     const nEq = loteInicial(['equip', _equipCategoria, _equipStatus, _equipBusca, vista].join('|'));
     const visiveis = lista.slice(0, nEq);
-    const maisEq = maisProdHtml(visiveis.length, lista.length);
+    const maisEq = maisProdHtml(visiveis.length, lista.length, 'item|itens');
 
     container.dataset.v2total = String(lista.length); container.dataset.v2nome = 'item|itens';
     container.innerHTML = `
