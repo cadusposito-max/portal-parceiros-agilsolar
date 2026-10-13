@@ -464,3 +464,108 @@ html[data-ui="v2"] body #orc-dre-overlay :is(#orc-k-margem, #orc-tot-lucroliq).t
   html[data-ui="v2"] body #orc-dre-overlay .orc-extras { padding: 12px 14px !important; }
   html[data-ui="v2"] body #orc-dre-overlay .orc-kpi .num { font-size: 17px !important; }
 }
+
+/* ---------- precificação no celular (orcamento-dre.js → htmlMobile) ----------
+   Tela cheia: resumo fixo no topo, cartões rolando, barra de ações embaixo. */
+html[data-ui] body #orc-dre-overlay.orc-mob { display: flex; flex-direction: column; height: 100%; height: 100dvh; padding: 0 !important; background: var(--v2-bg) !important; backdrop-filter: none !important; color: var(--v2-ink); }
+html[data-ui] body #orc-dre-overlay.orc-mob .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+html[data-ui] body #orc-dre-overlay.orc-mob input, html[data-ui] body #orc-dre-overlay.orc-mob select { font-size: 16px !important; } /* menor que 16px o iPhone dá zoom ao focar */
+html[data-ui] body #orc-dre-overlay.orc-mob input:focus, html[data-ui] body #orc-dre-overlay.orc-mob select:focus { border-color: var(--v2-blue) !important; box-shadow: 0 0 0 3px var(--v2-blue-50) !important; outline: none; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-top { flex: none; background: var(--v2-card); border-bottom: 1px solid var(--v2-line); padding: 12px 12px 10px; padding-top: max(12px, env(safe-area-inset-top)); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-head { display: flex; align-items: flex-start; gap: 10px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-hx { flex: 1; min-width: 0; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--v2-blue-text); background: var(--v2-blue-50); border-radius: 99px; padding: 2px 9px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-tag svg { width: 12px; height: 12px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-tit { font-size: 15.5px; font-weight: 800; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui] body #orc-dre-overlay.orc-mob #orc-salvo-info { font-size: 12px; font-weight: 600; color: var(--v2-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui] body #orc-dre-overlay.orc-mob #orc-salvo-info.text-yellow-500 { color: var(--v2-orange-text); }
+html[data-ui] body #orc-dre-overlay.orc-mob #orc-salvo-info span { color: inherit; font-weight: 500; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-x { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--v2-bg); color: var(--v2-ink-2); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-x svg { width: 18px; height: 18px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-kpi { min-width: 0; background: var(--v2-bg); border-radius: 12px; padding: 7px 9px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-kpi span { display: block; font-size: 11px; font-weight: 600; color: var(--v2-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-kpi b { display: block; margin-top: 1px !important; font-size: 14.5px !important; font-weight: 800; color: var(--v2-ink); overflow: hidden; text-overflow: ellipsis; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-kpi-mg { background: color-mix(in srgb, #12A06A 12%, var(--v2-card)); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-kpi-mg.baixa { background: color-mix(in srgb, var(--v2-red) 13%, var(--v2-card)); }
+
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-corpo { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 10px 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-card { background: var(--v2-card); border-radius: 20px; padding: 12px 14px; box-shadow: var(--v2-shadow); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-l { display: block; font-size: 12.5px; font-weight: 600; color: var(--v2-ink-2); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-campo { position: relative; margin: 4px 0 10px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-campo span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 700; color: var(--v2-gray); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-campo input { width: 100%; height: 46px; padding: 0 12px 0 36px; border: 1px solid var(--v2-line-strong); border-radius: 12px; background: var(--v2-card); color: var(--v2-ink); text-align: right; font-size: 18px !important; font-weight: 800; font-variant-numeric: tabular-nums; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-dims { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 44px; padding-top: 6px; border-top: 1px solid var(--v2-line); font-size: 13.5px; font-weight: 600; color: var(--v2-ink); text-align: left; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-dims > svg:first-child { width: 18px; height: 18px; color: var(--v2-blue); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-dims span { flex: 1; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-ch { width: 18px; height: 18px; flex: none; color: var(--v2-gray); transition: transform .15s; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-dims[aria-expanded="true"] .orc-ml-ch { transform: rotate(180deg); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-dimgrid:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 6px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-dimgrid label { font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-dimgrid input, html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-pct input { width: 100%; height: 40px; margin-top: 3px; padding: 0 10px; border: 1px solid var(--v2-line-strong); border-radius: 10px; background: var(--v2-card); color: var(--v2-ink); text-align: right; font-weight: 700; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-alvo { display: flex; align-items: center; gap: 10px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-alvo-tx { flex: 1; min-width: 0; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-pct { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-pct input { width: 62px; height: 34px; margin: 0; text-align: center; }
+html[data-ui] body #orc-dre-overlay.orc-mob #orc-venda-alvo { display: block; margin-top: 4px; white-space: normal; font-size: 17px !important; font-weight: 800; color: var(--v2-ink); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-usar { flex: none; height: 42px; padding: 0 18px; border-radius: 12px; background: var(--v2-blue-50); color: var(--v2-blue-text); font-size: 14px; font-weight: 700; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-ch { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 800; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sub { margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--v2-gray); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-link { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; font-size: 14px; font-weight: 700; color: var(--v2-blue-text); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-link svg { width: 16px; height: 16px; }
+
+/* linhas de custo: resumo + editor que abre ao tocar */
+html[data-ui] body #orc-dre-overlay.orc-mob #orc-linhas { margin-top: 4px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml + .orc-ml { border-top: 1px solid var(--v2-line); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-top { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 9px 0; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-top[data-orc-abrir] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-nome { flex: 1; min-width: 0; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-t { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; font-size: 14px; font-weight: 700; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-ic { width: 13px; height: 13px; color: var(--v2-gray); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-r { margin-top: 1px; font-size: 12px; font-weight: 500; color: var(--v2-gray); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-v { font-size: 14px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-adj-x { width: 26px; height: 26px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-ed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 -4px 10px; padding: 10px; border-radius: 14px; background: var(--v2-soft); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-ed .orc-seg button { height: 38px; padding: 0 16px; font-size: 14px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-ed .orc-money-sm { flex: 1; min-width: 110px; width: auto !important; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-ed .orc-money-sm input { height: 40px !important; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-ed .orc-base { width: 100% !important; height: 40px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-ml-ed .orc-lock { font-size: 13px; }
+
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-extras { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-extras .orc-extra { flex-wrap: wrap; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-extras .orc-extra select { flex: none; height: 40px !important; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-extras .orc-extra [data-orc-ex-field="valor"] { flex: 1; min-width: 0; width: auto !important; height: 40px !important; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-extras .orc-extra [data-orc-ex-field="rotulo"] { order: 3; flex: 1 1 100%; height: 40px !important; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-extras .orc-extra button { width: 40px; height: 40px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-extras .orc-vazio { font-size: 12.5px !important; }
+
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-res { padding: 8px 14px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-rr { display: flex; align-items: center; gap: 8px; padding: 7px 0; font-size: 14px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-rr span { flex: 1; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-rr b { width: auto !important; padding: 0 !important; font-size: 14.5px !important; font-weight: 800; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-rr.fin { margin: 4px -4px 2px; padding: 10px; border-radius: 12px; background: var(--v2-blue-50); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-rr.fin span { font-size: 15px; font-weight: 800; color: var(--v2-blue-text); }
+html[data-ui] body #orc-dre-overlay.orc-mob :is(#orc-tot-custos, #orc-tot-lucroop) { color: var(--v2-ink) !important; }
+html[data-ui] body #orc-dre-overlay.orc-mob #orc-linha-ded .orc-ml { border-top: 1px solid var(--v2-line); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-nota { margin: 0; padding: 0 6px; font-size: 12px; line-height: 1.5; color: var(--v2-gray); }
+
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-bar { flex: none; background: var(--v2-card); border-top: 1px solid var(--v2-line); padding: 8px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-apl { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; font-size: 12.5px; color: var(--v2-ink-2); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-apl > span { flex: 1; min-width: 0; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-apl b { color: var(--v2-ink); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-apl button { flex: none; height: 36px; padding: 0 12px; border-radius: 10px; background: var(--v2-blue-50); color: var(--v2-blue-text); font-size: 13px; font-weight: 700; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-btns { display: flex; gap: 8px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-mais { flex: none; width: 52px; height: 50px; display: grid; place-items: center; border-radius: 14px; background: var(--v2-bg); color: var(--v2-ink-2); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-salvar { flex: 1; height: 50px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 14px; background: var(--v2-orange); color: var(--v2-orange-ink); font-size: 15.5px; font-weight: 800; }
+html[data-ui] body #orc-dre-overlay.orc-mob :is(.orc-m-salvar, .orc-m-mais) svg { width: 20px; height: 20px; }
+
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; background: var(--v2-scrim); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet[hidden] { display: none; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in { width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; padding-bottom: max(16px, env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: var(--v2-card); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-alca { width: 40px; height: 4px; margin: 0 auto 6px; border-radius: 9px; background: var(--v2-line-strong); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in > b { padding: 0 6px 4px; font-size: 15px; font-weight: 800; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in button { display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 14px; border-radius: 14px; background: var(--v2-bg); color: var(--v2-ink); font-size: 15px; font-weight: 700; text-align: left; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in button svg { width: 18px; height: 18px; }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in button.perigo { background: color-mix(in srgb, var(--v2-red) 12%, var(--v2-card)); color: var(--v2-red); }
+html[data-ui] body #orc-dre-overlay.orc-mob .orc-m-sheet-in button.cancelar { justify-content: center; background: transparent; color: var(--v2-ink-2); }

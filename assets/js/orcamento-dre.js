@@ -66,7 +66,7 @@
     const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
   }
-  const fmtIn = (v) => String(Math.round((Number(v) || 0) * 100) / 100).replace('.', ',');
+  const fmtIn = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
   const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
   const money = (v) => formatCurrency(Number(v) || 0);
   const pctFmt = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
@@ -253,10 +253,36 @@
         : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${Object.entries(CentroCustoCalc.bases).filter(([k]) => k !== 'faixa').map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
       ctrl = seg + inp + base;
     }
+    if (cur._mob) return linhaRowMob(def, l, travada, tag, ctrl);
     return `<div class="orc-row orc-linha px-5 py-2 lg:py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5" data-orc-row="${def.key}">
         <div class="flex-1 min-w-[150px] flex items-center flex-wrap gap-1.5">${nome}${tag}</div>
         <div class="orc-ctrl flex items-center gap-2">${ctrl}</div>
         <span class="orc-res text-red-400 font-black num text-sm w-28 text-right" data-orc-res="${def.key}">—</span>
+      </div>`;
+  }
+
+  // Regra da linha em texto curto ("13,8% da venda − kit", "R$ 70,00 por módulo").
+  function regraTxt(l) {
+    if (!l) return '';
+    if (l.t === 'brl' && l.b === 'faixa') return 'Tabela por faixa de kWp';
+    return l.t === 'pct'
+      ? pctFmt(l.v) + '% ' + (BASES[l.b] || '').replace(/^% /, '')
+      : money(l.v) + ' ' + (CentroCustoCalc.bases[l.b] || '').replace(/^R\$ /, '');
+  }
+
+  // Celular: a linha mostra nome, regra e valor; os controles só abrem ao tocar.
+  function linhaRowMob(def, l, travada, tag, ctrl) {
+    const aberta = !travada && cur._aberta === def.key;
+    return `<div class="orc-ml${aberta ? ' on' : ''}" data-orc-row="${def.key}">
+        <div class="orc-ml-top"${travada ? '' : ` data-orc-abrir="${def.key}" role="button" tabindex="0" aria-expanded="${aberta}"`}>
+          <div class="orc-ml-nome">
+            <div class="orc-ml-t">${escapeHTML(def.rotulo)}${travada ? ' <i data-lucide="lock" class="orc-ml-ic"></i>' : ''} ${tag}</div>
+            <div class="orc-ml-r" data-orc-regra="${def.key}">${escapeHTML(regraTxt(l))}</div>
+          </div>
+          <span class="orc-ml-v num" data-orc-res="${def.key}">—</span>
+          ${travada ? '' : `<i data-lucide="chevron-${aberta ? 'up' : 'down'}" class="orc-ml-ch"></i>`}
+        </div>
+        ${aberta ? `<div class="orc-ml-ed">${ctrl}</div>` : ''}
       </div>`;
   }
 
@@ -291,6 +317,90 @@
     if (window.lucide) lucide.createIcons();
   }
 
+  // Celular: tela cheia com resumo fixo no topo, cartões rolando e barra de
+  // ações embaixo. Mesmos data-orc-* e ids do desktop (wireEvents e recalc servem aos dois).
+  function htmlMobile(p, titulo, cliente, isAdmin, unidade) {
+    const campo = (id, rot, attr, v, pre) => `
+      <label class="orc-m-l" for="${id}">${rot}</label>
+      <div class="orc-m-campo">${pre ? `<span>${pre}</span>` : ''}<input id="${id}" type="text" inputmode="decimal" autocomplete="off" ${attr} value="${fmtIn(v)}"></div>`;
+    const dim = (k, rot, v, modo) => `<label>${rot}<input type="text" inputmode="${modo}" autocomplete="off" data-orc-dim="${k}" value="${fmtIn(v)}"></label>`;
+    return `
+      <div class="orc-m-top">
+        <div class="orc-m-head">
+          <div class="orc-m-hx">
+            <span class="orc-m-tag"><i data-lucide="lock"></i>Precificação interna</span>
+            <div class="orc-m-tit">${titulo} · ${cliente}</div>
+            <div id="orc-salvo-info"></div>
+          </div>
+          <button type="button" data-orc-act="close" class="orc-m-x" aria-label="Fechar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="orc-m-kpis">
+          <div class="orc-m-kpi"><span>Venda</span><b id="orc-k-receita" class="num">—</b></div>
+          <div class="orc-m-kpi"><span>Lucro líquido</span><b id="orc-k-lucro" class="num">—</b></div>
+          <div class="orc-m-kpi orc-m-kpi-mg"><span>Margem · mín ${pctFmt(cur.margem_min)}%</span><b id="orc-k-margem" class="num">—</b></div>
+        </div>
+      </div>
+
+      <div class="orc-m-corpo">
+        <section class="orc-m-card">
+          ${campo('orc-m-rec', 'Receita bruta (venda)', 'data-orc-cost="__receita__"', cur.receita, 'R$')}
+          ${campo('orc-m-kit', 'Kit fotovoltaico + frete', 'data-orc-cost="kit"', cur.kit, 'R$')}
+          <button type="button" class="orc-m-dims" data-orc-act="dims" aria-expanded="false"><i data-lucide="sun"></i><span id="orc-dims-tx"></span><i data-lucide="chevron-down" class="orc-ml-ch"></i></button>
+          <div class="orc-m-dimgrid" hidden>
+            ${dim('modulos', 'Módulos', cur.modulos, 'numeric')}${dim('kwp', 'kWp', cur.kwp, 'decimal')}
+            ${dim('inversores', 'Inversores', cur.inversores, 'numeric')}${dim('kwInversor', 'kW inversor', cur.kwInversor, 'decimal')}
+          </div>
+          ${cur.artInclusa ? '<div class="orc-m-sub">ART incluída no projeto da Rede</div>' : ''}
+        </section>
+
+        <section class="orc-m-card orc-m-alvo">
+          <div class="orc-m-alvo-tx">
+            <div class="orc-m-l">Venda para margem-alvo de <span class="orc-m-pct"><input type="text" inputmode="decimal" autocomplete="off" data-orc-alvo aria-label="Margem-alvo (%)" value="${fmtIn(cur.margem_alvo)}">%</span></div>
+            <b id="orc-venda-alvo" class="num">—</b>
+          </div>
+          <button type="button" data-orc-act="usar-alvo" class="orc-m-usar">Usar</button>
+        </section>
+
+        <section class="orc-m-card orc-m-lista">
+          <div class="orc-m-ch"><b>Custos</b><b id="orc-m-custos" class="num">—</b></div>
+          <div class="orc-m-sub">Padrão ${cur.unidadeNome ? 'de ' + unidade : 'da unidade'} · toque numa linha para ajustar</div>
+          <div id="orc-linhas"></div>
+        </section>
+
+        <section class="orc-m-card">
+          <div class="orc-m-ch"><b>Linhas extras</b><button type="button" data-orc-act="add-extra" class="orc-m-link"><i data-lucide="plus"></i>Adicionar</button></div>
+          <div id="orc-dre-extras" class="orc-m-extras"></div>
+        </section>
+
+        <section class="orc-m-card orc-m-res">
+          <div class="orc-m-rr"><span>Total de custos</span><b id="orc-tot-custos" class="num">—</b></div>
+          <div class="orc-m-rr"><span>Lucro operacional</span><b id="orc-tot-lucroop" class="num">—</b></div>
+          <div id="orc-linha-ded"></div>
+          <div class="orc-m-rr fin"><span>Lucro líquido</span><b id="orc-tot-lucroliq" class="num">—</b></div>
+        </section>
+
+        <p class="orc-m-nota">Só admin e o gestor da unidade veem. Ajustes valem só para esta proposta.${isAdmin ? '' : ' Para mudar o preço da proposta, fale com o admin.'}${cur.centroFallback ? ' <span class="orc-aviso">Centro de custo indisponível agora; usando os percentuais padrão do Financeiro.</span>' : ''}</p>
+      </div>
+
+      <div class="orc-m-bar">
+        <div id="orc-aplicar" class="orc-m-apl" style="display:none"><span>Na proposta hoje: <b id="orc-preco-atual" class="num">${money(precoProposta(p))}</b></span><button type="button" data-orc-act="aplicar"><span id="orc-aplicar-tx">Aplicar</span></button></div>
+        <div class="orc-m-btns">
+          <button type="button" data-orc-act="mais" class="orc-m-mais" aria-label="Mais ações"><i data-lucide="more-horizontal"></i></button>
+          <button type="button" data-orc-act="save" class="orc-m-salvar"><i data-lucide="save"></i>Salvar</button>
+        </div>
+      </div>
+
+      <div class="orc-m-sheet" hidden>
+        <div class="orc-m-sheet-in" role="dialog" aria-label="Mais ações">
+          <div class="orc-m-alca"></div>
+          <b>Mais ações</b>
+          <button type="button" data-orc-act="reset-todas"><i data-lucide="undo-2"></i>Voltar custos ao padrão</button>
+          <button type="button" data-orc-act="reset" class="perigo"><i data-lucide="rotate-ccw"></i>Apagar e recomeçar</button>
+          <button type="button" data-orc-act="sheet-fechar" class="cancelar">Cancelar</button>
+        </div>
+      </div>`;
+  }
+
   function buildOverlay(p) {
     const old = document.getElementById('orc-dre-overlay');
     if (old) old.remove();
@@ -302,7 +412,20 @@
 
     const el = document.createElement('div');
     el.id = 'orc-dre-overlay';
-    // Celular: coluna única rolando (layout original).
+    cur._mob = window.matchMedia('(max-width: 767px)').matches;
+    if (cur._mob) {
+      el.className = 'fixed inset-0 z-[130] orc-mob';
+      el.innerHTML = htmlMobile(p, titulo, cliente, isAdmin, unidade);
+      document.body.appendChild(el);
+      wireEvents(el);
+      renderExtras();
+      renderLinhas();
+      if (window.lucide) lucide.createIcons();
+      cur._snap = estado(cur);
+      pintarInfo();
+      return;
+    }
+    // Tablet: coluna única rolando (layout original).
     // Desktop (lg+): quadro 16:9 sem rolar a página — demonstração à esquerda
     // (rola por dentro) e resumo/ações fixos à direita.
     el.className = 'fixed inset-0 z-[130] flex items-start md:items-center justify-center bg-black/90 backdrop-blur-md p-2 md:p-4 lg:p-6 overflow-y-auto lg:overflow-hidden';
@@ -313,14 +436,7 @@
             <div class="orc-tag text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 flex items-center gap-1.5"><i data-lucide="lock" class="w-3 h-3"></i>Precificação interna · ${isAdmin ? 'admin' : 'gestão da unidade'}</div>
             <h3 class="orc-title text-lg font-black text-white mt-1 truncate">${titulo}</h3>
             <div class="orc-cli text-[11px] text-neutral-500 font-bold truncate">${cliente}</div>
-            <div id="orc-salvo-info" class="text-[10px] font-bold mt-1 ${cur.origem === 'banco' ? 'text-neutral-500' : 'text-yellow-500'}">${
-              cur.origem === 'banco' ? escapeHTML(fmtSalvoEm(cur.saved))
-              : cur.origem === 'local' ? 'Rascunho antigo deste navegador — clique em Salvar para gravar'
-              : 'Ainda não salvo'}${cur.sugestaoKit && cur.origem === 'novo'
-                ? ` · <span class="text-neutral-400">${cur.sugestaoKit.fonte === 'cotacao'
-                  ? `custo do kit preenchido pela cotação da ${cur.sugestaoKit.provedor === 'belenus' ? 'Belenus' : 'distribuidora'} (com frete)`
-                  : `custo do kit preenchido pelo catálogo (${cur.sugestaoKit.itens} de ${cur.sugestaoKit.de} equipamentos com custo)`}</span>`
-                : ''}</div>
+            <div id="orc-salvo-info" class="text-[10px] font-bold mt-1"></div>
           </div>
           <button type="button" data-orc-act="close" class="orc-x shrink-0 w-9 h-9 grid place-items-center bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
         </div>
@@ -435,6 +551,29 @@
     renderLinhas();
     if (window.lucide) lucide.createIcons();
     cur._snap = estado(cur);
+    pintarInfo();
+  }
+
+  // Linha de status do topo: salvo/rascunho/novo, ou "Alterações não salvas".
+  function infoHtml() {
+    const base = cur.origem === 'banco' ? escapeHTML(fmtSalvoEm(cur.saved))
+      : cur.origem === 'local' ? 'Rascunho antigo deste navegador — clique em Salvar para gravar'
+      : 'Ainda não salvo';
+    const k = cur.sugestaoKit;
+    if (!k || cur.origem !== 'novo') return base;
+    return base + ` · <span class="text-neutral-400">${k.fonte === 'cotacao'
+      ? `custo do kit preenchido pela cotação da ${k.provedor === 'belenus' ? 'Belenus' : 'distribuidora'} (com frete)`
+      : `custo do kit preenchido pelo catálogo (${k.itens} de ${k.de} equipamentos com custo)`}</span>`;
+  }
+
+  function pintarInfo() {
+    const info = document.getElementById('orc-salvo-info');
+    if (!info || !cur) return;
+    const s = sujo();
+    if (info.dataset.sujo === String(s) && info.innerHTML) return;
+    info.dataset.sujo = String(s);
+    info.innerHTML = s ? 'Alterações não salvas' : infoHtml();
+    info.className = (cur._mob ? 'orc-m-info ' : 'text-[10px] font-bold mt-1 ') + (s || cur.origem !== 'banco' ? 'text-yellow-500' : 'text-neutral-500');
   }
 
   // Atualiza só resultados/totais/KPIs (não re-renderiza inputs → preserva foco).
@@ -447,20 +586,26 @@
       if (res) res.textContent = '− ' + money(d.valores[l.key]);
       const tag = document.querySelector(`[data-orc-adj="${l.key}"]`);
       if (tag) tag.style.display = ajustado(l.key) ? '' : 'none';
+      const regra = document.querySelector(`[data-orc-regra="${l.key}"]`);
+      if (regra) regra.textContent = regraTxt(cur.linhas[l.key]);
     });
+    const curto = (v) => cur._mob ? 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR') : money(v);
 
     set('orc-tot-custos', '− ' + money(d.totalCustos));
     set('orc-tot-lucroop', money(d.lucro));
     set('orc-tot-lucroliq', money(d.lucroLiq));
-    set('orc-k-receita', money(d.receita));
+    set('orc-k-receita', curto(d.receita));
     set('orc-k-custos', money(d.totalCustos));
-    set('orc-k-lucro', money(d.lucroLiq));
+    set('orc-m-custos', '− ' + money(defs().reduce((t, l) => t + num(d.valores[l.key]), 0)));
+    set('orc-k-lucro', curto(d.lucroLiq));
+    set('orc-dims-tx', `${cur.modulos} módulo${cur.modulos === 1 ? '' : 's'} · ${pctFmt(cur.kwp)} kWp · ${cur.inversores} inversor${cur.inversores === 1 ? '' : 'es'}`);
 
     const baixa = d.margem < (cur.margem_min || 0);
     const mEl = document.getElementById('orc-k-margem');
     if (mEl) {
       mEl.textContent = (Number(d.margem) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
       mEl.className = 'text-base font-black mt-1 num ' + (baixa ? 'text-red-400' : 'text-emerald-400');
+      const box = mEl.closest('.orc-kpi, .orc-m-kpi'); if (box) box.classList.toggle('baixa', baixa);
     }
     const liqEl = document.getElementById('orc-tot-lucroliq');
     if (liqEl) liqEl.className = 'font-black num text-sm w-36 text-right pr-1 ' + (d.lucroLiq < 0 ? 'text-red-400' : 'text-emerald-400');
@@ -471,8 +616,9 @@
     if (aplicar && cur._proposta && state && state.isAdmin) {
       const igual = r2(cur.receita) === r2(precoProposta(cur._proposta)) || !(r2(cur.receita) > 0);
       aplicar.style.display = igual ? 'none' : '';
-      set('orc-aplicar-tx', `Aplicar ${money(r2(cur.receita))} na proposta`);
+      set('orc-aplicar-tx', cur._mob ? `Aplicar ${money(r2(cur.receita))}` : `Aplicar ${money(r2(cur.receita))} na proposta`);
     }
+    pintarInfo();
   }
 
   // Leva a "Receita bruta" da calculadora para o preço da proposta (mesmo link).
@@ -579,9 +725,22 @@
     root.addEventListener('click', (ev) => {
       const tipoBtn = ev.target.closest('[data-orc-tipo]');
       if (tipoBtn) { trocarTipo(tipoBtn.getAttribute('data-k'), tipoBtn.getAttribute('data-orc-tipo')); return; }
-      const btn = ev.target.closest('[data-orc-act]'); if (!btn) return;
+      // Celular: gaveta "Mais ações" fecha ao tocar fora ou em qualquer ação dela
+      const sheet = root.querySelector('.orc-m-sheet');
+      if (sheet && !sheet.hidden && (ev.target === sheet || ev.target.closest('.orc-m-sheet [data-orc-act]'))) sheet.hidden = true;
+      const btn = ev.target.closest('[data-orc-act]');
+      if (!btn) {
+        const abrir = ev.target.closest('[data-orc-abrir]');
+        if (abrir) { const k = abrir.getAttribute('data-orc-abrir'); cur._aberta = cur._aberta === k ? null : k; renderLinhas(); }
+        return;
+      }
       const act = btn.getAttribute('data-orc-act');
       if (act === 'close') { closeOverlay(); }
+      else if (act === 'mais') { if (sheet) sheet.hidden = false; }
+      else if (act === 'dims') {
+        const g = root.querySelector('.orc-m-dimgrid');
+        if (g) { g.hidden = !g.hidden; btn.setAttribute('aria-expanded', String(!g.hidden)); }
+      }
       else if (act === 'reset-linha') {
         const k = btn.getAttribute('data-k');
         const def = TODAS.find((l) => l.key === k);
@@ -613,6 +772,9 @@
     // Fecha ao clicar no backdrop (só tela larga: no celular a borda é estreita e
     // o toque sem querer fechava e perdia o que foi digitado) ou ESC
     root.addEventListener('mousedown', (ev) => { if (ev.target === root && window.matchMedia('(min-width: 768px)').matches) closeOverlay(); });
+    root.addEventListener('keydown', (ev) => {
+      if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches('[data-orc-abrir]')) { ev.preventDefault(); ev.target.click(); }
+    });
     document.addEventListener('keydown', onKeydown);
   }
 
@@ -620,7 +782,7 @@
 
   // Alterações não salvas: compara com o estado da última abertura/gravação.
   const estado = (c) => JSON.stringify({ r: r2(c.receita), k: r2(c.kit), e: c.extras, l: c.linhas, m: num(c.margem_alvo), d: [c.modulos, c.kwp, c.inversores, c.kwInversor] });
-  const sujo = () => !!cur && cur._snap !== estado(cur);
+  const sujo = () => !!cur && cur._snap != null && cur._snap !== estado(cur);
 
   function closeOverlay(force) {
     if (force !== true && sujo() && !confirm('Sair sem salvar?\n\nO que foi alterado nesta precificação será perdido.')) return;
@@ -652,9 +814,9 @@
       try { localStorage.removeItem(lsKey(alvo.propostaId)); } catch (_) {}
       alvo.origem = 'banco';
       alvo._snap = snap;
-      try { alvo.saved = await loadSaved(alvo.propostaId); } catch (_) { alvo.saved = { updated_at: new Date().toISOString() }; }
+      try { alvo.saved = (await loadSaved(alvo.propostaId)) || { updated_at: new Date().toISOString() }; } catch (_) { alvo.saved = { updated_at: new Date().toISOString() }; }
       const info = document.getElementById('orc-salvo-info');
-      if (info && cur === alvo) { info.textContent = fmtSalvoEm(alvo.saved); info.className = 'text-[10px] font-bold mt-1 text-neutral-500'; }
+      if (info && cur === alvo) { info.innerHTML = ''; pintarInfo(); }
       _resumoCache[alvo.propostaId] = { margem_pct: d.margem, lucro_liquido: d.lucroLiq };
       preencherSelosPrecificacao(true);
       toastSafe('Precificação salva');
