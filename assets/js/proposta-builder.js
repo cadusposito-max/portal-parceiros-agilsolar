@@ -1008,8 +1008,7 @@ async function handleEquipamentosProposalSubmit(event) {
 
     if (error) throw error;
 
-    const baseUrl   = window.location.origin;
-    const linkFinal = baseUrl + '/proposta.html?id=' + data[0].id;
+    const linkFinal = linkPublico('proposta.html?id=' + data[0].id);
     handleProposalLinkOpen(linkFinal, popupRef);
 
     if (!client.status || client.status === 'NOVO') await cycleClientStatus(client.id, 'NOVO');
@@ -1196,8 +1195,7 @@ function copiarLinkExistente(id, btnElement) {
   btnElement.innerHTML = '<i class="w-3 h-3 inline" data-lucide="check"></i> Copiado!';
   lucide.createIcons();
 
-  const baseUrl   = window.location.origin;
-  const linkFinal = `${baseUrl}/proposta.html?id=${id}`;
+  const linkFinal = linkPublico(`proposta.html?id=${id}`);
   copiarTextoBlindado(linkFinal);
   showToast('LINK DA PROPOSTA COPIADO!');
 
@@ -1246,8 +1244,7 @@ async function copyProposalLink(kit, event) {
 
     if (error) throw error;
 
-    const baseUrl   = window.location.origin;
-    const linkFinal = `${baseUrl}/proposta.html?id=${data[0].id}`;
+    const linkFinal = linkPublico(`proposta.html?id=${data[0].id}`);
 
     handleProposalLinkOpen(linkFinal, popupRef);
 

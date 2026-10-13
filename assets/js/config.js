@@ -21,6 +21,21 @@ const MAX_LOGIN_ATTEMPTS    = 3;      // Tentativas antes de bloquear login
 const LOGIN_LOCKOUT_SECONDS = 30;     // Segundos de bloqueio apos exceder tentativas
 const TURNSTILE_SITE_KEY    = '0x4AAAAAACyD0uPARxpOHPqH'; // Cloudflare Turnstile Site Key (publica, seguro expor)
 
+// --- ENDERECO OFICIAL ---
+// Links que vao pro cliente (orcamento, proposta de O&M) saem sempre no dominio
+// oficial, mesmo se o vendedor estiver usando o link antigo .vercel.app — que
+// continua funcionando. Em localhost/IP fica o endereco local, pra testar sem
+// mandar o cliente pra producao.
+const DOMINIO_PLATAFORMA = 'https://plataforma.agilsolar.com.br';
+
+function linkPublico(caminho) {
+  const host = String(window.location.hostname || '').toLowerCase();
+  const local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]'
+    || host.endsWith('.localhost') || /^\d+\.\d+\.\d+\.\d+$/.test(host);
+  const base = local ? window.location.origin : DOMINIO_PLATAFORMA;
+  return base + '/' + String(caminho).replace(/^\/+/, '');
+}
+
 // --- ESTADO GLOBAL DA APLICACAO ---
 let state = {
   data: [],
