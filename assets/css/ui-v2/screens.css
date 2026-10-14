@@ -281,6 +281,16 @@ html[data-ui="v2"] .v2s .v2-kcard .meta svg { width: 12px !important; height: 12
 html[data-ui="v2"] .v2s .v2-kcard .f { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px dashed var(--v2-line-strong); padding-top: 10px; }
 html[data-ui="v2"] .v2s .v2-kcard .f b { font-size: 15px; font-weight: 800; }
 html[data-ui="v2"] .v2s .v2-kcard .f .none { font-size: 12.5px; font-weight: 700; color: var(--v2-gray); }
+/* kit vendido no card do cliente com venda */
+html[data-ui="v2"] .v2s .v2-kkit { display: flex; gap: 8px; align-items: flex-start; background: rgba(31,169,113,.1); border-radius: 12px; padding: 8px 10px; }
+html[data-ui="v2"] .v2s .v2-kkit svg { color: var(--v2-green); width: 16px !important; height: 16px !important; flex: none; margin-top: 1px; }
+html[data-ui="v2"] .v2s .v2-kkit div { min-width: 0; }
+html[data-ui="v2"] .v2s .v2-kkit b { display: block; font-size: 12.5px; font-weight: 800; line-height: 1.35; color: var(--v2-ink); overflow-wrap: anywhere; }
+html[data-ui="v2"] .v2s .v2-kkit small { display: block; font-size: 11.5px; font-weight: 600; color: var(--v2-ink-2); margin-top: 1px; }
+/* kit vendido na lista de vendas */
+html[data-ui="v2"] .v2s .v2-vkit { display: flex; gap: 5px; align-items: flex-start; margin-top: 3px; font-size: 12.5px; font-weight: 700; color: var(--v2-ink-2); max-width: 420px; line-height: 1.35; }
+html[data-ui="v2"] .v2s .v2-vkit svg { color: var(--v2-green); width: 14px !important; height: 14px !important; flex: none; margin-top: 1px; }
+html[data-ui="v2"] .v2s .v2-vkit em { font-style: normal; font-weight: 600; color: var(--v2-gray); margin-left: 6px; }
 html[data-ui="v2"] .v2s .v2-drop { border: 1.5px dashed var(--v2-line-strong); border-radius: 16px; padding: 26px 10px; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--v2-gray); }
 html[data-ui="v2"] .v2s .v2-colmore { border: 0; background: var(--v2-card); border-radius: 14px; height: 38px; font-size: 13px; font-weight: 700; color: var(--v2-blue-text); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
@@ -316,6 +326,10 @@ html[data-ui="v2"] .v2s .v2-pcard .v2-ini.gr { background: rgba(31,169,113,.14);
 html[data-ui="v2"] .v2s .v2-pcard .kit { font-size: 13px; color: var(--v2-ink-2); font-weight: 600; display: flex; gap: 8px; align-items: center; min-width: 0; }
 html[data-ui="v2"] .v2s .v2-pcard .kit span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html[data-ui="v2"] .v2s .v2-pcard .kit svg { color: var(--v2-blue); width: 16px !important; height: 16px !important; }
+html[data-ui="v2"] .v2s .v2-pcard .kit.kit-vendido { align-items: flex-start; color: var(--v2-ink); font-weight: 800; }
+html[data-ui="v2"] .v2s .v2-pcard .kit.kit-vendido span { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+html[data-ui="v2"] .v2s .v2-pcard .kit.kit-vendido small { display: block; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .v2-pcard .kit.kit-vendido svg { color: var(--v2-green); margin-top: 1px; flex: none; }
 html[data-ui="v2"] .v2s .v2-pcard .specs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 html[data-ui="v2"] .v2s .v2-pcard .specs div { background: var(--v2-soft); border-radius: 14px; padding: 10px 12px; min-width: 0; }
 html[data-ui="v2"] .v2s .v2-pcard .specs small { display: block; font-size: 11px; color: var(--v2-gray); font-weight: 600; }

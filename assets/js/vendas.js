@@ -49,6 +49,36 @@ function getSaleValue(sale) {
   return Number.isFinite(value) ? value : 0;
 }
 
+// Kit vendido para os cards: nome, potência e marca. Proposta personalizada
+// sem nome de kit ("Proposta personalizada 4,96 kWp") mostra os itens dela.
+function vendaKitResumo(sale) {
+  const prop = sale?.proposta_id ? (state.propostas || []).find((p) => p.id === sale.proposta_id) : null;
+  let nome = String(sale?.kit_nome || prop?.kit_nome || '').trim();
+  if (!nome || /^proposta personalizada/i.test(nome)) {
+    const itens = prop?.kit_snapshot?.itens || prop?.custom_config?.itens || [];
+    const desc = (Array.isArray(itens) ? itens : [])
+      .filter((i) => Number(i?.qtd) > 0 && String(i?.descricao || '').trim())
+      .slice(0, 2)
+      .map((i) => (Number(i.qtd) > 1 ? `${i.qtd}× ` : '') + String(i.descricao).trim())
+      .join(' + ');
+    if (desc) nome = desc;
+  }
+  const kwp = Number(sale?.kit_power || prop?.kit_power || prop?.custom_system_power_kwp) || 0;
+  return {
+    nome: nome || '—',
+    kwp,
+    kwpTexto: kwp ? `${String(kwp).replace('.', ',')} kWp` : '',
+    marca: String(sale?.kit_brand || '').trim(),
+  };
+}
+
+// Venda mais recente de cada cliente ({ cliente_id: venda }); state.vendas vem do mais novo pro mais velho.
+function vendasMaisRecentesPorCliente() {
+  const mapa = {};
+  (state.vendas || []).forEach((v) => { if (v?.cliente_id && !mapa[v.cliente_id]) mapa[v.cliente_id] = v; });
+  return mapa;
+}
+
 function getSaleDate(sale) {
   const date = new Date(sale?.created_at || 0);
   return Number.isNaN(date.getTime()) ? null : date;

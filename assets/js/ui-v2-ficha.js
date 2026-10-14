@@ -237,6 +237,91 @@
   };
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.getElementById('v2-resp-scrim')) { e.stopPropagation(); respFechar(); } }, true);
 
+  // ==================== ajustar geração da proposta (admin e franqueado) ====================
+  // A geração calculada na criação (geracao_estimada) fica intacta; o ajuste vai
+  // para geracao_ajustada via RPC e link, PDF, economia e payback passam a usar ele.
+  const G = { id: null, salvando: false };
+  const kwh = (n) => Math.round(Number(n) || 0).toLocaleString('pt-BR');
+  const gerProposta = () => (state.propostas || []).find((p) => p.id === G.id) || null;
+  function gerFechar() { const s = document.getElementById('v2-ger-scrim'); if (s) s.remove(); G.id = null; }
+  function gerValor() {
+    const i = document.getElementById('v2-ger-valor');
+    return i ? Number(String(i.value).replace(/\./g, '').replace(',', '.')) : 0;
+  }
+  // Prévia de economia e payback com o valor digitado (mesma conta do link).
+  function gerPrevia() {
+    const box = document.getElementById('v2-ger-previa');
+    const p = gerProposta();
+    if (!box || !p || !has('calcularNumerosProposta')) return;
+    const v = gerValor();
+    if (!(v > 0)) { box.textContent = 'Informe a geração em kWh/mês.'; return; }
+    const n = calcularNumerosProposta(Object.assign({}, p, { geracao_ajustada: v }));
+    box.innerHTML = `Cliente passa a ver economia de <b>${esc(formatCurrency(n.economiaMensal))}/mês</b> e retorno em <b>${esc(n.payback)}</b>.`;
+  }
+
+  window.uiV2Geracao = {
+    abrir(propostaId) {
+      if (!has('podeAjustarGeracao') || !podeAjustarGeracao()) return;
+      gerFechar();
+      G.id = propostaId; G.salvando = false;
+      const p = gerProposta();
+      if (!p) { G.id = null; return; }
+      const calculada = Number(p.geracao_estimada) || 0;
+      const ajustada = Number(p.geracao_ajustada) || 0;
+      const st = has('propostaStatus') ? propostaStatus(p) : 'GERADA';
+      const s = document.createElement('div');
+      s.id = 'v2-ger-scrim';
+      s.innerHTML = `<div class="v2-resp" role="dialog" aria-modal="true" aria-label="Ajustar geração">
+        <div class="v2-resp-h"><div><h3>Ajustar geração</h3><small>${esc([p.cliente_nome, p.kit_nome].filter(Boolean).join(' · '))}</small></div><button class="v2-sq" onclick="uiV2Geracao.fechar()" title="Fechar">${ic('x')}</button></div>
+        <p class="v2-resp-nota">Calculada pelo sistema: <b>${calculada ? kwh(calculada) + ' kWh/mês' : '—'}</b>${ajustada ? ` · ajuste atual: <b>${kwh(ajustada)} kWh/mês</b>${p.geracao_ajustada_por ? ` (${esc(p.geracao_ajustada_por)})` : ''}` : ''}</p>
+        <label class="v2-ger-campo"><span>Geração média (kWh/mês)</span>
+          <input id="v2-ger-valor" type="text" inputmode="numeric" autocomplete="off" value="${Math.round(ajustada || calculada) || ''}" oninput="uiV2Geracao.previa()" onkeydown="if (event.key === 'Enter') uiV2Geracao.salvar()"></label>
+        <p class="v2-resp-nota" id="v2-ger-previa"></p>
+        ${st !== 'GERADA' ? `<p class="v2-resp-aviso" style="margin-top:10px">${ic('alert-triangle')}<span>O cliente já recebeu esta proposta: o link e o PDF dele mudam na hora.</span></p>` : ''}
+        <div class="v2-resp-acts">
+          ${ajustada ? `<button class="v2-btn2" style="margin-right:auto" onclick="uiV2Geracao.salvar(true)">Voltar ao calculado</button>` : ''}
+          <button class="v2-btn2" onclick="uiV2Geracao.fechar()">Cancelar</button>
+          <button class="v2-btnp" id="v2-ger-ok" onclick="uiV2Geracao.salvar()">${ic('check')}Salvar</button>
+        </div>
+      </div>`;
+      s.addEventListener('mousedown', (e) => { if (e.target === s) gerFechar(); });
+      document.body.appendChild(s);
+      if (window.lucide) window.lucide.createIcons();
+      gerPrevia();
+      setTimeout(() => { const i = document.getElementById('v2-ger-valor'); if (i) { i.focus(); i.select(); } }, 30);
+    },
+    fechar: gerFechar,
+    previa: gerPrevia,
+    async salvar(limpar) {
+      const p = gerProposta();
+      if (!p || G.salvando) return;
+      const valor = limpar ? null : Math.round(gerValor());
+      if (!limpar && !(valor > 0)) { if (has('showToast')) showToast('Informe a geração em kWh/mês.'); return; }
+      G.salvando = true;
+      const ok = document.getElementById('v2-ger-ok');
+      if (ok) { ok.disabled = true; ok.textContent = 'Salvando...'; }
+      const { data, error } = await supabaseClient.rpc('ajustar_geracao_proposta', { p_proposta_id: p.id, p_valor: valor });
+      G.salvando = false;
+      if (error) {
+        if (ok) { ok.disabled = false; ok.innerHTML = `${ic('check')}Salvar`; if (window.lucide) window.lucide.createIcons(); }
+        if (has('showToast')) showToast('Não foi possível ajustar: ' + error.message);
+        return;
+      }
+      // mantém a proposta em memória igual ao banco (ficha, cards)
+      p.geracao_ajustada = valor;
+      p.geracao_ajustada_por = valor ? String(state.currentUser?.email || '').toLowerCase() : null;
+      p.geracao_ajustada_em = valor ? new Date().toISOString() : null;
+      gerFechar();
+      if (has('showToast')) {
+        showToast(data && data.alterado === false ? 'A geração já estava com esse valor.'
+          : valor ? `Geração ajustada para ${kwh(valor)} kWh/mês.` : 'Geração voltou ao valor calculado.');
+      }
+      if (p.cliente_id && has('crmFetchAtividades')) crmFetchAtividades(p.cliente_id);
+      if (has('renderCrm360')) renderCrm360();
+    },
+  };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.getElementById('v2-ger-scrim')) { e.stopPropagation(); gerFechar(); } }, true);
+
   window.uiV2Vistoria = {
     focar() {
       const card = document.getElementById('v2f-vistoria');

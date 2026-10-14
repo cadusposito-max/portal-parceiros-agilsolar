@@ -22,6 +22,11 @@ function propostaEhPersonalizada(p) {
   return p.proposal_mode === 'PERSONALIZADA' || p.proposal_mode === 'EQUIPAMENTOS';
 }
 
+// Geração mensal (kWh) que vale para a proposta: ajustada > calculada > 0.
+function propostaGeracao(p) {
+  return Number(p && p.geracao_ajustada || 0) || Number(p && p.geracao_estimada || 0);
+}
+
 function propostaTextoPayback(meses) {
   var anos = Math.floor(meses / 12);
   var resto = meses % 12;
@@ -37,9 +42,10 @@ function calcularNumerosProposta(p) {
   var custom   = propostaEhPersonalizada(p);
   var preco    = custom ? (p.custom_total_price || p.kit_price || 0) : (p.kit_price || 0);
   var potencia = custom ? (p.custom_system_power_kwp || p.kit_power || 0) : (p.kit_power || 0);
-  // Geração salva na criação (HSP do cliente). Propostas antigas sem ela:
-  // HSP padrão 5,4 e eficiência 0,76 (mesma conta de sempre).
-  var geracao  = Number(p.geracao_estimada || 0) || (potencia * 5.4 * 30 * 0.76);
+  // Geração ajustada pelo admin/franqueado tem prioridade; senão a salva na
+  // criação (HSP do cliente). Propostas antigas sem ela: HSP padrão 5,4 e
+  // eficiência 0,76 (mesma conta de sempre).
+  var geracao  = propostaGeracao(p) || (potencia * 5.4 * 30 * 0.76);
 
   var faturaIdeal    = geracao * PROPOSTA_TARIFA_MEDIA;
   // Arredonda a mensal em centavos antes de multiplicar: anual = 12 × mensal exibida.

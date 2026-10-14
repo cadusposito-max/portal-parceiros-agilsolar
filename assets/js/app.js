@@ -593,6 +593,11 @@ function podeRede() {
   return Boolean(state.isAdmin || state.isFranqueado);
 }
 
+// Ajustar a geração da proposta: admin ou franqueado (o banco confere em ajustar_geracao_proposta).
+function podeAjustarGeracao() {
+  return Boolean(state.isAdmin || state.isFranqueado);
+}
+
 function renderEnvSwitcher() {
   const desktop = document.getElementById('env-switcher');
   const section = document.getElementById('menu-section');

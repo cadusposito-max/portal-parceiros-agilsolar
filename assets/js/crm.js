@@ -719,6 +719,17 @@ function _crm360AbaLarga() {
   return _crm360Tab === 'financiamento';
 }
 
+// "· ~520 kWh/mês" da linha da proposta; ajustada aparece marcada, com a calculada no title.
+function crmGeracaoTexto(p) {
+  const ajustada = Number(p.geracao_ajustada) || 0;
+  const calculada = Number(p.geracao_estimada) || 0;
+  if (ajustada) {
+    const dica = `Ajustada${p.geracao_ajustada_por ? ' por ' + p.geracao_ajustada_por : ''}${calculada ? ` · calculada: ${Math.round(calculada)} kWh/mês` : ''}`;
+    return `· <span class="text-orange-400" title="${escapeHTML(dica)}">~${Math.round(ajustada)} kWh/mês (ajustada)</span>`;
+  }
+  return calculada ? `· ~${Math.round(calculada)} kWh/mês` : '';
+}
+
 function renderCrm360TabContent(client, propostas, vendas) {
   // Projetos na engenharia + envio (eng-v2.js).
   if (_crm360Tab === 'engenharia' && typeof renderEngFichaTab === 'function') {
@@ -766,12 +777,13 @@ function renderCrm360TabContent(client, propostas, vendas) {
               <span class="text-[8px] px-1.5 py-0.5 uppercase font-black tracking-widest border shrink-0 ${stCls}">${st}</span>
               ${vistaInfo}
             </div>
-            <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(p.created_at)} · ${escapeHTML(String(p.kit_power || p.custom_system_power_kwp || '-'))} kWp ${p.geracao_estimada ? `· ~${Math.round(p.geracao_estimada)} kWh/mês` : ''}</p>
+            <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(p.created_at)} · ${escapeHTML(String(p.kit_power || p.custom_system_power_kwp || '-'))} kWp ${crmGeracaoTexto(p)}</p>
           </div>
           ${state.isAdmin ? `<span data-prec-selo="${p.id}"></span>` : ''}
           <span class="text-green-400 font-black text-sm">${formatCurrency(preco || 0)}</span>
           <div class="flex items-center gap-1.5">
             ${(state.isAdmin || state.isGestor) ? `<button onclick="openOrcamentoDre('${p.id}')" title="Precificação interna (admin e gestor)" class="btn btn-secondary btn-icon"><i data-lucide="calculator"></i></button>` : ''}
+            ${podeAjustarGeracao() && window.uiV2Geracao ? `<button onclick="uiV2Geracao.abrir('${p.id}')" title="Ajustar geração (admin e franqueado)" class="btn btn-secondary btn-icon"><i data-lucide="sun"></i></button>` : ''}
             <button onclick="copiarLinkExistente('${p.id}', this); marcarPropostaEnviada('${p.id}')" title="Copiar link (marca como enviada)" class="btn btn-secondary btn-icon"><i data-lucide="copy"></i></button>
             <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
             <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-icon"><i data-lucide="file-down"></i></a>

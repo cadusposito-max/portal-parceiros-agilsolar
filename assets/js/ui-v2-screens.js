@@ -536,6 +536,15 @@
   // Kanban por etapa. editavel=true no Funil (arrasta e muda etapa);
   // na aba Clientes é só visualização.
   function clientesKanbanHTML(filtered, showSeller, editavel) {
+    const vendaPorCliente = has('vendasMaisRecentesPorCliente') ? vendasMaisRecentesPorCliente() : {};
+    // Cliente com venda: kit vendido em destaque no card (o mais recente).
+    const kitVendido = (c) => {
+      const v = vendaPorCliente[c.id];
+      if (!v || !has('vendaKitResumo')) return '';
+      const k = vendaKitResumo(v);
+      const sub = [k.kwpTexto, k.marca].filter(Boolean).join(' · ');
+      return `<div class="v2-kkit" title="Kit vendido: ${esc(k.nome)}">${ic('solar-panel')}<div><b>${esc(k.nome)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div></div>`;
+    };
     const card = (c) => {
       const nProp = (_crmAgg.propostasByCliente || {})[c.id] || 0;
       const nVend = (_crmAgg.vendasByCliente || {})[c.id] || 0;
@@ -552,6 +561,7 @@
         <div class="t"><div><b>${esc(c.nome || 'Cliente')}${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado">${ic('alarm-clock')}</span>` : ''}</b><small>${esc([c.cidade, c.telefone].filter(Boolean).join(' · ') || '—')}</small></div>
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}</div>
         <div class="meta">${meta.join('')}</div>
+        ${nVend ? kitVendido(c) : ''}
         ${vistoriaChip(c) || engChip(c) ? `<div class="v2-visline">${vistoriaChip(c)}${engChip(c)}</div>` : ''}
         ${etqLinha(c.id, 3)}
         <div class="f">${valor ? `<b title="${money(valor)}">${moneyC(valor)}</b>` : '<span class="none">Sem proposta</span>'}
@@ -805,20 +815,21 @@
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); deleteVenda('${esc(v.id)}')" title="Excluir venda" style="color:#D14343">${ic('trash-2')}</button>` : ''}
         </div>`; };
     const kwpVenda = (v) => (v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—');
+    const kitVenda = (v) => (has('vendaKitResumo') ? vendaKitResumo(v) : { nome: v.kit_nome || '—', marca: v.kit_brand || '' });
     const visiveis = vendas.slice(0, limite);
-    const rows = visiveis.map((v) => `<tr onclick="openVendaClienteFicha('${esc(v.id)}')">
-        <td><div class="v2-who"><i class="v2-ini" style="background:rgba(31,169,113,.14);color:#1FA971">${ic('trophy', 'style="width:16px;height:16px"')}</i><div>${esc(v.cliente_nome || '—')}<small style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${esc(v.kit_nome || '—')}</small></div></div></td>
+    const rows = visiveis.map((v) => { const k = kitVenda(v); return `<tr onclick="openVendaClienteFicha('${esc(v.id)}')">
+        <td><div class="v2-who"><i class="v2-ini" style="background:rgba(31,169,113,.14);color:#1FA971">${ic('trophy', 'style="width:16px;height:16px"')}</i><div>${esc(v.cliente_nome || '—')}<span class="v2-vkit" title="Kit vendido">${ic('solar-panel')}<span>${esc(k.nome)}${k.marca ? `<em>${esc(k.marca)}</em>` : ''}</span></span><span class="show-m v2-mline">${kwpVenda(v)}</span></div></div></td>
         <td class="hide-m">${kwpVenda(v)}</td>
         <td class="hide-m muted">${esc(formatDate(v.created_at))}</td>
         ${showSeller ? `<td class="hide-m">${esc(vendNome(v.vendedor_email))}${state.isAdmin && state.adminViewAll && v.franquia_id ? `<small class="muted" style="display:block;font-size:12px">${esc(getFranquiaNameById(v.franquia_id))}</small>` : ''}</td>` : ''}
         <td style="font-weight:800">${money(getSaleValue(v))}</td>
-        <td>${acoesVenda(v)}</td></tr>`).join('');
-    const cards = visiveis.map((v) => `<div class="v2-card v2-pcard" onclick="openVendaClienteFicha('${esc(v.id)}')">
+        <td>${acoesVenda(v)}</td></tr>`; }).join('');
+    const cards = visiveis.map((v) => { const k = kitVenda(v); return `<div class="v2-card v2-pcard" onclick="openVendaClienteFicha('${esc(v.id)}')">
         <div class="hd"><i class="v2-ini gr">${ic('trophy', 'style="width:16px;height:16px"')}</i><div class="tx"><b>${esc(v.cliente_nome || '—')}</b><small>${esc(formatDate(v.created_at))}</small></div></div>
-        <div class="kit">${ic('solar-panel')}<span>${esc(v.kit_nome || '—')}</span></div>
+        <div class="kit kit-vendido" title="Kit vendido">${ic('solar-panel')}<span>${esc(k.nome)}${k.marca ? `<small>${esc(k.marca)}</small>` : ''}</span></div>
         <div class="specs"><div><small>Potência</small><b>${kwpVenda(v)}</b></div><div><small>${showSeller ? 'Vendedor' : 'Venda'}</small><b>${showSeller ? esc(vendNome(v.vendedor_email).split(' ')[0] || '—') : esc(timeAgo(v.created_at))}</b></div><div><small>${state.isAdmin && state.adminViewAll ? 'Franquia' : 'Data'}</small><b>${state.isAdmin && state.adminViewAll && v.franquia_id ? esc(getFranquiaNameById(v.franquia_id)) : esc(formatDate(v.created_at))}</b></div></div>
         <div class="ft"><div class="price">${money(getSaleValue(v))}<small>valor da venda</small></div>${acoesVenda(v)}</div>
-      </div>`).join('');
+      </div>`; }).join('');
     const mais = rodapeLista(Math.min(limite, vendas.length), vendas.length, 'uiV2Screens.maisVendas()', 'venda|vendas');
     const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas</h3><small>Clique para abrir a ficha do cliente</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
 
