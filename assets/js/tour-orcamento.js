@@ -63,10 +63,13 @@ const TOUR_PASSOS = [
   {
     id: 'np-tabs', alvo: () => _tourVis('#client-modal-overlay .np-picker-tabs'), senaoVolta: 'nova', atalho: _tourNoOrcamento,
     titulo: () => 'Cliente novo ou já cadastrado',
-    texto: () => 'Se o cliente já estiver cadastrado na plataforma, selecione <b>Já é cliente</b> e pesquise pelo nome. Caso contrário, faça o cadastro em <b>Cliente novo</b>.',
+    texto: () => 'Se o cliente já estiver cadastrado na plataforma, selecione <b>Já é cliente</b> e pesquise pelo nome. Caso contrário, faça o cadastro em <b>Cliente novo</b>.<br><br>Neste treino, selecione <b>Próximo</b> para cadastrar um cliente novo.',
   },
   {
     id: 'np-contato', senaoVolta: 'nova', atalho: _tourNoOrcamento,
+    // As abas ficam clicáveis no passo anterior: se ficou em "Já é cliente",
+    // o formulário está escondido e o tour voltaria em loop pro passo 2.
+    entrar: () => { if (typeof setNovaPropostaPickerTab === 'function') setNovaPropostaPickerTab('novo'); },
     alvo: () => [_tourBloco('#client-nome'), _tourBloco('#client-telefone')],
     titulo: () => 'Nome e WhatsApp',
     texto: () => 'Informe o nome e o WhatsApp do cliente. O WhatsApp é importante, pois é por ele que a proposta será enviada.<br><br>No treino, utilize dados fictícios.',
