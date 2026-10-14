@@ -36,6 +36,9 @@ const _tourCliente = () => {
   return String(c?.nome || 'cliente').trim().split(' ')[0];
 };
 const _tourNoOrcamento = { se: _tourOrcamentoAberto, para: 'orc' }; // escolheu "Já é cliente"
+const _tourGerou = { se: () => Boolean(document.getElementById('pb-share-overlay')), para: 'enviar' };
+// Até 1000px a coluna do kit desce para baixo da lista.
+const _tourOndeKit = () => (window.innerWidth > 1000 ? 'ao lado' : 'logo abaixo');
 
 const TOUR_PASSOS = [
   {
@@ -84,10 +87,12 @@ const TOUR_PASSOS = [
   {
     id: 'orc', alvo: () => _tourVis('.orcamento-header'), senaoVolta: 'nova',
     titulo: () => 'Tela do orçamento',
-    texto: () => `Este é o orçamento de <b>${escapeHTML(_tourCliente())}</b>. No topo, confira a cidade, a irradiação solar da região (HSP) e o WhatsApp do cliente.`,
+    texto: () => `Este é o orçamento de <b>${escapeHTML(_tourCliente())}</b>. No topo, confira a cidade, a irradiação solar da região (HSP) e o WhatsApp do cliente.<br><br>Em <b>Promocionais</b> ficam os kits com preço promocional; em <b>Catálogo completo</b>, todas as marcas. Neste treino, use <b>Promocionais</b>.`,
   },
   {
     id: 'porta', alvo: () => _tourVis('#orcamento-builder-slot #pb-porta'), senaoVolta: 'nova',
+    // O seletor do topo fica livre no passo anterior: o treino segue nos promocionais.
+    entrar: () => { if (typeof orcamentoEscolherLinha === 'function') orcamentoEscolherLinha('promocional'); },
     titulo: () => 'Formas de montar o orçamento',
     texto: () => '<b>Lista de kits</b>: quando você já sabe qual kit oferecer.<br><b>Pelo consumo</b>: quando você tem a conta de luz e deseja que a plataforma recomende o kit.<br><br>Selecione <b>Pelo consumo</b>.',
     esperar: () => state.pbPorta === 'dim',
@@ -116,10 +121,15 @@ const TOUR_PASSOS = [
   {
     id: 'tipo', alvo: () => _tourVis('[data-pbd-tipo]')?.parentElement, senaoVolta: 'porta',
     titulo: () => 'Inversor ou microinversor',
-    texto: () => 'Selecione o tipo de sistema. A recomendação de kits é atualizada automaticamente.',
+    texto: () => `Selecione o tipo de sistema. O kit recomendado, ${_tourOndeKit()}, é atualizado automaticamente.`,
   },
   {
-    id: 'kit', alvo: () => _tourVis('#orcamento-lado .orc-kit') || _tourVis('#orcamento-lado'), senaoVolta: 'porta',
+    // Ilumina o kit junto com "Ajustar" e "Ver todos os kits", que o texto cita.
+    id: 'kit', senaoVolta: 'porta', atalho: _tourGerou,
+    alvo: () => (_tourVis('#orcamento-lado .orc-kit')
+      ? [_tourVis('#orcamento-lado .orc-kit'), _tourVis('#orcamento-lado .orc-aj'), _tourVis('#orcamento-lado .orc-ver-todos')]
+      : _tourVis('#orcamento-lado')),
+    anel: () => _tourVis('#orcamento-lado .orc-kit'),
     titulo: () => 'Kit recomendado',
     texto: () => 'Este é o kit <b>de menor preço que atende à média de consumo</b> do cliente.<br><br>Em <b>Ajustar</b>, você troca por um kit com um módulo a menos ou a mais. Em <b>Ver todos os kits</b>, escolhe outro na lista.',
   },
