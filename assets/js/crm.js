@@ -940,6 +940,7 @@ function crmVendaCardHTML(v) {
   const forma = (VENDA_FORMAS_PAGAMENTO.find(([k]) => k === v.forma_pagamento) || [])[1] || '';
   const temInfo = Boolean(forma || v.pagamento_detalhes || v.observacoes);
   const vendedor = String(v.vendedor_nome || '').split(' ')[0];
+  const equip = typeof vendaKitResumo === 'function' ? vendaKitResumo(v).equipamentos : [];
   const itens = [];
   if (podeObs) itens.push(['pencil', 'Editar pagamento e observações', `crmVendaEditar('${v.id}')`]);
   if (podeGerir) itens.push(['trash-2', 'Excluir venda', `crmVendaExcluir('${v.id}')`, true]);
@@ -979,6 +980,7 @@ function crmVendaCardHTML(v) {
         <div class="t">
           <p class="text-white font-black text-xs uppercase">${escapeHTML(v.kit_nome || 'Venda')}</p>
           <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(v.created_at)} · ${escapeHTML(String(v.kit_power || '-'))} kWp${vendedor ? ' · vendedor ' + escapeHTML(vendedor) : ''}</p>
+          ${equip.length ? `<div class="crm-venda-pay crm-venda-equip">${equip.map((e) => `<span class="chip" title="${escapeHTML(e.titulo)}"><i data-lucide="${e.tipo === 'modulo' ? 'solar-panel' : 'cpu'}"></i>${e.qtd}× ${e.tipo === 'modulo' ? 'Módulo' : 'Inversor'} ${escapeHTML(e.label)}</span>`).join('')}</div>` : ''}
         </div>
         <div class="crm-venda-acoes">
         <span class="text-green-400 font-black text-sm">${formatCurrency(v.kit_price || 0)}</span>

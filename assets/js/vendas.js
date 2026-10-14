@@ -49,8 +49,48 @@ function getSaleValue(sale) {
   return Number.isFinite(value) ? value : 0;
 }
 
-// Kit vendido para os cards: nome, potência e marca. Proposta personalizada
-// sem nome de kit ("Proposta personalizada 4,96 kWp") mostra os itens dela.
+// Um equipamento ({ nome, marca, potencia_wp }) em texto curto:
+// módulo "Ronma 620W", inversor "SOFAR 3300TL-G3". Aceita "Nome · Marca" (personalizada).
+function _vendaEquipLabel(tipo, nome, marca, potenciaWp) {
+  let n = String(nome || '').trim();
+  let m = String(marca || '').trim();
+  if (!m && n.includes(' · ')) { const partes = n.split(' · '); m = partes.pop().trim(); n = partes.join(' · ').trim(); }
+  const titulo = [n, m].filter(Boolean).join(' · ');
+  if (tipo === 'modulo') {
+    const wp = Number(potenciaWp) || Number((n.match(/(\d{3,4})\s*W\b/i) || [])[1]) || 0;
+    if (m && wp) return { label: `${m} ${Math.round(wp)}W`, titulo };
+  }
+  const label = m && !n.toUpperCase().includes(m.toUpperCase()) ? `${m} ${n}` : (n || m);
+  return { label, titulo };
+}
+
+// Módulo e inversor da proposta da venda. Kit do catálogo: kit_snapshot (gravado
+// na criação); personalizada: custom_modulo/inversor ou os itens do tipo.
+// Propostas antigas sem nada disso → [] (o nome do kit já descreve).
+function _vendaEquipamentos(prop) {
+  if (!prop) return [];
+  const snap = prop.kit_snapshot && typeof prop.kit_snapshot === 'object' ? prop.kit_snapshot : {};
+  const itens = Array.isArray(snap.itens) ? snap.itens : (Array.isArray(prop.custom_config?.itens) ? prop.custom_config.itens : []);
+  const lista = [];
+  ['modulo', 'inversor'].forEach((tipo) => {
+    const s = snap[tipo];
+    if (s && typeof s === 'object' && (s.nome || s.marca)) {
+      lista.push({ tipo, qtd: Number(s.qtd) || 1, ..._vendaEquipLabel(tipo, s.nome, s.marca, s.potencia_wp) });
+      return;
+    }
+    const nomeCustom = prop[`custom_${tipo}_nome`];
+    if (nomeCustom) {
+      lista.push({ tipo, qtd: Number(prop[`custom_${tipo}_qty`]) || 1, ..._vendaEquipLabel(tipo, nomeCustom) });
+      return;
+    }
+    const item = itens.find((i) => i?.tipo === tipo && Number(i?.qtd) > 0 && String(i?.descricao || '').trim());
+    if (item) lista.push({ tipo, qtd: Number(item.qtd) || 1, ..._vendaEquipLabel(tipo, item.descricao) });
+  });
+  return lista;
+}
+
+// Kit vendido para os cards: nome, potência, marca e equipamentos. Proposta
+// personalizada sem nome de kit ("Proposta personalizada 4,96 kWp") mostra os itens dela.
 function vendaKitResumo(sale) {
   const prop = sale?.proposta_id ? (state.propostas || []).find((p) => p.id === sale.proposta_id) : null;
   let nome = String(sale?.kit_nome || prop?.kit_nome || '').trim();
@@ -64,11 +104,17 @@ function vendaKitResumo(sale) {
     if (desc) nome = desc;
   }
   const kwp = Number(sale?.kit_power || prop?.kit_power || prop?.custom_system_power_kwp) || 0;
+  const equipamentos = _vendaEquipamentos(prop);
+  const rotulo = { modulo: 'módulo', inversor: 'inversor' };
   return {
     nome: nome || '—',
     kwp,
     kwpTexto: kwp ? `${String(kwp).replace('.', ',')} kWp` : '',
     marca: String(sale?.kit_brand || '').trim(),
+    equipamentos,
+    // "7× módulo Ronma 620W · 1× inversor SOFAR 3300TL-G3"
+    equipTexto: equipamentos.map((e) => `${e.qtd}× ${rotulo[e.tipo]} ${e.label}`).join(' · '),
+    equipTitulo: equipamentos.map((e) => `${e.qtd}× ${e.titulo}`).join('\n'),
   };
 }
 
