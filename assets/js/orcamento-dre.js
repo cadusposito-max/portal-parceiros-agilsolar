@@ -562,10 +562,12 @@
       : cur.origem === 'local' ? 'Rascunho antigo deste navegador — clique em Salvar para gravar'
       : 'Ainda não salvo';
     const k = cur.sugestaoKit;
-    if (!k || cur.origem !== 'novo') return base;
+    if (!k || (cur.origem !== 'novo' && !cur.kitPreenchido)) return base;
     return base + ` · <span class="text-neutral-400">${k.fonte === 'cotacao'
       ? `custo do kit preenchido pela cotação da ${k.provedor === 'belenus' ? 'Belenus' : 'distribuidora'} (com frete)`
-      : `custo do kit preenchido pelo catálogo (${k.itens} de ${k.de} equipamentos com custo)`}</span>`;
+      : k.fonte === 'catalogo'
+        ? `custo do kit preenchido pelo cadastro do kit (com frete até ${cur.unidadeNome ? escapeHTML(cur.unidadeNome) : 'a unidade'})`
+        : `custo do kit preenchido pelo catálogo (${k.itens} de ${k.de} equipamentos com custo)`}</span>`;
   }
 
   function pintarInfo() {
@@ -934,8 +936,11 @@
     const seed = seedFromProposta(p);
     // Calculada sempre (também serve para "Apagar e recomeçar"); só preenche se não há nada salvo.
     let sugestaoKit = null;
-    try { sugestaoKit = contexto.custo > 0 ? {valor: contexto.custo, fonte:'cotacao'} : await sugerirCustoKit(p); } catch (_) { sugestaoKit = null; }
-    if (sugestaoKit && !saved) seed.kit = sugestaoKit.valor;
+    // Custo do contexto: cotação da distribuidora ou kit do catálogo (com o frete da unidade).
+    try { sugestaoKit = contexto.custo > 0 ? {valor: num(contexto.custo), fonte: contexto.custo_fonte || 'cotacao'} : await sugerirCustoKit(p); } catch (_) { sugestaoKit = null; }
+    // Também vale para cenário salvo sem custo do kit (antes o catálogo não trazia custo).
+    if (sugestaoKit) seed.kit = sugestaoKit.valor;
+    const kitSalvoVazio = saved && !(saved.custos && num(saved.custos.kit) > 0);
     const ov = (saved && saved.overrides) || {};
     cur = {
       modulos: ov.versao >= 3 ? num(ov.modulos) : num(contexto.modulos),
@@ -959,7 +964,8 @@
       origem: dbSaved ? 'banco' : (legacy ? 'local' : 'novo'),
       saved: dbSaved,
       receita: saved && saved.receita != null ? num(saved.receita) : seed.receita,
-      kit: saved && saved.custos && saved.custos.kit != null ? num(saved.custos.kit) : seed.kit,
+      kit: saved && !kitSalvoVazio ? num(saved.custos.kit) : seed.kit,
+      kitPreenchido: !!(kitSalvoVazio && sugestaoKit),
       extras: Array.isArray(saved && saved.extras) ? saved.extras : [],
       linhas: linhasDoSalvo(saved, centro.linhas),
     };
