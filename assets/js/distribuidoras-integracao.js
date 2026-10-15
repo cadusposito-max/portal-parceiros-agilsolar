@@ -183,7 +183,7 @@ function pbCotacaoKits() {
 function pbAcharKit(id) {
   const sid = String(id || '');
   if (sid.startsWith('cot:')) return pbCotacaoKits().find((k) => k.id === sid) || null;
-  return (state.data || []).find((k) => String(k.id) === sid) || null;
+  return (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).find((k) => String(k.id) === sid) || null;
 }
 
 function pbIntegracaoPainelHTML(placasSugeridas) {

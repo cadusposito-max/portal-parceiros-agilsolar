@@ -120,6 +120,7 @@ function pbLinhaRender() {
   });
   const hint = document.getElementById('pb-linha-hint');
   if (hint) hint.textContent = PB_LINHAS[pbLinhaAtual()];
+  pbEstruturaRender();
 }
 
 function pbLinhaEscolher(linha) {
@@ -133,9 +134,153 @@ function pbLinhaEscolher(linha) {
   pbFornecimentoSync();
 }
 
+// ---------- estrutura (tipo de telhado): só no catálogo completo ----------
+// Os kits do catálogo vêm com a estrutura padrão (cerâmico). Outro telhado troca o
+// preço pelo calculado no banco (precos_kits_estrutura: custo com a estrutura e o
+// frete da unidade). Promocionais são tabelados e nunca mudam. O preço trocado só
+// vale no orçamento (pbKitsOrcamento); state.data continua com o preço da unidade.
+const PB_ESTRUTURA_PADRAO = { telhado: 'ceramico', linha: 'standard' };
+const PB_ESTRUTURA_LINHAS = { standard: 'Standard', flex: 'Flex', smart: 'Smart', pratyc: 'Pratyc' };
+let _pbEstrutura = { ...PB_ESTRUTURA_PADRAO, opcoes: null, precos: null, precosChave: '', carregandoChave: '', erro: '' };
+let _pbKitsOrcCache = { data: null, chave: '', lista: [] };
+
+function pbEstruturaPadrao() {
+  return _pbEstrutura.telhado === PB_ESTRUTURA_PADRAO.telhado && _pbEstrutura.linha === PB_ESTRUTURA_PADRAO.linha;
+}
+
+function pbEstruturaAtiva() {
+  return pbLinhaAtual() === 'catalogo' && !pbEstruturaPadrao();
+}
+
+function pbEstruturaUnidade() {
+  return state.isAdmin ? (state.adminKitsFranquia || state.franquiaId || '') : '';
+}
+
+function pbEstruturaChave() {
+  return `${_pbEstrutura.telhado}|${_pbEstrutura.linha}|${pbEstruturaUnidade()}`;
+}
+
+function pbEstruturaReset() {
+  _pbEstrutura.telhado = PB_ESTRUTURA_PADRAO.telhado;
+  _pbEstrutura.linha = PB_ESTRUTURA_PADRAO.linha;
+}
+
+function pbEstruturaNome(id) {
+  const e = (_pbEstrutura.opcoes || []).find((o) => o.id === id);
+  if (!e) return '';
+  return e.telhado === 'solo' ? 'Solo' : `${e.telhado_nome} · ${PB_ESTRUTURA_LINHAS[e.linha] || e.linha}`;
+}
+
+async function pbEstruturaCarregarOpcoes() {
+  if (_pbEstrutura.opcoes || _pbEstrutura.opcoesCarregando) return _pbEstrutura.opcoes;
+  _pbEstrutura.opcoesCarregando = true;
+  const { data, error } = await supabaseClient.rpc('estruturas_opcoes');
+  if (error) { console.warn('[estrutura] opções', error); return null; }
+  _pbEstrutura.opcoesCarregando = false;
+  _pbEstrutura.opcoes = Array.isArray(data) ? data : [];
+  pbFornecimentoSync();
+  return _pbEstrutura.opcoes;
+}
+
+async function pbEstruturaCarregarPrecos() {
+  if (pbEstruturaPadrao()) return;
+  const chave = pbEstruturaChave();
+  if (_pbEstrutura.precosChave === chave || _pbEstrutura.carregandoChave === chave) return;
+  _pbEstrutura.carregandoChave = chave;
+  _pbEstrutura.erro = '';
+  const args = { p_telhado: _pbEstrutura.telhado, p_linha: _pbEstrutura.linha };
+  if (pbEstruturaUnidade()) args.p_franquia_id = pbEstruturaUnidade();
+  const { data, error } = await supabaseClient.rpc('precos_kits_estrutura', args);
+  if (_pbEstrutura.carregandoChave !== chave) return;
+  _pbEstrutura.carregandoChave = '';
+  if (error) {
+    console.warn('[estrutura] preços', error);
+    _pbEstrutura.erro = 'Não foi possível calcular os preços com essa estrutura. Tente de novo.';
+  } else {
+    _pbEstrutura.precos = new Map((data || []).map((r) => [String(r.produto_id),
+      { price: Number(r.price), list_price: Number(r.list_price), estrutura_id: r.estrutura_id }]));
+    _pbEstrutura.precosChave = chave;
+  }
+  pbFornecimentoSync();
+}
+
+function pbEstruturaEscolher(campo, valor) {
+  if (!['telhado', 'linha'].includes(campo)) return;
+  if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) { pbFornecimentoRender(); return; }
+  _pbEstrutura[campo] = String(valor || '');
+  if (campo === 'telhado') {
+    const linhas = pbEstruturaLinhas(_pbEstrutura.telhado);
+    if (!linhas.includes(_pbEstrutura.linha)) _pbEstrutura.linha = linhas[0] || PB_ESTRUTURA_PADRAO.linha;
+  }
+  if (typeof _pbd !== 'undefined' && _pbd) _pbd.verMais = false;
+  if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
+  pbEstruturaCarregarPrecos();
+  pbFornecimentoSync();
+}
+
+// Linhas da estrutura do telhado para módulo até 620 W (o 710 W usa a linha Smart da Helte).
+function pbEstruturaLinhas(telhado) {
+  const ops = (_pbEstrutura.opcoes || []).filter((o) => o.telhado === telhado);
+  const t1 = ops.filter((o) => Number(o.tamanho) === 1).map((o) => o.linha);
+  return [...new Set(t1.length ? t1 : ops.map((o) => o.linha))];
+}
+
+// Kits do orçamento: no catálogo com outro telhado, preço com a estrutura escolhida;
+// kit sem estrutura compatível sai (_semEstrutura). Promocional nunca muda.
+function pbKitsOrcamento() {
+  const data = state.data || [];
+  const ativa = !pbEstruturaPadrao();
+  const pronta = ativa && _pbEstrutura.precos && _pbEstrutura.precosChave === pbEstruturaChave();
+  const chave = !ativa ? 'padrao' : `${pbEstruturaChave()}:${pronta ? 'ok' : 'carregando'}`;
+  if (_pbKitsOrcCache.data === data && _pbKitsOrcCache.chave === chave) return _pbKitsOrcCache.lista;
+  let lista = data;
+  if (ativa) {
+    lista = data.map((k) => {
+      if ((k.linha || 'catalogo') !== 'catalogo') return k;
+      const p = pronta ? _pbEstrutura.precos.get(String(k.id)) : null;
+      if (!p) return { ...k, _semEstrutura: true };
+      return { ...k, price: p.price, list_price: Math.max(p.list_price, p.price), _estrutura_id: p.estrutura_id, _precoPadrao: k.price };
+    });
+  }
+  _pbKitsOrcCache = { data, chave, lista };
+  return lista;
+}
+
+function pbEstruturaRender() {
+  const box = document.getElementById('pb-estrutura');
+  if (!box) return;
+  const mostrar = state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo';
+  box.classList.toggle('hidden', !mostrar);
+  if (!mostrar) return;
+  if (!_pbEstrutura.opcoes) { pbEstruturaCarregarOpcoes(); }
+  const tel = document.getElementById('pb-estrutura-telhado');
+  const lin = document.getElementById('pb-estrutura-linha');
+  const ops = _pbEstrutura.opcoes || [];
+  const telhados = [];
+  ops.forEach((o) => { if (!telhados.some((t) => t.telhado === o.telhado)) telhados.push(o); });
+  tel.innerHTML = (telhados.length ? telhados : [{ telhado: 'ceramico', telhado_nome: 'Cerâmico / colonial' }])
+    .map((t) => `<option value="${escapeHTML(t.telhado)}">${escapeHTML(t.telhado_nome)}</option>`).join('');
+  tel.value = _pbEstrutura.telhado;
+  const linhas = ops.length ? pbEstruturaLinhas(_pbEstrutura.telhado) : ['standard'];
+  lin.innerHTML = linhas.map((l) => `<option value="${escapeHTML(l)}">${escapeHTML(PB_ESTRUTURA_LINHAS[l] || l)}${l === 'standard' && linhas.length > 1 ? ' (padrão)' : ''}</option>`).join('');
+  lin.value = _pbEstrutura.linha;
+  lin.disabled = linhas.length < 2;
+  tel.disabled = !ops.length;
+  const integrada = typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual();
+  const nome = telhados.find((t) => t.telhado === _pbEstrutura.telhado)?.telhado_nome || '';
+  document.getElementById('pb-estrutura-hint').textContent = integrada
+    ? 'A cotação na distribuidora integrada sai com a estrutura padrão dela.'
+    : _pbEstrutura.erro ? _pbEstrutura.erro
+    : pbEstruturaPadrao() ? 'O preço de cada kit já sai com a estrutura desse telhado. Padrão: cerâmico.'
+    : _pbEstrutura.carregandoChave ? 'Calculando os preços com a estrutura escolhida...'
+    : `Preços com estrutura de ${nome.toLocaleLowerCase('pt-BR')}. Kits com módulo de 710 W usam a linha Smart.`;
+  if (window.uiV2Select) window.uiV2Select.scan(box);
+}
+
 function pbKitCompativel(kit) {
   if (!kit || kit.ativo === false) return false;
   if (!pbKitDaLinha(kit)) return false;
+  if (kit._semEstrutura && pbLinhaAtual() === 'catalogo') return false;
   const f = _pbFornecimento;
   // Kit sem distribuidora marcada vale para a distribuidora escolhida quando
   // ela oferece o módulo e o inversor dele (conferido no fim).
@@ -158,6 +303,12 @@ function pbKitCompativel(kit) {
 // kit, a culpa é do equipamento escolhido e o vendedor deve trocar a marca.
 function pbMotivoSemKit(categoria, serve = () => true) {
   const f = _pbFornecimento;
+  if (pbEstruturaAtiva()) {
+    if (_pbEstrutura.carregandoChave) return 'Calculando os preços com a estrutura escolhida...';
+    const comEstrutura = pbKitsOrcamento().some((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0 && pbKitCompativel(k) && serve(k));
+    const semFiltroEstrutura = (state.data || []).some((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0 && pbKitCompativel(k) && serve(k));
+    if (!comEstrutura && semFiltroEstrutura) return 'A distribuidora não tem estrutura desse telhado para os kits desta seleção. Troque o telhado ou o módulo.';
+  }
   const base = (state.data || []).filter((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0);
   const haveriaSem = (campo) => {
     const salvo = f[campo];
@@ -281,6 +432,7 @@ function pbFornecimentoEscolher(campo, value) {
 }
 
 function pbFornecimentoSync() {
+  if (pbEstruturaAtiva()) pbEstruturaCarregarPrecos();
   pbFornecimentoRender();
   if (state.pbProposalMode === 'PROMOCIONAL') {
     if (state.pbPorta === 'dim' && typeof _pbdRenderResultado === 'function') _pbdRenderResultado();

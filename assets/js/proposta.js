@@ -278,6 +278,16 @@ function renderData(data) {
   const brandWrapper = document.getElementById('kit-brand-wrapper');
   if (isCustomMode && brandWrapper) brandWrapper.classList.add('hidden');
   document.getElementById('kit-name').innerText       = displayName;
+  // Kit do catálogo com outro telhado: a estrutura escolhida aparece embaixo do nome.
+  if (data.estrutura_nome) {
+    const linhaEst = { standard: 'Standard', flex: 'Flex', smart: 'Smart' }[data.estrutura_linha] || '';
+    const est = document.createElement('p');
+    est.id = 'kit-estrutura';
+    est.className = 'text-neutral-400 text-xs font-bold uppercase tracking-widest -mt-4 mb-6';
+    est.textContent = 'Estrutura: ' + data.estrutura_nome + (linhaEst ? ' · ' + linhaEst : '');
+    document.getElementById('kit-estrutura')?.remove();
+    document.getElementById('kit-name').insertAdjacentElement('afterend', est);
+  }
 
   // Para EQUIPAMENTOS: oculta potência e geração apenas se não houver dados de sistema
   const powerGenGrid = document.querySelector('#kit-power')?.closest('.grid');

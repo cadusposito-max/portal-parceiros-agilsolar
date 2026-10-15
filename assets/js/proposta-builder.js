@@ -242,6 +242,7 @@ function pbEmbedSetup(client) {
   _pbListaTodos        = false;
   resetPBEquipDraft();
   if (typeof pbFornecimentoReset === 'function') pbFornecimentoReset();
+  if (typeof pbEstruturaReset === 'function') pbEstruturaReset();
 
   const searchEl = document.getElementById('pb-search');
   if (searchEl) searchEl.value = '';
@@ -1043,6 +1044,7 @@ function _pbKitLinhaHTML(item, geracao, r) {
   const pct = r && r.media > 0 ? Math.round(geracao / r.media * 100) : null;
   const rec = Boolean(r?.recomendado && String(r.recomendado.id) === String(item.id));
   const dist = typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(item) : '';
+  const est = item._estrutura_id && typeof pbEstruturaNome === 'function' ? pbEstruturaNome(item._estrutura_id) : '';
   const qtd = Number(item.modulo_qtd) > 0
     ? `<b>${Number(item.modulo_qtd)}</b><small>mód.</small>`
     : `<b>${_pbKwp(item.power)}</b><small>kWp</small>`;
@@ -1053,7 +1055,7 @@ function _pbKitLinhaHTML(item, geracao, r) {
       <span class="pbl-qn">${qtd}</span>
       <span class="pbl-tx">
         <b>${_pbKwp(item.power)} kWp${rec ? '<i class="pbl-rec">Recomendado</i>' : ''}</b>
-        <small>${escapeHTML(item.name)}${dist ? ' · ' + escapeHTML(dist) : ''} · ~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês</small>
+        <small>${escapeHTML(item.name)}${dist ? ' · ' + escapeHTML(dist) : ''}${est ? ' · ' + escapeHTML(est) : ''} · ~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês</small>
       </span>
       ${pct != null ? `<span class="pbl-pc${faixa}" title="Gera ${pct}% da média de consumo">${pct}%</span>` : ''}
       <span class="pbl-pv">${temDe ? `<s>${formatCurrency(item.list_price)}</s>` : ''}<b>${formatCurrency(item.price)}</b></span>
@@ -1086,7 +1088,7 @@ function renderModalProducts() {
   }
 
   // Kits fora de linha (ativo=false) não aparecem para o vendedor.
-  let list = state.data.filter(k => k.categoria === state.pbCategory && k.ativo !== false
+  let list = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter(k => k.categoria === state.pbCategory && k.ativo !== false
     && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)));
 
   // HSP da cidade do cliente em atendimento: quando existe, a geração exibida
@@ -1210,6 +1212,8 @@ async function copyProposalLink(kit, event) {
       source_product_id: kit._cotacaoId ? null : (kit.id || null), // a engenharia acha os equipamentos do kit por aqui
       distribuidora_id: kit._cotacaoId ? null : (kit.distribuidora_id || null),
       ...(kit._cotacaoId ? { cotacao_id: kit._cotacaoId, proposal_mode: 'PROMOCIONAL' } : {}),
+      // telhado escolhido no catálogo completo: o banco recalcula o preço com essa estrutura
+      ...(kit._estrutura_id && !kit._cotacaoId ? { estrutura_id: kit._estrutura_id } : {}),
       franquia_id:       state.franquiaId
     }]).select();
 

@@ -234,7 +234,7 @@ function _pbdServeLigacao(kit) {
 }
 
 function _pbdRecomendar(categoria, media) {
-  const kits = (state.data || [])
+  const kits = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || []))
     .filter((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0
       && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)) && _pbdServeLigacao(k))
     .map((k) => ({ k, g: _pbdGeracao(k) }));
@@ -329,7 +329,7 @@ function pbDimResumo() {
   if (motivo) recomendado = null;
   // Só um inversor trifásico atende esse consumo: avisa pra conferir a ligação do cliente.
   if (!motivo && (!recomendado || !naFaixa(recomendado.k)) && _pbd.ligacao !== 'tri' && typeof pbKitServeLigacao === 'function'
-    && (state.data || []).some((k) => k.categoria === tipo && k.ativo !== false && Number(k.price) > 0
+    && (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).some((k) => k.categoria === tipo && k.ativo !== false && Number(k.price) > 0
       && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)) && !_pbdServeLigacao(k)
       && _pbdGeracao(k) >= c.media * PBD_FAIXA_MIN && _pbdGeracao(k) <= c.media * PBD_FAIXA_MAX)) {
     motivo = 'Para esse consumo só tem kit com inversor trifásico. Confira a ligação do cliente.';

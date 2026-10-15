@@ -196,7 +196,7 @@ function orcamentoSelecionarKit(kitId) {
 function _orcamentoAcharKit(id) {
   if (!id) return null;
   if (String(id).startsWith('cot:')) return typeof pbAcharKit === 'function' ? pbAcharKit(id) : null;
-  const kit = (state.data || []).find((k) => String(k.id) === String(id) && k.ativo !== false);
+  const kit = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).find((k) => String(k.id) === String(id) && k.ativo !== false);
   return kit && (typeof pbKitCompativel !== 'function' || pbKitCompativel(kit)) ? kit : null;
 }
 
@@ -287,7 +287,7 @@ function _orcamentoGeracao(kit) {
 function _orcamentoVizinhos(kit) {
   if (!kit || String(kit.id).startsWith('cot:')) return { menor: null, maior: null };
   const porConsumo = state.pbPorta === 'dim' && typeof _pbdServeLigacao === 'function' && typeof _pbd !== 'undefined' && _pbd;
-  const mesmos = (state.data || []).filter((k) => k.categoria === kit.categoria && k.ativo !== false && Number(k.price) > 0
+  const mesmos = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter((k) => k.categoria === kit.categoria && k.ativo !== false && Number(k.price) > 0
     && String(k.brand || '') === String(kit.brand || '')
     && (!kit.modulo_id || String(k.modulo_id || '') === String(kit.modulo_id))
     && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k))
@@ -327,6 +327,7 @@ function _orcamentoKitCardHTML(kit, r, nota) {
     <div class="orc-kit-n">${escapeHTML(kit.name || '')}</div>
     <div class="orc-kit-d">${detalhes}</div>
     ${dist ? `<div class="orc-kit-d">Distribuidora: ${escapeHTML(dist)}${cotado ? ' · frete incluso' : ''}</div>` : ''}
+    ${kit._estrutura_id && typeof pbEstruturaNome === 'function' ? `<div class="orc-kit-d">Estrutura: ${escapeHTML(pbEstruturaNome(kit._estrutura_id))}</div>` : ''}
     ${nota ? `<div class="orc-kit-nota">${escapeHTML(nota)}</div>` : ''}
     <div class="orc-kit-preco">${temDe ? `<s>${formatCurrency(kit.list_price)}</s>` : ''}<b>${formatCurrency(kit.price)}</b></div>
   </div>`;
@@ -362,7 +363,7 @@ function _orcamentoLadoHTML(r, kit) {
     ${_orcamentoGerando ? '<i data-lucide="loader-2" class="animate-spin"></i> Gerando...' : `<i data-lucide="file-text"></i> Gerar proposta${kit ? ' · ' + formatCurrency(kit.price) : ''}`}</button>`;
   if (kit) html += _orcamentoAjusteHTML(kit, r);
   if (dim && !r?.integrada) {
-    const total = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false
+    const total = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter((k) => k.categoria === state.pbCategory && k.ativo !== false
       && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k))).length;
     if (total) html += `<button type="button" class="orc-link orc-ver-todos" onclick="orcamentoVerLista()">Ver todos os ${total} kits →</button>`;
   }
