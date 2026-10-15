@@ -21,6 +21,7 @@ create table if not exists public.estruturas (
   placas_mesa integer,
   custo_mesa numeric,
   padrao boolean not null default false,
+  bloqueia_micro boolean not null default false, -- Helte não permite microinversor nessa estrutura
   ativo boolean not null default true,
   ordem integer not null default 0,
   detalhe jsonb,
@@ -63,6 +64,9 @@ on conflict (id) do update set telhado = excluded.telhado, telhado_nome = exclud
   tamanho = excluded.tamanho, modo = excluded.modo, custo_bloco4 = excluded.custo_bloco4, custo_bloco2 = excluded.custo_bloco2,
   placas_mesa = excluded.placas_mesa, custo_mesa = excluded.custo_mesa, padrao = excluded.padrao, ordem = excluded.ordem,
   detalhe = excluded.detalhe, atualizado_em = now();
+
+-- Helte (configs.compatibilityBlocks, conferido em cotação 15/10): micro não vai em mini trilho (Aluzinco 35 cm / 55 cm).
+update public.estruturas set bloqueia_micro = (id in ('helte_mini_trilho_standard_1', 'helte_mini_trilho_smart_2'));
 
 -- Tamanho do módulo para a estrutura (Helte: 710 W = 2; até 620 W = 1).
 update public.componentes set ficha = coalesce(ficha, '{}'::jsonb) || jsonb_build_object('tamanho_estrutura', case when potencia_wp >= 700 then 2 else 1 end)
@@ -117,6 +121,10 @@ begin
     if not found or pecas is null or e.distribuidora_id is distinct from pr.distribuidora_id then return null; end if;
     tam := private.cc_tamanho_modulo(pr.modulo_id);
     if e.tamanho <> tam then return null; end if;
+    if e.bloqueia_micro and (pr.categoria = 'kitsMicro'
+        or exists (select 1 from public.componentes ci where ci.id = pr.inversor_id and (ci.ficha->>'micro')::boolean)) then
+      return null;
+    end if;
     select id into padrao from public.estruturas where distribuidora_id = e.distribuidora_id and tamanho = tam and padrao;
     if padrao is null then return null; end if;
     if padrao <> e.id then
