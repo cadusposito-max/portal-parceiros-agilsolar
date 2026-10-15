@@ -23,6 +23,12 @@ let _integracoesAtivasPromise = null;
 let _pbCot = { chave: '', placas: '', carregando: false, erro: '', kits: [] };
 const _pbCotOpcoes = {};                    // distribuidora_id -> { carregando, erro, modulos, padrao, marcas_inversor, marcas_micro }
 const _pbCotSel = { modulo: '', marca: '' }; // módulo (sku) e marca escolhidos pra cotar
+// Número da cotação que vale: mudou módulo/marca/placas no meio, a resposta antiga é descartada.
+let _pbCotSeq = 0;
+// Mesma cotação (cliente + parâmetros) nos últimos 10 min volta daqui, sem consultar a distribuidora
+// de novo: poupa a Belenus de quem clica duas vezes ou troca de marca e volta.
+const _pbCotMemo = new Map();
+const PB_COT_MEMO_MS = 10 * 60_000;
 
 async function carregarIntegracoesAtivas(force = false) {
   if (_integracoesAtivas && !force) return _integracoesAtivas;
@@ -137,7 +143,19 @@ function pbIntegracaoPreencherFiltros(selMod, selInv) {
 function pbIntegracaoEscolher(campo, value) {
   if (campo === 'modulo') _pbCotSel.modulo = String(value || '');
   if (campo === 'inversor') _pbCotSel.marca = String(value || '');
-  _pbCot.kits = []; _pbCot.erro = '';
+  pbIntegracaoInvalidar();
+}
+
+// Mudou a quantidade de placas (ao sair do campo): os kits cotados eram pra outra quantidade.
+function pbIntegracaoPlacas(value) {
+  _pbCot.placas = String(value || '');
+  if (_pbCot.kits.length || _pbCot.erro || _pbCot.carregando) pbIntegracaoInvalidar();
+}
+
+// Parâmetro mudou: some com os kits e o kit escolhido, e descarta a cotação em andamento.
+function pbIntegracaoInvalidar() {
+  _pbCotSeq++;
+  _pbCot.kits = []; _pbCot.erro = ''; _pbCot.cotadoEm = 0;
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbFornecimentoSync();
 }
@@ -176,6 +194,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
   const kits = pbCotacaoKits().filter((k) => k.categoria === state.pbCategory);
   const erros = (_pbCot.kits || []).filter((k) => k.erro);
   const outrosTipos = pbCotacaoKits().length - kits.length;
+  const cotadoAs = _pbCot.cotadoEm ? new Date(_pbCot.cotadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
 
   const cards = kits.map((k, i) => {
     const id = escapeHTML(k.id);
@@ -186,7 +205,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
       <div data-orcamento-kit="${id}" class="pbd-kit${i === 0 ? ' is-top' : ''}">
         ${i === 0 ? '<span class="pbd-kit-tag">Menor preço</span>' : ''}
         <div class="pbd-kit-n">${escapeHTML(k.name)}</div>
-        <div class="pbd-kit-d">${escapeHTML(String(k.power).replace('.', ','))} kWp · Distribuidora: ${escapeHTML(info.nome)} · frete incluso</div>
+        <div class="pbd-kit-d">${escapeHTML(String(k.power).replace('.', ','))} kWp · Distribuidora: ${escapeHTML(info.nome)} · frete incluso${cotadoAs ? ` · cotado às ${escapeHTML(cotadoAs)}` : ''}</div>
         ${custo}
         ${state.isAdmin || state.isGestor ? `<div class="pbd-kit-nota">Preço: ${k._modo === 'custos' ? 'custos + margem alvo da unidade' : 'markup'}</div>` : ''}
         <div class="pbd-kit-f">
@@ -210,17 +229,22 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
         corpo: outrosTipos ? 'Troque o tipo de kit acima pra ver os outros.' : '',
       }) : '';
   // Opções que não saíram quando outras saíram (ou, pro admin, sempre: ele vê o motivo).
+  // "Indisponível" só quando a distribuidora recusou o equipamento; sem resposta, pede pra tentar de novo.
+  const semResposta = erros.filter((e) => pbCotErroTipo(e) !== 'recusado');
   const avisoOpcoes = erros.length && !_pbCot.carregando && (kits.length || state.isAdmin)
     ? pbAlertaHTML({
       icone: 'package-x', titulo: 'Algumas opções não saíram',
-      corpo: `Não disponível no momento: ${erros.map((e) => e.opcao + (state.isAdmin && e.erro ? ` (${e.erro})` : '')).join(', ')}. Pra esse equipamento, cote com outro módulo ou outro inversor.`,
+      corpo: `Não saíram agora: ${erros.map((e) => e.opcao + (state.isAdmin && e.erro ? ` (${e.erro})` : '')).join(', ')}. `
+        + (semResposta.length === erros.length
+          ? `A ${info.nome} não respondeu a tempo; cote de novo em alguns minutos.`
+          : 'Pra esse equipamento, cote com outro módulo ou outro inversor.'),
     }) : '';
 
   return `
     <div class="pbd-sec">Cotar na ${escapeHTML(info.nome)}</div>
     <div class="pbd-fornecimento-fields pb-cot-campos">
       <label class="pbd-mes"><span>Quantidade de placas</span>
-        <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" placeholder="Ex.: 13"></label>
+        <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" onchange="pbIntegracaoPlacas(this.value)" placeholder="Ex.: 13"></label>
       <label class="pbd-mes"><span>Telhado</span>
         <select id="pb-cot-telhado" class="pbd-input v2-select" data-titulo="Telhado"><option value="ceramico">Cerâmico / colonial</option></select></label>
       <button type="button" class="btn btn-primary" onclick="pbIntegracaoCotar()" ${_pbCot.carregando ? 'disabled' : ''}>
@@ -237,29 +261,58 @@ async function pbIntegracaoCotar() {
   const placas = Math.round(Number(document.getElementById('pb-cot-placas')?.value || _pbCot.placas));
   if (!Number.isFinite(placas) || placas < 4 || placas > 150) { showToast('Informe de 4 a 150 placas.'); return; }
   _pbCot.placas = String(placas);
-  _pbCot.carregando = true; _pbCot.erro = ''; _pbCot.kits = [];
+  const pedido = {
+    acao: 'cotar', provedor, placas, telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico',
+    tipo: state.pbCategory === 'kitsMicro' ? 'micro' : 'inversor', modulo: _pbCotSel.modulo || null, marca: _pbCotSel.marca || null,
+  };
+  const memoChave = JSON.stringify([_pbCot.chave, pedido]);
+  const seq = ++_pbCotSeq;
+  const cot = _pbCot;
+  _pbCot.erro = ''; _pbCot.kits = []; _pbCot.cotadoEm = 0;
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
+  const memo = _pbCotMemo.get(memoChave);
+  if (memo && Date.now() - memo.em < PB_COT_MEMO_MS) {
+    Object.assign(_pbCot, { kits: memo.kits, erro: memo.erro, cotadoEm: memo.em });
+    pbFornecimentoSync();
+    return;
+  }
+  _pbCot.carregando = true;
   pbFornecimentoSync();
   try {
-    const { data, error } = await invocarDistribuidoras({
-      acao: 'cotar', provedor, placas, telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico',
-      tipo: state.pbCategory === 'kitsMicro' ? 'micro' : 'inversor', modulo: _pbCotSel.modulo || null, marca: _pbCotSel.marca || null,
-    });
+    const { data, error } = await invocarDistribuidoras(pedido);
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.error || 'Não foi possível cotar agora.');
-    _pbCot.kits = data.kits || [];
-    // Nenhuma opção saiu: se foi bloqueio, mostra o bloqueio (com o horário); senão, kit indisponível.
-    if (!_pbCot.kits.some((k) => !k.erro)) {
-      _pbCot.erro = _pbCot.kits.find((k) => /recusando as consultas|pediu pra aguardar/i.test(k.erro || ''))?.erro
+    if (seq !== _pbCotSeq || cot !== _pbCot) return; // a escolha mudou no meio: resposta velha não entra
+    const kits = data.kits || [];
+    let erro = '';
+    // Nenhuma opção saiu: bloqueio mostra a pausa (com o horário); sem resposta pede pra tentar de novo;
+    // só a recusa da distribuidora vira "kit indisponível".
+    if (!kits.some((k) => !k.erro)) {
+      const bloq = kits.find((k) => pbCotErroTipo(k) === 'bloqueio');
+      const instavel = kits.find((k) => pbCotErroTipo(k) === 'instavel');
+      erro = bloq?.erro || (instavel && !kits.some((k) => pbCotErroTipo(k) === 'recusado') ? instavel.erro : '')
         || 'Esse kit não está disponível no momento. Escolha outro módulo ou outro inversor e cote de novo.';
     }
+    const em = Date.now();
+    Object.assign(_pbCot, { kits, erro, cotadoEm: em });
+    // Guarda só resultado firme: com pausa ou falta de resposta, a próxima tentativa consulta de novo.
+    if (!kits.some((k) => k.erro && pbCotErroTipo(k) !== 'recusado')) _pbCotMemo.set(memoChave, { kits, erro, em });
   } catch (err) {
     console.error('[integrações] cotar', err);
-    _pbCot.erro = err?.message || 'Não foi possível cotar agora. Tente de novo.';
+    if (seq === _pbCotSeq && cot === _pbCot) _pbCot.erro = err?.message || 'Não foi possível cotar agora. Tente de novo.';
   } finally {
-    _pbCot.carregando = false;
-    pbFornecimentoSync();
+    cot.carregando = false;
+    if (cot === _pbCot) pbFornecimentoSync();
   }
+}
+
+// Tipo do erro de uma opção (o servidor manda; resposta sem tipo, de versão antiga, deduz pelo texto).
+function pbCotErroTipo(k) {
+  if (k?.tipo) return k.tipo;
+  const t = String(k?.erro || '');
+  if (/recusando as consultas|pediu pra aguardar/i.test(t)) return 'bloqueio';
+  if (/não concluiu a consulta|não foi possível falar|respondeu 5\d\d/i.test(t)) return 'instavel';
+  return 'recusado';
 }
 
 // ------------------------------------------------------------------ admin
@@ -379,6 +432,6 @@ async function integracaoTestar(provedor, btn) {
 }
 
 Object.assign(window, {
-  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoPainelHTML, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
+  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoPainelHTML, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoPlacas, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
   renderAdminDistribuidoras, integracaoSalvar, integracaoTestar,
 });

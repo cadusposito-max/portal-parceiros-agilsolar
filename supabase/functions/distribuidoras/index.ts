@@ -70,15 +70,22 @@ const PAUSAS_RECUSA_MS = [2 * 60_000, 5 * 60_000, 20 * 60_000];
 const JANELA_RECUSAS_MS = 30 * 60_000;
 const PAUSA_429_MS = 60_000;
 const BLOQ = { ate: 0, motivo: "403" }; // atalho em memória; o que vale fica em distribuidora_sessoes
-const erroBloqueio = (ate: number, motivo = "403") => new Error(motivo === "429"
+// Tipo do erro, pra tela não dizer "kit indisponível" quando a Belenus só não respondeu:
+// bloqueio = pausa nossa (403/429) · instavel = timeout, rede ou erro do servidor dela ·
+// recusado = a Belenus respondeu que não dá (item fora de linha, estoque, regra dela).
+type TipoErro = "bloqueio" | "instavel" | "recusado";
+const erroTipo = (msg: string, tipo: TipoErro) => Object.assign(new Error(msg), { tipo });
+const tipoDoErro = (err: unknown): TipoErro | null => ((err as any)?.tipo as TipoErro) ?? null;
+const erroBloqueio = (ate: number, motivo = "403") => erroTipo(motivo === "429"
   ? `A Belenus pediu pra aguardar antes de novas consultas. Novas tentativas estão pausadas até ${horaBR(ate)}.`
-  : `A Belenus está recusando as consultas da plataforma no momento. Por precaução, novas tentativas estão pausadas até ${horaBR(ate)}. Esse horário é uma pausa do nosso sistema, não uma previsão de liberação da Belenus.`);
-// Retry-After em segundos ou data HTTP; fora de 5 s a 30 min, ignora (usa o padrão).
+  : `A Belenus está recusando as consultas da plataforma no momento. Por precaução, novas tentativas estão pausadas até ${horaBR(ate)}. Esse horário é uma pausa do nosso sistema, não uma previsão de liberação da Belenus.`, "bloqueio");
+// Retry-After em segundos ou data HTTP. Respeita o prazo pedido (no mínimo 5 s, no máximo
+// 24 h contra valor absurdo); sem prazo válido devolve 0 e o 429 usa o padrão de 1 min.
 function prazoRetryAfter(valor: string | null) {
   if (!valor) return 0;
   const s = Number(valor);
   const ms = Number.isFinite(s) ? s * 1000 : Date.parse(valor) - Date.now();
-  return Number.isFinite(ms) && ms >= 5_000 && ms <= 30 * 60_000 ? ms : 0;
+  return Number.isFinite(ms) && ms > 0 ? Math.min(Math.max(ms, 5_000), 24 * 60 * 60_000) : 0;
 }
 function expiraDoToken(token: string) {
   const exp = Number(jwtPayload(token)?.exp);
@@ -127,7 +134,7 @@ class Belenus {
     const r = await this.req("autenticacao/Usuario/Login/PessoaJuridicaByEmail", { email: this.email, senha: this.senha }, false);
     const s = r?.data ?? r;
     this.token = s?.token ?? s?.Token ?? "";
-    if (!this.token) throw new Error("A Belenus não aceitou o login. Confira usuário e senha.");
+    if (!this.token) throw erroTipo("A Belenus não aceitou o login. Confira usuário e senha.", "instavel");
     const expira = expiraDoToken(this.token);
     Object.assign(SESSAO, { usuario: this.email, token: this.token, expira });
     await sessaoGravar(this.provedor, {
@@ -202,15 +209,18 @@ class Belenus {
         // Detalhe pra diagnóstico: firewall (Cloudflare etc.) responde HTML; a API responde JSON.
         const via = r.headers.get("cf-ray") ? "cloudflare" : (r.headers.get("server") || "?");
         const trecho = j ? JSON.stringify(j).slice(0, 160) : txt.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
-        throw new Error(j?.messages?.[0]?.description || `Belenus respondeu ${r.status} em ${path.split("?")[0]} [${via}] ${trecho}`);
+        // 5xx/401 é problema do lado de lá ou de sessão, não do kit; 4xx com motivo é recusa dela.
+        const tipo: TipoErro = r.status >= 500 || r.status === 401 || !j ? "instavel" : "recusado";
+        throw erroTipo(j?.messages?.[0]?.description || `Belenus respondeu ${r.status} em ${path.split("?")[0]} [${via}] ${trecho}`, tipo);
       }
-      if (j && j.isSucceed === false) throw new Error(j?.messages?.[0]?.description || "A Belenus recusou o pedido");
+      if (j && j.isSucceed === false) throw erroTipo(j?.messages?.[0]?.description || "A Belenus recusou o pedido", "recusado");
       return j;
     } catch (err) {
       if (ac.signal.aborted) {
         resultado = "timeout";
-        throw new Error(`A Belenus não concluiu a consulta em ${Math.round(timeoutMs / 1000)} segundos (${etapa}). Isso não confirma bloqueio de acesso.`);
+        throw erroTipo(`A Belenus não concluiu a consulta em ${Math.round(timeoutMs / 1000)} segundos (${etapa}). Isso não confirma bloqueio de acesso.`, "instavel");
       }
+      if (!tipoDoErro(err)) throw Object.assign(err instanceof Error ? err : new Error(String(err)), { tipo: "instavel" }); // rede
       throw err;
     } finally {
       clearTimeout(t);
@@ -510,7 +520,8 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
         detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
       });
     } catch (err) {
-      resultados.push({ erro: String((err as Error).message || err), inv: e.inv, micro: e.micro });
+      // Sem tipo = falha nossa ao montar/ler a resposta: trata como instabilidade, não como falta do kit.
+      resultados.push({ erro: String((err as Error).message || err), tipo: tipoDoErro(err) ?? "instavel", inv: e.inv, micro: e.micro });
     }
   }
   return resultados;
@@ -606,12 +617,13 @@ Deno.serve(async (req) => {
         ...(cred.opcoes ?? {}), telhado: body?.telhado, tipo: body?.tipo, marca: body?.marca,
         ...(body?.modulo ? { modulo: String(body.modulo), modulo_escolhido: true } : {}),
       });
-      // Algum equipamento do espelho falhou (pode ter saído de linha): renova o espelho se tiver mais de 1 h.
-      if (res.some((r) => r.erro)) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
+      // A Belenus recusou algum equipamento (pode ter saído de linha): renova o espelho se tiver mais de 1 h.
+      // Timeout, rede ou pausa não têm a ver com o catálogo: aí não gasta as 4 consultas.
+      if (res.some((r) => r.tipo === "recusado")) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
       if (res.some((r) => !r.erro)) await bel.zerarRecusas();
       const saida: any[] = [];
       for (const r of res) {
-        if (r.erro) { saida.push({ erro: r.erro, opcao: r.micro ? "Microinversor" : nomeInv(r.inv) }); continue; }
+        if (r.erro) { saida.push({ erro: r.erro, tipo: r.tipo, opcao: r.micro ? "Microinversor" : nomeInv(r.inv) }); continue; }
         let { preco, preco_de } = precificar(r.custo, r.micro);
         let precificacao: any = {modo:'markup', ...REGRA};
         if (modo === 'custos') {
