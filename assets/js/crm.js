@@ -21,6 +21,7 @@ const CRM_ATIVIDADE_META = {
   merge:        { icon: 'merge',          label: 'Mesclagem',     color: 'text-purple-400' },
   documento:    { icon: 'file-signature', label: 'Documento',     color: 'text-orange-300' },
   cadastro:     { icon: 'user-pen',       label: 'Cadastro',      color: 'text-neutral-400' },
+  cadastro_criado: { icon: 'user-plus',   label: 'Cliente cadastrado', color: 'text-green-400' },
   tarefa:       { icon: 'list-checks',    label: 'Tarefa',        color: 'text-orange-300' },
   proposta_enviada: { icon: 'send',       label: 'Proposta enviada', color: 'text-yellow-400' },
   proposta_vista:   { icon: 'eye',        label: 'Proposta vista',   color: 'text-green-400' },
@@ -865,10 +866,16 @@ function renderCrm360TabContent(client, propostas, vendas) {
     <div class="crm360-tl-wrap relative lg:flex-1 lg:min-h-[420px]">
     <div class="crm360-tl-lista space-y-0 max-h-[420px] overflow-y-auto pr-1 lg:max-h-none lg:absolute lg:inset-0 custom-scrollbar">
       ${eventos.map((ev) => {
-        const meta = CRM_ATIVIDADE_META[ev.tipo] || CRM_ATIVIDADE_META.nota;
+        const criado = ev.tipo === 'cadastro' && ev.meta?.evento === 'criado';
+        const meta = criado ? CRM_ATIVIDADE_META.cadastro_criado : (CRM_ATIVIDADE_META[ev.tipo] || CRM_ATIVIDADE_META.nota);
         let texto = ev.descricao || '';
         if (ev.tipo === 'status' && ev.meta) {
           texto = `Status: ${ev.meta.de || '—'} → ${ev.meta.para || '—'}${ev.meta.motivo ? ` (${ev.meta.motivo})` : ''}`;
+        }
+        // Nascimento do card (gravado pelo trigger trg_clientes_log_criado)
+        if (criado) {
+          const origem = typeof clientOrigemLabel === 'function' ? clientOrigemLabel(ev.meta.origem) : '';
+          texto = `Cliente cadastrado${origem && origem !== 'NÃO INFORMADO' ? ` · origem ${origem}` : ''}`;
         }
         if (!texto) texto = meta.label;
         texto = crmTrocaEmailPorNome(texto);
