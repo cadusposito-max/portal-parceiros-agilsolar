@@ -6,10 +6,28 @@ html[data-ui="v2"] #pb-fornecimento-panel .pbd-sec svg { width: 16px; height: 16
 html[data-ui="v2"] .pbd-fornecimento-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 12px; }
 html[data-ui="v2"] .pbd-fornecimento-fields label { min-width: 0; }
 html[data-ui="v2"] #pb-fornecimento-panel select { width: 100%; font-size: 13px; font-weight: 600; }
-html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd {
-  width: 100%; max-width: none; justify-content: space-between; border: 1px solid var(--v2-line-strong);
-  border-radius: var(--v2-r-ctl) !important; box-shadow: none; color: var(--v2-ink); font-weight: 600;
+/* Seletor grande: o botão da lista ocupa o cartão todo; ícone e legenda ficam por cima, sem pegar o clique. */
+.pbd-forn-campo { display: block; }
+.pbd-forn-ic { display: none; }
+.pbd-forn-cap { display: block; font-size: 12px; margin-bottom: 3px; }
+html[data-ui="v2"] .pbd-forn-campo { position: relative; }
+html[data-ui="v2"] .pbd-forn-ic {
+  display: block; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); z-index: 1; pointer-events: none;
+  box-sizing: border-box; width: 34px !important; height: 34px !important; padding: 8px; border-radius: 10px; background: var(--v2-blue-50); color: var(--v2-blue);
 }
+html[data-ui="v2"] .pbd-forn-cap {
+  position: absolute; left: 60px; right: 36px; top: 11px; z-index: 1; pointer-events: none; margin: 0;
+  font-size: 11.5px; font-weight: 600; color: var(--v2-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd {
+  width: 100%; max-width: none; height: 64px; padding: 22px 14px 0 60px; justify-content: space-between; border: 1px solid var(--v2-line-strong);
+  border-radius: 14px !important; box-shadow: none; background: var(--v2-card); color: var(--v2-ink); font-size: 15px; font-weight: 700;
+  transition: border-color .12s, box-shadow .12s, background .12s;
+}
+html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd > span { display: block; margin: 0; font-size: inherit; color: inherit; }
+html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd > svg { width: 18px; height: 18px; margin-top: -22px; }
+html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd:hover { border-color: var(--v2-blue); background: var(--v2-hover); }
+html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd.open { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
 html[data-ui="v2"] body #pb-fornecimento-panel .v2-dd:disabled { opacity: .55; cursor: wait; }
 html[data-ui="v2"] #pbd-fornecimento-slot { margin-top: 18px; border-top: 1px solid var(--v2-line); }
 html[data-ui="v2"] .catalogo-fornecimento-section { padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--v2-line); color: var(--v2-ink); }

@@ -186,11 +186,12 @@ function pbFornecimentoMount() {
     panel.innerHTML = `<div class="pbd-sec"><i data-lucide="boxes"></i> Equipamentos e distribuidora</div>
       <p id="pb-fornecimento-hint" class="pbd-hint"></p>
       <div class="pbd-fornecimento-fields">
-        <label class="pbd-mes"><span>Módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
-        <label class="pbd-mes"><span>Marca do inversor / microinversor</span><select id="pb-filtro-inversor" class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor" onchange="pbFornecimentoEscolher('inversor',this.value)"></select></label>
-        <label class="pbd-mes"><span>Distribuidora do kit</span><select id="pb-filtro-distribuidora" class="pbd-input v2-select" data-titulo="Distribuidora do kit" onchange="pbFornecimentoEscolher('distribuidora',this.value)"></select></label>
+        <label class="pbd-forn-campo"><i data-lucide="warehouse" class="pbd-forn-ic"></i><span class="pbd-forn-cap">1 · Distribuidora</span><select id="pb-filtro-distribuidora" class="pbd-input v2-select" data-titulo="Distribuidora do kit" onchange="pbFornecimentoEscolher('distribuidora',this.value)"></select></label>
+        <label class="pbd-forn-campo"><i data-lucide="solar-panel" class="pbd-forn-ic"></i><span class="pbd-forn-cap">2 · Módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
+        <label class="pbd-forn-campo"><i data-lucide="zap" class="pbd-forn-ic"></i><span class="pbd-forn-cap">3 · Inversor / micro</span><select id="pb-filtro-inversor" class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor" onchange="pbFornecimentoEscolher('inversor',this.value)"></select></label>
       </div><div id="pb-fornecimento-aviso" class="pbd-hint" aria-live="polite"></div>`;
     document.getElementById('pb-kit-fornecimento-slot')?.appendChild(panel);
+    if (window.lucide) lucide.createIcons();
   }
   const linha = document.getElementById('pb-linha');
   if (linha && !linha.dataset.bound) {
@@ -218,8 +219,8 @@ function pbFornecimentoRender() {
   // Promocionais são sempre SOFAR/Hoymiles: sem filtro de equipamento nem distribuidora.
   panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || pbLinhaAtual() === 'promocional');
   document.getElementById('pb-fornecimento-hint').textContent = state.pbPorta === 'dim'
-    ? 'Escolha o módulo, a marca do inversor e a distribuidora. O consumo define a potência do sistema e o kit recomendado.'
-    : 'Filtre os kits pelo módulo, pela marca do inversor e pela distribuidora.';
+    ? 'Escolha a distribuidora, o módulo e a marca do inversor. O consumo define a potência do sistema e o kit recomendado.'
+    : 'Filtre os kits pela distribuidora, pelo módulo e pela marca do inversor.';
   const disponiveis = catalogoEquipamentosDaDistribuidora(_pbFornecimento.distribuidora);
   const integrada = typeof pbIntegracaoAtual === 'function' ? pbIntegracaoAtual() : null;
   // Só oferece módulo/marca que está em algum kit ativo do tipo escolhido
