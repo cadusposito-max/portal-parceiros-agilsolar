@@ -173,6 +173,7 @@ function pbCotacaoKits() {
     ativo: true,
     distribuidora_id: _pbFornecimento.distribuidora,
     _custo: k.custo,
+    _frete: k.detalhe_custo || null,
     _margem: k.margem_alvo,
     _modo: k.modo_precificacao || 'markup',
     _inversor: k.inversor,
@@ -199,8 +200,11 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
   const cards = kits.map((k, i) => {
     const id = escapeHTML(k.id);
     const temDe = Number(k.list_price) > Number(k.price);
+    // Admin confere pra onde o frete foi calculado (a unidade; ou a conta Belenus, se ela não atende a cidade).
+    const fr = k._frete;
+    const freteAte = fr?.cidade ? ` · frete até ${fr.cidade}/${fr.estado || ''}${fr.frete_destino === 'conta_belenus' ? ' (a Belenus não atendeu a cidade da unidade)' : ''}` : '';
     const custo = state.isAdmin && Number(k._custo) > 0
-      ? `<div class="pbd-kit-nota">Só admin: custo ${escapeHTML(info.nome)} ${formatCurrency(k._custo)}${k._margem != null ? ` · margem-alvo ${escapeHTML(String(k._margem).replace('.', ','))}%` : ''}</div>` : '';
+      ? `<div class="pbd-kit-nota">${escapeHTML(`Só admin: custo ${info.nome} ${formatCurrency(k._custo)}${freteAte}${k._margem != null ? ` · margem-alvo ${String(k._margem).replace('.', ',')}%` : ''}`)}</div>` : '';
     return `
       <div data-orcamento-kit="${id}" class="pbd-kit${i === 0 ? ' is-top' : ''}">
         ${i === 0 ? '<span class="pbd-kit-tag">Menor preço</span>' : ''}

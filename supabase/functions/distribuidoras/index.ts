@@ -277,20 +277,47 @@ class Belenus {
     return j?.data;
   }
 
-  async frete(conf: any, componentes: { sku: string; qtde: number }[]) {
-    const end = conf?.frete?.enderecoCliente ?? {};
-    const j = await this.req("fretes/TipoFrete/BuscarFretes?calcularValores=true", {
-      SiteID: this.site, ValorPedido: conf.totalProdutos, Divisao: "SOL", Cidade: end.cidade, Estado: end.estado, eKit: 1,
-      pesoTotal: conf.peso, tipoUsuario: 5, liberarComprasMinimas: true,
-      itens: [{ sku: "KGF-1", qtde: 1, componentes }], IntegradorDocumento: conf.clienteCnpjCpf, ClienteDocumento: null,
-    });
-    const op = (j?.opcoes ?? []).find((o: any) => o.tipoFreteId === "06");
-    if (!op) throw new Error("A Belenus não devolveu o frete de entrega");
-    return { valor: Number(op.freteIncluso ?? 0) + Number(op.taxa ?? 0), cidade: end.cidade, estado: end.estado };
+  // Frete até a unidade que está cotando (o kit é entregue nela). Se a Belenus não atender a cidade
+  // da unidade, usa o endereço da conta Belenus (Matriz) e registra isso em "destino".
+  async frete(conf: any, componentes: { sku: string; qtde: number }[], unidade?: { cidade: string; estado: string } | null) {
+    const conta = conf?.frete?.enderecoCliente ?? {};
+    const consultar = async (cidade: string, estado: string) => {
+      const j = await this.req("fretes/TipoFrete/BuscarFretes?calcularValores=true", {
+        SiteID: this.site, ValorPedido: conf.totalProdutos, Divisao: "SOL", Cidade: cidade, Estado: estado, eKit: 1,
+        pesoTotal: conf.peso, tipoUsuario: 5, liberarComprasMinimas: true,
+        itens: [{ sku: "KGF-1", qtde: 1, componentes }], IntegradorDocumento: conf.clienteCnpjCpf, ClienteDocumento: null,
+      });
+      const op = (j?.opcoes ?? []).find((o: any) => o.tipoFreteId === "06");
+      return op ? Number(op.freteIncluso ?? 0) + Number(op.taxa ?? 0) : null;
+    };
+    const mesmoLugar = unidade && semAcento(unidade.cidade) === semAcento(conta.cidade) && semAcento(unidade.estado) === semAcento(conta.estado);
+    if (unidade?.cidade && unidade?.estado && !mesmoLugar) {
+      try {
+        const valor = await consultar(unidade.cidade, unidade.estado);
+        if (valor !== null) return { valor, cidade: unidade.cidade, estado: unidade.estado, destino: "unidade" };
+      } catch (err) {
+        if (tipoDoErro(err) !== "recusado") throw err; // pausa/timeout: não insiste com outra consulta
+      }
+    }
+    const valor = await consultar(conta.cidade, conta.estado);
+    if (valor === null) throw new Error("A Belenus não devolveu o frete de entrega");
+    return { valor, cidade: conta.cidade, estado: conta.estado, destino: mesmoLugar ? "unidade" : "conta_belenus" };
   }
 }
 
 const SEM_MARCA = /DEYE/i; // regra da empresa: nunca DEYE
+const semAcento = (s: unknown) => String(s ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").trim().toLowerCase();
+
+// Cidade/UF da unidade pro frete. franquias.cidade vem como "Goiânia - GO"; a UF tem coluna própria.
+async function cidadeDaUnidade(franquiaId: string | null): Promise<{ cidade: string; estado: string } | null> {
+  if (!franquiaId) return null;
+  const rows = await rest(`franquias?id=eq.${franquiaId}&select=cidade,uf`).catch(() => []);
+  const f = Array.isArray(rows) ? rows[0] : null;
+  const m = String(f?.cidade ?? "").match(/^(.*?)\s*[-–\/]\s*([A-Za-z]{2})\s*$/);
+  const cidade = (m ? m[1] : String(f?.cidade ?? "")).trim();
+  const estado = String(f?.uf || m?.[2] || "").trim().toUpperCase();
+  return cidade && estado.length === 2 ? { cidade, estado } : null;
+}
 
 // ---------------------------------------------------------------- espelho do catálogo
 // Módulos e inversores (sem preço) ficam espelhados em distribuidora_catalogo: a tela abre sem
@@ -511,13 +538,13 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
         totalMaxPotenciaEntrada: Number(e.inv.maxPotenciaEntrada) * e.qtdInv, totalMaxPotenciaSaida: Number(e.inv.maxPotenciaSaida) * e.qtdInv,
       });
       const comps = (conf?.itens ?? []).flatMap((i: any) => i.componentes ?? []);
-      const fr = await bel.frete(conf, comps.map((c: any) => ({ sku: c.sku, qtde: c.quantidade })));
+      const fr = await bel.frete(conf, comps.map((c: any) => ({ sku: c.sku, qtde: c.quantidade })), opcoes?.unidade ?? null);
       const produtos = Number(conf.totalProdutos);
       resultados.push({
         micro: e.micro, inv: e.inv, qtdInv: e.qtdInv, kwp, placas, mod,
         itens: comps.map((c: any) => ({ sku: c.sku, descricao: c.descricaoProduto, qtd: c.quantidade, tipo: c.tipoKitMontado })),
         custo: Math.round((produtos + fr.valor) * 100) / 100,
-        detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
+        detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
       });
     } catch (err) {
       // Sem tipo = falha nossa ao montar/ler a resposta: trata como instabilidade, não como falta do kit.
@@ -610,11 +637,12 @@ Deno.serve(async (req) => {
     const placas = Math.round(Number(body?.placas));
     if (!Number.isFinite(placas) || placas < 4 || placas > 150) return json(400, { error: "Informe de 4 a 150 placas" });
     const modo = await modoDaUnidade(conta.franquia_id ?? null);
+    const unidade = await cidadeDaUnidade(conta.franquia_id ?? null);
     try {
       const cat = await catalogo(bel, provedor);
       await bel.login();
       const res = await cotarBelenus(bel, cat, placas, {
-        ...(cred.opcoes ?? {}), telhado: body?.telhado, tipo: body?.tipo, marca: body?.marca,
+        ...(cred.opcoes ?? {}), telhado: body?.telhado, tipo: body?.tipo, marca: body?.marca, unidade,
         ...(body?.modulo ? { modulo: String(body.modulo), modulo_escolhido: true } : {}),
       });
       // A Belenus recusou algum equipamento (pode ter saído de linha): renova o espelho se tiver mais de 1 h.
