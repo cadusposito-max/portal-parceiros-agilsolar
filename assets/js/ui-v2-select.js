@@ -94,7 +94,9 @@
     document.body.append(P.scrim, P.el);
   }
   function opcoes(sel) {
-    return [...sel.options].map((o, i) => ({ i, v: o.value, t: o.text, dis: o.disabled, grupo: o.parentElement.tagName === 'OPTGROUP' ? o.parentElement.label : null }));
+    // <option hidden> é só o texto do botão ("Adicionar pessoa…"): não entra na lista
+    return [...sel.options].map((o, i) => ({ i, v: o.value, t: o.text, dis: o.disabled, oculta: o.hidden, grupo: o.parentElement.tagName === 'OPTGROUP' ? o.parentElement.label : null }))
+      .filter((o) => !o.oculta);
   }
   function desenharLista(q) {
     const sel = P.btn._sel;

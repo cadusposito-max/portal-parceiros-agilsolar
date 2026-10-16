@@ -23,6 +23,8 @@
     ignorado: ['Ignorado', 't-gray'], sem_vendedor: ['Parado: sem vendedor', 't-red'], sem_pagina: ['Parado: página sem unidade', 't-red'],
     erro: ['Erro', 't-red'], recebido: ['Na fila', 't-orange'], processando: ['Processando', 't-orange'],
   };
+  // cargo aparece ao lado do nome na lista do rodízio (vendedor é o padrão, fica sem)
+  const CARGO = { admin: 'Admin', gestor: 'Gestor', engenheiro: 'Engenharia', tecnico: 'Técnico', coordenador_tecnico: 'Coord. técnico', franqueado: 'Franqueado' };
   const SEM_VENDEDOR = [['gestor', 'Enviar pro gestor da unidade'], ['matriz', 'Enviar pro rodízio da Matriz'], ['parado', 'Deixar parado e mostrar aqui']];
 
   let D = null;            // dados carregados
@@ -46,7 +48,8 @@
       q(supabaseClient.from('franquias').select('id, nome, tipo').eq('ativo', true).order('nome')),
       q(supabaseClient.from('meta_leads_paginas').select('*').order('created_at')),
       q(supabaseClient.from('meta_leads_rodizio').select('*').order('created_at')),
-      q(supabaseClient.from('user_accounts').select('email, nome, role, franquia_id, ativo').eq('ativo', true).in('role', ['vendedor', 'gestor'])),
+      // qualquer pessoa ativa da unidade pode entrar no rodízio (admin, gestor, engenharia...)
+      q(supabaseClient.from('user_accounts').select('email, nome, role, franquia_id, ativo').eq('ativo', true)),
       q(supabaseClient.from('meta_leads_eventos').select('id, recebido_em, status, erro, page_id, franquia_id, vendedor_email, cliente_id, form_id, dados').order('recebido_em', { ascending: false }).limit(200)),
     ]);
     // regras/unidades vêm da migration 20261008: sem ela, a tela avisa e segue
@@ -90,7 +93,7 @@
       return `<div class="alm-row">
           <i class="alm-fb">${ic('megaphone')}</i>
           <div class="alm-grow"><b>${esc(p.nome || 'Página ' + p.page_id)}</b><small>Página ${esc(p.page_id)} · ${n} lead${n === 1 ? '' : 's'} recebido${n === 1 ? '' : 's'}</small></div>
-          <label class="alm-lbl">Unidade padrão<select onchange="admLeadsMeta.paginaUnidade('${esc(p.page_id)}', this.value)">${opcoesUnidade(p.franquia_id)}</select></label>
+          <label class="alm-lbl">Unidade padrão<select class="v2-select" data-titulo="Unidade padrão" onchange="admLeadsMeta.paginaUnidade('${esc(p.page_id)}', this.value)">${opcoesUnidade(p.franquia_id)}</select></label>
           <button type="button" class="alm-tg ${p.ativo ? 'on' : ''}" title="${p.ativo ? 'Recebendo leads' : 'Pausada'}" onclick="admLeadsMeta.paginaAtiva('${esc(p.page_id)}', ${!p.ativo})"></button>
         </div>`;
     }).join('') || '<div class="alm-vazio">Nenhuma página conectada.</div>';
@@ -109,11 +112,11 @@
     }).join('');
 
     const nova = D.semMigration ? '' : `<div class="alm-nova">
-        <select id="alm-r-tipo" onchange="admLeadsMeta.tipoRegra(this.value)"><option value="cidade">Cidade do cliente</option><option value="formulario">Formulário</option></select>
+        <select id="alm-r-tipo" class="v2-select" data-titulo="Tipo de regra" onchange="admLeadsMeta.tipoRegra(this.value)"><option value="cidade">Cidade do cliente</option><option value="formulario">Formulário</option></select>
         <input id="alm-r-cidades" placeholder="Ex.: Goiânia, Aparecida de Goiânia">
-        <select id="alm-r-form" class="hidden">${forms.map((f) => `<option value="${esc(f)}">Formulário …${esc(f.slice(-6))} (${D.eventos.filter((e) => e.form_id === f).length} leads)</option>`).join('') || '<option value="">Nenhum formulário recebido ainda</option>'}</select>
+        <span id="alm-r-form-box" class="hidden"><select id="alm-r-form" class="v2-select" data-titulo="Formulário">${forms.map((f) => `<option value="${esc(f)}">Formulário …${esc(f.slice(-6))} (${D.eventos.filter((e) => e.form_id === f).length} leads)</option>`).join('') || '<option value="">Nenhum formulário recebido ainda</option>'}</select></span>
         ${ic('arrow-right')}
-        <select id="alm-r-unidade">${opcoesUnidade(null)}</select>
+        <select id="alm-r-unidade" class="v2-select" data-titulo="Unidade">${opcoesUnidade(null)}</select>
         <button type="button" class="alm-btn pri" onclick="admLeadsMeta.regraCriar()">${ic('plus')}Adicionar regra</button>
       </div>`;
 
@@ -154,6 +157,8 @@
     const jaNoRodizio = new Set(daUnidade.map((r) => String(r.vendedor_email).toLowerCase()));
     const candidatos = D.usuarios.filter((u) => u.franquia_id === unidadeSel && !jaNoRodizio.has(u.email))
       .sort((a, b) => String(a.nome || a.email).localeCompare(String(b.nome || b.email)));
+    const unidadeCurta = String(nomeUnidade(unidadeSel)).replace(/^Ágil Solar\s*/i, '');
+    const opcaoPessoa = (u) => `<option value="${esc(u.email)}">${esc(u.nome || u.email)}${CARGO[u.role] ? ` · ${CARGO[u.role]}` : ''}</option>`;
     const cfg = D.unidades.find((u) => u.franquia_id === unidadeSel);
     const modo = cfg ? cfg.sem_vendedor : 'gestor';
 
@@ -163,11 +168,11 @@
         <div class="alm-pills">${pills}</div>
         ${linhas || '<div class="alm-aviso">Ninguém no rodízio desta unidade. Leads que caírem aqui seguem a opção de baixo.</div>'}
         <div class="alm-nova">
-          <select id="alm-add-vend">${candidatos.length ? `<option value="">Adicionar vendedor de ${esc(nomeUnidade(unidadeSel))}…</option>${candidatos.map((u) => `<option value="${esc(u.email)}">${esc(u.nome || u.email)}${u.role === 'gestor' ? ' (gestor)' : ''}</option>`).join('')}` : '<option value="">Todos os vendedores desta unidade já estão aqui</option>'}</select>
+          <select id="alm-add-vend" class="v2-select" data-titulo="Adicionar ao rodízio" aria-label="Adicionar ao rodízio">${candidatos.length ? `<option value="" hidden>Adicionar pessoa da ${esc(unidadeCurta)}…</option>${candidatos.map(opcaoPessoa).join('')}` : '<option value="">Todo mundo desta unidade já está aqui</option>'}</select>
           <button type="button" class="alm-btn" onclick="admLeadsMeta.rodizioAdicionar()" ${candidatos.length ? '' : 'disabled'}>${ic('user-plus')}Adicionar</button>
         </div>
         ${D.semMigration ? '' : `<label class="alm-lbl alm-semv">Se ninguém estiver ativo no rodízio desta unidade
-          <select onchange="admLeadsMeta.semVendedor(this.value)">${SEM_VENDEDOR.map(([v, l]) => `<option value="${v}" ${v === modo ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`}
+          <select class="v2-select" data-titulo="Se ninguém estiver ativo" onchange="admLeadsMeta.semVendedor(this.value)">${SEM_VENDEDOR.map(([v, l]) => `<option value="${v}" ${v === modo ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`}
       </section>`;
   }
 
@@ -225,7 +230,7 @@
     unidade(id) { unidadeSel = id; pintar(); },
     tipoRegra(t) {
       document.getElementById('alm-r-cidades').classList.toggle('hidden', t !== 'cidade');
-      document.getElementById('alm-r-form').classList.toggle('hidden', t !== 'formulario');
+      document.getElementById('alm-r-form-box').classList.toggle('hidden', t !== 'formulario');
     },
     paginaUnidade(pageId, franquiaId) {
       return gravar(supabaseClient.from('meta_leads_paginas').update({ franquia_id: franquiaId }).eq('page_id', pageId), `Página agora manda leads pra ${nomeUnidade(franquiaId)}`);
