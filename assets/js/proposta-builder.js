@@ -1033,9 +1033,19 @@ bindEquipUIEvents();
 // na coluna da direita. Com consumo informado, mostra primeiro os kits perto
 // dele (95% a 130% da média) e o resto fica atrás de "Mostrar os outros".
 let _pbListaTodos = false;
+// Desenhar os ~1000 kits de uma vez travava a tela: vai de 30 em 30 ("Mostrar mais").
+// O limite volta pra 30 quando muda o filtro, a busca ou o tipo (a chave muda).
+const PB_LISTA_PASSO = 30;
+let _pbListaLimite = PB_LISTA_PASSO;
+let _pbListaChave = '';
 
 function pbListaMostrarTodos(todos) {
   _pbListaTodos = Boolean(todos);
+  renderModalProducts();
+}
+
+function pbListaMostrarMais() {
+  _pbListaLimite += PB_LISTA_PASSO;
   renderModalProducts();
 }
 
@@ -1150,6 +1160,18 @@ function renderModalProducts() {
       }
     }
   }
+  const chave = `${state.pbCategory}|${state.pbSearch || ''}|${_pbListaTodos}|${visiveis.length}|${visiveis[0]?.id ?? ''}|${visiveis[visiveis.length - 1]?.id ?? ''}`;
+  if (chave !== _pbListaChave) { _pbListaChave = chave; _pbListaLimite = PB_LISTA_PASSO; }
+  // O kit escolhido nunca some: se estiver mais pra baixo, a lista vai até ele.
+  const escolhidoId = typeof _orcamentoKitId !== 'undefined' && _orcamentoKitId != null ? String(_orcamentoKitId) : '';
+  const posEscolhido = escolhidoId ? visiveis.findIndex((k) => String(k.id) === escolhidoId) : -1;
+  const limite = Math.max(_pbListaLimite, posEscolhido + 1);
+  const faltam = visiveis.length - limite;
+  if (faltam > 0) {
+    visiveis = visiveis.slice(0, limite);
+    rodape = `<button type="button" class="pbl-mais" onclick="pbListaMostrarMais()"><i data-lucide="chevron-down"></i> Mostrar mais ${Math.min(PB_LISTA_PASSO, faltam)} ${faltam === 1 ? 'kit' : 'kits'} · faltam ${faltam}</button>` + rodape;
+  }
+
   const tipoNome = state.pbCategory === 'kitsMicro' ? 'com microinversor' : 'com inversor';
   const cabecalho = `<p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>`;
 
