@@ -16,7 +16,9 @@ function invocarDistribuidoras(body) {
 const INTEGRACOES_INFO = {
   belenus: { nome: 'Belenus', login: 'senha', descricao: 'Login com o e-mail e a senha do portal da Belenus. A senha fica criptografada no servidor e nunca volta pra tela.',
     // Telhados (tabela estruturas) que a edge function traduz pra estrutura da Belenus. Sem kalhetão.
-    telhados: ['ceramico', 'fibro_madeira', 'fibro_metal', 'laje', 'mini_trilho', 'mini_trilho_alto', 'trapezoidal', 'shingle', 'solo'] },
+    telhados: ['ceramico', 'fibro_madeira', 'fibro_metal', 'laje', 'mini_trilho', 'mini_trilho_alto', 'trapezoidal', 'shingle', 'solo'],
+    // Nome na tela quando a estrutura da distribuidora é uma medida específica.
+    telhadoNomes: { mini_trilho: 'Metálico · mini trilho 130 mm' } },
   helte:   { nome: 'Helte', login: 'oauth', descricao: 'A Helte conecta por autorização oficial (OAuth), como na Groner. Falta a Helte enviar o client_id e o client_secret da Ágil Solar.' },
 };
 
@@ -60,7 +62,8 @@ function pbIntegracaoTelhados(provedor) {
     if (!aceitos.includes(o.telhado) || vistos.has(o.telhado)) return;
     vistos.add(o.telhado);
     const linha = (typeof pbEstruturaLinhas === 'function' && pbEstruturaLinhas(o.telhado)[0]) || o.linha;
-    lista.push({ telhado: o.telhado, linha, valor: `${o.telhado}|${linha}`, nome: o.telhado === 'solo' ? 'Solo' : o.telhado_nome });
+    const nome = INTEGRACOES_INFO[provedor]?.telhadoNomes?.[o.telhado] || (o.telhado === 'solo' ? 'Solo' : o.telhado_nome);
+    lista.push({ telhado: o.telhado, linha, valor: `${o.telhado}|${linha}`, nome });
   });
   return lista.length ? lista : [{ telhado: 'ceramico', linha: 'standard', valor: 'ceramico|standard', nome: 'Cerâmico / colonial' }];
 }
