@@ -100,7 +100,7 @@ stable security definer
 set search_path to ''
 as $function$
 declare pr public.produtos%rowtype; c public.produtos_custo%rowtype; f public.frete_regra_unidade%rowtype;
-        e public.estruturas%rowtype; pecas numeric; tam smallint; padrao text;
+        e public.estruturas%rowtype; pecas numeric; tam smallint; v_padrao text;
 begin
   select * into pr from public.produtos where id = p_produto_id;
   if not found then return null; end if;
@@ -125,10 +125,10 @@ begin
         or exists (select 1 from public.componentes ci where ci.id = pr.inversor_id and (ci.ficha->>'micro')::boolean)) then
       return null;
     end if;
-    select id into padrao from public.estruturas where distribuidora_id = e.distribuidora_id and tamanho = tam and padrao;
-    if padrao is null then return null; end if;
-    if padrao <> e.id then
-      pecas := round(pecas - private.cc_custo_estrutura(padrao, pr.modulo_qtd) + private.cc_custo_estrutura(e.id, pr.modulo_qtd), 2);
+    select es.id into v_padrao from public.estruturas es where es.distribuidora_id = e.distribuidora_id and es.tamanho = tam and es.padrao;
+    if v_padrao is null then return null; end if;
+    if v_padrao <> e.id then
+      pecas := round(pecas - private.cc_custo_estrutura(v_padrao, pr.modulo_qtd) + private.cc_custo_estrutura(e.id, pr.modulo_qtd), 2);
     end if;
   end if;
 

@@ -173,22 +173,22 @@ begin
            c.ficha->>'rede' rede, coalesce((c.ficha->>'pares_conector')::integer, 0) pares, c.ficha->'faixa_kwp' faixa into u
       from public.distribuidora_componentes dc join public.componentes c on c.id = dc.componente_id
      where dc.distribuidora_id = d.id and dc.componente_id = x.id and dc.ativo and c.tipo = 'inversor' and coalesce(dc.preco_unitario, 0) > 0;
-    if not found then erros := erros || 'Um dos inversores não está disponível nessa distribuidora.'; continue; end if;
+    if not found then erros := erros || 'Um dos inversores não está disponível nessa distribuidora.'::text; continue; end if;
     inv := inv || jsonb_build_object('id', u.id, 'nome', u.nome, 'marca', u.marca, 'kw', u.kw, 'qtd', x.qtd, 'micro', u.micro,
                                      'pares', u.pares, 'faixa', u.faixa, 'preco', u.preco);
     if u.micro then micro_n := micro_n + x.qtd; else str_n := str_n + x.qtd; redes := redes || coalesce(u.rede, ''); end if;
     kw_tot := kw_tot + u.kw * x.qtd; qtd_tot := qtd_tot + x.qtd;
     if not (upper(coalesce(u.marca, '')) = any(marcas)) then marcas := marcas || upper(coalesce(u.marca, '')); end if;
   end loop;
-  if jsonb_array_length(inv) = 0 then erros := erros || 'Escolha pelo menos um inversor.'; end if;
-  if micro_n > 0 and str_n > 0 then erros := erros || 'Não dá pra misturar microinversor com inversor de string no mesmo kit.'; end if;
-  if (select count(distinct x) from unnest(redes) x) > 1 then erros := erros || 'Os inversores precisam ser da mesma fase (todos monofásicos ou todos trifásicos).'; end if;
+  if jsonb_array_length(inv) = 0 then erros := erros || 'Escolha pelo menos um inversor.'::text; end if;
+  if micro_n > 0 and str_n > 0 then erros := erros || 'Não dá pra misturar microinversor com inversor de string no mesmo kit.'::text; end if;
+  if (select count(distinct rr.rede) from unnest(redes) as rr(rede)) > 1 then erros := erros || 'Os inversores precisam ser da mesma fase (todos monofásicos ou todos trifásicos).'::text; end if;
 
   -- estrutura do telhado (padrão do tamanho do módulo se não escolheu)
   est_id := coalesce(p_estrutura_id, (select id from public.estruturas where distribuidora_id = d.id and tamanho = tam and padrao));
   select * into e from public.estruturas where id = est_id and ativo and distribuidora_id = d.id;
-  if not found or e.tamanho <> tam then erros := erros || 'A distribuidora não tem essa estrutura para o módulo escolhido.';
-  elsif e.bloqueia_micro and micro_n > 0 then erros := erros || 'Microinversor não cabe no mini trilho baixo. Troque o telhado.';
+  if not found or e.tamanho <> tam then erros := erros || 'A distribuidora não tem essa estrutura para o módulo escolhido.'::text;
+  elsif e.bloqueia_micro and micro_n > 0 then erros := erros || 'Microinversor não cabe no mini trilho baixo. Troque o telhado.'::text;
   else est_custo := private.cc_custo_estrutura(e.id, p_placas); end if;
 
   -- divisão das placas: micro liga N placas por unidade; string reparte proporcional à potência
@@ -267,7 +267,7 @@ begin
   end if;
   de := private.cc_preco_de(preco);
   invs := (select string_agg(case when (i->>'micro')::boolean then (i->>'qtd') || '× MICROINVERSOR ' || upper(coalesce(i->>'marca', ''))
-                                  else (i->>'qtd') || '× INV. ' || upper(coalesce(i->>'marca', '')) || ' ' || replace(trim(to_char((i->>'kw')::numeric, 'FM999990.99')), '.', ',') || 'KW' end, ' + ')
+                                  else (i->>'qtd') || '× INV. ' || upper(coalesce(i->>'marca', '')) || ' ' || replace(trim_scale((i->>'kw')::numeric)::text, '.', ',') || 'KW' end, ' + ')
              from jsonb_array_elements(c->'inversores') i);
   titulo := format('KIT %s MOD. %sW + %s', p_placas, trim(to_char((c->'modulo'->>'potencia_wp')::numeric, 'FM9999')), invs);
   if p_salvar then
