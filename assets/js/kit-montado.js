@@ -96,7 +96,8 @@ async function _kmCarregar(dist) {
         inversores: data.inversores.map((i) => ({
           id: String(i.item), nome: i.nome, marca: String(i.fabricante || '').toUpperCase(), kw: Number(i.kw),
           fase: i.grupo === 'micro' ? 'micro' : i.grupo === 'tri' ? 'tri' : 'mono',
-          faixa: Number(i.max_entrada_kw) > 0 ? [0, Number(i.max_entrada_kw)] : null, porMicro: Number(i.entradas) || 4,
+          // "entradas" da Belenus é o nº de MPPTs, não de placas: micro de 2 kW ou mais liga 4 placas; os pequenos (Enphase), 1.
+          faixa: Number(i.max_entrada_kw) > 0 ? [0, Number(i.max_entrada_kw)] : null, porMicro: Number(i.kw) >= 1.5 ? 4 : 1,
         })),
       };
     }
