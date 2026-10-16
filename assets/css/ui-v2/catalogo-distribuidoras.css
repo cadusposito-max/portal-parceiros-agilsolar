@@ -98,12 +98,14 @@ html[data-ui="v2"] #pb-fornecimento-panel .hidden { display: none !important; }
 
 /* ---------- Orçamento · modo avançado (kit-montado.js): admin, gestor e franqueado ---------- */
 html[data-ui="v2"] .pbd-forn-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-html[data-ui="v2"] .pbd-modo { display: inline-flex; gap: 2px; padding: 3px; border-radius: 11px; background: var(--v2-bg2); }
+/* Mesmo tamanho da chave Inversor/Microinversor logo acima (.pbl-tipo). */
+html[data-ui="v2"] .pbd-modo { display: inline-flex; gap: 2px; padding: 4px; border-radius: 14px; background: var(--v2-bg2); }
 html[data-ui="v2"] .pbd-modo.hidden { display: none; }
 html[data-ui="v2"] .pbd-modo button {
-  border: 0; background: transparent; padding: 5px 12px; border-radius: 9px; font: inherit; font-size: 12px; font-weight: 800;
+  border: 0; background: transparent; padding: 8px 14px; border-radius: 11px; font: inherit; font-size: 13px; font-weight: 700;
   color: var(--v2-ink-2); cursor: pointer;
 }
+html[data-ui="v2"] .pbd-modo button:not(.is-on):hover { color: var(--v2-ink); }
 html[data-ui="v2"] .pbd-modo button.is-on { background: var(--v2-blue); color: #fff; }
 html[data-ui="v2"] .pbd-modo button:disabled { cursor: default; opacity: .6; }
 /* Cartão no formato do seletor grande (mesma altura, borda, legenda e letra do valor),
