@@ -136,9 +136,9 @@ html[data-ui="v2"] .km-fase button {
 }
 html[data-ui="v2"] .km-fase button.is-on { background: var(--v2-blue); color: #fff; }
 html[data-ui="v2"] .km-tensao { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); white-space: nowrap; }
-/* Resumo do sistema montado: faixa clara embaixo dos cartões. */
-html[data-ui="v2"] .pbd-km-info {
-  display: flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 10px 14px; border-radius: 12px;
+/* Resumo do sistema montado: faixa clara embaixo dos cartões (id no seletor pra vencer o ".v2s p { margin: 0 }"). */
+html[data-ui="v2"] #pb-fornecimento-panel .pbd-km-info {
+  display: flex; align-items: center; gap: 8px; margin: 14px 0 0; padding: 10px 14px; border-radius: 12px;
   background: var(--v2-soft); border: 1px solid var(--v2-line); font-size: 12.5px; line-height: 1.45; color: var(--v2-ink-2);
 }
 html[data-ui="v2"] .pbd-km-info > svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--v2-blue); }
