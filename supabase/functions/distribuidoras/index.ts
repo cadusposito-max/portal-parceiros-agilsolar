@@ -3,6 +3,8 @@
 //   { acao: "testar", provedor }               -> admin: loga na distribuidora e grava o status
 //   { acao: "opcoes", provedor }                -> módulos e marcas de inversor/micro (do espelho, sem consultar a distribuidora)
 //   { acao: "cotar", provedor, placas, tipo, modulo?, marca?, telhado? } -> qualquer usuário ativo: cota os kits,
+//   { acao: "cotar", provedor, placas, modulo, inversores: [{ item, qtd }] } -> admin/gestor (modo avançado):
+//        cota exatamente os inversores escolhidos (vários modelos e quantidades) e grava UMA cotação.
 //        aplica a precificação e grava cada opção em cotacoes_distribuidora.
 //        Vendedor/gestor recebem SÓ preço e "De"; o custo fica no banco (admin vê).
 // A senha da distribuidora vem do Vault via RPC integracao_credencial (só service role).
@@ -258,14 +260,15 @@ class Belenus {
         { arranjo: 2, linhas: "1", moduloLinha: String(placas - porLinha), orientacao: "Retrato", tipoEstrutura: telhado.tipo, grupo: telhado.grupo, subGrupo: telhado.sub, observation: telhado.obs },
       ];
     const j = await this.req("catalogo/KitPersonalizado/Estrutura", {
-      semEstrutura: false, site: this.site, potenciaProjeto: kwp, sugestao: 1, modulo, moduloQtde: placas, layout, listInversores: [inversor],
+      semEstrutura: false, site: this.site, potenciaProjeto: kwp, sugestao: 1, modulo, moduloQtde: placas, layout,
+      listInversores: Array.isArray(inversor) ? inversor : [inversor],
     });
     return { layout, itens: ((j?.data?.structure ?? []) as any[]).filter((x) => Number(x.qtde) > 0) };
   }
 
   async outros(modulo: string, kwp: number, placas: number, inversor: any) {
     const j = await this.req("catalogo/KitPersonalizado/Outros", {
-      site: this.site, potenciaProjeto: kwp, modulo, sugestao: 1, moduloQtde: placas, listInversores: [inversor],
+      site: this.site, potenciaProjeto: kwp, modulo, sugestao: 1, moduloQtde: placas, listInversores: Array.isArray(inversor) ? inversor : [inversor],
     });
     const d = j?.data ?? {};
     const lista: any[] = Array.isArray(d) ? d : (Object.values(d).find((v) => Array.isArray(v)) as any[]) ?? [];
@@ -429,6 +432,11 @@ function opcoesBelenus(cat: Catalogo) {
   return {
     modulos, padrao: moduloPadrao(cat.modulos)?.item ?? modulos[0]?.sku ?? null,
     marcas_inversor: marcas(["mono", "tri"]), marcas_micro: marcas(["micro"]), atualizado_em: cat.atualizado_em ?? null,
+    // Modo avançado: cada modelo (por unidade) com a potência de saída e o máximo de entrada DC.
+    inversores: cat.inversores.filter((i) => marcaDe(i) && !SEM_MARCA.test(marcaDe(i))).map((i) => ({
+      item: i.item, nome: i.descricaoItem, fabricante: marcaDe(i), grupo: i._grupo, kw: Number(i.potenciaNominalSaida),
+      max_entrada_kw: Number(i.maxPotenciaEntrada) || null, entradas: Number(i.numEntradaMPPT) || null,
+    })),
   };
 }
 
@@ -554,6 +562,53 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
   return resultados;
 }
 
+// Modo avançado: o vendedor escolheu os inversores (modelos e quantidades). Cota esse kit só.
+async function cotarBelenusMontado(bel: Belenus, cat: Catalogo, placas: number, opcoes: any) {
+  const mod = cat.modulos.find((m) => m.item === String(opcoes?.modulo ?? ""));
+  if (!mod) throw erroTipo("A Belenus está sem o módulo escolhido. Escolha outro módulo e cote de novo.", "recusado");
+  const kwp = Math.round(placas * Number(mod.potencia)) / 1000;
+  const telhado = TELHADOS[opcoes?.telhado ?? "ceramico"] ?? TELHADOS.ceramico;
+  const escolhidos: { inv: any; qtd: number }[] = [];
+  for (const x of (opcoes?.inversores ?? []) as any[]) {
+    const inv = cat.inversores.find((i) => i.item === String(x?.item ?? ""));
+    if (!inv) throw erroTipo("A Belenus está sem um dos inversores escolhidos. Escolha outro e cote de novo.", "recusado");
+    if (SEM_MARCA.test(marcaDe(inv))) throw new Error("Marca não permitida");
+    escolhidos.push({ inv, qtd: Math.max(1, Math.min(200, Math.round(Number(x?.qtd) || 1))) });
+  }
+  if (!escolhidos.length) throw new Error("Escolha pelo menos um inversor.");
+  const micro = escolhidos.every((e) => e.inv._grupo === "micro");
+  if (!micro && escolhidos.some((e) => e.inv._grupo === "micro")) throw new Error("Não dá pra misturar microinversor com inversor de string.");
+  // Mesmos campos do kit recomendado ("inversor"/"inversorQtde" como o site manda), um por modelo.
+  const invObjs = escolhidos.map(({ inv, qtd }) => {
+    const { _grupo, ...i } = inv;
+    return { ...i, numInversores: qtd, qtde: qtd, inversor: inv.item, inversorQtde: qtd };
+  });
+  const qtdInv = escolhidos.reduce((s, e) => s + e.qtd, 0);
+  const est = await bel.estrutura(mod.item, kwp, placas, invObjs, telhado);
+  const outros = await bel.outros(mod.item, kwp, placas, invObjs);
+  const itens = [
+    itemConfirmar("modulo", mod, placas),
+    ...escolhidos.map((e) => itemConfirmar("inversor", e.inv, e.qtd)),
+    ...est.itens.map((x) => itemConfirmar("estrutura", x, Number(x.qtde))),
+    ...outros.map((x) => itemConfirmar("outro", x, Number(x.qtde))),
+  ];
+  const conf = await bel.confirmar({
+    site: bel.site, potenciaProjeto: kwp, semEstrutura: false, mesesInatividade: 3, itens, layout: est.layout,
+    origemCarrinho: 1, potenciaSistema: kwp, qtdModulos: placas, qtdInversores: qtdInv,
+    totalMaxPotenciaEntrada: escolhidos.reduce((s, e) => s + Number(e.inv.maxPotenciaEntrada) * e.qtd, 0),
+    totalMaxPotenciaSaida: escolhidos.reduce((s, e) => s + Number(e.inv.maxPotenciaSaida) * e.qtd, 0),
+  });
+  const comps = (conf?.itens ?? []).flatMap((i: any) => i.componentes ?? []);
+  const fr = await bel.frete(conf, comps.map((c: any) => ({ sku: c.sku, qtde: c.quantidade })), opcoes?.unidade ?? null);
+  const produtos = Number(conf.totalProdutos);
+  return {
+    micro, escolhidos, qtdInv, kwInv: escolhidos.reduce((s, e) => s + Number(e.inv.potenciaNominalSaida) * e.qtd, 0), kwp, placas, mod,
+    itens: comps.map((c: any) => ({ sku: c.sku, descricao: c.descricaoProduto, qtd: c.quantidade, tipo: c.tipoKitMontado })),
+    custo: Math.round((produtos + fr.valor) * 100) / 100,
+    detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
+  };
+}
+
 // ---------------------------------------------------------------- modo de preço da unidade
 // Cada unidade escolhe no centro de custo (Financeiro → Config): 'markup' (REGRA acima)
 // ou 'custos' (kit + custos da unidade + imposto + comissão + margem alvo, via
@@ -638,6 +693,49 @@ Deno.serve(async (req) => {
     if (!Number.isFinite(placas) || placas < 4 || placas > 150) return json(400, { error: "Informe de 4 a 150 placas" });
     const modo = await modoDaUnidade(conta.franquia_id ?? null);
     const unidade = await cidadeDaUnidade(conta.franquia_id ?? null);
+    if (Array.isArray(body?.inversores) && body.inversores.length) {
+      const papel = String(conta.role ?? "").toLowerCase();
+      if (papel !== "admin" && papel !== "gestor") return json(403, { error: "Montar kit é só para administrador, gestor e franqueado." });
+      try {
+        const cat = await catalogo(bel, provedor);
+        await bel.login();
+        const r = await cotarBelenusMontado(bel, cat, placas, { modulo: body?.modulo, telhado: body?.telhado, inversores: body.inversores, unidade });
+        await bel.zerarRecusas();
+        let { preco, preco_de } = precificar(r.custo, r.micro);
+        let precificacao: any = { modo: "markup", ...REGRA };
+        if (modo === "custos") {
+          precificacao = await rest("rpc/cc_preco_dimensionado", { method: "POST", body: JSON.stringify({ p_franquia_id: conta.franquia_id ?? null, p_kit: r.custo, p_modulos: placas, p_kwp: r.kwp, p_inversores: r.qtdInv, p_kw_inversor: Math.round(r.kwInv * 1000) / 1000 }) });
+          preco = Number(precificacao.venda);
+          if (!Number.isFinite(preco) || preco <= 0) throw new Error("Preço por custos inválido. Revise o centro de custo da unidade.");
+          preco_de = precoDe(preco);
+        }
+        const invNome = r.escolhidos.map((e) => r.micro ? `${e.qtd}× MICROINVERSOR ${marcaDe(e.inv)}` : `${e.qtd}× INV. ${nomeInv(e.inv)}`).join(" + ");
+        const titulo = `KIT ${placas} MOD. ${r.mod.potencia}W + ${invNome}`;
+        const [row] = await rest("cotacoes_distribuidora", {
+          method: "POST", headers: { Prefer: "return=representation" },
+          body: JSON.stringify({
+            provedor, distribuidora_id: cred.distribuidora_id, franquia_id: conta.franquia_id ?? null, criado_por: userId,
+            categoria: r.micro ? "kitsMicro" : "kitsInversor", placas, kwp: r.kwp, titulo, marca: String(r.mod.fabricante || "").toUpperCase(),
+            modulo: { sku: r.mod.item, nome: r.mod.descricaoItem, marca: r.mod.fabricante, potencia_wp: r.mod.potencia, qtd: placas },
+            inversor: {
+              nome: invNome, marca: [...new Set(r.escolhidos.map((e) => marcaDe(e.inv)))].join(" + "), qtd: r.qtdInv, micro: r.micro,
+              potencia_wp: Math.round(r.kwInv * 1000 / r.qtdInv * 100) / 100,
+              modelos: r.escolhidos.map((e) => ({ sku: e.inv.item, nome: e.inv.descricaoItem, marca: marcaDe(e.inv), qtd: e.qtd, potencia_wp: Number(e.inv.potenciaNominalSaida) * 1000 })),
+            },
+            itens: r.itens, custo: r.custo, preco, preco_de, precificacao,
+            detalhe_custo: { ...r.detalhe, montado: true, estrutura: { telhado: "ceramico", nome: "Cerâmico / colonial" } },
+          }),
+        });
+        return json(200, { ok: true, kits: [{
+          cotacao_id: row.id, titulo, categoria: row.categoria, kwp: r.kwp, placas, marca: row.marca, preco, preco_de,
+          inversor: invNome, itens: r.itens, modo_precificacao: modo, montado: true,
+          ...(admin ? { custo: r.custo, detalhe_custo: r.detalhe } : {}),
+        }] });
+      } catch (err) {
+        if (tipoDoErro(err) === "recusado") emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
+        return json(200, { ok: false, error: String((err as Error).message || err), tipo: tipoDoErro(err) });
+      }
+    }
     try {
       const cat = await catalogo(bel, provedor);
       await bel.login();

@@ -64,7 +64,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261013-lista" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261006-pers2" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261015-estruturas" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261015-montado" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/tour.css?v=20261007-treino" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/notificacoes.css?v=20261007-notif" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/tarefas.css?v=20261010-timeline" data-ui-v2 media="not all">
@@ -643,12 +643,6 @@
           <button type="button" data-pb-linha="catalogo"><i data-lucide="layout-grid"></i> Catálogo completo</button>
         </div>
         <p id="pb-linha-hint" class="pbd-hint"></p>
-        <!-- Telhado do cliente: só no catálogo completo (promocionais são tabelados) · catalogo-distribuidoras.js -->
-        <div id="pb-estrutura" class="pbd-estrutura hidden">
-          <label class="pbd-mes"><span>Telhado do cliente</span><select id="pb-estrutura-telhado" class="pbd-input v2-select" data-titulo="Telhado do cliente" onchange="pbEstruturaEscolher('telhado',this.value)"></select></label>
-          <label class="pbd-mes"><span>Linha da estrutura</span><select id="pb-estrutura-linha" class="pbd-input v2-select" data-titulo="Linha da estrutura" onchange="pbEstruturaEscolher('linha',this.value)"></select></label>
-          <p id="pb-estrutura-hint" class="pbd-hint"></p>
-        </div>
       </div>
 
       <!-- ===== PORTA: PELO CONSUMO × LISTA DE KITS (só no PROMOCIONAL · pb-dimensionar.js) ===== -->
@@ -1261,11 +1255,12 @@
   local('crm-metas.js',        '20260716-crm-loop');
   local('etiquetas.js',        '20261006-etq');
   local('analise.js',          '20261006-etq');
-  local('catalogo-distribuidoras.js', '20261015-estruturas');
+  local('catalogo-distribuidoras.js', '20261015-montado');
   local('distribuidoras-integracao.js', '20261015-estruturas');
+  local('kit-montado.js',     '20261015-montado');
   local('produtos.js',         '20261009-cc');
-  local('pb-dimensionar.js',   '20261015-estruturas');
-  local('proposta-builder.js', '20261015-estruturas');
+  local('pb-dimensionar.js',   '20261015-montado');
+  local('proposta-builder.js', '20261015-montado');
   local('centro-custo-calc.js', '20261010-kwinv');
   local('centro-custo-tela.js', '20261010-kwinv');
   local('orcamento-dre.js',    '20261013-franq');
@@ -1291,7 +1286,7 @@
   local('ui-v2-ficha.js',      '20261014-geracao');
   local('ui-v2-modais.js',     '20261006-fluxo');
   local('ui-v2-admin.js',      '20261008-leads');
-  local('orcamento-tela.js',   '20261015-estruturas');
+  local('orcamento-tela.js',   '20261015-montado');
   local('update-notice.js',    '20260929-rel3');
   local('push.js',             '20261007-notif');
   local('leads-meta-avisos.js', '20261006-sw');

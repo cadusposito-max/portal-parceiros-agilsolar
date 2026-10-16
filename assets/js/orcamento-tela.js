@@ -206,6 +206,7 @@ function _orcamentoResumoDim() {
 
 // Kit da vez: o que o vendedor escolheu ou, sem escolha, o recomendado pelo consumo.
 function _orcamentoKitAtual(r = _orcamentoResumoDim()) {
+  if (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()) return kitMontadoKit();
   return _orcamentoAcharKit(_orcamentoKitId) || (r?.recomendado ? _orcamentoAcharKit(r.recomendado.id) : null);
 }
 
@@ -285,7 +286,7 @@ function _orcamentoGeracao(kit) {
 // Kits vizinhos do mesmo conjunto (mesma marca e mesmo módulo): um a menos e
 // um a mais na potência. Na porta "Pelo consumo" respeita a ligação escolhida.
 function _orcamentoVizinhos(kit) {
-  if (!kit || String(kit.id).startsWith('cot:')) return { menor: null, maior: null };
+  if (!kit || kit._montado || String(kit.id).startsWith('cot:')) return { menor: null, maior: null };
   const porConsumo = state.pbPorta === 'dim' && typeof _pbdServeLigacao === 'function' && typeof _pbd !== 'undefined' && _pbd;
   const mesmos = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter((k) => k.categoria === kit.categoria && k.ativo !== false && Number(k.price) > 0
     && String(k.brand || '') === String(kit.brand || '')
@@ -328,6 +329,7 @@ function _orcamentoKitCardHTML(kit, r, nota) {
     <div class="orc-kit-d">${detalhes}</div>
     ${dist ? `<div class="orc-kit-d">Distribuidora: ${escapeHTML(dist)}${cotado ? ' · frete incluso' : ''}</div>` : ''}
     ${kit._estrutura_id && typeof pbEstruturaNome === 'function' ? `<div class="orc-kit-d">Estrutura: ${escapeHTML(pbEstruturaNome(kit._estrutura_id))}</div>` : ''}
+    ${kit._estruturaNome ? `<div class="orc-kit-d">Telhado: ${escapeHTML(kit._estruturaNome)}</div>` : ''}
     ${nota ? `<div class="orc-kit-nota">${escapeHTML(nota)}</div>` : ''}
     <div class="orc-kit-preco">${temDe ? `<s>${formatCurrency(kit.list_price)}</s>` : ''}<b>${formatCurrency(kit.price)}</b></div>
   </div>`;
@@ -346,7 +348,12 @@ function _orcamentoLadoHTML(r, kit) {
     if (r.motivo) html += `<div class="orc-aviso">${escapeHTML(r.motivo)}</div>`;
   }
 
-  if (!kit) {
+  const montado = typeof kitMontadoAtivo === 'function' && kitMontadoAtivo();
+  if (montado && !kit) {
+    html += kitMontadoLadoVazioHTML();
+  } else if (montado) {
+    html += `<div class="orc-sec"><i data-lucide="package"></i> Kit montado</div>${_orcamentoKitCardHTML(kit, r, '')}`;
+  } else if (!kit) {
     const vazio = dim
       ? (r?.integrada ? 'Cote na distribuidora (ao lado) e escolha um dos kits.' : r ? 'Nenhum kit para mostrar com essa seleção.' : 'Preencha o consumo e o kit recomendado aparece aqui.')
       : 'Clique num kit da lista para escolher.';

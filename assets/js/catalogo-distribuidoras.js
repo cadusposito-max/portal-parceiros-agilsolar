@@ -23,7 +23,9 @@ async function carregarCatalogoDistribuidoras(force = false) {
   const promise = (async () => {
     try {
       const [dist, ofertas, equipamentos] = await Promise.all([
-        supabaseClient.from('distribuidoras').select('id,nome,ativo').order('nome'),
+        // regras_kit: distribuidora que monta kit por cálculo (modo avançado); sem a coluna, segue sem ela.
+        supabaseClient.from('distribuidoras').select('id,nome,ativo,regras_kit').order('nome')
+          .then((r) => (r.error ? supabaseClient.from('distribuidoras').select('id,nome,ativo').order('nome') : r)),
         supabaseClient.from('distribuidora_componentes').select('distribuidora_id,componente_id,preco_unitario,ativo'),
         supabaseClient.from('componentes').select('id,tipo,nome,marca,potencia_wp,unidade,preco_unitario,ativo,ficha').order('nome'),
       ]);
@@ -175,8 +177,9 @@ async function pbEstruturaCarregarOpcoes() {
   if (_pbEstrutura.opcoes || _pbEstrutura.opcoesCarregando) return _pbEstrutura.opcoes;
   _pbEstrutura.opcoesCarregando = true;
   const { data, error } = await supabaseClient.rpc('estruturas_opcoes');
-  if (error) { console.warn('[estrutura] opções', error); return null; }
   _pbEstrutura.opcoesCarregando = false;
+  // Sem a lista (erro), fica só o padrão cerâmico; não tenta de novo a cada desenho da tela.
+  if (error) { console.warn('[estrutura] opções', error); _pbEstrutura.opcoes = []; pbFornecimentoSync(); return null; }
   _pbEstrutura.opcoes = Array.isArray(data) ? data : [];
   pbFornecimentoSync();
   return _pbEstrutura.opcoes;
@@ -246,35 +249,54 @@ function pbKitsOrcamento() {
   return lista;
 }
 
-function pbEstruturaRender() {
-  const box = document.getElementById('pb-estrutura');
-  if (!box) return;
-  const mostrar = state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo';
-  box.classList.toggle('hidden', !mostrar);
-  if (!mostrar) return;
-  if (!_pbEstrutura.opcoes) { pbEstruturaCarregarOpcoes(); }
-  const tel = document.getElementById('pb-estrutura-telhado');
-  const lin = document.getElementById('pb-estrutura-linha');
+// Telhado + linha num seletor só (4º cartão do painel): "Cerâmico / colonial", "Cerâmico / colonial · Flex"...
+function pbEstruturaEscolherValor(valor) {
+  const [telhado, linha] = String(valor || '').split('|');
+  if (!telhado || !linha) return;
+  if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) { pbFornecimentoRender(); return; }
+  _pbEstrutura.telhado = telhado;
+  _pbEstrutura.linha = linha;
+  if (typeof _pbd !== 'undefined' && _pbd) _pbd.verMais = false;
+  if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
+  pbEstruturaCarregarPrecos();
+  pbFornecimentoSync();
+}
+
+function pbEstruturaOpcoesTelhado() {
   const ops = _pbEstrutura.opcoes || [];
-  const telhados = [];
-  ops.forEach((o) => { if (!telhados.some((t) => t.telhado === o.telhado)) telhados.push(o); });
-  tel.innerHTML = (telhados.length ? telhados : [{ telhado: 'ceramico', telhado_nome: 'Cerâmico / colonial' }])
-    .map((t) => `<option value="${escapeHTML(t.telhado)}">${escapeHTML(t.telhado_nome)}</option>`).join('');
-  tel.value = _pbEstrutura.telhado;
-  const linhas = ops.length ? pbEstruturaLinhas(_pbEstrutura.telhado) : ['standard'];
-  lin.innerHTML = linhas.map((l) => `<option value="${escapeHTML(l)}">${escapeHTML(PB_ESTRUTURA_LINHAS[l] || l)}${l === 'standard' && linhas.length > 1 ? ' (padrão)' : ''}</option>`).join('');
-  lin.value = _pbEstrutura.linha;
-  lin.disabled = linhas.length < 2;
-  tel.disabled = !ops.length;
+  const vistos = new Set();
+  const lista = [];
+  ops.forEach((o) => {
+    if (!pbEstruturaLinhas(o.telhado).includes(o.linha)) return;
+    const v = `${o.telhado}|${o.linha}`;
+    if (vistos.has(v)) return;
+    vistos.add(v);
+    lista.push({ valor: v, nome: o.telhado === 'solo' ? 'Solo' : `${o.telhado_nome}${o.linha !== 'standard' ? ' · ' + (PB_ESTRUTURA_LINHAS[o.linha] || o.linha) : ''}` });
+  });
+  return lista.length ? lista : [{ valor: 'ceramico|standard', nome: 'Cerâmico / colonial' }];
+}
+
+function pbEstruturaRender() {
+  const sel = document.getElementById('pb-filtro-telhado');
+  if (!sel) return;
+  if (state.pbProposalMode !== 'PROMOCIONAL' || pbLinhaAtual() !== 'catalogo') return;
+  if (!_pbEstrutura.opcoes) pbEstruturaCarregarOpcoes();
   const integrada = typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual();
-  const nome = telhados.find((t) => t.telhado === _pbEstrutura.telhado)?.telhado_nome || '';
-  document.getElementById('pb-estrutura-hint').textContent = integrada
-    ? 'A cotação na distribuidora integrada sai com a estrutura padrão dela.'
-    : _pbEstrutura.erro ? _pbEstrutura.erro
-    : pbEstruturaPadrao() ? 'O preço de cada kit já sai com a estrutura desse telhado. Padrão: cerâmico.'
-    : _pbEstrutura.carregandoChave ? 'Calculando os preços com a estrutura escolhida...'
-    : `Preços com estrutura de ${nome.toLocaleLowerCase('pt-BR')}. Kits com módulo de 710 W usam a linha Smart.`;
-  if (window.uiV2Select) window.uiV2Select.scan(box);
+  const atual = `${_pbEstrutura.telhado}|${_pbEstrutura.linha}`;
+  // A cotação da distribuidora integrada sai sempre com a estrutura padrão dela (cerâmico).
+  sel.innerHTML = (integrada ? [{ valor: 'ceramico|standard', nome: 'Cerâmico / colonial' }] : pbEstruturaOpcoesTelhado())
+    .map((t) => `<option value="${escapeHTML(t.valor)}">${escapeHTML(t.nome)}</option>`).join('');
+  sel.value = integrada ? 'ceramico|standard' : atual;
+  sel.disabled = Boolean(integrada) || !_pbEstrutura.opcoes;
+  const hint = document.getElementById('pb-estrutura-hint');
+  if (hint) {
+    hint.textContent = integrada ? 'A cotação na distribuidora integrada sai com estrutura de telhado cerâmico.'
+      : _pbEstrutura.erro ? _pbEstrutura.erro
+      : pbEstruturaPadrao() ? ''
+      : _pbEstrutura.carregandoChave ? 'Calculando os preços com a estrutura escolhida...'
+      : 'Preços com a estrutura desse telhado. Kits com módulo de 710 W usam a linha Smart.';
+    hint.classList.toggle('hidden', !hint.textContent);
+  }
 }
 
 function pbKitCompativel(kit) {
@@ -334,13 +356,23 @@ function pbFornecimentoMount() {
     const panel = document.createElement('div');
     panel.id = 'pb-fornecimento-panel';
     panel.className = 'pbd-fornecimento';
-    panel.innerHTML = `<div class="pbd-sec"><i data-lucide="boxes"></i> Equipamentos e distribuidora</div>
+    // Modo simples: filtros da lista de kits. Avançado (kit-montado.js): o vendedor monta o kit.
+    panel.innerHTML = `<div class="pbd-forn-topo"><div class="pbd-sec"><i data-lucide="boxes"></i> Equipamentos e distribuidora</div>
+        <div id="pb-modo" class="pbd-modo hidden" role="group" aria-label="Modo do orçamento">
+          <button type="button" data-pb-modo="simples" onclick="kitMontadoModo('simples')">Simples</button>
+          <button type="button" data-pb-modo="avancado" onclick="kitMontadoModo('avancado')">Avançado</button>
+        </div></div>
       <p id="pb-fornecimento-hint" class="pbd-hint"></p>
-      <div class="pbd-fornecimento-fields">
+      <div id="pb-forn-simples" class="pbd-fornecimento-fields">
         <label class="pbd-forn-campo"><i data-lucide="warehouse" class="pbd-forn-ic"></i><span class="pbd-forn-cap">1 · Distribuidora</span><select id="pb-filtro-distribuidora" class="pbd-input v2-select" data-titulo="Distribuidora do kit" onchange="pbFornecimentoEscolher('distribuidora',this.value)"></select></label>
         <label class="pbd-forn-campo"><i data-lucide="solar-panel" class="pbd-forn-ic"></i><span class="pbd-forn-cap">2 · Módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
         <label class="pbd-forn-campo"><i data-lucide="zap" class="pbd-forn-ic"></i><span class="pbd-forn-cap">3 · Inversor / micro</span><select id="pb-filtro-inversor" class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor" onchange="pbFornecimentoEscolher('inversor',this.value)"></select></label>
-      </div><div id="pb-fornecimento-aviso" class="pbd-hint" aria-live="polite"></div>`;
+        <label id="pb-forn-telhado" class="pbd-forn-campo hidden"><i data-lucide="home" class="pbd-forn-ic"></i><span class="pbd-forn-cap">4 · Telhado do cliente</span><select id="pb-filtro-telhado" class="pbd-input v2-select" data-titulo="Telhado do cliente" onchange="pbEstruturaEscolherValor(this.value)"></select></label>
+      </div>
+      <div id="pb-forn-avancado" class="pbd-fornecimento-fields is-avancado hidden"></div>
+      <p id="pb-km-info" class="pbd-km-info hidden"></p>
+      <p id="pb-estrutura-hint" class="pbd-hint hidden"></p>
+      <div id="pb-fornecimento-aviso" class="pbd-hint" aria-live="polite"></div>`;
     document.getElementById('pb-kit-fornecimento-slot')?.appendChild(panel);
     if (window.lucide) lucide.createIcons();
   }
@@ -369,9 +401,13 @@ function pbFornecimentoRender() {
   pbLinhaRender();
   // Promocionais são sempre SOFAR/Hoymiles: sem filtro de equipamento nem distribuidora.
   panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || pbLinhaAtual() === 'promocional');
+  const catalogo = state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo';
+  document.getElementById('pb-forn-telhado')?.classList.toggle('hidden', !catalogo);
+  document.getElementById('pb-forn-simples')?.classList.toggle('quatro', catalogo);
+  if (typeof kitMontadoRenderPainel === 'function' && kitMontadoRenderPainel(panel)) return;
   document.getElementById('pb-fornecimento-hint').textContent = state.pbPorta === 'dim'
-    ? 'Escolha a distribuidora, o módulo e a marca do inversor. O consumo define a potência do sistema e o kit recomendado.'
-    : 'Filtre os kits pela distribuidora, pelo módulo e pela marca do inversor.';
+    ? 'Escolha a distribuidora, o módulo, a marca do inversor e o telhado. O consumo define a potência do sistema e o kit recomendado.'
+    : 'Filtre os kits pela distribuidora, pelo módulo, pela marca do inversor e pelo telhado.';
   const disponiveis = catalogoEquipamentosDaDistribuidora(_pbFornecimento.distribuidora);
   const integrada = typeof pbIntegracaoAtual === 'function' ? pbIntegracaoAtual() : null;
   // Só oferece módulo/marca que está em algum kit ativo do tipo escolhido

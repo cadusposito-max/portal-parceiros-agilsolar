@@ -81,12 +81,92 @@ html[data-ui="v2"] .pb-alerta-chip {
 }
 html[data-ui="v2"] .pb-alerta-chip svg { width: 14px; height: 14px; }
 
-/* Telhado do cliente (catálogo completo): logo abaixo da linha de kits. */
-.pbd-estrutura { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
-.pbd-estrutura.hidden { display: none !important; }
-.pbd-estrutura label { min-width: 0; }
-.pbd-estrutura label span { display: block; font-size: 12px; color: var(--v2-ink-2, #6b778a); margin-bottom: 3px; }
-.pbd-estrutura select { width: 100%; font-size: 13px; font-weight: 600; }
-.pbd-estrutura select:disabled { opacity: .7; }
-.pbd-estrutura .pbd-hint { grid-column: 1 / -1; margin: 0; }
-@media (max-width: 640px) { .pbd-estrutura { grid-template-columns: 1fr; } }
+/* Telhado do cliente: 4º cartão do painel (catálogo completo), em 2 colunas. */
+html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro,
+html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado { grid-template-columns: repeat(2,minmax(0,1fr)); }
+html[data-ui="v2"] #pb-estrutura-hint { margin: 8px 0 0; }
+html[data-ui="v2"] #pb-fornecimento-panel .hidden { display: none !important; }
+
+/* ---------- Orçamento · modo avançado (kit-montado.js): admin, gestor e franqueado ---------- */
+html[data-ui="v2"] .pbd-forn-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+html[data-ui="v2"] .pbd-modo { display: inline-flex; gap: 2px; padding: 3px; border-radius: 11px; background: var(--v2-bg2); }
+html[data-ui="v2"] .pbd-modo.hidden { display: none; }
+html[data-ui="v2"] .pbd-modo button {
+  border: 0; background: transparent; padding: 5px 12px; border-radius: 9px; font: inherit; font-size: 12px; font-weight: 800;
+  color: var(--v2-ink-2); cursor: pointer;
+}
+html[data-ui="v2"] .pbd-modo button.is-on { background: var(--v2-blue); color: #fff; }
+html[data-ui="v2"] .pbd-modo button:disabled { cursor: default; opacity: .6; }
+/* Cartão no formato do seletor grande, pra quantidade de placas e fase do inversor. */
+html[data-ui="v2"] .km-caixa {
+  height: 64px; box-sizing: border-box; border: 1px solid var(--v2-line-strong); border-radius: 14px; background: var(--v2-card);
+  display: flex; align-items: flex-end; gap: 8px; padding: 0 10px 9px 60px; min-width: 0;
+}
+html[data-ui="v2"] .km-qtd { display: flex; align-items: center; gap: 6px; min-width: 0; }
+html[data-ui="v2"] .km-qtd button {
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--v2-line-strong); background: var(--v2-soft);
+  font-size: 16px; font-weight: 800; color: var(--v2-ink); cursor: pointer; line-height: 1;
+}
+html[data-ui="v2"] .km-qtd input {
+  width: 52px; border: 0; background: transparent; text-align: center; font: inherit; font-size: 15px; font-weight: 800; color: var(--v2-ink);
+  -moz-appearance: textfield;
+}
+html[data-ui="v2"] .km-qtd input::-webkit-outer-spin-button,
+html[data-ui="v2"] .km-qtd input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+html[data-ui="v2"] .km-qtd span { font-size: 13px; color: var(--v2-ink-2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .km-fase { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--v2-bg2); }
+html[data-ui="v2"] .km-fase button {
+  border: 0; background: transparent; padding: 2px 10px; border-radius: 7px; font: inherit; font-size: 12.5px; font-weight: 800;
+  color: var(--v2-ink-2); cursor: pointer;
+}
+html[data-ui="v2"] .km-fase button.is-on { background: var(--v2-card); color: var(--v2-ink); box-shadow: 0 1px 3px rgba(15,27,38,.14); }
+html[data-ui="v2"] .km-tensao { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); margin-left: auto; }
+html[data-ui="v2"] .pbd-km-info { margin: 10px 0 0; font-size: 12px; color: var(--v2-ink-2); }
+html[data-ui="v2"] .pbd-km-info b { color: var(--v2-ink); }
+/* "Inversores do kit": no lugar da lista de kits. */
+html[data-ui="v2"] .km-box { margin: 4px 0; padding: 14px; border: 1px solid var(--v2-line); border-radius: 16px; background: var(--v2-card); color: var(--v2-ink); }
+html[data-ui="v2"] .km-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+html[data-ui="v2"] .km-t { font-size: 13px; font-weight: 800; display: flex; gap: 6px; align-items: center; }
+html[data-ui="v2"] .km-t svg { width: 16px; height: 16px; color: var(--v2-blue); }
+html[data-ui="v2"] .km-s { font-size: 12px; color: var(--v2-ink-2); font-weight: 600; }
+html[data-ui="v2"] .km-sug { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; font-size: 12px; color: var(--v2-ink-2); font-weight: 600; }
+html[data-ui="v2"] .km-sug button {
+  border: 1px solid var(--v2-blue); background: var(--v2-blue-50); color: var(--v2-blue); border-radius: 999px; padding: 4px 11px;
+  font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
+}
+html[data-ui="v2"] .km-lin { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--v2-line); }
+html[data-ui="v2"] .km-lin-eq { min-width: 0; }
+html[data-ui="v2"] .km-lin-eq select { width: 100%; font-size: 13px; font-weight: 600; }
+html[data-ui="v2"] body .km-lin-eq .v2-dd {
+  width: 100%; max-width: none; justify-content: space-between; border: 1px solid var(--v2-line-strong);
+  border-radius: 12px !important; box-shadow: none; font-weight: 700;
+}
+html[data-ui="v2"] .km-qtd-p { height: 40px; box-sizing: border-box; border: 1px solid var(--v2-line-strong); border-radius: 12px; padding: 0 4px; background: var(--v2-card); }
+html[data-ui="v2"] .km-rem {
+  width: 40px; height: 40px; border: 1px solid var(--v2-line); border-radius: 12px; background: var(--v2-card); color: var(--v2-ink-2);
+  cursor: pointer; display: grid; place-items: center;
+}
+html[data-ui="v2"] .km-rem svg { width: 16px; height: 16px; }
+html[data-ui="v2"] .km-rem:disabled { opacity: .35; cursor: default; }
+html[data-ui="v2"] .km-badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px; margin-top: 4px; }
+html[data-ui="v2"] .km-ok { background: #e6f5ec; color: #127a45; }
+html[data-ui="v2"] .km-alto { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] .km-off { background: rgba(209,67,67,.1); color: #A32D2D; }
+html[data-ui="v2"][data-theme="dark"] .km-ok { background: rgba(18,122,69,.18); color: #7fd6a6; }
+html[data-ui="v2"][data-theme="dark"] .km-off { background: rgba(209,67,67,.16); color: #F29B9B; }
+html[data-ui="v2"] .km-add { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; cursor: pointer; margin-top: 4px; font-weight: 800; }
+html[data-ui="v2"] .km-add svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .km-resumo { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--v2-soft); font-size: 12.5px; font-weight: 700; color: var(--v2-ink); }
+html[data-ui="v2"] .km-erro { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(209,67,67,.1); color: #A32D2D; font-size: 13px; font-weight: 700; }
+html[data-ui="v2"][data-theme="dark"] .km-erro { background: rgba(209,67,67,.16); color: #F29B9B; }
+html[data-ui="v2"] .km-box .orc-aviso { margin-top: 10px; }
+html[data-ui="v2"] .km-cotar { width: 100%; justify-content: center; margin-top: 10px; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro,
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado { grid-template-columns: 1fr; }
+  html[data-ui="v2"] .km-qtd input { font-size: 16px; }
+}
+@media (max-width: 560px) {
+  html[data-ui="v2"] .km-lin { grid-template-columns: 1fr auto; }
+  html[data-ui="v2"] .km-lin-eq { grid-column: 1 / -1; }
+}

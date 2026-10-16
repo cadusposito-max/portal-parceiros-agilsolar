@@ -175,6 +175,7 @@ function pbDimSync() {
       pbDimRender();
     }
   }
+  if (typeof kitMontadoSyncTela === 'function') kitMontadoSyncTela();
 }
 
 async function _pbdCarregarHsp(client) {

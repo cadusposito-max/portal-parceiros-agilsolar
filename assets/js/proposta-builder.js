@@ -1075,6 +1075,16 @@ function renderModalProducts() {
     return;
   }
 
+  // Modo avançado (kit-montado.js): o vendedor monta o kit; no lugar da lista entram os inversores.
+  if (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()) {
+    emptyEl.classList.add('hidden');
+    container.classList.remove('hidden');
+    container.className = 'pbl';
+    kitMontadoRenderLista(container);
+    if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
+    return;
+  }
+
   // Distribuidora com integração (Admin → Distribuidoras): cota no servidor em vez da tabela.
   if (typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual()) {
     emptyEl.classList.add('hidden');
@@ -1179,7 +1189,7 @@ function copiarLinkExistente(id, btnElement) {
 }
 
 async function copyProposalLink(kit, event) {
-  if (!kit._cotacaoId && typeof pbKitCompativel === 'function' && !pbKitCompativel(kit)) return showToast('Este kit não está disponível na seleção atual. Escolha outro kit.');
+  if (!kit._cotacaoId && !kit._montado && typeof pbKitCompativel === 'function' && !pbKitCompativel(kit)) return showToast('Este kit não está disponível na seleção atual. Escolha outro kit.');
   const client = state.pbActiveClient;
   if (!client) return showToast('Nenhum cliente em atendimento!');
 
@@ -1192,6 +1202,16 @@ async function copyProposalLink(kit, event) {
   const popupRef = shouldUsePopup ? window.open('', '_blank') : null;
 
   try {
+    // Kit montado no modo avançado: grava a cotação dele antes (o banco trava preço e custo).
+    if (kit._montado) {
+      kit = await kitMontadoPrepararProposta(kit);
+      if (!kit) {
+        if (popupRef) popupRef.close();
+        btnCopiar.innerHTML = originalText;
+        lucide.createIcons();
+        return;
+      }
+    }
     const seller = await resolveEffectiveSellerForClient(client);
 
     const { data, error } = await supabaseClient.from('propostas').insert([{

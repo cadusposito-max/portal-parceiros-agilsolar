@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="pt-BR" data-ui="v2">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo · Modo avançado no orçamento</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+<!-- CSS e seletor da própria plataforma: o modelo usa as mesmas classes da tela de orçamento -->
+<link rel="stylesheet" href="../../assets/css/tailwind.css">
+<link rel="stylesheet" href="../../assets/css/ui-v2/tokens.css">
+<link rel="stylesheet" href="../../assets/css/ui-v2/reskin.css">
+<link rel="stylesheet" href="../../assets/css/ui-v2/screens.css">
+<link rel="stylesheet" href="../../assets/css/ui-v2/dimensionar.css">
+<link rel="stylesheet" href="../../assets/css/ui-v2/orcamento.css">
+<link rel="stylesheet" href="../../assets/css/ui-v2/catalogo-distribuidoras.css">
+<script src="https://unpkg.com/lucide@1.49.0/dist/umd/lucide.min.js"></script>
+<script>window.uiV2 = { isActive: () => true };</script>
+<style>
+  body { background: var(--v2-bg, #f3f5f9); font-family: Inter, system-ui, sans-serif; margin: 0; }
+  .mock-wrap { max-width: 1220px; margin: 0 auto; padding: 16px; }
+  .mock-nota { background:#fff7e6; border:1px solid #f3d9a4; border-radius:12px; padding:10px 14px; font-size:13px; color:#7a4b00; margin-bottom:14px; }
+  /* ---------- o que é novo neste modelo ---------- */
+  .forn-topo { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .modo-seg { display:inline-flex; gap:2px; padding:3px; border-radius:11px; background:var(--v2-bg2); }
+  .modo-seg button { border:0; background:transparent; padding:5px 12px; border-radius:9px; font:inherit; font-size:12px; font-weight:800; color:var(--v2-ink-2); cursor:pointer; }
+  .modo-seg button.is-on { background:var(--v2-blue); color:#fff; }
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  /* cartão no mesmo formato do seletor grande, para a quantidade de placas e a fase do inversor */
+  .forn-caixa { position:relative; height:64px; border:1px solid var(--v2-line-strong); border-radius:14px; background:var(--v2-card); display:flex; align-items:flex-end; padding:0 10px 9px 60px; gap:8px; }
+  .forn-caixa .pbd-forn-cap { top:11px; }
+  .qtd { display:flex; align-items:center; gap:6px; }
+  .qtd button { width:28px; height:28px; border-radius:8px; border:1px solid var(--v2-line-strong); background:var(--v2-soft); font-size:16px; font-weight:800; color:var(--v2-ink); cursor:pointer; line-height:1; }
+  .qtd input { width:52px; border:0; background:transparent; text-align:center; font:inherit; font-size:15px; font-weight:800; color:var(--v2-ink); }
+  .qtd .u { font-size:13px; color:var(--v2-ink-2); font-weight:600; }
+  .fase-seg { display:inline-flex; gap:2px; padding:3px; border-radius:9px; background:var(--v2-bg2); }
+  .fase-seg button { border:0; background:transparent; padding:4px 10px; border-radius:7px; font:inherit; font-size:12.5px; font-weight:800; color:var(--v2-ink-2); cursor:pointer; }
+  .fase-seg button.is-on { background:var(--v2-card); color:var(--v2-ink); box-shadow:0 1px 3px rgba(15,27,38,.14); }
+  .tensao { font-size:12px; font-weight:700; color:var(--v2-ink-2); margin-left:auto; }
+  .av-info { margin-top:10px; font-size:12px; color:var(--v2-ink-2); }
+  .av-info b { color:var(--v2-ink); }
+  .av-lista-top { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:4px 18px 0; flex-wrap:wrap; }
+  .av-lista-top .t { font-size:13px; font-weight:800; display:flex; gap:6px; align-items:center; }
+  .av-lista-top .t svg { width:16px; height:16px; color:var(--v2-blue); }
+  .av-lista-top .s { font-size:12px; color:var(--v2-ink-2); font-weight:600; }
+  .av-badge { display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; border-radius:20px; margin-top:4px; }
+  .av-ok { background:#e6f5ec; color:#127a45; } .av-warn { background:var(--v2-orange-50,#fdf2e2); color:var(--v2-orange-text,#a85b06); } .av-off { background:var(--v2-soft); color:var(--v2-ink-2); }
+  .pbl-row.av-fora { opacity:.5; cursor:not-allowed; }
+  .av-cotar { width:100%; margin-top:10px; justify-content:center; }
+  .av-inv { margin:4px 18px 4px; padding:14px; border:1px solid var(--v2-line); border-radius:16px; background:var(--v2-card); }
+  .av-inv-h { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .av-inv-h .t { font-size:13px; font-weight:800; display:flex; gap:6px; align-items:center; } .av-inv-h .t svg { width:16px; height:16px; color:var(--v2-blue); }
+  .av-inv-h .s { font-size:12px; color:var(--v2-ink-2); font-weight:600; }
+  .av-sug { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:12px; font-size:12px; color:var(--v2-ink-2); font-weight:600; }
+  .av-sug button { border:1px solid var(--v2-blue); background:var(--v2-blue-50); color:var(--v2-blue); border-radius:999px; padding:4px 11px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+  .av-lin { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px; align-items:start; padding:10px 0; border-top:1px solid var(--v2-line); }
+  .av-lin-eq { min-width:0; }
+  html[data-ui="v2"] body .av-lin-eq .v2-dd { width:100%; max-width:none; justify-content:space-between; border:1px solid var(--v2-line-strong); border-radius:12px !important; box-shadow:none; font-weight:700; }
+  .av-lin .qtd { height:40px; border:1px solid var(--v2-line-strong); border-radius:12px; padding:0 4px; background:var(--v2-card); }
+  .av-rem { width:40px; height:40px; border:1px solid var(--v2-line); border-radius:12px; background:var(--v2-card); color:var(--v2-ink-2); cursor:pointer; display:grid; place-items:center; }
+  .av-rem svg { width:16px; height:16px; } .av-rem:disabled { opacity:.35; cursor:default; }
+  .av-add { display:inline-flex; align-items:center; gap:6px; background:none; border:0; cursor:pointer; margin-top:4px; font-weight:800; } .av-add svg { width:15px; height:15px; }
+  .av-resumo { margin-top:10px; padding:10px 12px; border-radius:12px; background:var(--v2-soft); font-size:12.5px; font-weight:700; color:var(--v2-ink); }
+  @media (max-width:560px){ .av-lin { grid-template-columns:1fr auto; } .av-lin-eq { grid-column:1/-1; } }
+  @media (max-width: 760px) { html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="mock-wrap">
+  <div class="mock-nota"><b>Modelo pra aprovação.</b> Tela de orçamento de hoje, com o CSS e os seletores da própria plataforma. Novidades: a chave <b>Simples / Avançado</b> no painel de equipamentos e o <b>telhado</b> como mais um cartão. No avançado, troque a distribuidora entre Helte e Belenus. Preços de exemplo.</div>
+
+  <div id="main-container">
+  <section class="orcamento-tela">
+    <header class="orcamento-header">
+      <button type="button" class="btn btn-secondary"><i data-lucide="arrow-left"></i> Voltar</button>
+      <div class="orcamento-cliente"><h1>Orçamento · João da Silva</h1><p>Araçatuba - SP · HSP 5,4 · (18) 99999-0000</p></div>
+      <div class="orcamento-linha" role="group">
+        <button type="button"><i data-lucide="tag"></i><span>Promocionais</span></button>
+        <button type="button" class="is-on"><i data-lucide="layout-grid"></i><span>Catálogo completo</span></button>
+        <button type="button"><i data-lucide="lock"></i><span>Personalizada</span></button>
+      </div>
+    </header>
+
+    <div class="orcamento-corpo">
+      <div id="orcamento-builder-slot"><div id="pb-embedded-panel">
+        <div id="pb-linha" class="pbd-linha"><p class="pbd-hint">Todas as marcas, até 150 módulos, nas distribuidoras Helte e Belenus.</p></div>
+        <div id="pb-porta" class="pbd-porta" role="group">
+          <button type="button" class="pbd-porta-btn"><i data-lucide="calculator"></i><span class="pbd-porta-t">Pelo consumo</span></button>
+          <button type="button" class="pbd-porta-btn is-on"><i data-lucide="list"></i><span class="pbd-porta-t">Lista de kits</span></button>
+        </div>
+        <div id="pb-kit-fornecimento-slot"><div id="pb-fornecimento-panel" class="pbd-fornecimento"></div></div>
+        <div id="lista-topo"></div>
+        <div class="pbl" id="lista"></div>
+      </div></div>
+      <aside id="orcamento-lado" class="orcamento-lado"></aside>
+    </div>
+    <footer class="orcamento-footer">
+      <div class="orcamento-resumo"><small>Selecionado</small><strong id="rodape"></strong></div>
+      <button type="button" class="btn btn-primary"><i data-lucide="file-text"></i> Gerar proposta</button>
+    </footer>
+  </section>
+  </div>
+</div>
+<script src="../../assets/js/ui-v2-select.js"></script>
+<script>
+const fmt = (v) => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const kwp = (n,w) => (n*w/1000).toLocaleString('pt-BR',{maximumFractionDigits:2});
+const cabo = (n) => n<=19 ? 3*n : (n<=50 ? Math.ceil(2.5*n) : 2*n);
+const frete = (p) => p<25000 ? Math.max(400,p*0.038494) : p*0.031394;
+const regra = (c, micro) => { const r=micro?1.7498326202954417:1.7717293041376716, f=micro?1.071:1.05; return Math.round((Math.ceil((c*r/f-97)/100)*100+97)*f*100)/100; };
+const TEL = [['ceramico','Cerâmico / colonial',{1:[314.19,162],2:[335,172.5]}],['fibro_metal','Fibrocimento · estrutura metálica',{1:[253.96,131.81],2:[313.75,156.25]}],
+  ['fibro_madeira','Fibrocimento · estrutura de madeira',{1:[279.47,144.62],2:[301.25,155]}],['trapezoidal','Metálico trapezoidal',{1:[242.86,125.08]}],
+  ['mini_trilho','Metálico · mini trilho',{1:[113.33,70.76],2:[153,95.48]},true],['mini_trilho_alto','Metálico · mini trilho alto',{1:[220.53,134.46],2:[254,156]}],
+  ['kalhetao','Kalhetão',{1:[310.4,159.06]}],['shingle','Shingle',{1:[311.29,158.26]}],['laje','Laje',{1:[630.77,396.49]}],['solo','Solo',null]];
+const D = {
+  helte: { nome:'Helte', mods:[['RONMA 590W · pronta entrega',590,520,1],['RONMA 620W · chega 19/10',620,548,1],['ERA 710W · chega 27/10',710,613.76,2]],
+    inv:[['GOODWE 3KW',3,'mono',899,1,5,6],['SOFAR 3,3KW',3.3,'mono',1399,1,5,8],['SOFAR 5KW',5,'mono',1590,2,6,14],['CHINT 5KW',5,'mono',1668.04,2,6,14],
+      ['SOFAR 6KW',6,'mono',1690,2,8,17],['CHINT 6KW',6,'mono',1762.1,4,8,17],['GROWATT 7KW',7,'mono',2500,3,9,18],['SOFAR 7,5KW',7.5,'mono',2600,2,10,18],
+      ['CHINT 7,5KW',7.5,'mono',2377.69,4,10,21],['SOLIS 9KW',9,'mono',3513.86,3,12,24],['SOFAR 10KW',10,'mono',3000,3,14,27],['GROWATT 10KW',10,'mono',2612.15,4,13,25],
+      ['CHINT 10KW',10,'mono',3252.42,6,13,27],['MICROINVERSOR HOYMILES HMS-2250',2.25,'micro',942.49,4,1,150],
+      ['FRONIUS 15KW',15,'tri',4071.89,8,21,36],['GROWATT 15KW',15,'tri',4071.89,8,21,38],['CHINT 15KW',15,'tri',6736.25,6,21,42],['SOLIS 15KW',15,'tri',6820.36,6,21,43],
+      ['GROWATT 20KW',20,'tri',5000,8,28,50],['CHINT 20KW',20,'tri',6818.29,8,28,57],['GROWATT 25KW',25,'tri',5300,12,35,55],['CHINT 25KW',25,'tri',8631.71,4,29,72],
+      ['GROWATT 30KW',30,'tri',7500,12,40,66],['CHINT 30KW',30,'tri',8941.46,10,40,86],['SOLIS 37,5KW',37.5,'tri',11763.11,8,44,108],
+      ['GROWATT 50KW',50,'tri',11900,16,67,127],['GROWATT 60KW',60,'tri',12700,16,81,150],['CHINT 75KW',75,'tri',19000,18,101,150]] },
+  belenus: { nome:'Belenus', mods:[['RONMA 620W',620,0,1],['OSDA 610W',610,0,1]],
+    inv:[['SOLIS S6-GR1P5K',5,'mono',0,0,6,13],['GROWATT MIN 6000TL-X',6,'mono',0,0,8,16],['SOLIS S6-GR1P8K',8,'mono',0,0,10,20],['GROWATT MIN 10000TL-X',10,'mono',0,0,13,25],
+      ['MICROINVERSOR HOYMILES HMS-2000',2,'micro',0,0,1,150],['SOLIS S5-GC20K-LV',20,'tri',0,0,26,52],['GROWATT MID 25KTL3-XL',25,'tri',0,0,33,62],['SOLIS S5-GC30K-LV',30,'tri',0,0,40,80]] },
+};
+let modo='simples', dist='', tel='ceramico', fase='mono', mod=0, n=10, sel=null, todos=false, cotado={}, cotando=false, simplesSel=2;
+const $ = (id) => document.getElementById(id);
+const opt = (arr, val) => arr.map(([v,t,dis])=>`<option value="${v}" ${dis?'disabled':''} ${String(v)===String(val)?'selected':''}>${t}</option>`).join('');
+const campo = (ic, cap, inner) => `<label class="pbd-forn-campo"><i data-lucide="${ic}" class="pbd-forn-ic"></i><span class="pbd-forn-cap">${cap}</span>${inner}</label>`;
+const caixa = (ic, cap, inner) => `<div class="pbd-forn-campo forn-caixa"><i data-lucide="${ic}" class="pbd-forn-ic"></i><span class="pbd-forn-cap">${cap}</span>${inner}</div>`;
+function faixa(v, w){ return [Math.ceil(v[5]*590/w), Math.floor(v[6]*590/w)]; }
+function situacao(v){ const m=D[dist].mods[mod];
+  if (v[2]==='micro') return TEL.find(t=>t[0]===tel)[3] ? {c:'av-off',t:'micro não vai em mini trilho baixo',ok:false} : {c:'av-ok',t:`${Math.ceil(n/4)} microinversores · 1 a cada 4 placas`,ok:true};
+  const [mn,mx]=faixa(v,m[1]); if (n<mn) return {c:'av-off',t:`a partir de ${mn} placas`,ok:false}; if (n>mx) return {c:'av-off',t:`aguenta até ${mx} placas`,ok:false};
+  const ol=Math.round(n*m[1]/1000/v[1]*100); return {c:ol>135?'av-warn':'av-ok',t:`aguenta de ${mn} a ${mx} placas · overload ${ol}%`,ok:true}; }
+function est(t){ if (tel==='solo') return t===1 ? Math.ceil(n/8)*1500 : Math.ceil(n/6)*1341.46; const b=TEL.find(x=>x[0]===tel)[2][t]; if(!b) return null; const P=2*Math.ceil(n/2); return Math.floor(P/4)*b[0]+((P%4)/2)*b[1]; }
+function preco(v){ if (dist==='belenus') return cotado[`${mod}|${n}|${tel}|${v[0]}`] ?? null;
+  const m=D.helte.mods[mod], e=est(m[3]); if(e==null) return null; const micro=v[2]==='micro', q=micro?Math.ceil(n/4):1;
+  const pc=n*m[2]+(micro?q*(v[3]+9):v[3])+(micro?4*q:v[4])*12+cabo(n)*2*4.25+e; return regra(pc+frete(pc),micro); }
+
+function painel(){
+  const d=D[dist||'helte'], m=d.mods[mod];
+  const topo = `<div class="forn-topo"><div class="pbd-sec"><i data-lucide="boxes"></i> Equipamentos e distribuidora</div>
+    <div class="modo-seg" id="modo"><button data-m="simples" class="${modo==='simples'?'is-on':''}">Simples</button><button data-m="avancado" class="${modo==='avancado'?'is-on':''}">Avançado</button></div></div>`;
+  const distSel = campo('warehouse','1 · Distribuidora', `<select id="f-dist" class="pbd-input v2-select" data-titulo="Distribuidora do kit">${modo==='simples'?'<option value="">Todas as distribuidoras</option>':''}${opt([['helte','Helte'],['belenus','Belenus']], dist)}</select>`);
+  const telSel = campo('home','4 · Telhado do cliente', `<select id="f-tel" class="pbd-input v2-select" data-titulo="Telhado do cliente">${opt(TEL.map(t=>[t[0], t[1], modo==='avancado' && t[0]!=='solo' && !t[2][m[3]]]), tel)}</select>`);
+  let campos;
+  if (modo==='simples') {
+    campos = distSel + campo('solar-panel','2 · Módulo / painel', `<select class="pbd-input v2-select" data-titulo="Módulo / painel"><option>Sem preferência</option><option>RONMA · 590 W</option><option>RONMA · 620 W</option><option>ERA · 710 W</option></select>`)
+      + campo('zap','3 · Inversor / micro', `<select class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor"><option>Sem preferência</option><option>CHINT</option><option>GROWATT</option><option>SOFAR</option><option>SOLIS</option><option>HOYMILES</option></select>`)
+      + telSel;
+  } else {
+    campos = distSel
+      + campo('solar-panel','2 · Módulo', `<select id="f-mod" class="pbd-input v2-select" data-titulo="Módulo">${opt(d.mods.map((x,i)=>[i,x[0]]), mod)}</select>`)
+      + caixa('hash','Quantidade de placas', `<div class="qtd"><button id="q-m">−</button><input id="q-n" type="number" min="1" max="150" value="${n}"><button id="q-p">+</button><span class="u">placas</span></div>`)
+      + caixa('zap','3 · Fase do inversor', `<div class="fase-seg" id="f-fase"><button data-f="mono" class="${fase==='mono'?'is-on':''}">Monofásico</button><button data-f="tri" class="${fase==='tri'?'is-on':''}">Trifásico</button></div><span class="tensao">220 V</span>`)
+      + telSel;
+  }
+  const hint = modo==='simples' ? 'Filtre os kits pela distribuidora, pelo módulo, pela marca do inversor e pelo telhado.'
+    : `Monte do seu jeito: módulo, placas e quantos inversores quiser, de qualquer modelo que a ${d.nome} tem agora.`;
+  $('pb-fornecimento-panel').innerHTML = `${topo}<p class="pbd-hint">${hint}</p><div class="pbd-fornecimento-fields ${modo==='avancado'?'quatro':''}" style="${modo==='simples'?'grid-template-columns:repeat(2,minmax(0,1fr))':''}">${campos}</div>
+    ${modo==='avancado'?`<div class="av-info">Sistema de <b>${kwp(n,m[1])} kWp</b> · ~<b>${Math.round(n*m[1]/1000*5.4*30*.8).toLocaleString('pt-BR')} kWh/mês</b> · o kit sai com exatamente <b>${n}</b> placas</div>`:''}`;
+  $('modo').querySelectorAll('button').forEach(b=>b.onclick=()=>{ modo=b.dataset.m; if(modo==='avancado' && !['helte','belenus'].includes(dist)) dist='helte'; render(); });
+  $('f-dist').onchange=(e)=>{ dist=e.target.value || (modo==='avancado'?'helte':''); mod=0; linhas=null; render(); };
+  $('f-tel').onchange=(e)=>{ tel=e.target.value; render(); };
+  if (modo==='avancado') {
+    $('f-mod').onchange=(e)=>{ mod=+e.target.value; linhas=null; render(); };
+    $('q-n').onchange=(e)=>{ n=Math.max(1,Math.min(150,+e.target.value||1)); render(); };
+    $('q-m').onclick=(e)=>{ e.preventDefault(); n=Math.max(1,n-1); render(); };
+    $('q-p').onclick=(e)=>{ e.preventDefault(); n=Math.min(150,n+1); render(); };
+    $('f-fase').querySelectorAll('button').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); fase=b.dataset.f; linhas=null; render(); });
+  }
+}
+function listaSimples(){
+  const L=[[8,'SOFAR 3,3KW',12071.85,'98%'],[9,'SOFAR 5KW',13751.85,'110%'],[10,'SOFAR 5KW',14696.85,'122%'],[11,'SOFAR 5KW',15956.85,'134%'],[13,'SOFAR 6KW',18161.85,'159%']];
+  $('lista-topo').innerHTML='';
+  $('lista').innerHTML = L.map(([q,inv,p,pc],i)=>`<div class="pbl-row ${i===simplesSel?'orcamento-kit-selecionado':''}" data-i="${i}" role="button">
+    <span class="pbl-qn"><b>${q}</b><small>mód.</small></span>
+    <span class="pbl-tx"><b>${kwp(q,590)} kWp</b><small>KIT ${q} MOD. 590W + INV. ${inv} · Helte · ~${Math.round(q*590/1000*5.4*30*.8)} kWh/mês</small></span>
+    <span class="pbl-pc is-ok">${pc}</span><span class="pbl-pv"><s>${fmt(p*1.1337)}</s><b>${fmt(p)}</b></span></div>`).join('');
+  $('lista').querySelectorAll('.pbl-row').forEach(r=>r.onclick=()=>{ simplesSel=+r.dataset.i; render(); });
+  const [q,inv,p]=L[simplesSel];
+  lado(`KIT ${q} MOD. 590W + INV. ${inv}`, `${kwp(q,590)} kWp · Helte · cerâmico / colonial`, p, true, '', false, false);
+}
+// ---------- MODO AVANÇADO: o vendedor monta os inversores (vários, misturados, na quantidade que quiser) ----------
+let linhas = null; // [{i: índice do inversor, q: quantidade}]
+function faixaDe(v){ const m=D[dist].mods[mod]; return faixa(v, m[1]); }
+// Reparte as placas entre todos os inversores, proporcional à potência de cada um.
+function repartir(L){ const d=D[dist]; const un=[]; L.forEach((l,k)=>{ for(let j=0;j<l.q;j++) un.push({k, kw:d.inv[l.i][1]}); });
+  const tot=un.reduce((s,u)=>s+u.kw,0); let resto=n; un.forEach(u=>{ u.p=Math.floor(n*u.kw/tot); resto-=u.p; });
+  un.map((u,x)=>({x,f:n*u.kw/tot-u.p})).sort((a,b)=>b.f-a.f).slice(0,resto).forEach(o=>un[o.x].p++); return un; }
+function analisar(L){ const d=D[dist], m=d.mods[mod];
+  const micro = L.filter(l=>d.inv[l.i][2]==='micro'), str = L.filter(l=>d.inv[l.i][2]!=='micro');
+  const res = { linhas:[], ok:true, aviso:'', kw:0 };
+  if (micro.length && str.length) return { ...res, ok:false, aviso:'Não dá pra misturar microinversor com inversor de string no mesmo kit.' };
+  if (micro.length) { const cap = micro.reduce((s,l)=>s+l.q*4,0); const bloq = TEL.find(t=>t[0]===tel)[3];
+    res.linhas = L.map(l=>({ txt: bloq?'micro não vai em mini trilho baixo':`liga até ${l.q*4} placas (4 por micro)`, c: bloq||cap<n?'av-off':'av-ok' }));
+    if (bloq) return { ...res, ok:false, aviso:'Microinversor não cabe no mini trilho baixo. Troque o telhado.' };
+    if (cap < n) return { ...res, ok:false, aviso:`Faltam microinversores: ${L.reduce((s,l)=>s+l.q,0)} micros ligam ${cap} placas e o kit tem ${n}. Use ${Math.ceil(n/4)}.` };
+    res.kw = micro.reduce((s,l)=>s+l.q*d.inv[l.i][1],0); res.resumo = `${micro.reduce((s,l)=>s+l.q,0)} microinversores · ligam até ${cap} placas`; return res; }
+  const un = repartir(L); res.kw = L.reduce((s,l)=>s+l.q*d.inv[l.i][1],0);
+  const ol = Math.round(n*m[1]/1000/res.kw*100);
+  L.forEach((l,k)=>{ const v=d.inv[l.i], [mn,mx]=faixaDe(v), ps=un.filter(u=>u.k===k).map(u=>u.p); const pmin=Math.min(...ps), pmax=Math.max(...ps);
+    const cada = pmin===pmax ? `${pmin} placas` : `${pmin} a ${pmax} placas`;
+    const fora = pmin<mn || pmax>mx; if (fora) res.ok=false;
+    res.linhas.push({ txt: `${l.q>1?'cada um com ':'com '}${cada} · aguenta de ${mn} a ${mx}`, c: fora?'av-off':(ol>135?'av-warn':'av-ok') }); });
+  res.resumo = `${un.length} inversor${un.length>1?'es':''} · ${res.kw.toLocaleString('pt-BR')} kW · overload ${ol}% · placas por inversor: ${un.map(u=>u.p).join(' + ')}`;
+  if (!res.ok) res.aviso = 'Algum inversor ficou fora da faixa de placas que ele aguenta. Mude a quantidade ou o modelo.';
+  else if (ol>135) res.aviso = `Overload de ${ol}%: dentro do limite da distribuidora, confira com a engenharia.`;
+  return res; }
+function precoAv(L){ if (dist==='belenus') return cotado[`${mod}|${n}|${tel}|${JSON.stringify(L)}`] ?? null;
+  const d=D.helte, m=d.mods[mod], e=est(m[3]); if (e==null) return null; let pc=n*m[2]+cabo(n)*2*4.25+e, micro=false;
+  L.forEach(l=>{ const v=d.inv[l.i]; if (v[2]==='micro'){ micro=true; pc+=l.q*(v[3]+9)+l.q*4*12; } else pc+=l.q*(v[3]+v[4]*12); });
+  return regra(pc+frete(pc), micro); }
+function sugestoes(){ const d=D[dist], lista=d.inv.map((v,i)=>({v,i})).filter(x=>fase==='mono'?x.v[2]!=='tri':x.v[2]==='tri');
+  const cabe=(x,p)=>{ const [mn,mx]=faixaDe(x.v); return p>=mn && p<=mx; }; const out=[];
+  const um = lista.filter(x=>x.v[2]!=='micro' && cabe(x,n)).sort((a,b)=>a.v[1]-b.v[1])[0]; if (um) out.push([{i:um.i,q:1}]);
+  for (const q of [2,3]) { const x = lista.filter(x=>x.v[2]!=='micro' && cabe(x,Math.ceil(n/q)) && cabe(x,Math.floor(n/q))).sort((a,b)=>a.v[1]-b.v[1])[0]; if (x) { out.push([{i:x.i,q}]); break; } }
+  const mi = lista.find(x=>x.v[2]==='micro'); if (mi) out.push([{i:mi.i,q:Math.ceil(n/4)}]);
+  return out; }
+const nomeL = (L) => L.map(l=>`${l.q}× ${D[dist].inv[l.i][0]}`).join(' + ');
+function listaAvancado(){
+  const d=D[dist], m=d.mods[mod];
+  const daFase = d.inv.map((v,i)=>({v,i})).filter(x=>fase==='mono'?x.v[2]!=='tri':x.v[2]==='tri');
+  if (!linhas || linhas.some(l=>!daFase.some(x=>x.i===l.i))) linhas = (sugestoes()[0] || [{i:daFase[0].i,q:1}]).map(l=>({...l}));
+  const a = analisar(linhas), sug = sugestoes();
+  $('lista-topo').innerHTML = `<div class="av-inv">
+    <div class="av-inv-h"><span class="t"><i data-lucide="cpu"></i> Inversores do kit</span><span class="s">${dist==='helte'?'preço calculado na hora':'equipamentos da Belenus · preço na cotação'}</span></div>
+    ${sug.length?`<div class="av-sug"><span>Sugestões pra ${n} placas:</span>${sug.map((s,k)=>`<button data-s="${k}">${nomeL(s)}</button>`).join('')}</div>`:''}
+    ${linhas.map((l,k)=>`<div class="av-lin">
+      <div class="av-lin-eq"><select class="pbd-input v2-select" data-k="${k}" data-titulo="Inversor">${daFase.map(x=>{ const [mn,mx]=faixaDe(x.v); return `<option value="${x.i}" ${x.i===l.i?'selected':''}>${x.v[0]}${x.v[2]==='micro'?' · 4 placas por micro':` · aguenta ${mn} a ${mx} placas`}</option>`; }).join('')}</select>
+        <span class="av-badge ${a.linhas[k]?.c||'av-off'}">${a.linhas[k]?.txt||''}</span></div>
+      <div class="qtd"><button data-menos="${k}">−</button><input value="${l.q}" data-q="${k}" type="number" min="1" max="60"><button data-mais="${k}">+</button></div>
+      <button class="av-rem" data-rem="${k}" title="Remover" ${linhas.length<2?'disabled':''}><i data-lucide="trash-2"></i></button></div>`).join('')}
+    <button class="orc-link av-add" id="add"><i data-lucide="plus"></i> Adicionar outro inversor</button>
+    ${a.resumo?`<div class="av-resumo">${a.resumo}</div>`:''}
+  </div>`;
+  $('lista').innerHTML = '';
+  const set = () => { render(); };
+  $('lista-topo').querySelectorAll('select[data-k]').forEach(s=>s.onchange=()=>{ linhas[+s.dataset.k].i=+s.value; set(); });
+  $('lista-topo').querySelectorAll('[data-menos]').forEach(b=>b.onclick=()=>{ const l=linhas[+b.dataset.menos]; l.q=Math.max(1,l.q-1); set(); });
+  $('lista-topo').querySelectorAll('[data-mais]').forEach(b=>b.onclick=()=>{ const l=linhas[+b.dataset.mais]; l.q=Math.min(60,l.q+1); set(); });
+  $('lista-topo').querySelectorAll('[data-q]').forEach(i=>i.onchange=()=>{ linhas[+i.dataset.q].q=Math.max(1,Math.min(60,+i.value||1)); set(); });
+  $('lista-topo').querySelectorAll('[data-rem]').forEach(b=>b.onclick=()=>{ linhas.splice(+b.dataset.rem,1); set(); });
+  $('lista-topo').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ linhas=sug[+b.dataset.s].map(l=>({...l})); set(); });
+  $('add').onclick=()=>{ linhas.push({i:linhas[linhas.length-1].i, q:1}); set(); };
+  const p = precoAv(linhas);
+  const nome = `KIT ${n} MOD. ${m[1]}W + ${nomeL(linhas)}`;
+  const telN = TEL.find(t=>t[0]===tel)[1].toLowerCase();
+  lado(nome, `${kwp(n,m[1])} kWp · ${d.nome} · ${telN}`, p, a.ok && p!=null, a.aviso, dist==='belenus' && a.ok && p==null, true);
+}
+function lado(nome, det, p, pode, aviso, cotar, montado){
+  $('orcamento-lado').innerHTML = `<div class="orc-sec"><i data-lucide="package"></i> Kit do orçamento ${montado?'<span class="av-badge av-ok" style="margin:0 0 0 auto">MONTADO</span>':''}</div>
+    <div class="orc-kit"><div class="orc-kit-n">${nome}</div><div class="orc-kit-d">${det}</div>
+      <div class="orc-kit-preco">${p!=null?`<s>${fmt(p*1.1337)}</s><b>${fmt(p)}</b>`:'<b style="color:var(--v2-ink-2)">—</b>'}</div></div>
+    ${aviso?`<div class="orc-aviso">${aviso}</div>`:''}
+    ${cotar?`<button class="btn btn-secondary av-cotar" id="cotar">${cotando?'<i data-lucide="loader-2" class="animate-spin"></i> Cotando na Belenus...':'<i data-lucide="refresh-cw"></i> Cotar este kit na Belenus'}</button>`:''}
+    <button class="btn btn-primary orc-gerar" ${pode?'':'disabled'}><i data-lucide="file-text"></i> Gerar proposta${pode?' · '+fmt(p):''}</button>`;
+  $('rodape').textContent = p!=null ? `${nome} · ${fmt(p)}` : nome;
+  if ($('cotar')) $('cotar').onclick = ()=>{ if(cotando) return; cotando=true; render(); setTimeout(()=>{ let pc=n*530+cabo(n)*9+(est(1)||0)*1.1, mi=false;
+    linhas.forEach(l=>{ const v=D.belenus.inv[l.i]; if(v[2]==='micro'){ mi=true; pc+=l.q*700; } else pc+=l.q*(v[1]*360+150); });
+    cotado[`${mod}|${n}|${tel}|${JSON.stringify(linhas)}`]=regra(pc+frete(pc), mi); cotando=false; render(); }, 1200); };
+}
+function render(){
+  $('pb-porta').style.display = modo==='simples' ? '' : 'none';
+  painel();
+  if (modo==='simples') listaSimples(); else listaAvancado();
+  if (window.lucide) lucide.createIcons();
+  if (window.uiV2Select) uiV2Select.scan($('main-container'));
+}
+render();
+</script>
+</body>
+</html>

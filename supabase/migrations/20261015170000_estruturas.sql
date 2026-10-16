@@ -278,6 +278,7 @@ begin
       'modulo', v_cot.modulo,
       'inversor', v_cot.inversor,
       'itens', v_cot.itens,
+      'estrutura', v_cot.detalhe_custo -> 'estrutura',
       'capturado_em', now());
     return new;
   end if;
