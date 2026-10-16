@@ -265,7 +265,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
   }).join('');
 
   const status = telhadoFora && !_pbCot.carregando
-    ? pbAlertaHTML({ icone: 'home', titulo: `A ${info.nome} não tem estrutura pra esse telhado`, corpo: 'Escolha outro telhado pra cotar.' })
+    ? pbAlertaHTML({ icone: 'home', titulo: `A ${info.nome} não tem estrutura pra esse telhado`, corpo: 'Escolha outro no cartão "Telhado do cliente", acima, pra cotar.' })
     : _pbCot.carregando
     ? `<p class="pbd-hint"><i data-lucide="loader-2" class="w-3 h-3 inline animate-spin"></i> Cotando na ${escapeHTML(info.nome)}… pode levar até 1 minuto.</p>`
     : _pbCot.erro ? pbIntegracaoAlertaHTML(_pbCot.erro)
@@ -291,8 +291,7 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
     <div class="pbd-fornecimento-fields pb-cot-campos">
       <label class="pbd-mes"><span>Quantidade de placas</span>
         <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" onchange="pbIntegracaoPlacas(this.value)" placeholder="Ex.: 13"></label>
-      <label class="pbd-mes"><span>Telhado</span>
-        <select id="pb-cot-telhado" class="pbd-input v2-select" data-titulo="Telhado" onchange="pbEstruturaEscolherValor(this.value)">${pbIntegracaoTelhadoOpcoesHTML(provedor)}</select></label>
+      <!-- O telhado vem do cartão "Telhado do cliente" lá em cima (mesmo _pbEstrutura.telhado). -->
       <button type="button" class="btn btn-primary" onclick="pbIntegracaoCotar()" ${_pbCot.carregando || telhadoFora ? 'disabled' : ''}>
         <i data-lucide="search"></i> Cotar kits</button>
     </div>

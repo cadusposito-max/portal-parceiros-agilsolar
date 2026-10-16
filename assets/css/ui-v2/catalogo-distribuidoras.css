@@ -46,7 +46,8 @@ html[data-ui="v2"] .catalogo-oferta-ativo input { accent-color: var(--v2-blue); 
 html[data-ui="v2"] .catalogo-nova-distribuidora { display: flex; gap: 8px; margin-top: 12px; }
 html[data-ui="v2"] .catalogo-nova-distribuidora .pbd-input { flex: 1; }
 /* Cotar na distribuidora integrada: mesmos campos do painel acima, botão alinhado embaixo. */
-html[data-ui="v2"] .pb-cot-campos { align-items: end; }
+/* Placas + botão (o telhado é o do cartão de cima); no celular o media abaixo põe um embaixo do outro. */
+html[data-ui="v2"] .pb-cot-campos { align-items: end; grid-template-columns: repeat(2,minmax(0,1fr)); }
 html[data-ui="v2"] .pb-cot-campos select { width: 100%; font-size: 13px; font-weight: 600; }
 html[data-ui="v2"] body .pb-cot-campos .v2-dd {
   width: 100%; max-width: none; justify-content: space-between; border: 1px solid var(--v2-line-strong);
