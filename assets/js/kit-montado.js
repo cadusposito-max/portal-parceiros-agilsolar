@@ -338,9 +338,9 @@ function kitMontadoCamposHTML() {
   const carregando = !o || o.carregando || o.erro;
   return _kmCampo('warehouse', '1 · Distribuidora', `<select class="pbd-input v2-select" data-km="dist" data-titulo="Distribuidora">${dists.map((d) => opt(d.id, d.nome, d.id === _km.dist)).join('') || opt('', 'Nenhuma distribuidora monta kit')}</select>`)
     + _kmCampo('solar-panel', '2 · Módulo', `<select class="pbd-input v2-select" data-km="mod" data-titulo="Módulo" ${carregando ? 'disabled' : ''}>${carregando ? opt('', o?.erro ? 'Indisponível' : 'Carregando…') : o.modulos.map((m) => opt(m.id, m.nome, m.id === _km.mod)).join('')}</select>`)
-    + _kmCaixa('hash', 'Quantidade de placas', `<div class="km-qtd"><button type="button" data-km-placas="-1" aria-label="Uma placa a menos">−</button><input type="number" min="1" max="150" value="${_km.placas}" data-km="placas" aria-label="Quantidade de placas"><button type="button" data-km-placas="1" aria-label="Uma placa a mais">+</button><span>placas${mod ? ` · ${_kmFmtKw(_km.placas * mod.w / 1000)} kWp` : ''}</span></div>`)
-    + _kmCaixa('zap', '3 · Fase do inversor', `<div class="km-fase" role="group" aria-label="Fase do inversor"><button type="button" data-km-fase="mono" class="${_km.fase !== 'tri' ? 'is-on' : ''}">Monofásico</button><button type="button" data-km-fase="tri" class="${_km.fase === 'tri' ? 'is-on' : ''}">Trifásico</button></div><span class="km-tensao">220 V</span>`)
-    + _kmCampo('home', '4 · Telhado do cliente', `<select class="pbd-input v2-select" data-km="estrutura" data-titulo="Telhado do cliente" ${tels.length ? '' : 'disabled'}>${tels.length ? tels.map((t) => opt(t.id, t.nome, t.id === _km.estrutura)).join('') : opt('', 'Carregando…')}</select>`);
+    + _kmCaixa('hash', '3 · Quantidade de placas',`<div class="km-qtd"><button type="button" data-km-placas="-1" aria-label="Uma placa a menos">−</button><input type="number" min="1" max="150" value="${_km.placas}" data-km="placas" aria-label="Quantidade de placas"><button type="button" data-km-placas="1" aria-label="Uma placa a mais">+</button><span>placas${mod ? ` · ${_kmFmtKw(_km.placas * mod.w / 1000)} kWp` : ''}</span></div>`)
+    + _kmCaixa('zap', '4 · Fase do inversor',`<div class="km-fase" role="group" aria-label="Fase do inversor"><button type="button" data-km-fase="mono" class="${_km.fase !== 'tri' ? 'is-on' : ''}">Monofásico</button><button type="button" data-km-fase="tri" class="${_km.fase === 'tri' ? 'is-on' : ''}">Trifásico</button></div><span class="km-tensao">220 V</span>`)
+    + _kmCampo('home', '5 · Telhado do cliente',`<select class="pbd-input v2-select" data-km="estrutura" data-titulo="Telhado do cliente" ${tels.length ? '' : 'disabled'}>${tels.length ? tels.map((t) => opt(t.id, t.nome, t.id === _km.estrutura)).join('') : opt('', 'Carregando…')}</select>`);
 }
 
 function kitMontadoBindCampos(root) {
@@ -482,10 +482,10 @@ function kitMontadoRenderPainel(panel) {
     const kwp = mod ? _km.placas * mod.w / 1000 : 0;
     const hsp = Number(state.pbActiveClient?.hsp) || undefined;
     const ger = mod && typeof calcularGeracaoEstimada === 'function' ? Number(calcularGeracaoEstimada(kwp, 'kitsInversor', hsp)) || 0 : 0;
-    info.innerHTML = mod ? `Sistema de <b>${_kmFmtKw(kwp)} kWp</b>${ger ? ` · ~<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b>` : ''} · o kit sai com exatamente <b>${_km.placas}</b> ${_km.placas === 1 ? 'placa' : 'placas'}` : '';
+    const ceramico = o?.provedor && o.provedor !== 'calculo' ? ' · a cotação sai com estrutura de telhado cerâmico' : '';
+    info.innerHTML = mod ? `<i data-lucide="sun"></i><span>Sistema de <b>${_kmFmtKw(kwp)} kWp</b>${ger ? ` · ~<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b>` : ''} · o kit sai com exatamente <b>${_km.placas}</b> ${_km.placas === 1 ? 'placa' : 'placas'}${ceramico}</span>` : '';
     info.classList.toggle('hidden', !mod);
   }
-  if (o?.provedor && o.provedor !== 'calculo') info?.insertAdjacentText('beforeend', mod ? ' · a cotação sai com estrutura de telhado cerâmico' : '');
   document.getElementById('pb-estrutura-hint')?.classList.add('hidden');
   const aviso = document.getElementById('pb-fornecimento-aviso');
   if (aviso) { aviso.textContent = ''; aviso.classList.add('hidden'); }

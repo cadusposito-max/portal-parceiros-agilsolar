@@ -82,8 +82,17 @@ html[data-ui="v2"] .pb-alerta-chip {
 html[data-ui="v2"] .pb-alerta-chip svg { width: 14px; height: 14px; }
 
 /* Telhado do cliente: 4º cartão do painel (catálogo completo), em 2 colunas. */
-html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro,
+html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro { grid-template-columns: repeat(2,minmax(0,1fr)); }
+/* Avançado: 5 cartões sem sobrar buraco. Largo: 2 em cima (distribuidora, módulo) e 3 embaixo;
+   estreito: 2 por linha e o telhado ocupa a linha toda. */
+html[data-ui="v2"] #pb-fornecimento-panel { container-type: inline-size; }
 html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado { grid-template-columns: repeat(2,minmax(0,1fr)); }
+html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado > :last-child { grid-column: 1 / -1; }
+@container (min-width: 820px) {
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado { grid-template-columns: repeat(6,minmax(0,1fr)); }
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado > :nth-child(-n+2) { grid-column: span 3; }
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado > :nth-child(n+3) { grid-column: span 2; }
+}
 html[data-ui="v2"] #pb-estrutura-hint { margin: 8px 0 0; }
 html[data-ui="v2"] #pb-fornecimento-panel .hidden { display: none !important; }
 
@@ -97,31 +106,42 @@ html[data-ui="v2"] .pbd-modo button {
 }
 html[data-ui="v2"] .pbd-modo button.is-on { background: var(--v2-blue); color: #fff; }
 html[data-ui="v2"] .pbd-modo button:disabled { cursor: default; opacity: .6; }
-/* Cartão no formato do seletor grande, pra quantidade de placas e fase do inversor. */
+/* Cartão no formato do seletor grande (mesma altura, borda, legenda e letra do valor),
+   pra quantidade de placas e fase do inversor. */
 html[data-ui="v2"] .km-caixa {
   height: 64px; box-sizing: border-box; border: 1px solid var(--v2-line-strong); border-radius: 14px; background: var(--v2-card);
-  display: flex; align-items: flex-end; gap: 8px; padding: 0 10px 9px 60px; min-width: 0;
+  display: flex; align-items: center; gap: 8px; padding: 22px 12px 0 60px; min-width: 0;
+  transition: border-color .12s, box-shadow .12s;
 }
-html[data-ui="v2"] .km-qtd { display: flex; align-items: center; gap: 6px; min-width: 0; }
+html[data-ui="v2"] .km-caixa:hover { border-color: var(--v2-blue); }
+html[data-ui="v2"] .km-caixa:focus-within { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
+html[data-ui="v2"] .km-qtd { display: flex; align-items: center; gap: 4px; min-width: 0; }
 html[data-ui="v2"] .km-qtd button {
-  width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; border: 1px solid var(--v2-line-strong); background: var(--v2-soft);
-  font-size: 16px; font-weight: 800; color: var(--v2-ink); cursor: pointer; line-height: 1;
+  width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; border: 0; background: var(--v2-blue-50);
+  font-size: 16px; font-weight: 800; color: var(--v2-blue); cursor: pointer; line-height: 1; transition: background .12s, color .12s;
 }
+html[data-ui="v2"] .km-qtd button:hover { background: var(--v2-blue); color: #fff; }
 html[data-ui="v2"] .km-qtd input {
-  width: 52px; border: 0; background: transparent; text-align: center; font: inherit; font-size: 15px; font-weight: 800; color: var(--v2-ink);
-  -moz-appearance: textfield;
+  width: 40px; border: 0; background: transparent; text-align: center; font: inherit; font-size: 15px; font-weight: 700; color: var(--v2-ink);
+  -moz-appearance: textfield; outline: none;
 }
 html[data-ui="v2"] .km-qtd input::-webkit-outer-spin-button,
 html[data-ui="v2"] .km-qtd input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-html[data-ui="v2"] .km-qtd span { font-size: 13px; color: var(--v2-ink-2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-html[data-ui="v2"] .km-fase { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--v2-bg2); }
+html[data-ui="v2"] .km-qtd span { margin-left: 4px; font-size: 13px; color: var(--v2-ink-2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Fase: mesma chave do Simples/Avançado, em tamanho menor. */
+html[data-ui="v2"] .km-fase { display: inline-flex; flex-shrink: 0; gap: 2px; padding: 2px; border-radius: 9px; background: var(--v2-bg2); }
 html[data-ui="v2"] .km-fase button {
-  border: 0; background: transparent; padding: 2px 10px; border-radius: 7px; font: inherit; font-size: 12.5px; font-weight: 800;
+  border: 0; background: transparent; padding: 4px 10px; border-radius: 7px; font: inherit; font-size: 12.5px; font-weight: 800;
   color: var(--v2-ink-2); cursor: pointer;
 }
-html[data-ui="v2"] .km-fase button.is-on { background: var(--v2-card); color: var(--v2-ink); box-shadow: 0 1px 3px rgba(15,27,38,.14); }
-html[data-ui="v2"] .km-tensao { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); margin-left: auto; }
-html[data-ui="v2"] .pbd-km-info { margin: 10px 0 0; font-size: 12px; color: var(--v2-ink-2); }
+html[data-ui="v2"] .km-fase button.is-on { background: var(--v2-blue); color: #fff; }
+html[data-ui="v2"] .km-tensao { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); white-space: nowrap; }
+/* Resumo do sistema montado: faixa clara embaixo dos cartões. */
+html[data-ui="v2"] .pbd-km-info {
+  display: flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 10px 14px; border-radius: 12px;
+  background: var(--v2-soft); border: 1px solid var(--v2-line); font-size: 12.5px; line-height: 1.45; color: var(--v2-ink-2);
+}
+html[data-ui="v2"] .pbd-km-info > svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--v2-blue); }
 html[data-ui="v2"] .pbd-km-info b { color: var(--v2-ink); }
 /* "Inversores do kit": no lugar da lista de kits. */
 html[data-ui="v2"] .km-box { margin: 4px 0; padding: 14px; border: 1px solid var(--v2-line); border-radius: 16px; background: var(--v2-card); color: var(--v2-ink); }
