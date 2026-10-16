@@ -3,7 +3,8 @@
 //   { acao: "testar", provedor }               -> admin: loga na distribuidora e grava o status
 //   { acao: "opcoes", provedor }                -> módulos e marcas de inversor/micro (do espelho, sem consultar a distribuidora)
 //   { acao: "cotar", provedor, placas, tipo, modulo?, marca?, telhado? } -> qualquer usuário ativo: cota os kits,
-//   { acao: "cotar", provedor, placas, modulo, inversores: [{ item, qtd }] } -> admin/gestor (modo avançado):
+//        telhado = chave da tabela estruturas (ceramico, laje, solo...; ver TELHADOS). Sem telhado = cerâmico.
+//   { acao: "cotar", provedor, placas, modulo, inversores: [{ item, qtd }], telhado? } -> admin/gestor (modo avançado):
 //        cota exatamente os inversores escolhidos (vários modelos e quantidades) e grava UMA cotação.
 //        aplica a precificação e grava cada opção em cotacoes_distribuidora.
 //        Vendedor/gestor recebem SÓ preço e "De"; o custo fica no banco (admin vê).
@@ -250,7 +251,8 @@ class Belenus {
   }
 
   async estrutura(modulo: string, kwp: number, placas: number, inversor: any, telhado: { grupo: string; tipo: string; sub: string; obs: string }) {
-    const linhas = placas >= 4 ? 2 : 1;
+    // Solo: uma fileira com todas as placas (a Belenus monta a mesa; 2 arranjos com número ímpar dá erro 502).
+    const linhas = placas >= 4 && telhado.grupo !== "Solo" ? 2 : 1;
     const porLinha = Math.ceil(placas / linhas);
     // 2 linhas; com número ímpar a 2ª linha fica com uma placa a menos (2 arranjos)
     const layout = linhas === 1 || placas % 2 === 0
@@ -276,8 +278,15 @@ class Belenus {
   }
 
   async confirmar(body: unknown) {
-    const j = await this.req("carrinho/KitPersonalizado/Confirmar", body);
-    return j?.data;
+    try {
+      const j = await this.req("carrinho/KitPersonalizado/Confirmar", body);
+      return j?.data;
+    } catch (err) {
+      // Ex.: "Estoque insuficiente para o item CONJFIXMFRANCSOLO" (peça da estrutura de solo, 16/10).
+      const m = /Estoque insuficiente para o item\s+(\S+)/i.exec(String((err as Error)?.message ?? ""));
+      if (m) throw erroTipo(`A Belenus está sem estoque de uma peça desse kit agora (${m[1]}). Troque o telhado ou o módulo, ou cote mais tarde.`, "recusado");
+      throw err;
+    }
   }
 
   // Frete até a unidade que está cotando (o kit é entregue nela). Se a Belenus não atender a cidade
@@ -440,11 +449,31 @@ function opcoesBelenus(cat: Catalogo) {
   };
 }
 
-const TELHADOS: Record<string, { grupo: string; tipo: string; sub: string; obs: string }> = {
+// Telhado da plataforma (tabela estruturas) -> estrutura da Belenus (KitPersonalizado/TipoEstrutura).
+// Conferido em 16/10: todos devolvem peças. A Belenus não tem kalhetão.
+const TELHADOS: Record<string, { nome: string; grupo: string; tipo: string; sub: string; obs: string }> = {
   ceramico: {
-    grupo: "Colonial", tipo: "Colonial com ajuste vertical",
+    nome: "Cerâmico / colonial", grupo: "Colonial", tipo: "Colonial com ajuste vertical",
     sub: "Modelo Belenergy em alumínio com ajuste vertical, indicado para telhas cerâmicas em geral", obs: "",
   },
+  fibro_madeira: {
+    nome: "Fibrocimento · estrutura de madeira", grupo: "Telha Fibrocimento", tipo: "Fibrocimento e Madeira 200mm",
+    sub: "Haste de aço inoxidável - Modelo com 200mm para Madeira", obs: "",
+  },
+  fibro_metal: {
+    nome: "Fibrocimento · estrutura metálica", grupo: "Telha Fibrocimento", tipo: "Fibrocimento e Metal Maquina 200mm",
+    sub: "Haste de aço inoxidável - Modelo com 200mm para metal com rosca máquina", obs: "",
+  },
+  laje: { nome: "Laje", grupo: "Laje", tipo: "Laje", sub: "Suporte para Laje Ajustável", obs: "" },
+  mini_trilho: { nome: "Metálico · mini trilho", grupo: "Telha Metálica", tipo: "Mini Trilho 130mm", sub: "Mini Trilho 130mm", obs: "" },
+  mini_trilho_alto: { nome: "Metálico · mini trilho alto", grupo: "Telha Metálica", tipo: "Mini Trilho Alto", sub: "Mini Trilho Alto", obs: "" },
+  trapezoidal: { nome: "Metálico trapezoidal", grupo: "Telha Metálica", tipo: "Metalica", sub: "Suporte Pé em L  c/ Perfil", obs: "" },
+  shingle: { nome: "Shingle", grupo: "Telha Shingle", tipo: "Telha Shingle", sub: "Suporte pé em L para telha Shingle", obs: "" },
+  solo: { nome: "Solo", grupo: "Solo", tipo: "Solo - Mesa para 8 Modulos em retrato", sub: "Isopleta de 45 m/s - Mesa de 8 até 64 módulos", obs: "" },
+};
+const telhadoDe = (chave: unknown) => {
+  const k = String(chave ?? "") || "ceramico";
+  return TELHADOS[k] ? { chave: k, ...TELHADOS[k] } : null;
 };
 
 function itemConfirmar(tipo: string, x: any, qtde: number) {
@@ -482,7 +511,8 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
   const marcaEscolhida = String(opcoes?.marca ?? "").trim().toUpperCase();
   if (marcaEscolhida && SEM_MARCA.test(marcaEscolhida)) throw new Error("Marca não permitida");
   const marcas: string[] = tipo === "micro" ? [] : marcaEscolhida ? [marcaEscolhida] : (opcoes?.marcas ?? ["SOLIS", "GROWATT"]);
-  const telhado = TELHADOS[opcoes?.telhado ?? "ceramico"] ?? TELHADOS.ceramico;
+  const telhado = telhadoDe(opcoes?.telhado);
+  if (!telhado) throw new Error("A Belenus não tem estrutura para esse telhado. Troque o telhado e cote de novo.");
 
   // O módulo vem do espelho; inversores e quantidades vêm da recomendação para este projeto.
   // Módulo escolhido pelo vendedor e em falta: avisa em vez de trocar por outro.
@@ -552,7 +582,7 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
         micro: e.micro, inv: e.inv, qtdInv: e.qtdInv, kwp, placas, mod,
         itens: comps.map((c: any) => ({ sku: c.sku, descricao: c.descricaoProduto, qtd: c.quantidade, tipo: c.tipoKitMontado })),
         custo: Math.round((produtos + fr.valor) * 100) / 100,
-        detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
+        detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, estrutura: { telhado: telhado.chave, nome: telhado.nome }, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
       });
     } catch (err) {
       // Sem tipo = falha nossa ao montar/ler a resposta: trata como instabilidade, não como falta do kit.
@@ -567,7 +597,8 @@ async function cotarBelenusMontado(bel: Belenus, cat: Catalogo, placas: number, 
   const mod = cat.modulos.find((m) => m.item === String(opcoes?.modulo ?? ""));
   if (!mod) throw erroTipo("A Belenus está sem o módulo escolhido. Escolha outro módulo e cote de novo.", "recusado");
   const kwp = Math.round(placas * Number(mod.potencia)) / 1000;
-  const telhado = TELHADOS[opcoes?.telhado ?? "ceramico"] ?? TELHADOS.ceramico;
+  const telhado = telhadoDe(opcoes?.telhado);
+  if (!telhado) throw new Error("A Belenus não tem estrutura para esse telhado. Troque o telhado e cote de novo.");
   const escolhidos: { inv: any; qtd: number }[] = [];
   for (const x of (opcoes?.inversores ?? []) as any[]) {
     const inv = cat.inversores.find((i) => i.item === String(x?.item ?? ""));
@@ -605,7 +636,7 @@ async function cotarBelenusMontado(bel: Belenus, cat: Catalogo, placas: number, 
     micro, escolhidos, qtdInv, kwInv: escolhidos.reduce((s, e) => s + Number(e.inv.potenciaNominalSaida) * e.qtd, 0), kwp, placas, mod,
     itens: comps.map((c: any) => ({ sku: c.sku, descricao: c.descricaoProduto, qtd: c.quantidade, tipo: c.tipoKitMontado })),
     custo: Math.round((produtos + fr.valor) * 100) / 100,
-    detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
+    detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, estrutura: { telhado: telhado.chave, nome: telhado.nome }, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
   };
 }
 
@@ -691,6 +722,7 @@ Deno.serve(async (req) => {
     if (!cred.ativo) return json(409, { error: "A integração com a Belenus está desligada" });
     const placas = Math.round(Number(body?.placas));
     if (!Number.isFinite(placas) || placas < 4 || placas > 150) return json(400, { error: "Informe de 4 a 150 placas" });
+    if (!telhadoDe(body?.telhado)) return json(200, { ok: false, error: "A Belenus não tem estrutura para esse telhado. Troque o telhado e cote de novo." });
     const modo = await modoDaUnidade(conta.franquia_id ?? null);
     const unidade = await cidadeDaUnidade(conta.franquia_id ?? null);
     if (Array.isArray(body?.inversores) && body.inversores.length) {
@@ -723,7 +755,7 @@ Deno.serve(async (req) => {
               modelos: r.escolhidos.map((e) => ({ sku: e.inv.item, nome: e.inv.descricaoItem, marca: marcaDe(e.inv), qtd: e.qtd, potencia_wp: Number(e.inv.potenciaNominalSaida) * 1000 })),
             },
             itens: r.itens, custo: r.custo, preco, preco_de, precificacao,
-            detalhe_custo: { ...r.detalhe, montado: true, estrutura: { telhado: "ceramico", nome: "Cerâmico / colonial" } },
+            detalhe_custo: { ...r.detalhe, montado: true },
           }),
         });
         return json(200, { ok: true, kits: [{

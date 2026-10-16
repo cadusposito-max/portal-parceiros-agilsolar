@@ -147,9 +147,13 @@ function _kmFaixa(inv, mod) {
 // ---------- telhado ----------
 function _kmTelhados(o, mod) {
   if (!o || !mod) return [];
-  if (o.provedor !== 'calculo') return [{ id: 'ceramico', nome: 'Cerâmico / colonial' }]; // a integração cota só cerâmico
-  const ops = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.opcoes) || [];
   if (typeof _pbEstrutura !== 'undefined' && !_pbEstrutura.opcoes && typeof pbEstruturaCarregarOpcoes === 'function') pbEstruturaCarregarOpcoes();
+  // Integração (Belenus): um item por telhado que ela monta; o id é a chave do telhado, que vai na cotação.
+  if (o.provedor !== 'calculo') {
+    return (typeof pbIntegracaoTelhados === 'function' ? pbIntegracaoTelhados(o.provedor) : [{ telhado: 'ceramico', linha: 'standard', nome: 'Cerâmico / colonial' }])
+      .map((t) => ({ id: t.telhado, nome: t.nome, telhado: t.telhado, linha: t.linha, padrao: t.telhado === 'ceramico' }));
+  }
+  const ops = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.opcoes) || [];
   const dist = _kmDist();
   return ops.filter((e) => String(e.distribuidora_id) === dist?.id && Number(e.tamanho) === mod.tam)
     .map((e) => ({ id: e.id, nome: e.telhado === 'solo' ? 'Solo' : `${e.telhado_nome}${e.linha === 'flex' ? ' · Flex' : ''}`, telhado: e.telhado, linha: e.linha, padrao: e.padrao }));
@@ -162,7 +166,7 @@ function _kmEstrutura(o, mod) {
     // Começa no telhado escolhido no modo simples (mesmo telhado/linha), senão no padrão.
     const tel = typeof _pbEstrutura !== 'undefined' ? _pbEstrutura.telhado : 'ceramico';
     const lin = typeof _pbEstrutura !== 'undefined' ? _pbEstrutura.linha : 'standard';
-    const t = lista.find((x) => x.telhado === tel && (x.linha === lin || mod.tam === 2)) || lista.find((x) => x.padrao) || lista[0];
+    const t = lista.find((x) => x.telhado === tel && (o.provedor !== 'calculo' || x.linha === lin || mod.tam === 2)) || lista.find((x) => x.padrao) || lista[0];
     _km.estrutura = t.id;
   }
   return lista.find((t) => t.id === _km.estrutura);
@@ -207,7 +211,7 @@ function _kmAnalisar(o, mod) {
   if (micros.length) {
     const cap = micros.reduce((s, l) => s + l.qtd * (l.inv.porMicro || 4), 0);
     const qtd = micros.reduce((s, l) => s + l.qtd, 0);
-    const bloq = tel && /mini_trilho_(standard|smart)/.test(tel.id) && !/alto/.test(tel.id);
+    const bloq = tel && ((/mini_trilho_(standard|smart)/.test(tel.id) && !/alto/.test(tel.id)) || tel.id === 'mini_trilho');
     res.linhas = invs.map((l) => ({ txt: bloq ? 'não vai em mini trilho baixo' : `liga até ${l.qtd * (l.inv.porMicro || 4)} placas (${l.inv.porMicro || 4} por micro)`, cls: bloq || cap < n ? 'km-off' : 'km-ok' }));
     if (bloq) res.erros.push('Microinversor não cabe embaixo do módulo no mini trilho baixo. Troque o telhado.');
     if (cap < n) res.erros.push(`Faltam microinversores: ${qtd} micros ligam ${cap} placas e o kit tem ${n}. Use ${Math.ceil(n / (micros[0].inv.porMicro || 4))}.`);
@@ -271,7 +275,7 @@ async function kitMontadoCotar() {
   pbFornecimentoSync();
   try {
     const { data, error } = await invocarDistribuidoras({
-      acao: 'cotar', provedor: dist.provedor, placas: _km.placas, modulo: _km.mod, telhado: 'ceramico',
+      acao: 'cotar', provedor: dist.provedor, placas: _km.placas, modulo: _km.mod, telhado: _km.estrutura || 'ceramico',
       inversores: (_km.linhas || []).map((l) => ({ item: l.id, qtd: l.qtd })),
     });
     if (seq !== _km.cotSeq) return;
@@ -482,8 +486,7 @@ function kitMontadoRenderPainel(panel) {
     const kwp = mod ? _km.placas * mod.w / 1000 : 0;
     const hsp = Number(state.pbActiveClient?.hsp) || undefined;
     const ger = mod && typeof calcularGeracaoEstimada === 'function' ? Number(calcularGeracaoEstimada(kwp, 'kitsInversor', hsp)) || 0 : 0;
-    const ceramico = o?.provedor && o.provedor !== 'calculo' ? ' · a cotação sai com estrutura de telhado cerâmico' : '';
-    info.innerHTML = mod ? `<i data-lucide="sun"></i><span>Sistema de <b>${_kmFmtKw(kwp)} kWp</b>${ger ? ` · ~<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b>` : ''} · o kit sai com exatamente <b>${_km.placas}</b> ${_km.placas === 1 ? 'placa' : 'placas'}${ceramico}</span>` : '';
+    info.innerHTML = mod ? `<i data-lucide="sun"></i><span>Sistema de <b>${_kmFmtKw(kwp)} kWp</b>${ger ? ` · ~<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b>` : ''} · o kit sai com exatamente <b>${_km.placas}</b> ${_km.placas === 1 ? 'placa' : 'placas'}</span>` : '';
     info.classList.toggle('hidden', !mod);
   }
   document.getElementById('pb-estrutura-hint')?.classList.add('hidden');

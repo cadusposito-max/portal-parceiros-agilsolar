@@ -286,14 +286,18 @@ function pbEstruturaRender() {
   if (!_pbEstrutura.opcoes) pbEstruturaCarregarOpcoes();
   const integrada = typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual();
   const atual = `${_pbEstrutura.telhado}|${_pbEstrutura.linha}`;
-  // A cotação da distribuidora integrada sai sempre com a estrutura padrão dela (cerâmico).
-  sel.innerHTML = (integrada ? [{ valor: 'ceramico|standard', nome: 'Cerâmico / colonial' }] : pbEstruturaOpcoesTelhado())
-    .map((t) => `<option value="${escapeHTML(t.valor)}">${escapeHTML(t.nome)}</option>`).join('');
-  sel.value = integrada ? 'ceramico|standard' : atual;
-  sel.disabled = Boolean(integrada) || !_pbEstrutura.opcoes;
+  // Distribuidora integrada: um item por telhado que ela monta (a estrutura sai da cotação dela).
+  if (integrada) sel.innerHTML = pbIntegracaoTelhadoOpcoesHTML(integrada);
+  else {
+    sel.innerHTML = pbEstruturaOpcoesTelhado().map((t) => `<option value="${escapeHTML(t.valor)}">${escapeHTML(t.nome)}</option>`).join('');
+    sel.value = atual;
+  }
+  sel.disabled = !_pbEstrutura.opcoes;
   const hint = document.getElementById('pb-estrutura-hint');
   if (hint) {
-    hint.textContent = integrada ? 'A cotação na distribuidora integrada sai com estrutura de telhado cerâmico.'
+    const nomeDist = integrada ? (INTEGRACOES_INFO[integrada]?.nome || integrada) : '';
+    hint.textContent = integrada
+      ? (pbIntegracaoTelhadoOk(integrada, _pbEstrutura.telhado) ? `A cotação na ${nomeDist} sai com a estrutura dela pra esse telhado.` : `A ${nomeDist} não tem estrutura pra esse telhado. Escolha outro pra cotar.`)
       : _pbEstrutura.erro ? _pbEstrutura.erro
       : pbEstruturaPadrao() ? ''
       : _pbEstrutura.carregandoChave ? 'Calculando os preços com a estrutura escolhida...'

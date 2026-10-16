@@ -14,7 +14,9 @@ function invocarDistribuidoras(body) {
 }
 
 const INTEGRACOES_INFO = {
-  belenus: { nome: 'Belenus', login: 'senha', descricao: 'Login com o e-mail e a senha do portal da Belenus. A senha fica criptografada no servidor e nunca volta pra tela.' },
+  belenus: { nome: 'Belenus', login: 'senha', descricao: 'Login com o e-mail e a senha do portal da Belenus. A senha fica criptografada no servidor e nunca volta pra tela.',
+    // Telhados (tabela estruturas) que a edge function traduz pra estrutura da Belenus. Sem kalhetão.
+    telhados: ['ceramico', 'fibro_madeira', 'fibro_metal', 'laje', 'mini_trilho', 'mini_trilho_alto', 'trapezoidal', 'shingle', 'solo'] },
   helte:   { nome: 'Helte', login: 'oauth', descricao: 'A Helte conecta por autorização oficial (OAuth), como na Groner. Falta a Helte enviar o client_id e o client_secret da Ágil Solar.' },
 };
 
@@ -45,6 +47,37 @@ async function carregarIntegracoesAtivas(force = false) {
     return _integracoesAtivas;
   })();
   try { return await _integracoesAtivasPromise; } finally { _integracoesAtivasPromise = null; }
+}
+
+// Telhados que a distribuidora integrada monta, na ordem da lista de estruturas (um por telhado:
+// a linha Standard/Flex/Smart é da Helte; a Belenus tem a estrutura dela pra cada telhado).
+function pbIntegracaoTelhados(provedor) {
+  const aceitos = INTEGRACOES_INFO[provedor]?.telhados || ['ceramico'];
+  const ops = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.opcoes) || [];
+  const vistos = new Set();
+  const lista = [];
+  ops.forEach((o) => {
+    if (!aceitos.includes(o.telhado) || vistos.has(o.telhado)) return;
+    vistos.add(o.telhado);
+    const linha = (typeof pbEstruturaLinhas === 'function' && pbEstruturaLinhas(o.telhado)[0]) || o.linha;
+    lista.push({ telhado: o.telhado, linha, valor: `${o.telhado}|${linha}`, nome: o.telhado === 'solo' ? 'Solo' : o.telhado_nome });
+  });
+  return lista.length ? lista : [{ telhado: 'ceramico', linha: 'standard', valor: 'ceramico|standard', nome: 'Cerâmico / colonial' }];
+}
+
+function pbIntegracaoTelhadoOk(provedor, telhado) {
+  return (INTEGRACOES_INFO[provedor]?.telhados || ['ceramico']).includes(telhado || 'ceramico');
+}
+
+// <option>s do telhado pra distribuidora integrada. Telhado que ela não monta (kalhetão) aparece
+// marcado e desativado, pra o vendedor ver por que não dá pra cotar.
+function pbIntegracaoTelhadoOpcoesHTML(provedor) {
+  const tel = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.telhado) || 'ceramico';
+  const lista = pbIntegracaoTelhados(provedor);
+  const fora = !pbIntegracaoTelhadoOk(provedor, tel);
+  const nomeFora = ((typeof _pbEstrutura !== 'undefined' && _pbEstrutura.opcoes) || []).find((o) => o.telhado === tel)?.telhado_nome || tel;
+  return (fora ? `<option value="" selected disabled>${escapeHTML(nomeFora)} (a ${escapeHTML(INTEGRACOES_INFO[provedor]?.nome || provedor)} não tem)</option>` : '')
+    + lista.map((t) => `<option value="${escapeHTML(t.valor)}"${!fora && t.telhado === tel ? ' selected' : ''}>${escapeHTML(t.nome)}</option>`).join('');
 }
 
 // Provedor da distribuidora escolhida no orçamento (ou null).
@@ -191,6 +224,10 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
   const info = INTEGRACOES_INFO[provedor] || { nome: provedor };
   const chave = `${_pbFornecimento.distribuidora}|${state.pbActiveClient?.id || ''}`;
   if (_pbCot.chave !== chave) _pbCot = { chave, placas: '', carregando: false, erro: '', kits: [] };
+  // Os kits cotados valem pro telhado da cotação: trocou o telhado, cota de novo.
+  const telhadoAtual = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.telhado) || 'ceramico';
+  if (!_pbCot.carregando && _pbCot.telhado && _pbCot.telhado !== telhadoAtual) Object.assign(_pbCot, { kits: [], erro: '', cotadoEm: 0, telhado: '' });
+  const telhadoFora = !pbIntegracaoTelhadoOk(provedor, telhadoAtual);
   const placas = _pbCot.placas || (placasSugeridas ? String(placasSugeridas) : '');
   const kits = pbCotacaoKits().filter((k) => k.categoria === state.pbCategory);
   const erros = (_pbCot.kits || []).filter((k) => k.erro);
@@ -224,7 +261,9 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
       </div>`;
   }).join('');
 
-  const status = _pbCot.carregando
+  const status = telhadoFora && !_pbCot.carregando
+    ? pbAlertaHTML({ icone: 'home', titulo: `A ${info.nome} não tem estrutura pra esse telhado`, corpo: 'Escolha outro telhado pra cotar.' })
+    : _pbCot.carregando
     ? `<p class="pbd-hint"><i data-lucide="loader-2" class="w-3 h-3 inline animate-spin"></i> Cotando na ${escapeHTML(info.nome)}… pode levar até 1 minuto.</p>`
     : _pbCot.erro ? pbIntegracaoAlertaHTML(_pbCot.erro)
     : (_pbCot.kits.length && !kits.length)
@@ -250,8 +289,8 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
       <label class="pbd-mes"><span>Quantidade de placas</span>
         <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" onchange="pbIntegracaoPlacas(this.value)" placeholder="Ex.: 13"></label>
       <label class="pbd-mes"><span>Telhado</span>
-        <select id="pb-cot-telhado" class="pbd-input v2-select" data-titulo="Telhado"><option value="ceramico">Cerâmico / colonial</option></select></label>
-      <button type="button" class="btn btn-primary" onclick="pbIntegracaoCotar()" ${_pbCot.carregando ? 'disabled' : ''}>
+        <select id="pb-cot-telhado" class="pbd-input v2-select" data-titulo="Telhado" onchange="pbEstruturaEscolherValor(this.value)">${pbIntegracaoTelhadoOpcoesHTML(provedor)}</select></label>
+      <button type="button" class="btn btn-primary" onclick="pbIntegracaoCotar()" ${_pbCot.carregando || telhadoFora ? 'disabled' : ''}>
         <i data-lucide="search"></i> Cotar kits</button>
     </div>
     ${status}
@@ -265,14 +304,16 @@ async function pbIntegracaoCotar() {
   const placas = Math.round(Number(document.getElementById('pb-cot-placas')?.value || _pbCot.placas));
   if (!Number.isFinite(placas) || placas < 4 || placas > 150) { showToast('Informe de 4 a 150 placas.'); return; }
   _pbCot.placas = String(placas);
+  const telhado = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.telhado) || 'ceramico';
+  if (!pbIntegracaoTelhadoOk(provedor, telhado)) { showToast(`A ${INTEGRACOES_INFO[provedor]?.nome || provedor} não tem estrutura pra esse telhado.`); return; }
   const pedido = {
-    acao: 'cotar', provedor, placas, telhado: document.getElementById('pb-cot-telhado')?.value || 'ceramico',
+    acao: 'cotar', provedor, placas, telhado,
     tipo: state.pbCategory === 'kitsMicro' ? 'micro' : 'inversor', modulo: _pbCotSel.modulo || null, marca: _pbCotSel.marca || null,
   };
   const memoChave = JSON.stringify([_pbCot.chave, pedido]);
   const seq = ++_pbCotSeq;
   const cot = _pbCot;
-  _pbCot.erro = ''; _pbCot.kits = []; _pbCot.cotadoEm = 0;
+  _pbCot.erro = ''; _pbCot.kits = []; _pbCot.cotadoEm = 0; _pbCot.telhado = telhado;
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   const memo = _pbCotMemo.get(memoChave);
   if (memo && Date.now() - memo.em < PB_COT_MEMO_MS) {
@@ -286,7 +327,7 @@ async function pbIntegracaoCotar() {
     const { data, error } = await invocarDistribuidoras(pedido);
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.error || 'Não foi possível cotar agora.');
-    if (seq !== _pbCotSeq || cot !== _pbCot) return; // a escolha mudou no meio: resposta velha não entra
+    if (seq !== _pbCotSeq || cot !== _pbCot || cot.telhado !== telhado) return; // a escolha mudou no meio: resposta velha não entra
     const kits = data.kits || [];
     let erro = '';
     // Nenhuma opção saiu: bloqueio mostra a pausa (com o horário); sem resposta pede pra tentar de novo;
@@ -436,6 +477,6 @@ async function integracaoTestar(provedor, btn) {
 }
 
 Object.assign(window, {
-  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoPainelHTML, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoPlacas, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
+  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoTelhados, pbIntegracaoTelhadoOk, pbIntegracaoTelhadoOpcoesHTML, pbIntegracaoPainelHTML, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoPlacas, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
   renderAdminDistribuidoras, integracaoSalvar, integracaoTestar,
 });
