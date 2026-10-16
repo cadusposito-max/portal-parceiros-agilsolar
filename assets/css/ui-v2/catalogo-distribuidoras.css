@@ -160,7 +160,7 @@ html[data-ui="v2"] .km-resumo { margin-top: 10px; padding: 10px 12px; border-rad
 html[data-ui="v2"] .km-erro { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(209,67,67,.1); color: #A32D2D; font-size: 13px; font-weight: 700; }
 html[data-ui="v2"][data-theme="dark"] .km-erro { background: rgba(209,67,67,.16); color: #F29B9B; }
 html[data-ui="v2"] .km-box .orc-aviso { margin-top: 10px; }
-html[data-ui="v2"] .km-cotar { width: 100%; justify-content: center; margin-top: 10px; }
+html[data-ui="v2"] .km-cotar { width: 100%; justify-content: center; margin-top: 10px; text-transform: none; }
 @media (max-width: 760px) {
   html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro,
   html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado { grid-template-columns: 1fr; }

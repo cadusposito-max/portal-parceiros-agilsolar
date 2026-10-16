@@ -193,7 +193,10 @@ async function pbEstruturaCarregarPrecos() {
   _pbEstrutura.erro = '';
   const args = { p_telhado: _pbEstrutura.telhado, p_linha: _pbEstrutura.linha };
   if (pbEstruturaUnidade()) args.p_franquia_id = pbEstruturaUnidade();
-  const { data, error } = await supabaseClient.rpc('precos_kits_estrutura', args);
+  // Lista inteira numa resposta só ([produto, estrutura, preço, De]): o servidor corta em 1000 linhas.
+  const r = await supabaseClient.rpc('precos_kits_estrutura_lista', args);
+  const error = r.error;
+  const data = (Array.isArray(r.data) ? r.data : []).map(([produto_id, estrutura_id, price, list_price]) => ({ produto_id, estrutura_id, price, list_price }));
   if (_pbEstrutura.carregandoChave !== chave) return;
   _pbEstrutura.carregandoChave = '';
   if (error) {

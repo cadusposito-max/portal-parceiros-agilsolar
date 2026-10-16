@@ -169,19 +169,29 @@ function _kmEstrutura(o, mod) {
 }
 
 // ---------- montagem: sugestões, divisão das placas e conferência ----------
+// Marcas de sempre primeiro (SOFAR, SOLIS, GROWATT; no micro, HOYMILES); as outras depois.
+const KM_MARCAS = ['SOFAR', 'SOLIS', 'GROWATT'];
+const KM_MARCAS_MICRO = ['HOYMILES'];
+const KM_OVERLOAD_SUGESTAO = 1.35;
+
 function _kmSugestoes(o, mod) {
   const lista = _kmDaFase(o);
   const n = _km.placas;
+  const kwp = n * mod.w / 1000;
   const cabe = (i, p) => { const f = _kmFaixa(i, mod); return !f || (p >= f[0] && p <= f[1]); };
-  const porKw = (a, b) => a.kw - b.kw;
+  const marca = (i) => { const k = (i.fase === 'micro' ? KM_MARCAS_MICRO : KM_MARCAS).indexOf(i.marca); return k < 0 ? 99 : k; };
+  const ordem = (a, b) => a.kw - b.kw || marca(a) - marca(b);
+  // Sugestão = o menor que fica com overload de até 135% (o que "aguenta" na faixa da distribuidora pode passar disso).
+  const bom = (i, q) => kwp / (i.kw * q) <= KM_OVERLOAD_SUGESTAO && cabe(i, Math.ceil(n / q)) && cabe(i, Math.floor(n / q));
+  const strings = lista.filter((i) => i.fase !== 'micro');
   const out = [];
-  const um = lista.filter((i) => i.fase !== 'micro' && cabe(i, n)).sort(porKw)[0];
+  const um = strings.filter((i) => bom(i, 1)).sort(ordem)[0];
   if (um) out.push([{ id: um.id, qtd: 1 }]);
   for (const q of [2, 3, 4]) {
-    const x = lista.filter((i) => i.fase !== 'micro' && cabe(i, Math.ceil(n / q)) && cabe(i, Math.floor(n / q))).sort(porKw)[0];
+    const x = strings.filter((i) => bom(i, q)).sort(ordem)[0];
     if (x) { out.push([{ id: x.id, qtd: q }]); break; }
   }
-  const mi = lista.find((i) => i.fase === 'micro');
+  const mi = lista.filter((i) => i.fase === 'micro').sort((a, b) => marca(a) - marca(b) || b.kw - a.kw)[0];
   if (mi) out.push([{ id: mi.id, qtd: Math.ceil(n / (mi.porMicro || 4)) }]);
   return out;
 }
