@@ -39,8 +39,11 @@
     tarefa_feita: ['circle-check', 'gr'],
     tarefa_prazo: ['clock', 'or'],
     tarefa_atrasada: ['alarm-clock', 'or'],
+    // @menção numa anotação da timeline (crm-mencao.js)
+    mencao: ['at-sign', 'bl'],
   };
-  const EM_DESTAQUE = new Set(['proposta_vista', 'os']);
+  // menção é para a pessoa: aparece em destaque como os urgentes
+  const EM_DESTAQUE = new Set(['proposta_vista', 'os', 'mencao']);
 
   const N = { lista: [], pronto: false, semTabela: false, aba: 'nl', canal: null, uid: null };
 
@@ -133,6 +136,7 @@
           if (!Array.isArray(state.clientes)) state.clientes = [];
           state.clientes.unshift(data);
         }
+        if (a.atividade && has('crmMencaoMarcarAlvo')) crmMencaoMarcarAlvo(a.atividade);
         if (has('openCrm360')) openCrm360(a.id, a.aba);
       } else if (a.tela === 'eng' && a.id) {
         if (state.canEng && has('setEnvironment') && window.EV) {

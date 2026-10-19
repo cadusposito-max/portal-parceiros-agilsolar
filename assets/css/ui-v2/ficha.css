@@ -377,3 +377,41 @@ html[data-ui="v2"] .v2f .v2f-mob { display: none; }
   html[data-ui="v2"] .v2f-mini span:nth-of-type(4) { display: none; }
   html[data-ui="v2"] .v2f.compacto .v2f-tabs { margin-top: 8px; }
 }
+
+/* ---------- @menção na timeline (crm-mencao.js) ---------- */
+/* lista de pessoas: fixed no <body> (o corpo da ficha rola e cortaria) */
+.v2-men-pop {
+  position: fixed; z-index: 170; display: none; max-width: calc(100vw - 16px);
+  background: var(--v2-card); border: 1px solid var(--v2-line); border-radius: 16px;
+  box-shadow: var(--v2-shadow-pop); overflow: hidden; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--v2-ink);
+}
+.v2-men-pop.on { display: block; }
+.v2-men-pop h6 { margin: 0; padding: 10px 14px 6px; font-size: 11px; font-weight: 700; color: var(--v2-gray); text-transform: none; letter-spacing: 0; }
+.v2-men-lista { max-height: 252px; overflow-y: auto; padding: 0 6px 6px; overscroll-behavior: contain; }
+.v2-men-op {
+  display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; text-align: left;
+  padding: 8px; border-radius: 11px; cursor: pointer; color: var(--v2-ink); font: inherit;
+}
+.v2-men-op.on, .v2-men-op:hover { background: var(--v2-blue-50); }
+.v2-men-av {
+  width: 32px; height: 32px; border-radius: 10px; flex: none; display: grid; place-items: center;
+  background: var(--v2-bg); color: var(--v2-ink-2); font-size: 12px; font-weight: 800;
+}
+.v2-men-op.on .v2-men-av { background: var(--v2-blue); color: #fff; }
+.v2-men-tx { min-width: 0; }
+.v2-men-op b { display: block; font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.v2-men-op b mark { background: none; color: var(--v2-blue-text); }
+.v2-men-op small { display: block; font-size: 11.5px; color: var(--v2-gray); font-weight: 600; margin-top: 1px; }
+.v2-men-vazio { padding: 6px 14px 14px; font-size: 12.5px; color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2-men-dica { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] .v2-men-dica[hidden] { display: none; }
+html[data-ui="v2"] .v2f .v2-men-dica svg { width: 14px; height: 14px; }
+html[data-ui="v2"] .v2-men-dica kbd { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; background: var(--v2-card); border: 1px solid var(--v2-line-strong); border-radius: 6px; padding: 0 5px; color: var(--v2-ink-2); }
+/* @Nome na anotação salva (o próprio nome em laranja) */
+html[data-ui="v2"] .v2-men { background: var(--v2-blue-50); color: var(--v2-blue-text); font-weight: 700; border-radius: 6px; padding: 0 4px; white-space: nowrap; }
+html[data-ui="v2"] .v2-men.eu { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] .v2-men-avisou { display: inline-flex; align-items: center; gap: 3px; }
+html[data-ui="v2"] .v2f .v2-men-avisou svg { width: 11px; height: 11px; }
+/* anotação aberta pelo sininho pisca uma vez */
+@keyframes v2menPisca { 0%, 60% { background: var(--v2-orange-50); } 100% { background: transparent; } }
+html[data-ui="v2"] .v2-men-alvo { animation: v2menPisca 2.4s ease-out; border-radius: 12px; }

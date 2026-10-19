@@ -832,7 +832,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
 
   // TIMELINE (padrão): atividades + propostas + vendas mescladas
   const eventos = [];
-  _crm360Atividades.forEach((a) => eventos.push({ tipo: a.tipo, data: a.created_at, autor: a.autor_email, descricao: a.descricao, meta: a.meta }));
+  _crm360Atividades.forEach((a) => eventos.push({ id: a.id, tipo: a.tipo, data: a.created_at, autor: a.autor_email, descricao: a.descricao, meta: a.meta }));
   propostas.forEach((p) => {
     const kit = p.kit_nome || 'personalizada';
     eventos.push({ tipo: 'proposta', data: p.created_at, autor: p.vendedor_email, descricao: `Proposta gerada: ${kit}` });
@@ -856,6 +856,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
         <input id="crm360-composer-text" placeholder="Registrar ${CRM_ATIVIDADE_META[_crm360ComposerTipo].label.toLowerCase()}..." class="crm360-input flex-1" onkeydown="if(event.key==='Enter'){event.preventDefault();crmSubmitAtividade();}">
         <button onclick="crmSubmitAtividade()" class="px-4 bg-orange-600 hover:bg-orange-500 text-black font-black uppercase tracking-widest text-[10px] transition-colors">OK</button>
       </div>
+      ${typeof crmMencaoDicaHTML === 'function' ? crmMencaoDicaHTML() : ''}
     </div>`;
 
   if (eventos.length === 0) return composer + crm360Empty('history', 'Sem atividades ainda — registre a primeira acima');
@@ -880,13 +881,13 @@ function renderCrm360TabContent(client, propostas, vendas) {
         if (!texto) texto = meta.label;
         texto = crmTrocaEmailPorNome(texto);
         return `
-          <div class="flex gap-3 py-2.5 border-b border-neutral-900 last:border-b-0">
+          <div class="flex gap-3 py-2.5 border-b border-neutral-900 last:border-b-0"${ev.id ? ` id="crm-ev-${escapeHTML(String(ev.id))}"` : ''}>
             <div class="shrink-0 w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center ${meta.color}">
               <i data-lucide="${meta.icon}" class="w-3.5 h-3.5"></i>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-neutral-300 text-[11px] leading-snug">${escapeHTML(texto)}</p>
-              <p class="text-neutral-600 text-[9px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(ev.data)} · ${crmTimeAgo(ev.data)}${ev.autor ? ` · ${escapeHTML(crmNomeAutor(ev.autor))}` : ''}</p>
+              <p class="text-neutral-300 text-[11px] leading-snug">${typeof crmMencaoTextoHTML === 'function' ? crmMencaoTextoHTML(texto, ev.meta) : escapeHTML(texto)}</p>
+              <p class="text-neutral-600 text-[9px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(ev.data)} · ${crmTimeAgo(ev.data)}${ev.autor ? ` · ${escapeHTML(crmNomeAutor(ev.autor))}` : ''}${typeof crmMencaoAvisouHTML === 'function' ? crmMencaoAvisouHTML(ev.meta) : ''}</p>
             </div>
           </div>`;
       }).join('')}
@@ -1148,12 +1149,15 @@ async function crmSubmitAtividade() {
   const texto = input.value.trim();
   if (!texto) { showToast('Escreva algo para registrar.'); return; }
 
+  // @menções (crm-mencao.js): o banco avisa quem foi marcado
+  const mencao = typeof crmMencaoColher === 'function' ? crmMencaoColher(client.id, texto) : null;
   const { error } = await supabaseClient.from('crm_atividades').insert([{
     cliente_id: client.id,
     franquia_id: client.franquia_id,
     autor_email: state.currentUser?.email || 'sistema',
     tipo: _crm360ComposerTipo,
     descricao: texto,
+    ...(mencao ? { meta: mencao } : {}),
   }]);
 
   if (error) {
@@ -1163,7 +1167,9 @@ async function crmSubmitAtividade() {
   }
 
   input.value = '';
-  showToast('Atividade registrada!');
+  if (typeof crmMencaoLimpar === 'function') crmMencaoLimpar(client.id);
+  const avisados = mencao ? mencao.mencionados_nomes.map((n) => n.split(' ')[0]).join(', ') : '';
+  showToast(avisados ? `Atividade registrada · ${avisados} vai receber o aviso` : 'Atividade registrada!');
   crmFetchAtividades(client.id);
   if (state.crmLastAtividade) state.crmLastAtividade[client.id] = { last_at: new Date().toISOString(), last_tipo: _crm360ComposerTipo };
 }

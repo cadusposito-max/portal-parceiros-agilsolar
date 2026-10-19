@@ -543,6 +543,8 @@
     if (_crm360Tab === 'propostas' && state.isAdmin && has('preencherSelosPrecificacao')) preencherSelosPrecificacao();
 
     if (window.lucide) window.lucide.createIcons();
+    // @ na caixa da timeline + anotação aberta pelo sininho (crm-mencao.js)
+    if (has('crmMencaoPosRender')) crmMencaoPosRender();
     overlay.dataset.clientId = String(client.id);
     const sc = document.getElementById('crm360-scroll');
     if (sc && keepY) sc.scrollTop = keepY;
