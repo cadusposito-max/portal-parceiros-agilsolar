@@ -591,90 +591,90 @@ html[data-ui="v2"] .v2s .v2-pills .v2-pmeta.on svg { color: var(--v2-orange-ink)
 html[data-ui="v2"] .v2s .v2-pills .v2-pmeta.on em { background: rgba(61,38,0,.12); color: var(--v2-orange-ink); }
 
 /* ─── Andamento das vendas (vendas-andamento.js) ─── */
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-trk { display: flex; align-items: center; min-width: 132px; max-width: 170px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-d { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; flex: none; border: 2px solid var(--v2-line-strong); background: var(--v2-card); color: #fff; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-d svg { width: 11px !important; height: 11px !important; stroke-width: 3; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-d.ok { background: var(--v2-green); border-color: var(--v2-green); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-d.at { background: var(--v2-blue); border-color: var(--v2-blue); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-d.late { background: var(--v2-red); border-color: var(--v2-red); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-l { flex: 1; height: 2px; min-width: 6px; background: var(--v2-line-strong); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-l.ok { background: var(--v2-green); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-now { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--v2-ink-2); white-space: nowrap; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-now.late { color: var(--v2-red); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-now.ok { color: var(--v2-green); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-trk { display: flex; align-items: center; min-width: 132px; max-width: 170px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-d { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; flex: none; border: 2px solid var(--v2-line-strong); background: var(--v2-card); color: #fff; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-d svg { width: 11px !important; height: 11px !important; stroke-width: 3; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-d.ok { background: var(--v2-green); border-color: var(--v2-green); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-d.at { background: var(--v2-blue); border-color: var(--v2-blue); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-d.late { background: var(--v2-red); border-color: var(--v2-red); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-l { flex: 1; height: 2px; min-width: 6px; background: var(--v2-line-strong); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-l.ok { background: var(--v2-green); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-now { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--v2-ink-2); white-space: nowrap; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-now.late { color: var(--v2-red); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-now.ok { color: var(--v2-green); }
 /* coluna Andamento só em tela larga; abaixo disso o trilho vai embaixo do nome */
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-m { display: none; margin-top: 8px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-col .pv-now { white-space: normal; max-width: 180px; }
-@media (max-width: 1359px) { html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-m { display: block; } html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-col { display: none; } }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-m .pv-trk { width: 150px; min-width: 0; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-m .pv-now { white-space: normal; margin-top: 4px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fases { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase { background: var(--v2-card); border: 1.5px solid var(--v2-line); border-radius: 16px; padding: 12px 14px; cursor: pointer; text-align: left; color: var(--v2-ink); box-shadow: var(--v2-shadow); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase:hover { border-color: var(--v2-line-strong); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase.on { border-color: var(--v2-blue); background: var(--v2-blue-50); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase small { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--v2-gray); line-height: 1.2; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase small svg { width: 15px; height: 15px; flex: none; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase b { display: block; margin-top: 4px; font-size: 22px; font-weight: 800; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase.warn b { color: var(--v2-red); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-aviso { display: flex; align-items: center; gap: 6px; margin: 8px 4px 0; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-aviso svg { width: 14px; height: 14px; flex: none; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-m { display: none; margin-top: 8px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-col .pv-now { white-space: normal; max-width: 180px; }
+@media (max-width: 1359px) { html[data-ui="v2"] :is(.v2s, .v2f) .pv-m { display: block; } html[data-ui="v2"] :is(.v2s, .v2f) .pv-col { display: none; } }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-m .pv-trk { width: 150px; min-width: 0; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-m .pv-now { white-space: normal; margin-top: 4px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-fases { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase { background: var(--v2-card); border: 1.5px solid var(--v2-line); border-radius: 16px; padding: 12px 14px; cursor: pointer; text-align: left; color: var(--v2-ink); box-shadow: var(--v2-shadow); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase:hover { border-color: var(--v2-line-strong); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase.on { border-color: var(--v2-blue); background: var(--v2-blue-50); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase small { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--v2-gray); line-height: 1.2; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase small svg { width: 15px; height: 15px; flex: none; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase b { display: block; margin-top: 4px; font-size: 22px; font-weight: 800; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase.warn b { color: var(--v2-red); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-aviso { display: flex; align-items: center; gap: 6px; margin: 8px 4px 0; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-aviso svg { width: 14px; height: 14px; flex: none; }
 html[data-ui="v2"] .v2s table.v2-table tr.pv-sel td { background: var(--v2-blue-50); }
 html[data-ui="v2"] .v2s table.v2-table tr.pv-panrow { cursor: default; }
 html[data-ui="v2"] .v2s table.v2-table tr.pv-panrow td,
 html[data-ui="v2"] .v2s table.v2-table tr.pv-panrow:hover td { background: var(--v2-card); white-space: normal; padding: 0 2px 8px; border-radius: 0; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-panwrap { max-width: calc(100vw - var(--v2-side, 272px) - 90px); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-bar { width: 100%; height: 6px; border-radius: 9px; background: var(--v2-line); overflow: hidden; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-bar i { display: block; height: 100%; background: var(--v2-green); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-form { border-color: var(--v2-blue); background: var(--v2-card); align-items: stretch; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-form label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--v2-gray); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-panwrap { max-width: calc(100vw - var(--v2-side, 272px) - 90px); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-bar { width: 100%; height: 6px; border-radius: 9px; background: var(--v2-line); overflow: hidden; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-bar i { display: block; height: 100%; background: var(--v2-green); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-form { border-color: var(--v2-blue); background: var(--v2-card); align-items: stretch; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-form label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; color: var(--v2-gray); }
 html[data-ui="v2"] body :is(#main-container, #crm360-overlay) .pv-form :is(input, select) { height: 36px !important; border: 1.5px solid var(--v2-line-strong) !important; border-radius: 10px !important; background: var(--v2-card) !important; color: var(--v2-ink) !important; font-size: 13px !important; font-weight: 600 !important; padding: 0 9px !important; text-transform: none !important; letter-spacing: 0 !important; width: 100%; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-formbt { display: flex; gap: 6px; margin-top: 4px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-formbt button { flex: 1; height: 36px; padding: 0 8px; justify-content: center; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-cardtrk { margin: 2px 0 4px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-cardtrk .pv-trk { max-width: none; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-cardtrk .pv-now { white-space: normal; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-formbt { display: flex; gap: 6px; margin-top: 4px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-formbt button { flex: 1; height: 36px; padding: 0 8px; justify-content: center; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-cardtrk { margin: 2px 0 4px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-cardtrk .pv-trk { max-width: none; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-cardtrk .pv-now { white-space: normal; }
 /* cards: o panorama abre dentro do próprio card (cresce só para baixo) */
 html[data-ui="v2"] .v2s .v2-pgrid.pv-aberto { align-items: start; }
 html[data-ui="v2"] .v2s .v2-pcard.pv-cardon { outline: 2px solid var(--v2-blue); outline-offset: -2px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-lista { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px; cursor: default; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; border-radius: 12px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li:hover { background: var(--v2-soft); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li > .pv-d { margin-top: 1px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li .tx { flex: 1; min-width: 0; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li .tx b { display: flex; flex-wrap: wrap; gap: 0 6px; font-size: 13px; font-weight: 700; color: var(--v2-ink); line-height: 1.35; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li .tx b em { font-style: normal; font-weight: 700; color: var(--v2-ink-2); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li .tx b em.late { color: var(--v2-red); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li .tx b em.ok { color: var(--v2-green); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li .tx small { display: block; font-size: 12px; color: var(--v2-gray); line-height: 1.35; margin-top: 1px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-li .pv-bar { margin-top: 5px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-ico { flex: none; width: 30px; height: 30px; border-radius: 9px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-blue-text); display: grid; place-items: center; cursor: pointer; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-ico svg { width: 15px; height: 15px; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-lista .pv-form { margin: 4px 0; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-lfoot { display: flex; gap: 8px; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--v2-line); }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-lfoot .v2-btn2 { flex: 1; justify-content: center; height: 36px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-lista { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px; cursor: default; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; border-radius: 12px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li:hover { background: var(--v2-soft); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li > .pv-d { margin-top: 1px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li .tx { flex: 1; min-width: 0; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li .tx b { display: flex; flex-wrap: wrap; gap: 0 6px; font-size: 13px; font-weight: 700; color: var(--v2-ink); line-height: 1.35; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li .tx b em { font-style: normal; font-weight: 700; color: var(--v2-ink-2); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li .tx b em.late { color: var(--v2-red); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li .tx b em.ok { color: var(--v2-green); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li .tx small { display: block; font-size: 12px; color: var(--v2-gray); line-height: 1.35; margin-top: 1px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-li .pv-bar { margin-top: 5px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-ico { flex: none; width: 30px; height: 30px; border-radius: 9px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-blue-text); display: grid; place-items: center; cursor: pointer; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-ico svg { width: 15px; height: 15px; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-lista .pv-form { margin: 4px 0; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-lfoot { display: flex; gap: 8px; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--v2-line); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-lfoot .v2-btn2 { flex: 1; justify-content: center; height: 36px; }
 @media (max-width: 760px) {
-  html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-panwrap { max-width: none; }
-  html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fases { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase { padding: 10px; border-radius: 14px; }
-  html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase small { font-size: 11px; }
-  html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-fase b { font-size: 20px; }
+  html[data-ui="v2"] :is(.v2s, .v2f) .pv-panwrap { max-width: none; }
+  html[data-ui="v2"] :is(.v2s, .v2f) .pv-fases { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase { padding: 10px; border-radius: 14px; }
+  html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase small { font-size: 11px; }
+  html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase b { font-size: 20px; }
 }
 
 /* Panorama: desdobra ao abrir e dobra ao fechar (vendas-andamento.js, abre/abrir) */
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre { display: grid; grid-template-rows: 1fr; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre-in { min-height: 0; overflow: hidden; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre.pv-anim { animation: pv-desdobra .32s cubic-bezier(.2, .8, .2, 1) both; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre.pv-anim .pv-lfoot { animation-delay: .2s; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre.pv-anim .pv-bar i { animation: pv-enche .6s .2s cubic-bezier(.2, .8, .2, 1) both; }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre.pv-fecha { animation: pv-dobra .2s ease-in both; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre { display: grid; grid-template-rows: 1fr; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre-in { min-height: 0; overflow: hidden; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-anim { animation: pv-desdobra .32s cubic-bezier(.2, .8, .2, 1) both; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-anim .pv-lfoot { animation-delay: .2s; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-anim .pv-bar i { animation: pv-enche .6s .2s cubic-bezier(.2, .8, .2, 1) both; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-fecha { animation: pv-dobra .2s ease-in both; }
 html[data-ui="v2"] .v2s .v2-pcard.pv-cardon, html[data-ui="v2"] .v2s table.v2-table tr.pv-sel td { transition: background-color .2s, outline-color .2s; }
 @keyframes pv-desdobra { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
 @keyframes pv-dobra { from { grid-template-rows: 1fr; opacity: 1; } to { grid-template-rows: 0fr; opacity: 0; } }
 @keyframes pv-surge { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @keyframes pv-enche { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-bar i { transform-origin: left center; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-bar i { transform-origin: left center; }
 @media (prefers-reduced-motion: reduce) {
-  html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre.pv-anim, html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre.pv-anim *, html[data-ui="v2"] :is(.v2s, .crm-venda) .pv-abre.pv-fecha { animation: none !important; }
+  html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-anim, html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-anim *, html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-fecha { animation: none !important; }
 }
 
 /* faixa curta (lista) e linhas curtas (cards): só etapa + situação; detalhes na ficha */
@@ -693,16 +693,60 @@ html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { height: 32px; font-size: 12px; 
 html[data-ui="v2"] .v2s .pv-lista .pv-mini { background: transparent; border: 0; padding: 5px 4px; }
 @media (max-width: 1100px) { html[data-ui="v2"] .v2s .pv-faixa { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) { html[data-ui="v2"] .v2s .pv-faixa { grid-template-columns: 1fr 1fr; } html[data-ui="v2"] .v2s .pv-faixa-rod { flex-wrap: wrap; } html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { width: 100%; justify-content: center; } }
-/* card da venda na ficha: andamento com detalhe, atalhos e edição de obra/monitoramento */
-html[data-ui="v2"] .crm-venda .pv-ficha-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; font-size: 13px; color: var(--v2-ink); }
-html[data-ui="v2"] .crm-venda .pv-ficha-h > svg { width: 16px; height: 16px; color: var(--v2-blue); }
-html[data-ui="v2"] .crm-venda .pv-ficha-h .pv-now { margin: 0 0 0 auto; }
-html[data-ui="v2"] .crm-venda .pv-li:hover { background: var(--v2-hover); }
-html[data-ui="v2"] .crm-venda .pv-form :is(input, select) { height: 36px; border: 1.5px solid var(--v2-line-strong); border-radius: 10px; background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 13px; font-weight: 600; padding: 0 9px; width: 100%; }
-html[data-ui="v2"] .crm-venda .pv-form { display: flex; flex-direction: column; gap: 8px; margin: 4px 0; padding: 12px; border: 1.5px solid var(--v2-blue); border-radius: 14px; background: var(--v2-card); }
-html[data-ui="v2"] .crm-venda .pv-form h5 { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--v2-gray); text-transform: none; letter-spacing: 0; }
-html[data-ui="v2"] .crm-venda .pv-form h5 svg { width: 15px; height: 15px; }
-html[data-ui="v2"] .crm-venda .pv-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-@media (max-width: 760px) { html[data-ui="v2"] .crm-venda .pv-campos { grid-template-columns: 1fr; } }
-html[data-ui="v2"] .crm-venda .pv-bt { flex: 1; height: 36px; border-radius: 10px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-html[data-ui="v2"] .crm-venda .pv-bt.p { background: var(--v2-blue); border-color: var(--v2-blue); color: #fff; }
+/* ficha: formulário de obra/monitoramento (aba Pós-venda) */
+html[data-ui="v2"] .v2f .pv-form :is(input, select) { height: 36px; border: 1.5px solid var(--v2-line-strong); border-radius: 10px; background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 13px; font-weight: 600; padding: 0 9px; width: 100%; }
+html[data-ui="v2"] .v2f .pv-form { display: flex; flex-direction: column; gap: 8px; margin: 4px 0; padding: 12px; border: 1.5px solid var(--v2-blue); border-radius: 14px; background: var(--v2-card); }
+html[data-ui="v2"] .v2f .pv-form h5 { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--v2-gray); text-transform: none; letter-spacing: 0; }
+html[data-ui="v2"] .v2f .pv-form h5 svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .v2f .pv-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 760px) { html[data-ui="v2"] .v2f .pv-campos { grid-template-columns: 1fr; } }
+html[data-ui="v2"] .v2f .pv-bt { flex: 1; height: 36px; border-radius: 10px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+html[data-ui="v2"] .v2f .pv-bt.p { background: var(--v2-blue); border-color: var(--v2-blue); color: #fff; }
+/* ficha do cliente depois da venda: etapas do pós-venda no topo (vendas-andamento.js, topoEtapasHTML) */
+html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step { align-items: center; }
+html[data-ui="v2"] .v2f-steps.pv-steps { overflow-x: auto; scrollbar-width: none; }
+html[data-ui="v2"] .v2f-steps.pv-steps::-webkit-scrollbar { display: none; }
+html[data-ui="v2"] .v2f-steps.pv-steps .v2f-line { min-width: 18px; }
+html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step .lbl { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; text-align: left; }
+html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step small { font-size: 11px; font-weight: 600; color: var(--v2-gray); max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step.pvlate { color: var(--v2-red); }
+html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step.pvlate i { background: var(--v2-red); color: #fff; box-shadow: 0 0 0 5px rgba(209,67,67,.14); }
+html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step.pvlate small { color: var(--v2-red); }
+html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step.done small { color: var(--v2-ink-2); }
+html[data-ui="v2"] .pv-funil { flex: none; margin-left: 12px; border: 0; background: none; padding: 6px 4px; font: inherit; font-size: 12px; font-weight: 700; color: var(--v2-gray); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; border-radius: 10px; }
+html[data-ui="v2"] .pv-funil:hover { color: var(--v2-ink); }
+html[data-ui="v2"] .pv-funil svg { width: 14px; height: 14px; }
+html[data-ui="v2"] .v2f-mini span.late, html[data-ui="v2"] .v2f-mini span.late b { color: var(--v2-red); }
+/* aba Pós-venda (abaHTML) */
+html[data-ui="v2"] .pva { display: flex; flex-direction: column; gap: 18px; }
+html[data-ui="v2"] .pva-venda { display: flex; flex-direction: column; gap: 8px; }
+html[data-ui="v2"] .pva-h { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; margin: 0 2px 2px; }
+html[data-ui="v2"] .pva-h h3 { margin: 0; font-size: 15px; font-weight: 800; color: var(--v2-ink); text-transform: none; letter-spacing: 0; }
+html[data-ui="v2"] .pva-h span { font-size: 13px; font-weight: 500; color: var(--v2-ink-2); }
+html[data-ui="v2"] .pva-row { display: flex; align-items: center; gap: 14px; background: var(--v2-soft); border: 1.5px solid var(--v2-line); border-radius: 16px; padding: 12px 14px; transition: border-color .3s, box-shadow .3s; }
+html[data-ui="v2"] .pva-row.foco { border-color: var(--v2-blue); box-shadow: 0 0 0 4px var(--v2-blue-50); }
+html[data-ui="v2"] .pva-row > .pv-d { width: 26px; height: 26px; }
+html[data-ui="v2"] .pva-row > .pv-d svg { width: 14px !important; height: 14px !important; }
+html[data-ui="v2"] .pva-row .tx { flex: 1; min-width: 0; }
+html[data-ui="v2"] .pva-row .tx small { display: block; font-size: 12px; font-weight: 700; color: var(--v2-gray); }
+html[data-ui="v2"] .pva-row .tx b { display: block; margin-top: 1px; font-size: 14px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui="v2"] .pva-row .tx b.late { color: var(--v2-red); }
+html[data-ui="v2"] .pva-row .tx b.ok { color: var(--v2-green); }
+html[data-ui="v2"] .pva-row .tx p { margin: 2px 0 0; font-size: 13px; color: var(--v2-ink-2); line-height: 1.4; }
+html[data-ui="v2"] .pva-row .pv-bar { margin-top: 8px; max-width: 360px; }
+html[data-ui="v2"] .pv-bt2 { flex: none; height: 38px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); font: inherit; font-size: 13px; font-weight: 700; color: var(--v2-ink); display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+html[data-ui="v2"] .pv-bt2:hover { border-color: var(--v2-blue); color: var(--v2-blue-text); }
+html[data-ui="v2"] .pv-bt2 svg { width: 15px; height: 15px; flex: none; }
+html[data-ui="v2"] .pv-bt2.edit { border-style: dashed; }
+html[data-ui="v2"] .pva .pv-form { margin: 0; }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step:not(.cur):not(.pvlate) small { display: none; }
+  html[data-ui="v2"] .pva { gap: 14px; }
+  html[data-ui="v2"] .pva-row { flex-wrap: wrap; align-items: flex-start; gap: 10px 12px; padding: 12px; }
+  html[data-ui="v2"] .pva-row > .pv-d { margin-top: 2px; }
+  html[data-ui="v2"] .pva-row .tx { flex-basis: calc(100% - 40px); }
+  html[data-ui="v2"] .pva-row .pv-bt2 { width: 100%; height: 42px; }
+}
+/* "!" da etapa com atenção (bolinhas do trilho, do topo da ficha e da aba) */
+html[data-ui="v2"] .pv-ex { font-style: normal; font-weight: 900; font-size: 12px; line-height: 1; color: #fff; }
+html[data-ui="v2"] .v2f-step .pv-ex, html[data-ui="v2"] .pva-row .pv-ex { font-size: 14px; }

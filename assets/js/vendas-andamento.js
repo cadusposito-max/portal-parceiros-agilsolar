@@ -5,11 +5,12 @@
 //   Pagamento        → títulos do Financeiro (fin_titulos + baixas)
 //   Projeto          → engenharia (eng_projetos)
 //   Compra e entrega → ordem de compra do Financeiro (status 'entregue' = chegou)
-//   Obra             → venda_posvenda (editado no card da venda, na ficha; admin/gestor)
+//   Obra             → venda_posvenda (editado na aba Pós-venda da ficha; admin/gestor)
 //   Monitoramento    → venda_posvenda (idem)
 //
 // Na aba Vendas o panorama é curto (só etapa + situação). Os detalhes, os
-// atalhos e a edição ficam no card da venda da ficha (fichaHTML).
+// atalhos e a edição ficam na aba Pós-venda da ficha (abaHTML), e o topo da
+// ficha troca o funil pelas etapas do pós-venda (topoEtapasHTML/topoResumoHTML).
 //
 // Os dados vêm de uma RPC só (vendas_andamento, com o RLS de quem chama).
 // Sem ela (migration 20261019120000 ainda não rodada), o projeto sai de
@@ -34,7 +35,7 @@
   const FORMAS = { avista: 'À vista', cartao: 'Cartão de crédito', boleto: 'Boleto parcelado', financiamento: 'Financiamento', entrada_financiamento: 'Entrada + financiamento', outra: 'Outra forma' };
   const RECARGA_MS = 2 * 60 * 1000;
 
-  const A = { mapa: null, em: 0, carregando: null, semRpc: false, aberta: null, editando: null, salvando: false, animar: null };
+  const A = { mapa: null, em: 0, carregando: null, semRpc: false, aberta: null, editando: null, salvando: false, animar: null, foco: null };
   const FECHA_MS = 200; // igual à animação pv-fecha do screens.css
 
   const esc = (s) => (typeof escapeHTML === 'function' ? escapeHTML(String(s ?? '')) : String(s ?? ''));
@@ -169,7 +170,7 @@
   function trilho(v, inf = info(v)) {
     const dica = FASES.map((f) => `${f.n}: ${inf.t[f.id][0]}`).join('\n');
     return `<div class="pv-trk" title="${esc(dica)}">${inf.s.map((x, i) => (i ? `<span class="pv-l ${inf.s[i - 1] === 'ok' && x ? 'ok' : ''}"></span>` : '')
-      + `<span class="pv-d ${x}">${x === 'ok' ? ic('check') : x === 'late' ? ic('exclamation-mark') : ''}</span>`).join('')}</div>`;
+      + `<span class="pv-d ${x}">${x === 'ok' ? ic('check') : x === 'late' ? '<b class="pv-ex">!</b>' : ''}</span>`).join('')}</div>`;
   }
   function agora(v, inf = info(v)) {
     if (inf.fase === 5) return '<span class="pv-now ok">Tudo pronto · monitorando</span>';
@@ -205,18 +206,6 @@
     });
   }
 
-  // Atalho de cada etapa no card da venda (ficha): para onde se resolve aquilo.
-  function acaoHTML(v, f, inf) {
-    const cid = esc(v.cliente_id || '');
-    const go = (onclick, texto) => `<button class="pv-ico" title="${texto}" onclick="event.stopPropagation(); ${onclick}">${ic('arrow-up-right')}</button>`;
-    if (f.id === 'pag') return state.canFin ? go(`vendasAndamento.irFinanceiro('titulos', '${cid}', '${esc(v.id)}')`, 'Ver títulos no Financeiro') : '';
-    if (f.id === 'ent') return state.canFin ? go(`vendasAndamento.irFinanceiro('ordemcompra', '${cid}', '${esc(v.id)}')`, 'Ver ordem de compra no Financeiro') : '';
-    if (f.id === 'proj') return v.cliente_id ? go(`crmSet360Tab('engenharia')`, inf.s[1] ? 'Abrir o projeto (aba Engenharia)' : 'Enviar à engenharia') : '';
-    if (!podeEditar(v) || A.semRpc) return '';
-    const rot = f.id === 'obra' ? 'Atualizar obra' : 'Atualizar monitoramento';
-    return `<button class="pv-ico" title="${rot}" onclick="event.stopPropagation(); vendasAndamento.editar('${esc(v.id)}', '${f.id}')">${ic('pencil')}</button>`;
-  }
-
   // Embrulho que anima o panorama: desdobra só na pintura logo depois do clique
   // (abrir() liga e desliga A.animar; salvar, editar e recarregar repintam sem animar).
   function abre(v, html) {
@@ -229,12 +218,12 @@
   function etapasCurtas(inf) {
     return FASES.map((f, i) => {
       const st = inf.s[i];
-      return `<div class="pv-mini"><span class="pv-d ${st}">${st === 'ok' ? ic('check') : st === 'late' ? ic('exclamation-mark') : ''}</span>
+      return `<div class="pv-mini"><span class="pv-d ${st}">${st === 'ok' ? ic('check') : st === 'late' ? '<b class="pv-ex">!</b>' : ''}</span>
         <div class="tx"><small>${f.n}</small><b class="${st}" title="${esc(inf.t[f.id][1])}">${esc(inf.t[f.id][0])}</b></div></div>`;
     }).join('');
   }
   const botaoFicha = (v, texto) => (v.cliente_id
-    ? `<button class="v2-btn2" onclick="event.stopPropagation(); openVendaClienteFicha('${esc(v.id)}', 'vendas')">${ic('user-round')}${texto}</button>` : '');
+    ? `<button class="v2-btn2" onclick="event.stopPropagation(); openVendaClienteFicha('${esc(v.id)}', 'posvenda')">${ic('user-round')}${texto}</button>` : '');
 
   // Vista em cards: lista curta dentro do próprio card.
   function painelCard(v, inf = info(v)) {
@@ -249,24 +238,106 @@
       <div class="pv-faixa-rod">${inf.forma ? `<span>${ic('landmark')}${esc(inf.forma)}</span>` : '<span></span>'}${botaoFicha(v, 'Detalhes e atualizações na ficha')}</div></div>`);
   }
 
-  // Card da venda na ficha do cliente (crm.js, crmVendaCardHTML): aqui ficam os
-  // detalhes de cada etapa, os atalhos (Financeiro / Engenharia) e a edição de
-  // obra e monitoramento.
-  function fichaHTML(v) {
-    if (!A.mapa && !A.carregando) {
-      carregar().then(() => { if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId && typeof renderCrm360 === 'function') renderCrm360(); });
-    }
+  // Atalho de cada etapa na aba Pós-venda da ficha: para onde se resolve aquilo.
+  function acaoHTML(v, f, inf) {
+    const cid = esc(v.cliente_id || '');
+    const bt = (onclick, icone, texto, cls = '') => `<button type="button" class="pv-bt2 ${cls}" onclick="event.stopPropagation(); ${onclick}">${ic(icone)}<span>${texto}</span></button>`;
+    if (f.id === 'pag') return state.canFin ? bt(`vendasAndamento.irFinanceiro('titulos', '${cid}', '${esc(v.id)}')`, 'arrow-up-right', 'Ver títulos no Financeiro') : '';
+    if (f.id === 'ent') return state.canFin ? bt(`vendasAndamento.irFinanceiro('ordemcompra', '${cid}', '${esc(v.id)}')`, 'arrow-up-right', 'Ver ordem de compra') : '';
+    if (f.id === 'proj') return v.cliente_id ? bt(`crmSet360Tab('engenharia')`, 'arrow-up-right', inf.s[1] ? 'Abrir na aba Engenharia' : 'Enviar à engenharia') : '';
+    if (!podeEditar(v) || A.semRpc) return '';
+    return bt(`vendasAndamento.editar('${esc(v.id)}', '${f.id}')`, 'pencil', f.id === 'obra' ? 'Atualizar obra' : 'Atualizar monitoramento', 'edit');
+  }
+
+  // ------------------------------------------------------------ ficha do cliente
+  // Depois da venda, o topo da ficha troca o funil (Novo → Fechado) pelas 5
+  // etapas do pós-venda e o resumo mostra venda, recebido, atenção e obra.
+  // O detalhe e a edição ficam na aba "Pós-venda" (logo depois de Vendas).
+  // A venda mostrada no topo é a mais recente do cliente.
+  function vendaDaFicha(vendas) {
+    return [...(vendas || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
+  }
+  // primeira pintura da ficha sem os dados: carrega e repinta
+  function garantirFicha() {
+    if ((A.mapa && Date.now() - A.em < RECARGA_MS) || A.carregando || (A.semRpc && A.mapa)) return;
+    carregar().then(() => { if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId && typeof renderCrm360 === 'function') renderCrm360(); });
+  }
+  const moneyC = (x) => (typeof formatCurrencyCompact === 'function' ? formatCurrencyCompact(Number(x) || 0) : money(x));
+  function recebidoTexto(v) {
+    const p = A.mapa && A.mapa[v.id] && A.mapa[v.id].pag;
+    if (!p || !Number(p.n)) return '—';
+    const total = Number(p.total) || 0, pago = Number(p.pago) || 0;
+    return total > 0 && pago >= total - 0.01 ? 'Quitado' : `${pago > 0 ? moneyC(pago) : 'R$ 0'} de ${moneyC(total)}`;
+  }
+
+  function topoEtapasHTML(v, clienteId) {
+    garantirFicha();
     const inf = info(v);
-    const linhas = FASES.map((f, i) => {
-      if (A.editando && A.editando.venda === v.id && A.editando.fase === f.id) return formHTML(v, f);
+    const passos = FASES.map((f, i) => {
       const st = inf.s[i];
-      return `<div class="pv-li"><span class="pv-d ${st}">${st === 'ok' ? ic('check') : st === 'late' ? ic('exclamation-mark') : ''}</span>
-        <div class="tx"><b>${f.n}<em class="${st}">${esc(inf.t[f.id][0])}</em></b><small>${esc(inf.t[f.id][1])}</small>
-          ${f.id === 'pag' && inf.pct && inf.pct < 100 ? `<div class="pv-bar"><i style="width:${inf.pct}%"></i></div>` : ''}</div>
-        ${acaoHTML(v, f, inf)}</div>`;
+      const cls = st === 'ok' ? 'done' : st === 'late' ? 'pvlate' : st === 'at' ? 'cur' : '';
+      const dentro = st === 'ok' ? ic('check') : st === 'late' ? '<b class="pv-ex">!</b>' : i + 1;
+      return `${i ? `<span class="v2f-line ${inf.s[i - 1] === 'ok' ? 'done' : ''}"></span>` : ''}<button type="button" class="v2f-step pv-step ${cls}" onclick="vendasAndamento.irEtapa('${f.id}')" title="${esc(f.n + ': ' + inf.t[f.id][0])}"><i>${dentro}</i><span class="lbl">${f.n}<small>${esc(inf.t[f.id][0])}</small></span></button>`;
     }).join('');
+    return `${passos}<button type="button" class="pv-funil" onclick="openClientStatusMenu(event, '${esc(clienteId)}')" title="Etapa do funil de venda (voltar ou marcar perdido)">${ic('git-merge')}<span>Funil</span></button>`;
+  }
+
+  // caixas do resumo; a do Responsável vem pronta da ficha
+  function topoResumoHTML(v, respHTML) {
+    const inf = info(v);
+    const pos = (A.mapa && A.mapa[v.id] && A.mapa[v.id].pos) || {};
+    const late = inf.s.indexOf('late');
+    const agora = inf.fase === 5 ? '<div><small>Andamento</small><b>Tudo pronto</b></div>'
+      : late >= 0 ? `<div class="late"><small>Precisa de atenção</small><b>${esc(FASES[late].n)} · ${esc(inf.t[FASES[late].id][0])}</b></div>`
+      : `<div><small>Agora</small><b>${esc(FASES[inf.fase].n)} · ${esc(inf.t[FASES[inf.fase].id][0])}</b></div>`;
+    const obra = pos.obra_status === 'concluida' ? 'Concluída'
+      : pos.obra_data ? dm(pos.obra_data) + (pos.obra_equipe ? ' · ' + pos.obra_equipe : '')
+      : (OBRA_ST.find(([k]) => k === pos.obra_status) || [])[1] || 'Sem data';
+    return `${respHTML}
+      <div><small>Venda</small><b>${esc(money(Number(v.kit_price) || 0))} · ${esc(dm(v.created_at))}</b></div>
+      <div><small>Recebido</small><b>${esc(recebidoTexto(v))}</b></div>
+      ${agora}
+      <div><small>Obra</small><b>${esc(obra)}</b></div>`;
+  }
+
+  // linha compacta (cabeçalho encolhido / celular)
+  function topoMiniHTML(v, resp) {
+    const inf = info(v);
+    const f = inf.fase === 5 ? null : FASES[inf.fase];
+    return `<span class="${inf.atencao ? 'late' : ''}">${f ? `${esc(f.n)} <b>${esc(inf.t[f.id][0])}</b>` : '<b>Tudo pronto</b>'}</span>
+      <span>Resp. <b>${esc(resp)}</b></span><span>Recebido <b>${esc(recebidoTexto(v))}</b></span>`;
+  }
+
+  // Aba "Pós-venda" da ficha: uma linha por etapa com o detalhe, o atalho e a edição.
+  function abaHTML(vendas) {
+    garantirFicha();
+    const lista = [...(vendas || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    if (!lista.length) return '';
     const aviso = A.semRpc ? `<p class="pv-aviso">${ic('info')}Pagamento, compra, obra e monitoramento aparecem depois que o banco for atualizado.</p>` : '';
-    return `<div class="pv-ficha"><div class="pv-ficha-h">${ic('route')}<b>Andamento</b>${agora(v, inf)}</div><div class="pv-lista">${linhas}</div>${aviso}</div>`;
+    return `<div class="pva">${lista.map((v, n) => {
+      const inf = info(v);
+      const k = typeof vendaKitResumo === 'function' ? vendaKitResumo(v) : { nome: v.kit_nome || 'Venda' };
+      const linhas = FASES.map((f, i) => {
+        if (A.editando && A.editando.venda === v.id && A.editando.fase === f.id) return formHTML(v, f);
+        const st = inf.s[i];
+        return `<div class="pva-row ${A.foco === f.id && n === 0 ? 'foco' : ''}" ${n === 0 ? `data-pv-etapa="${f.id}"` : ''}><span class="pv-d ${st}">${st === 'ok' ? ic('check') : st === 'late' ? '<b class="pv-ex">!</b>' : ''}</span>
+          <div class="tx"><small>${f.n}</small><b class="${st}">${esc(inf.t[f.id][0])}</b><p>${esc(inf.t[f.id][1])}</p>
+            ${f.id === 'pag' && inf.pct && inf.pct < 100 ? `<div class="pv-bar"><i style="width:${inf.pct}%"></i></div>` : ''}</div>
+          ${acaoHTML(v, f, inf)}</div>`;
+      }).join('');
+      return `<section class="pva-venda"><div class="pva-h"><h3>${esc(k.nome)}</h3><span>${esc(money(Number(v.kit_price) || 0))} · vendida em ${esc(typeof formatDate === 'function' ? formatDate(v.created_at) : '')}${inf.forma ? ' · ' + esc(inf.forma) : ''}</span></div>${linhas}</section>`;
+    }).join('')}${aviso}</div>`;
+  }
+
+  // clique numa etapa do topo: abre a aba Pós-venda com a linha em destaque
+  function irEtapa(faseId) {
+    A.foco = faseId;
+    if (typeof crmSet360Tab === 'function') crmSet360Tab('posvenda');
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`.pva-row[data-pv-etapa="${faseId}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { A.foco = null; document.querySelectorAll('.pva-row.foco').forEach((x) => x.classList.remove('foco')); }, 1800);
+    });
   }
 
   // ------------------------------------------------------------ edição (obra / monitoramento, na ficha)
@@ -365,7 +436,8 @@
   }
 
   window.vendasAndamento = {
-    FASES, carregar, garantir, info, trilho, agora, painel, painelCard, fichaHTML, fasesHTML, filtrarLista,
+    FASES, carregar, garantir, info, trilho, agora, painel, painelCard, fasesHTML, filtrarLista,
+    vendaDaFicha, topoEtapasHTML, topoResumoHTML, topoMiniHTML, abaHTML, irEtapa,
     editar, salvar, irFinanceiro, abrir, filtrar,
     get aberta() { return A.aberta; },
   };

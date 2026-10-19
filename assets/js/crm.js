@@ -795,6 +795,12 @@ function renderCrm360TabContent(client, propostas, vendas) {
     }).join('')}</div>`;
   }
 
+  // Pós-venda (vendas-andamento.js): pagamento → monitoramento de cada venda
+  if (_crm360Tab === 'posvenda') {
+    if (vendas.length === 0 || !window.vendasAndamento) return crm360Empty('route', 'O pós-venda aparece depois que a venda é registrada');
+    return window.vendasAndamento.abaHTML(vendas);
+  }
+
   if (_crm360Tab === 'vendas') {
     if (vendas.length === 0) return crm360Empty('trophy', 'Nenhuma venda fechada ainda');
     return `<div class="space-y-2">${vendas.map(crmVendaCardHTML).join('')}</div>`;
@@ -998,7 +1004,6 @@ function crmVendaCardHTML(v) {
         ${itens.length ? crmMenuHTML(itens) : ''}
         </div>
       </div>
-      ${window.vendasAndamento ? `<div class="crm-venda-det">${window.vendasAndamento.fichaHTML(v)}</div>` : ''}
       ${det ? `<div class="crm-venda-det">${det}</div>` : ''}
     </div>`;
 }

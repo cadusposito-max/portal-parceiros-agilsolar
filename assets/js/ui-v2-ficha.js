@@ -391,7 +391,13 @@
     const tarefaBtn = has('tarefasNova') && has('tarefasDisponivel') && tarefasDisponivel()
       ? `tarefasNova({ cliente: { id: '${esc(client.id)}', nome: decodeURIComponent('${encodeURIComponent(client.nome || 'Cliente').replace(/'/g, '%27')}') } })` : '';
     const tabs = [['dados', 'id-card', 'Dados'], ['timeline', 'history', 'Timeline'], ['propostas', 'file-text', 'Propostas', propostas.length]];
-    tabs.push(['vendas', 'trophy', 'Vendas', vendas.length], ['financiamento', 'landmark', 'Financ.']);
+    tabs.push(['vendas', 'trophy', 'Vendas', vendas.length]);
+    // pós-venda (vendas-andamento.js): só existe depois da venda, logo depois de Vendas
+    const VA = window.vendasAndamento || null;
+    if (VA && vendas.length) tabs.push(['posvenda', 'route', 'Pós-venda']);
+    tabs.push(['financiamento', 'landmark', 'Financ.']);
+    // cliente fechado com venda: o topo troca o funil pelas etapas do pós-venda
+    const vendaTopo = VA && status === 'FECHADO' && vendas.length ? VA.vendaDaFicha(vendas) : null;
     if (has('renderCrmArquivosTab')) tabs.push(['arquivos', 'paperclip', 'Arquivos', `<span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`]);
     if (has('renderEngFichaTab')) tabs.push(['engenharia', 'ruler', 'Engenharia']);
     if (omFlag) tabs.push(['om', 'wrench', 'O&M']);
@@ -408,6 +414,10 @@
       : `<button class="v2f-lostbtn" onclick="crmSetClientStatus('${esc(client.id)}','PERDIDO')" title="Marcar como perdido">${ic('thumbs-down')}<span>Perdido</span></button>`);
 
     const vend = client.vendedor_email ? (has('dashVendedorNome') ? dashVendedorNome(client.vendedor_email) : client.vendedor_email) : '—';
+    // caixa do Responsável (fica no resumo de antes e no do pós-venda)
+    const respHTML = podeTrocarResp()
+      ? `<div class="v2f-sumresp" role="button" tabindex="0" onclick="uiV2Responsavel.abrir('${esc(client.id)}')" onkeydown="if(event.key==='Enter')uiV2Responsavel.abrir('${esc(client.id)}')" title="Trocar responsável"><small>Responsável</small><b>${esc(vend)}${ic('chevron-down')}</b></div>`
+      : `<div><small>Responsável</small><b>${esc(vend)}</b></div>`;
     const prox = client.proxima_acao_em ? new Date(client.proxima_acao_em) : null;
     const proxAtrasada = prox && prox < new Date();
     const origemLbl = (() => {
@@ -422,7 +432,9 @@
 
     // linha que substitui etapas + resumo quando o cabeçalho encolhe
     const visTx = vistoriaTexto(VIS().info(client));
-    const mini = `<button type="button" class="v2f-mini" onclick="uiV2Ficha.expandir()" title="Mostrar etapas e resumo">
+    const mini = vendaTopo
+      ? `<button type="button" class="v2f-mini" onclick="uiV2Ficha.expandir()" title="Mostrar etapas e resumo">${VA.topoMiniHTML(vendaTopo, String(vend).split(' ')[0])}${ic('chevron-down')}</button>`
+      : `<button type="button" class="v2f-mini" onclick="uiV2Ficha.expandir()" title="Mostrar etapas e resumo">
             <span>${lost ? '<b>Perdido</b>' : `Etapa <b>${cur + 1} de ${seq.length}</b>`}</span>
             <span>Resp. <b>${esc(String(vend).split(' ')[0])}</b></span>
             <span class="${proxAtrasada ? 'late' : ''}">Próx. ação <b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })) : 'nenhuma'}</b></span>
@@ -500,15 +512,15 @@
               <button class="v2-sq v2f-dsk" onclick="closeCrm360()" title="Fechar (Esc)">${ic('x')}</button>
             </div>
           </div>
-          <div class="v2f-steps">${steps}</div>
-          <div class="v2f-sum">
+          <div class="v2f-steps ${vendaTopo ? 'pv-steps' : ''}">${vendaTopo ? VA.topoEtapasHTML(vendaTopo, client.id) : steps}</div>
+          ${vendaTopo ? `<div class="v2f-sum pv-sum">${VA.topoResumoHTML(vendaTopo, respHTML)}</div>` : `<div class="v2f-sum">
             <div><small>Origem</small><b>${esc(origemLbl)}</b></div>
-            ${podeTrocarResp() ? `<div class="v2f-sumresp" role="button" tabindex="0" onclick="uiV2Responsavel.abrir('${esc(client.id)}')" onkeydown="if(event.key==='Enter')uiV2Responsavel.abrir('${esc(client.id)}')" title="Trocar responsável"><small>Responsável</small><b>${esc(vend)}${ic('chevron-down')}</b></div>` : `<div><small>Responsável</small><b>${esc(vend)}</b></div>`}
+            ${respHTML}
             <div><small>Propostas</small><b>${propostas.length}${vendas.length ? ` · ${vendas.length} venda${vendas.length > 1 ? 's' : ''}` : ''}</b></div>
             <div class="v2f-sumlink ${proxAtrasada ? 'late' : ''}" role="button" tabindex="0" onclick="uiV2Ficha.irDados('proxima')" title="Ver próxima ação"><small>Próxima ação</small><b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + prox.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })) : 'Nenhuma'}</b></div>
             ${vistoriaResumoHTML(client)}
             <div class="v2f-mob"><small>Desde</small><b>${esc(formatDate(client.created_at))}</b></div>
-          </div>
+          </div>`}
           ${mini}
           <div class="v2f-tabs">${tabs.map((t) => `<button class="${t[4] || ''} ${_crm360Tab === t[0] ? 'on' : ''}" onclick="crmSet360Tab('${t[0]}')">${ic(t[1])}${t[2]}${t[3] != null ? `<em>${t[3]}</em>` : ''}</button>`).join('')}</div>
         </div>
