@@ -31,7 +31,8 @@
   const FORMAS = { avista: 'À vista', cartao: 'Cartão de crédito', boleto: 'Boleto parcelado', financiamento: 'Financiamento', entrada_financiamento: 'Entrada + financiamento', outra: 'Outra forma' };
   const RECARGA_MS = 2 * 60 * 1000;
 
-  const A = { mapa: null, em: 0, carregando: null, semRpc: false, aberta: null, editando: null, salvando: false };
+  const A = { mapa: null, em: 0, carregando: null, semRpc: false, aberta: null, editando: null, salvando: false, animar: null };
+  const FECHA_MS = 200; // igual à animação pv-fecha do screens.css
 
   const esc = (s) => (typeof escapeHTML === 'function' ? escapeHTML(String(s ?? '')) : String(s ?? ''));
   const ic = (n, extra = '') => `<i data-lucide="${n}" ${extra}></i>`;
@@ -217,6 +218,13 @@
       : `<button class="pv-edit" onclick="event.stopPropagation(); vendasAndamento.editar('${esc(v.id)}', '${f.id}')">${ic('pencil')}${rot}</button>`;
   }
 
+  // Embrulho que anima o panorama: desdobra só na pintura logo depois do clique
+  // (abrir() liga e desliga A.animar; salvar, editar e recarregar repintam sem animar).
+  function abre(v, html) {
+    const anim = A.animar === v.id;
+    return `<div class="pv-abre ${anim ? 'pv-anim' : ''}" data-pv-venda="${esc(v.id)}"><div class="pv-abre-in">${html}</div></div>`;
+  }
+
   // Panorama dentro do card (vista em cards): uma linha por etapa, o card só cresce para baixo.
   function painelCard(v, inf = info(v)) {
     const linhas = FASES.map((f, i) => {
@@ -227,9 +235,9 @@
           ${f.id === 'pag' && inf.pct && inf.pct < 100 ? `<div class="pv-bar"><i style="width:${inf.pct}%"></i></div>` : ''}</div>
         ${acaoHTML(v, f, inf, true)}</div>`;
     }).join('');
-    return `<div class="pv-lista" onclick="event.stopPropagation()">${linhas}
+    return abre(v, `<div class="pv-lista" onclick="event.stopPropagation()">${linhas}
       <div class="pv-lfoot">${v.cliente_id ? `<button class="v2-btn2" onclick="openVendaClienteFicha('${esc(v.id)}')">${ic('user-round')}Abrir ficha</button>` : ''}
-        <button class="v2-btn2" onclick="vendasAndamento.abrir('${esc(v.id)}')">${ic('chevron-up')}Fechar</button></div></div>`;
+        <button class="v2-btn2" onclick="vendasAndamento.abrir('${esc(v.id)}')">${ic('chevron-up')}Fechar</button></div></div>`);
   }
 
   // Panorama: um bloco por etapa, com o atalho para onde se resolve aquilo.
@@ -244,9 +252,9 @@
         ${f.id === 'pag' && inf.pct ? `<div class="pv-bar"><i style="width:${inf.pct}%"></i></div>` : ''}
         ${acao(f)}</div>`;
     }).join('');
-    return `<div class="pv-panwrap"><div class="pv-panhd">${ic('route')}<b>Panorama de ${nome}</b>${inf.forma ? `<span>· ${esc(inf.forma)}</span>` : ''}<span>· venda em ${esc(typeof formatDate === 'function' ? formatDate(v.created_at) : '')}</span>
+    return abre(v, `<div class="pv-panwrap"><div class="pv-panhd">${ic('route')}<b>Panorama de ${nome}</b>${inf.forma ? `<span>· ${esc(inf.forma)}</span>` : ''}<span>· venda em ${esc(typeof formatDate === 'function' ? formatDate(v.created_at) : '')}</span>
       <span class="v2-grow"></span>${v.cliente_id ? `<button class="v2-btn2" onclick="event.stopPropagation(); openVendaClienteFicha('${esc(v.id)}')">${ic('user-round')}Abrir ficha completa</button>` : ''}</div>
-      <div class="pv-pan">${blocos}</div></div>`;
+      <div class="pv-pan">${blocos}</div></div>`);
   }
 
   // ------------------------------------------------------------ edição (obra / monitoramento)
@@ -310,9 +318,22 @@
   }
 
   function abrir(vendaId) {
-    A.aberta = A.aberta === vendaId ? null : vendaId;
-    if (A.editando && A.editando.venda !== A.aberta) A.editando = null;
-    if (typeof renderContent === 'function') renderContent();
+    const pintar = () => { if (typeof renderContent === 'function') renderContent(); };
+    // fechar: dobra o painel e só depois repinta
+    if (A.aberta === vendaId) {
+      A.aberta = null; A.editando = null;
+      const el = document.querySelector(`.pv-abre[data-pv-venda="${vendaId}"]`);
+      const semMovimento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!el || semMovimento) { pintar(); return; }
+      el.classList.add('pv-fecha');
+      setTimeout(() => { if (A.aberta === null) pintar(); }, FECHA_MS);
+      return;
+    }
+    A.aberta = vendaId;
+    A.animar = vendaId;
+    if (A.editando && A.editando.venda !== vendaId) A.editando = null;
+    pintar();
+    A.animar = null;
   }
 
   function filtrar(f) {
