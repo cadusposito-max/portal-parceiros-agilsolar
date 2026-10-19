@@ -550,7 +550,7 @@ async function visRefreshAccess() {
 
 // Lê no backend se o usuário corrente é da engenharia central (admin, ou
 // engenheiro/coordenador técnico da Matriz — is_eng_central). Só ela vê o
-// ambiente Engenharia; as franquias acompanham pela aba Projetos do Comercial.
+// ambiente Engenharia; as franquias acompanham pela aba Engenharia da ficha.
 async function engRefreshAccess() {
   if (state.isAdmin) {
     state.canEng = true;
@@ -1841,17 +1841,6 @@ function _renderContentImpl() {
     toggleContainer.classList.add('hidden');
     if (adminBar) adminBar.classList.add('hidden');
     renderVendas(container);
-  } else if (state.activeTab === 'engprojetos') {
-    // Projetos na engenharia (gestor/admin, só leitura) — módulo eng-v2.js
-    stopDashboardClock();
-    mainToolbar.classList.add('hidden');
-    toggleContainer.classList.add('hidden');
-    if (adminBar) adminBar.classList.add('hidden');
-    if (!(state.isAdmin || state.isGestor || state.isEngCentral)) {
-      container.innerHTML = '<div class="text-neutral-500 font-bold p-8 text-sm">Esta área é restrita a gestores.</div>';
-    } else if (typeof renderEngProjetosComercial === 'function') {
-      renderEngProjetosComercial(container);
-    }
   } else if (state.activeTab === 'analise') {
     stopDashboardClock();
     mainToolbar.classList.add('hidden');

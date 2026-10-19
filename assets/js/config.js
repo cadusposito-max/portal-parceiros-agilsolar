@@ -252,14 +252,13 @@ const TABS = [
   { id: 'clientes',  label: 'CLIENTES',    icon: 'users' },
   { id: 'propostas', label: 'PROPOSTAS',   icon: 'file-signature' },
   { id: 'vendas',    label: 'VENDAS',      icon: 'trophy' },
-  { id: 'engprojetos', label: 'PROJETOS',  icon: 'ruler' },
   { id: 'analise',   label: 'ANÁLISE',     icon: 'bar-chart-3' },
   { id: 'produtos',  label: 'PRODUTOS',    icon: 'package' }
 ];
 
 // Abas do Comercial restritas a admin/gestor (vendedor nem vê o botão).
 // PRODUTOS = gestão de catálogo; ANÁLISE = leitura do time inteiro.
-const TABS_GESTAO = ['produtos', 'analise', 'engprojetos'];
+const TABS_GESTAO = ['produtos', 'analise'];
 
 // --- CRM: origem do lead -------------------------------------------------
 // Lista única para o cadastro (index.html) e a ficha 360 (crm.js), que antes

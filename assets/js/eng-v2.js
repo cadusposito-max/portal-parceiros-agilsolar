@@ -4,7 +4,7 @@
 // - Ambiente Engenharia (só engenharia central: admin ou engenheiro/coord.
 //   técnico da Matriz): visão geral, funil (kanban/lista com os status da
 //   Groner), ordens de serviço, catálogo técnico e a calculadora antiga.
-// - Comercial: aba "Projetos" (gestor/admin, só leitura) e aba "Engenharia"
+// - Comercial: aba "Engenharia"
 //   na ficha do cliente, com o envio à engenharia.
 //
 // Dimensionamento automático: o kit da venda é ligado a um módulo e a um
