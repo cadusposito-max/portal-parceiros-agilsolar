@@ -111,6 +111,7 @@ html[data-ui="v2"] .orcamento-kit-selecionado .pbl-qn small { color: rgba(255,25
 html[data-ui="v2"] .pbl-tx { min-width: 0; }
 html[data-ui="v2"] .pbl-tx b { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; }
 html[data-ui="v2"] .pbl-tx small { display: block; margin-top: 2px; font-size: 12px; color: var(--v2-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .pbl-mt::before { content: ' · '; }
 html[data-ui="v2"] .pbl-rec { font-style: normal; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--v2-blue); color: #fff; white-space: nowrap; }
 html[data-ui="v2"] .pbl-pc { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 html[data-ui="v2"] .pbl-pc.is-baixo { background: var(--v2-orange-50); color: var(--v2-orange-text); }
@@ -208,6 +209,12 @@ html[data-ui="v2"] body #orcamento-gerar:disabled { opacity: .5; cursor: not-all
   html[data-ui="v2"] .pbl-row { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; }
   html[data-ui="v2"] .pbl-qn { width: 40px; height: 40px; }
   html[data-ui="v2"] .pbl-pc { display: none; }
+  /* No celular o nome do kit come a linha toda: fornecedor e geração descem pra uma linha própria. */
+  html[data-ui="v2"] .pbl-tx small { white-space: normal; overflow: visible; line-height: 1.35; }
+  html[data-ui="v2"] .pbl-nm { display: block; overflow-wrap: anywhere; }
+  html[data-ui="v2"] .pbl-mt { display: block; margin-top: 1px; font-weight: 700; }
+  html[data-ui="v2"] .pbl-mt::before { content: none; }
+  html[data-ui="v2"] .pbl-pv b { font-size: 14px; }
   html[data-ui="v2"] body .pbl-busca input { font-size: 16px; }
 }
 @media (max-width: 420px) {
