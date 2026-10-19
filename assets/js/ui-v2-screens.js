@@ -811,17 +811,12 @@
 
     const limite = window.uiV2Screens.vendasLimite || 40;
     const vista = modo('vendas', 'lista', ['lista', 'cards']);
-    const waVenda = (v) => {
-      const tel = digitsOnly(v.cliente_telefone);
-      const first = String(v.cliente_nome || '').split(' ')[0] || 'cliente';
-      return tel ? `https://wa.me/55${tel}?text=${encodeURIComponent(`Olá ${first}, parabéns pela aquisição do seu sistema solar!`)}` : '';
-    };
-    const acoesVenda = (v) => { const wa = waVenda(v); return `<div class="v2-acts">
-          ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
+    // sem atalho de WhatsApp aqui: o balão confundia com o chat interno da plataforma
+    const acoesVenda = (v) => `<div class="v2-acts">
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); enviarVendaGroner('${esc(v.id)}', this)" title="Enviar para a Groner">${ic('send')}</button>` : ''}
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); deleteVenda('${esc(v.id)}')" title="Excluir venda" style="color:#D14343">${ic('trash-2')}</button>` : ''}
           ${VA ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); openVendaClienteFicha('${esc(v.id)}')" title="Abrir ficha do cliente">${ic('user-round')}</button>` : ''}
-        </div>`; };
+        </div>`;
     const kwpVenda = (v) => (v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—');
     const kitVenda = (v) => (has('vendaKitResumo') ? vendaKitResumo(v) : { nome: v.kit_nome || '—', marca: v.kit_brand || '' });
     // com o andamento, clicar na venda abre o panorama dela; sem ele, a ficha (como antes)
