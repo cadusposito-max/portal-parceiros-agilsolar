@@ -2208,6 +2208,14 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
   window.engFichaChip = engFichaChip;
   window.engSeloCard = engSeloCard;
   window.renderEngFichaTab = renderEngFichaTab;
+  // Status do projeto para o andamento da venda (vendas-andamento.js):
+  // { n, d, tone, nivel (0..7, -1 cancelado), dias no status, atrasado (passou do prazo) }
+  window.engStatusInfo = function (status, desde) {
+    const s = ST[status];
+    if (!s) return null;
+    const d = desde ? dias(desde) : 0;
+    return { n: s.n, d: s.d, tone: s.tone, nivel: NIVEL[status] ?? 0, dias: d, atrasado: !!(s.sla && desde && d > s.sla) };
+  };
   // Reprovação em aberto do cliente: { pid, em, autor, motivo, docs: [{ id, rotulo, tipo, slot }] } ou null.
   // Se ainda não tem projetos/eventos, carrega e repinta a aba Arquivos.
   E.reprovaCarregando = {};

@@ -388,6 +388,8 @@
     if (filter) state.finFilters.recebiveis.f = filter;
     filter = state.finFilters.recebiveis.f || 'todos';
     try { finTitulos = await finRpc('list_fin_titulos', { p_filter: filter }) || []; } catch (_) { finTitulos = []; }
+    finTitulos = finFocoFiltrar(finTitulos, 'titulos');
+    finFocoFaixa('titulos');
     const editBtn = (r) => `<button onclick="finTitEdit('${r.id}')" title="Editar título" class="w-8 h-8 grid place-items-center bg-neutral-900 text-neutral-400 border border-neutral-800 hover:fin-acc transition-colors"><i data-lucide="pencil" class="w-4 h-4"></i></button>`;
     const acts = (r) => r.st === 'pago'
       ? `<div class="inline-flex gap-1.5 justify-end items-center"><span class="text-[10px] font-bold uppercase tracking-widest text-emerald-400 inline-flex items-center gap-1"><i data-lucide="check-check" class="w-3.5 h-3.5"></i>Pago</span>${editBtn(r)}</div>`
@@ -427,6 +429,37 @@
         </div>`:`<div class="flex mt-3"><button onclick="finTitEdit('${r.id}')" class="flex-1 py-2.5 bg-neutral-900 text-neutral-300 border border-neutral-800 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Editar</button></div>`}
       </div>`).join('') : `<div class="text-center text-[10px] text-neutral-600 font-bold uppercase tracking-widest py-8">Nenhum título neste filtro</div>`;
     finIcons();
+  }
+
+  /* Atalho da aba Vendas (vendas-andamento.js): state.finFoco = { cliente_id, nome, sub, grupo }
+     mostra só aquele cliente em Títulos ou Ordem de compra, com uma faixa para ver todos ou voltar. */
+  function finFocoFiltrar(rows, sub) {
+    const f = state.finFoco;
+    if (!f || f.sub !== sub) return rows;
+    const nome = String(f.nome || '').trim().toLowerCase();
+    return rows.filter(r => (f.cliente_id && r.cliente_id) ? r.cliente_id === f.cliente_id : String(r.cli || '').trim().toLowerCase() === nome);
+  }
+  function finFocoFaixa(sub) {
+    const panel = document.querySelector('[data-fin-panel]'); if (!panel) return;
+    let el = document.getElementById('fin-foco');
+    if (!state.finFoco || state.finFoco.sub !== sub) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'fin-foco'; panel.prepend(el); }
+    el.className = 'metric-card p-4 mb-4 flex items-center gap-3 flex-wrap border-[color:var(--fin-border-30)]';
+    el.innerHTML = `<i data-lucide="filter" class="w-4 h-4 fin-acc shrink-0"></i>
+      <span class="text-sm font-bold text-white flex-1">Mostrando só ${escapeHTML(state.finFoco.nome || 'o cliente')} (vindo da aba Vendas)</span>
+      <button onclick="finFocoLimpar()" class="py-2.5 px-3 bg-neutral-900 text-neutral-300 border border-neutral-800 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5"><i data-lucide="filter-x" class="w-3.5 h-3.5"></i>Ver todos</button>
+      <button onclick="finFocoVoltar()" class="py-2.5 px-3 fin-acc-chip border border-[color:var(--fin-border-30)] text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>Voltar para Vendas</button>`;
+    finIcons();
+  }
+  function finFocoLimpar() {
+    const sub = state.finFoco && state.finFoco.sub;
+    state.finFoco = null;
+    if (sub === 'ordemcompra') renderOC(); else renderRec();
+  }
+  function finFocoVoltar() {
+    state.finFoco = null;
+    setEnvironment('comercial');
+    setTab('vendas');
   }
 
   /* Ações de título: baixar (modal), renegociar (prompt), cancelar (confirm) + lançamento (modal) */
@@ -1574,6 +1607,7 @@
     aprovar:  { l:'Aguardando aprovação', c:'bg-yellow-500/10 text-yellow-400 border-yellow-500/25' },
     aprovado: { l:'Aprovado p/ compra',   c:'fin-acc-chip border border-[color:var(--fin-border-30)]' },
     comprado: { l:'Comprado',             c:'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' },
+    entregue: { l:'Entregue',             c:'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' },
     reprovado:{ l:'Reprovado',            c:'bg-red-500/10 text-red-400 border-red-500/25' },
   };
   async function renderOC(filter) {
@@ -1582,6 +1616,8 @@
     const host = document.getElementById('oc-grid'); if (!host) return;
     let rows = [];
     try { rows = await finRpc('list_fin_ordens_compra', { p_filter: filter }) || []; } catch (_) {}
+    rows = finFocoFiltrar(rows, 'ordemcompra');
+    finFocoFaixa('ordemcompra');
     const field = (l,v)=>`<div><div class="text-[8px] font-black uppercase tracking-widest text-neutral-600">${l}</div><div class="text-[11px] font-bold text-neutral-300 num">${v}</div></div>`;
     const novo = `<button onclick="finNovaOC()" class="metric-card p-5 border-dashed flex flex-col items-center justify-center gap-2 text-neutral-500 hover:text-white hover:border-[color:var(--fin-border-30)] transition-colors min-h-[200px]"><i data-lucide="plus" class="w-6 h-6"></i><span class="text-[10px] font-black uppercase tracking-widest">Nova ordem</span></button>`;
     host.innerHTML = novo + rows.map(o=>{
@@ -1594,6 +1630,11 @@
         </div>`;
       else if (o.status==='aprovado') acoes = `<button onclick="finOcStatus('${o.id}','comprado')" class="w-full py-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5 transition-colors"><i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>Marcar como comprado</button>`;
       else if (o.status==='reprovado') acoes = `<div class="text-center text-[10px] font-bold uppercase tracking-widest text-red-400 inline-flex items-center justify-center gap-1.5 w-full py-1"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i>Ordem reprovada</div>`;
+      // compra e entrega juntas: depois de comprado, previsão e "chegou"
+      else if (o.status==='comprado') acoes = `<label class="block mb-2"><span class="text-[8px] font-black uppercase tracking-widest text-neutral-600">Previsão de entrega</span>
+          <input type="date" value="${o.previsao_entrega||''}" onchange="finOcPrevisao('${o.id}', this.value)" class="w-full mt-1 bg-black border border-neutral-800 text-neutral-300 px-3 py-2 text-[11px] font-bold"></label>
+        <button onclick="finOcStatus('${o.id}','entregue')" class="w-full py-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20 text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5 transition-colors"><i data-lucide="package-check" class="w-3.5 h-3.5"></i>Marcar como entregue</button>`;
+      else if (o.status==='entregue') acoes = `<div class="text-center text-[10px] font-bold uppercase tracking-widest text-emerald-400 inline-flex items-center justify-center gap-1.5 w-full py-1"><i data-lucide="package-check" class="w-3.5 h-3.5"></i>Kit entregue${o.entregue_em?' · '+o.entregue_em:''}</div>`;
       else acoes = `<div class="text-center text-[10px] font-bold uppercase tracking-widest text-emerald-400 inline-flex items-center justify-center gap-1.5 w-full py-1"><i data-lucide="check-check" class="w-3.5 h-3.5"></i>Kit comprado</div>`;
       return `<div class="metric-card p-5 flex flex-col">
         <div class="flex items-start justify-between gap-2 mb-3">
@@ -1616,9 +1657,13 @@
   async function finOcAnexar(id) { try { await finRpc('anexar_fin_oc', { p_id:id, p_url:'' }); } catch(_){return;} finToast('Enviado para aprovação','info'); finReloadOC(); }
   async function finOcStatus(id, st) {
     try { await finRpc('set_fin_oc_status', { p_id:id, p_status:st }); } catch(_){return;}
-    finToast(st==='aprovado'?'Ordem aprovada':st==='reprovado'?'Ordem reprovada':st==='comprado'?'Kit comprado':'Atualizado', st==='reprovado'?'err':'ok');
+    finToast(st==='aprovado'?'Ordem aprovada':st==='reprovado'?'Ordem reprovada':st==='comprado'?'Kit comprado':st==='entregue'?'Kit entregue':'Atualizado', st==='reprovado'?'err':'ok');
     if (st==='comprado') setTimeout(()=>finToast('Funil → Kit Comprado · Emissão de Laudo (gancho Vistoria — próxima fase)','info'), 350);
     finReloadOC();
+  }
+  async function finOcPrevisao(id, data) {
+    try { await finRpc('set_fin_oc_previsao', { p_id:id, p_data:data||null }); } catch(_){return;}
+    finToast(data?'Previsão de entrega salva':'Previsão removida','ok');
   }
   function finReloadOC() { if ((state.finSub && state.finSub.compras) === 'orcamentos') renderOrc(); else renderOC(); }
 
@@ -2766,6 +2811,8 @@
       if (state.environment === 'financeiro') state.finActiveTab = _grp;
     }
 
+    if (state.finFoco && state.finFoco.grupo !== tabId) state.finFoco = null;
+
     let inner;
     if (PANEL_BUILDERS[tabId]) inner = PANEL_BUILDERS[tabId]();
     else if (phasePanels[tabId]) inner = phasePanelHTML(tabId);
@@ -2794,7 +2841,9 @@
     // aprovações
     finAprovarItem,
     // orçamentos / ordem de compra
-    finNovaOC, finNovaOCSubmit, finOcAnexar, finOcStatus,
+    finNovaOC, finNovaOCSubmit, finOcAnexar, finOcStatus, finOcPrevisao,
+    // atalho da aba Vendas
+    finFocoLimpar, finFocoVoltar,
     // parcelamentos
     finNovoParcelamento, finNovoParcelamentoSubmit, finOpenParcDetail, finPagarParcela,
     // custos

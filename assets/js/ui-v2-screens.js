@@ -742,6 +742,12 @@
     state.lastFilteredVendas = vendas;
     const sum = computeSalesSummary(vendas);
     const showSeller = (state.isAdmin && state.adminViewAll) || (state.isGestor && state.gestorViewAll);
+    // andamento depois do fechamento (pagamento → monitoramento); a lista
+    // pode ser filtrada por etapa, os números de cima continuam do recorte todo
+    const VA = window.vendasAndamento || null;
+    if (VA) VA.garantir();
+    const faseSel = VA ? (window.uiV2Screens.vendasFase || 'todas') : 'todas';
+    const lista = VA ? VA.filtrarLista(vendas, faseSel) : vendas;
     const now = new Date();
     const currMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
@@ -814,34 +820,44 @@
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); enviarVendaGroner('${esc(v.id)}', this)" title="Enviar para a Groner">${ic('send')}</button>` : ''}
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); deleteVenda('${esc(v.id)}')" title="Excluir venda" style="color:#D14343">${ic('trash-2')}</button>` : ''}
+          ${VA ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); openVendaClienteFicha('${esc(v.id)}')" title="Abrir ficha do cliente">${ic('user-round')}</button>` : ''}
         </div>`; };
     const kwpVenda = (v) => (v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—');
     const kitVenda = (v) => (has('vendaKitResumo') ? vendaKitResumo(v) : { nome: v.kit_nome || '—', marca: v.kit_brand || '' });
-    const visiveis = vendas.slice(0, limite);
-    const rows = visiveis.map((v) => { const k = kitVenda(v); return `<tr onclick="openVendaClienteFicha('${esc(v.id)}')">
-        <td><div class="v2-who"><i class="v2-ini" style="background:rgba(31,169,113,.14);color:#1FA971">${ic('trophy', 'style="width:16px;height:16px"')}</i><div>${esc(v.cliente_nome || '—')}<span class="v2-vkit" title="Kit vendido">${ic('solar-panel')}<span>${esc(k.nome)}${k.marca ? `<em>${esc(k.marca)}</em>` : ''}</span></span>${k.equipTexto ? `<span class="v2-veq" title="${esc(k.equipTitulo)}">${esc(k.equipTexto)}</span>` : ''}<span class="show-m v2-mline">${kwpVenda(v)}</span></div></div></td>
+    // com o andamento, clicar na venda abre o panorama dela; sem ele, a ficha (como antes)
+    const clique = (v) => (VA ? `vendasAndamento.abrir('${esc(v.id)}')` : `openVendaClienteFicha('${esc(v.id)}')`);
+    const aberta = VA ? VA.aberta : null;
+    const nCols = 5 + (showSeller ? 1 : 0) + (VA ? 1 : 0);
+    const visiveis = lista.slice(0, limite);
+    const rows = visiveis.map((v) => { const k = kitVenda(v); const inf = VA ? VA.info(v) : null; const sel = VA && aberta === v.id; return `<tr class="${sel ? 'pv-sel' : ''}" onclick="${clique(v)}">
+        <td><div class="v2-who"><i class="v2-ini" style="background:rgba(31,169,113,.14);color:#1FA971">${ic('trophy', 'style="width:16px;height:16px"')}</i><div>${esc(v.cliente_nome || '—')}<span class="v2-vkit" title="Kit vendido">${ic('solar-panel')}<span>${esc(k.nome)}${k.marca ? `<em>${esc(k.marca)}</em>` : ''}</span></span>${k.equipTexto ? `<span class="v2-veq" title="${esc(k.equipTitulo)}">${esc(k.equipTexto)}</span>` : ''}<span class="show-m v2-mline">${kwpVenda(v)}</span>${inf ? `<div class="pv-m">${VA.trilho(v, inf)}${VA.agora(v, inf)}</div>` : ''}</div></div></td>
         <td class="hide-m">${kwpVenda(v)}</td>
         <td class="hide-m muted">${esc(formatDate(v.created_at))}</td>
         ${showSeller ? `<td class="hide-m">${esc(vendNome(v.vendedor_email))}${state.isAdmin && state.adminViewAll && v.franquia_id ? `<small class="muted" style="display:block;font-size:12px">${esc(getFranquiaNameById(v.franquia_id))}</small>` : ''}</td>` : ''}
         <td style="font-weight:800">${money(getSaleValue(v))}</td>
-        <td>${acoesVenda(v)}</td></tr>`; }).join('');
-    const cards = visiveis.map((v) => { const k = kitVenda(v); return `<div class="v2-card v2-pcard" onclick="openVendaClienteFicha('${esc(v.id)}')">
+        ${inf ? `<td class="pv-col">${VA.trilho(v, inf)}${VA.agora(v, inf)}</td>` : ''}
+        <td>${acoesVenda(v)}</td></tr>${sel ? `<tr class="pv-panrow"><td colspan="${nCols}">${VA.painel(v, inf)}</td></tr>` : ''}`; }).join('');
+    const cards = visiveis.map((v) => { const k = kitVenda(v); const inf = VA ? VA.info(v) : null; const sel = VA && aberta === v.id; return `<div class="v2-card v2-pcard ${sel ? 'pv-cardon' : ''}" onclick="${clique(v)}">
         <div class="hd"><i class="v2-ini gr">${ic('trophy', 'style="width:16px;height:16px"')}</i><div class="tx"><b>${esc(v.cliente_nome || '—')}</b><small>${esc(formatDate(v.created_at))}</small></div></div>
         <div class="kit kit-vendido" title="Kit vendido">${ic('solar-panel')}<span>${esc(k.nome)}${k.marca ? `<small>${esc(k.marca)}</small>` : ''}${k.equipTexto ? `<small class="eq" title="${esc(k.equipTitulo)}">${esc(k.equipTexto)}</small>` : ''}</span></div>
         <div class="specs"><div><small>Potência</small><b>${kwpVenda(v)}</b></div><div><small>${showSeller ? 'Vendedor' : 'Venda'}</small><b>${showSeller ? esc(vendNome(v.vendedor_email).split(' ')[0] || '—') : esc(timeAgo(v.created_at))}</b></div><div><small>${state.isAdmin && state.adminViewAll ? 'Franquia' : 'Data'}</small><b>${state.isAdmin && state.adminViewAll && v.franquia_id ? esc(getFranquiaNameById(v.franquia_id)) : esc(formatDate(v.created_at))}</b></div></div>
+        ${inf ? `<div class="pv-cardtrk">${VA.trilho(v, inf)}${VA.agora(v, inf)}</div>` : ''}
         <div class="ft"><div class="price">${money(getSaleValue(v))}<small>valor da venda</small></div>${acoesVenda(v)}</div>
+        ${sel ? `<div class="pv-cardpan" onclick="event.stopPropagation()">${VA.painel(v, inf)}</div>` : ''}
       </div>`; }).join('');
-    const mais = rodapeLista(Math.min(limite, vendas.length), vendas.length, 'uiV2Screens.maisVendas()', 'venda|vendas');
-    const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas</h3><small>Clique para abrir a ficha do cliente</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
+    const mais = rodapeLista(Math.min(limite, lista.length), lista.length, 'uiV2Screens.maisVendas()', 'venda|vendas');
+    const filtrando = VA && String(faseSel) !== 'todas';
+    const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas${filtrando ? ` · ${lista.length} nesta etapa` : ''}</h3><small>${VA ? 'Clique numa venda para ver o panorama dela' : 'Clique para abrir a ficha do cliente'}</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
 
-    container.dataset.v2total = String(vendas.length); container.dataset.v2nome = 'venda|vendas';
+    container.dataset.v2total = String(lista.length); container.dataset.v2nome = 'venda|vendas';
     container.innerHTML = `
       ${kpis}
       ${filtros}
+      ${VA && vendas.length ? VA.fasesHTML(vendas, faseSel) : ''}
       ${ranking}
-      ${!vendas.length ? `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-empty">Nenhuma venda com os filtros atuais.</div></div>`
+      ${!lista.length ? `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-empty">${filtrando ? 'Nenhuma venda nesta etapa.' : 'Nenhuma venda com os filtros atuais.'}</div></div>`
         : vista === 'cards' ? `<div>${cab}<div class="v2-pgrid">${cards}</div>${mais}</div>`
-        : `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>${mais}</div>`}`;
+        : `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th>${VA ? '<th class="pv-col">Andamento</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>${mais}</div>`}`;
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -1211,6 +1227,7 @@
     toggleFiltros() { this.filtrosAbertos = !this.filtrosAbertos; document.querySelectorAll('.v2-admfilters').forEach((el) => el.classList.toggle('open', this.filtrosAbertos)); },
     maisPropostas() { _propostasRenderLimit += 10; if (has('renderContent')) renderContent(); },
     vendasLimite: 40,
+    vendasFase: 'todas', // filtro dos cartões "Andamento das vendas" (vendas-andamento.js)
     maisVendas() { this.vendasLimite += 40; if (has('renderContent')) renderContent(); },
     copiarLink(id) {
       const url = linkProposta(id);
