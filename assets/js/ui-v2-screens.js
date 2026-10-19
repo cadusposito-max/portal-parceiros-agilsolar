@@ -815,7 +815,7 @@
     const acoesVenda = (v) => `<div class="v2-acts">
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); enviarVendaGroner('${esc(v.id)}', this)" title="Enviar para a Groner">${ic('send')}</button>` : ''}
           ${(state.isAdmin || state.isGestor) ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); deleteVenda('${esc(v.id)}')" title="Excluir venda" style="color:#D14343">${ic('trash-2')}</button>` : ''}
-          ${VA ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); openVendaClienteFicha('${esc(v.id)}')" title="Abrir ficha do cliente">${ic('user-round')}</button>` : ''}
+          ${VA ? `<button class="v2-sq hide-m" onclick="event.stopPropagation(); openVendaClienteFicha('${esc(v.id)}', 'vendas')" title="Abrir ficha do cliente">${ic('user-round')}</button>` : ''}
         </div>`;
     const kwpVenda = (v) => (v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—');
     const kitVenda = (v) => (has('vendaKitResumo') ? vendaKitResumo(v) : { nome: v.kit_nome || '—', marca: v.kit_brand || '' });

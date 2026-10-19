@@ -371,7 +371,7 @@ function buildFranquiaRanking(rows) {
 }
 // Clique no card de venda abre a mesma ficha (CRM 360) da aba Clientes.
 // Venda antiga sem cliente_id cai no casamento por telefone.
-function openVendaClienteFicha(saleId) {
+function openVendaClienteFicha(saleId, aba) {
   const sale = (state.vendas || []).find((v) => v.id === saleId);
   if (!sale) return;
   const clientes = state.clientes || [];
@@ -384,7 +384,7 @@ function openVendaClienteFicha(saleId) {
     showToast('Cliente não encontrado na carteira (pode ter sido arquivado ou mesclado).');
     return;
   }
-  openCrm360(client.id);
+  openCrm360(client.id, aba);
 }
 
 function renderVendaCard(sale, index, options = {}) {

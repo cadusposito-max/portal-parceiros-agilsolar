@@ -998,6 +998,7 @@ function crmVendaCardHTML(v) {
         ${itens.length ? crmMenuHTML(itens) : ''}
         </div>
       </div>
+      ${window.vendasAndamento ? `<div class="crm-venda-det">${window.vendasAndamento.fichaHTML(v)}</div>` : ''}
       ${det ? `<div class="crm-venda-det">${det}</div>` : ''}
     </div>`;
 }
