@@ -201,17 +201,41 @@
     });
   }
 
+  // Atalho de cada etapa: para onde se resolve aquilo (curto = só ícone, na lista do card).
+  function acaoHTML(v, f, inf, curto) {
+    const cid = esc(v.cliente_id || '');
+    const go = (onclick, texto) => (curto
+      ? `<button class="pv-ico" title="${texto}" onclick="event.stopPropagation(); ${onclick}">${ic('arrow-up-right')}</button>`
+      : `<button class="pv-go" onclick="event.stopPropagation(); ${onclick}">${texto}${ic('arrow-up-right')}</button>`);
+    if (f.id === 'pag') return state.canFin ? go(`vendasAndamento.irFinanceiro('titulos', '${cid}', '${esc(v.id)}')`, 'Ver títulos no Financeiro') : '';
+    if (f.id === 'ent') return state.canFin ? go(`vendasAndamento.irFinanceiro('ordemcompra', '${cid}', '${esc(v.id)}')`, 'Ver ordem de compra') : '';
+    if (f.id === 'proj') return v.cliente_id ? go(`openCrm360('${cid}', 'engenharia')`, inf.s[1] ? 'Abrir projeto na ficha' : 'Enviar à engenharia') : '';
+    if (!podeEditar(v) || A.semRpc) return '';
+    const rot = f.id === 'obra' ? 'Atualizar obra' : 'Atualizar monitoramento';
+    return curto
+      ? `<button class="pv-ico" title="${rot}" onclick="event.stopPropagation(); vendasAndamento.editar('${esc(v.id)}', '${f.id}')">${ic('pencil')}</button>`
+      : `<button class="pv-edit" onclick="event.stopPropagation(); vendasAndamento.editar('${esc(v.id)}', '${f.id}')">${ic('pencil')}${rot}</button>`;
+  }
+
+  // Panorama dentro do card (vista em cards): uma linha por etapa, o card só cresce para baixo.
+  function painelCard(v, inf = info(v)) {
+    const linhas = FASES.map((f, i) => {
+      if (A.editando && A.editando.venda === v.id && A.editando.fase === f.id) return formHTML(v, f);
+      const st = inf.s[i];
+      return `<div class="pv-li"><span class="pv-d ${st}">${st === 'ok' ? ic('check') : st === 'late' ? ic('exclamation-mark') : ''}</span>
+        <div class="tx"><b>${f.n}<em class="${st}">${esc(inf.t[f.id][0])}</em></b><small>${esc(inf.t[f.id][1])}</small>
+          ${f.id === 'pag' && inf.pct && inf.pct < 100 ? `<div class="pv-bar"><i style="width:${inf.pct}%"></i></div>` : ''}</div>
+        ${acaoHTML(v, f, inf, true)}</div>`;
+    }).join('');
+    return `<div class="pv-lista" onclick="event.stopPropagation()">${linhas}
+      <div class="pv-lfoot">${v.cliente_id ? `<button class="v2-btn2" onclick="openVendaClienteFicha('${esc(v.id)}')">${ic('user-round')}Abrir ficha</button>` : ''}
+        <button class="v2-btn2" onclick="vendasAndamento.abrir('${esc(v.id)}')">${ic('chevron-up')}Fechar</button></div></div>`;
+  }
+
   // Panorama: um bloco por etapa, com o atalho para onde se resolve aquilo.
   function painel(v, inf = info(v)) {
     const nome = esc(v.cliente_nome || 'cliente');
-    const acao = (f) => {
-      const cid = esc(v.cliente_id || '');
-      if (f.id === 'pag') return state.canFin ? `<button class="pv-go" onclick="event.stopPropagation(); vendasAndamento.irFinanceiro('titulos', '${cid}', '${esc(v.id)}')">Ver títulos no Financeiro${ic('arrow-up-right')}</button>` : '';
-      if (f.id === 'ent') return state.canFin ? `<button class="pv-go" onclick="event.stopPropagation(); vendasAndamento.irFinanceiro('ordemcompra', '${cid}', '${esc(v.id)}')">Ver ordem de compra${ic('arrow-up-right')}</button>` : '';
-      if (f.id === 'proj') return v.cliente_id ? `<button class="pv-go" onclick="event.stopPropagation(); openCrm360('${cid}', 'engenharia')">${inf.s[1] ? 'Abrir projeto na ficha' : 'Enviar à engenharia'}${ic('arrow-up-right')}</button>` : '';
-      if (!podeEditar(v) || A.semRpc) return '';
-      return `<button class="pv-edit" onclick="event.stopPropagation(); vendasAndamento.editar('${esc(v.id)}', '${f.id}')">${ic('pencil')}${f.id === 'obra' ? 'Atualizar obra' : 'Atualizar monitoramento'}</button>`;
-    };
+    const acao = (f) => acaoHTML(v, f, inf, false);
     const blocos = FASES.map((f, i) => {
       if (A.editando && A.editando.venda === v.id && A.editando.fase === f.id) return formHTML(v, f);
       const st = inf.s[i];
@@ -299,7 +323,7 @@
   }
 
   window.vendasAndamento = {
-    FASES, carregar, garantir, info, trilho, agora, painel, fasesHTML, filtrarLista,
+    FASES, carregar, garantir, info, trilho, agora, painel, painelCard, fasesHTML, filtrarLista,
     editar, salvar, irFinanceiro, abrir, filtrar,
     get aberta() { return A.aberta; },
   };

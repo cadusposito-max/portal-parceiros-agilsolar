@@ -646,11 +646,25 @@ html[data-ui="v2"] .v2s .pv-formbt button { flex: 1; height: 36px; padding: 0 8p
 html[data-ui="v2"] .v2s .pv-cardtrk { margin: 2px 0 4px; }
 html[data-ui="v2"] .v2s .pv-cardtrk .pv-trk { max-width: none; }
 html[data-ui="v2"] .v2s .pv-cardtrk .pv-now { white-space: normal; }
-/* cards: o card aberto fica do tamanho normal; o panorama ocupa a linha de baixo e os cards seguintes preenchem o espaço (dense) */
-html[data-ui="v2"] .v2s .v2-pgrid.pv-dense { grid-auto-flow: row dense; }
+/* cards: o panorama abre dentro do próprio card (cresce só para baixo) */
+html[data-ui="v2"] .v2s .v2-pgrid.pv-aberto { align-items: start; }
 html[data-ui="v2"] .v2s .v2-pcard.pv-cardon { outline: 2px solid var(--v2-blue); outline-offset: -2px; }
-html[data-ui="v2"] .v2s .pv-cardpan { grid-column: 1 / -1; padding: 14px 16px; cursor: default; }
-html[data-ui="v2"] .v2s .pv-cardpan .pv-panwrap { max-width: none; }
+html[data-ui="v2"] .v2s .pv-lista { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px; cursor: default; }
+html[data-ui="v2"] .v2s .pv-li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; border-radius: 12px; }
+html[data-ui="v2"] .v2s .pv-li:hover { background: var(--v2-soft); }
+html[data-ui="v2"] .v2s .pv-li > .pv-d { margin-top: 1px; }
+html[data-ui="v2"] .v2s .pv-li .tx { flex: 1; min-width: 0; }
+html[data-ui="v2"] .v2s .pv-li .tx b { display: flex; flex-wrap: wrap; gap: 0 6px; font-size: 13px; font-weight: 700; color: var(--v2-ink); line-height: 1.35; }
+html[data-ui="v2"] .v2s .pv-li .tx b em { font-style: normal; font-weight: 700; color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .pv-li .tx b em.late { color: var(--v2-red); }
+html[data-ui="v2"] .v2s .pv-li .tx b em.ok { color: var(--v2-green); }
+html[data-ui="v2"] .v2s .pv-li .tx small { display: block; font-size: 12px; color: var(--v2-gray); line-height: 1.35; margin-top: 1px; }
+html[data-ui="v2"] .v2s .pv-li .pv-bar { margin-top: 5px; }
+html[data-ui="v2"] .v2s .pv-ico { flex: none; width: 30px; height: 30px; border-radius: 9px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-blue-text); display: grid; place-items: center; cursor: pointer; }
+html[data-ui="v2"] .v2s .pv-ico svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .v2s .pv-lista .pv-form { margin: 4px 0; }
+html[data-ui="v2"] .v2s .pv-lfoot { display: flex; gap: 8px; padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--v2-line); }
+html[data-ui="v2"] .v2s .pv-lfoot .v2-btn2 { flex: 1; justify-content: center; height: 36px; }
 @media (max-width: 1100px) { html[data-ui="v2"] .v2s .pv-pan { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
   html[data-ui="v2"] .v2s .pv-pan { grid-template-columns: 1fr; }
