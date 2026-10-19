@@ -843,8 +843,7 @@
         <div class="specs"><div><small>Potência</small><b>${kwpVenda(v)}</b></div><div><small>${showSeller ? 'Vendedor' : 'Venda'}</small><b>${showSeller ? esc(vendNome(v.vendedor_email).split(' ')[0] || '—') : esc(timeAgo(v.created_at))}</b></div><div><small>${state.isAdmin && state.adminViewAll ? 'Franquia' : 'Data'}</small><b>${state.isAdmin && state.adminViewAll && v.franquia_id ? esc(getFranquiaNameById(v.franquia_id)) : esc(formatDate(v.created_at))}</b></div></div>
         ${inf ? `<div class="pv-cardtrk">${VA.trilho(v, inf)}${VA.agora(v, inf)}</div>` : ''}
         <div class="ft"><div class="price">${money(getSaleValue(v))}<small>valor da venda</small></div>${acoesVenda(v)}</div>
-        ${sel ? `<div class="pv-cardpan" onclick="event.stopPropagation()">${VA.painel(v, inf)}</div>` : ''}
-      </div>`; }).join('');
+      </div>${sel ? `<div class="v2-card pv-cardpan">${VA.painel(v, inf)}</div>` : ''}`; }).join('');
     const mais = rodapeLista(Math.min(limite, lista.length), lista.length, 'uiV2Screens.maisVendas()', 'venda|vendas');
     const filtrando = VA && String(faseSel) !== 'todas';
     const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas${filtrando ? ` · ${lista.length} nesta etapa` : ''}</h3><small>${VA ? 'Clique numa venda para ver o panorama dela' : 'Clique para abrir a ficha do cliente'}</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
@@ -856,7 +855,7 @@
       ${VA && vendas.length ? VA.fasesHTML(vendas, faseSel) : ''}
       ${ranking}
       ${!lista.length ? `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-empty">${filtrando ? 'Nenhuma venda nesta etapa.' : 'Nenhuma venda com os filtros atuais.'}</div></div>`
-        : vista === 'cards' ? `<div>${cab}<div class="v2-pgrid">${cards}</div>${mais}</div>`
+        : vista === 'cards' ? `<div>${cab}<div class="v2-pgrid ${aberta && visiveis.some((v) => v.id === aberta) ? 'pv-dense' : ''}">${cards}</div>${mais}</div>`
         : `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th>${VA ? '<th class="pv-col">Andamento</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>${mais}</div>`}`;
     if (window.lucide) window.lucide.createIcons();
   }
