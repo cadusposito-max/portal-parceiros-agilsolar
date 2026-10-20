@@ -47,8 +47,9 @@
   function defs() {
     const extras = Object.keys((cur && cur.linhas) || {}).filter((k) => CentroCustoCalc.ehExtra(k))
       .map((k) => ({ key: k, rotulo: cur.linhas[k].nome || 'Custo personalizado' }));
-    const i = LINHAS.findIndex((l) => l.key === 'comissao');
-    return LINHAS.slice(0, i).concat(extras, LINHAS.slice(i));
+    const vis = LINHAS.filter((l) => l.key !== 'eletrica_fixa' || (cur && cur._fixaAntiga));
+    const i = vis.findIndex((l) => l.key === 'comissao');
+    return vis.slice(0, i).concat(extras, vis.slice(i));
   }
   const LEGADO_RS = ['projeto', 'instalacao', 'eletrica', 'placas', 'ajuda', 'vistoria', 'outros'];
 
@@ -983,6 +984,9 @@
       cur.artInclusa = !!contexto.precificacao.art_inclusa;
       cur.projetoPendente = false;
     }
+    // Elétrica fixa por obra saiu (20/10): só aparece em cenário/unidade que tenha valor nela.
+    cur._fixaAntiga = num(cur.linhas.eletrica_fixa && cur.linhas.eletrica_fixa.v) > 0
+      || num(cur.padrao && cur.padrao.eletrica_fixa && cur.padrao.eletrica_fixa.v) > 0;
     buildOverlay(p);
   }
 

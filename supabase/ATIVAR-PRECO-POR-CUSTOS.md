@@ -15,7 +15,7 @@ Formas de cálculo de cada linha do centro de custo: R$ fixo, por módulo, por k
 tabela por faixa de kWp; % da venda, da venda − kit ou do custo do kit. Botão "Adicionar custo" cria
 linhas com nome livre (até 15).
 
-Estimativa da Matriz (botão "Usar estimativa da Matriz" no centro de custo): instalação R$ 70/módulo, elétrica R$ 345 fixa + R$ 118,50/kWp.
+Estimativa da Matriz (botão "Usar estimativa da Matriz" no centro de custo): instalação R$ 70/módulo, elétrica R$ 638 até 6 módulos e, acima, R$ 94 × todos os módulos (regra de 20/10: fixo até N módulos; acima, R$/módulo × todos).
 Com ela, os 33 promocionais empatam ou ficam mais baratos que o preço por custos (margem alvo 22%).
 
 ## Passos (nesta ordem)
@@ -26,6 +26,6 @@ Com ela, os 33 promocionais empatam ou ficam mais baratos que o preço por custo
    Rodar de novo quando a Helte mudar preço.
 3. **Edge function `distribuidoras`:** publicar a versão do repositório (lê o modo da unidade; sem a migration, cai no markup).
 4. **Front:** push (funciona com ou sem a migration; sem ela, tudo segue no markup).
-5. **Matriz:** Financeiro → Config → "Usar estimativa da Matriz" (instalação R$ 70/módulo, elétrica R$ 345 + R$ 118,50/kWp),
+5. **Matriz:** Financeiro → Config → "Usar estimativa da Matriz" (instalação R$ 70/módulo, elétrica R$ 638 até 6 módulos e R$ 94 × todos acima),
    escolher "Custos + margem alvo" e salvar. O banco recalcula na hora os preços dos kits da unidade.
    Para voltar: escolher "Markup atual" e salvar.

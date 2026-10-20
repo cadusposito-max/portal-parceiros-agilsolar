@@ -109,9 +109,9 @@
     return Math.floor((resultado.lucroLiq - resultado.receita * margem / 100) * 100 + 1e-7) / 100;
   }
   // Estimativa da Matriz calculada por scripts/calibrar-centro-custo.cjs: menor elétrica
-  // (fixa por obra + por kWp) com que os 33 promocionais empatam ou ficam abaixo do preço
-  // por custos com margem de 22%. Não é cotação de material elétrico.
-  const referenciaHelte = Object.freeze({instalacaoModulo:70, eletricaFixa:345, eletricaKwp:118.5});
+  // (fixo até 6 módulos; acima, R$/módulo × todos) com que os 33 promocionais empatam ou
+  // ficam abaixo do preço por custos com margem de 22%. Não é cotação de material elétrico.
+  const referenciaHelte = Object.freeze({instalacaoModulo:70, eletricaAte:6, eletricaAteValor:638, eletricaModulo:94});
   function aceitaReferenciaHelte(linhas, contrato, rede) {
     if (!rede || rede.cobrar !== false || !contrato?.royalties || !contrato?.publicidade) return false;
     const esperado = {imposto:['pct',13.8,'vk'], comissao:['pct',8,'v'], projeto:['brl',110,'v'], placas:['brl',30,'v']};

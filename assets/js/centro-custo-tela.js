@@ -12,10 +12,17 @@
     { id: 'taxas', titulo: 'Impostos e comissão', icone: 'percent', linhas: [['imposto', 'Imposto do CNPJ'], ['comissao', 'Comissão de venda'], ['deducoes', 'Deduções']] },
     { id: 'obra', titulo: 'Custos da obra', icone: 'hammer', extras: true, linhas: [
       ['instalacao', 'Instalação'], ['projeto', 'ART'], ['placas', 'Placas de advertência'],
-      ['eletrica_fixa', 'Elétrica (fixa por obra)'], ['eletrica', 'Elétrica (cresce com o sistema)'],
+      ['eletrica_fixa', 'Elétrica (fixa por obra)'], ['eletrica', 'Elétrica'],
       ['ajuda', 'Ajuda de custo instalação'], ['vistoria', 'Vistoria'], ['outros', 'Outros custos']] },
   ];
   const FIXAS = GRUPOS.flatMap((g) => g.linhas.map(([k]) => k));
+  // A elétrica fixa por obra saiu da tela (20/10): o fixo agora fica no limite da linha
+  // "Elétrica". Continua no banco e só aparece se a unidade tiver valor salvo nela.
+  const visivel = (k) => k !== 'eletrica_fixa' || cc.fixaAntiga;
+  function textoEstimativa() {
+    const r = calc().referenciaHelte;
+    return `Instalação ${money(r.instalacaoModulo)}/módulo; elétrica ${money(r.eletricaAteValor)} até ${r.eletricaAte} módulos e, acima, ${money(r.eletricaModulo)} × todos os módulos`;
+  }
   const UNIDADES = { modulo: 'módulos', kwp: 'kWp', inversor: 'inversores', kw_inversor: 'kW de inversor' };
   const MAX_EXTRAS = 15;
 
@@ -65,6 +72,8 @@
       modo: data.modo_preco === 'custos' ? 'custos' : 'markup',
       sim: simAnterior || { kitId: '', modulos: 10, kwp: 6.2, inversores: 1, kwInversor: 5, kit: '' },
       custos: cc && cc.custos,
+      // decidido ao carregar, para a linha não sumir enquanto a pessoa digita 0
+      fixaAntiga: !!(linhas.eletrica_fixa && num(linhas.eletrica_fixa.v) > 0),
     };
     if (state.isAdmin && !cc.custos) carregarCustos();
     // Potência dos inversores vem do cadastro de equipamentos (catálogo das distribuidoras).
@@ -168,8 +177,8 @@
     const grupo = (g) => `
       <section class="cc-card">
         <div class="cc-tt"><span><i data-lucide="${g.icone}"></i>${g.titulo}</span>
-          ${g.extras ? `<button type="button" class="cc-btn2" onclick="CentroCustoTela.estimativa()" title="Instalação R$ 70/módulo e elétrica R$ 345 + R$ 118,50/kWp">Usar estimativa da Matriz</button>` : ''}</div>
-        ${g.linhas.map(([k, r]) => linhaHTML(k, r)).join('')}
+          ${g.extras ? `<button type="button" class="cc-btn2" onclick="CentroCustoTela.estimativa()" title="${esc(textoEstimativa())}">Usar estimativa da Matriz</button>` : ''}</div>
+        ${g.linhas.filter(([k]) => visivel(k)).map(([k, r]) => linhaHTML(k, r)).join('')}
         ${g.extras ? extras().map((k) => linhaHTML(k, cc.linhas[k].nome || 'Custo personalizado')).join('') : ''}
         ${g.extras && temNovasBases() && extras().length < MAX_EXTRAS ? `<button type="button" class="cc-link" onclick="CentroCustoTela.adicionar()"><i data-lucide="plus"></i>Adicionar custo</button>` : ''}
       </section>`;
@@ -331,8 +340,8 @@
     estimativa() {
       const r = calc().referenciaHelte;
       cc.linhas.instalacao = calc().linha('brl', r.instalacaoModulo, 'modulo');
-      if (cc.linhas.eletrica_fixa) cc.linhas.eletrica_fixa = calc().linha('brl', r.eletricaFixa, 'v');
-      cc.linhas.eletrica = calc().linha('brl', r.eletricaKwp, 'kwp');
+      if (cc.linhas.eletrica_fixa) cc.linhas.eletrica_fixa = calc().linha('brl', 0, 'v'); // o fixo está no limite da elétrica
+      cc.linhas.eletrica = calc().linha('brl', r.eletricaModulo, 'modulo', { ate: r.eletricaAte, ate_valor: r.eletricaAteValor });
       marcarSujo(true); pintar();
       toast('Estimativa preenchida. Confira a simulação e salve.');
     },

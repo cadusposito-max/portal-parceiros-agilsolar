@@ -1,5 +1,8 @@
 # Calibração reversa dos promocionais — 09/10/2026
 
+> **Atualização de 20/10 — vale esta:** a elétrica passou a ser "fixo até N módulos; acima, R$/módulo × todos os módulos" (pedido do chefe). Com N = 6, a menor elétrica que cumpre a regra nos 33 é **R$ 638 até 6 módulos e R$ 94 × todos acima** (promocionais em média 5,7% abaixo do preço por custos; o micro de 4 empata). Os dois valores são puxados por kits fora da curva: o micro de 4 pede R$ 638 e o inversor de 17 pede R$ 94/módulo; o resto pediria R$ 30–50/módulo. A elétrica fixa por obra saiu da tela. Script: `scripts/calibrar-centro-custo.cjs`.
+>
+
 > **Atualização final de 09/10 — vale esta:** a regra do usuário é o preço por custos *empatar ou ficar acima* de todos os promocionais (não a média de 19,5%). Com instalação de R$ 70/módulo, a menor elétrica que cumpre nos 33 é **R$ 345 fixa por obra + R$ 118,50/kWp** (promocionais em média 6,6% abaixo do preço por custos; o inversor de 17 empata). Sem piso. Script: `scripts/calibrar-centro-custo.cjs`.
 >
 > **Revisão anterior (09/10, tarde).** A primeira calibração comparou com o preço *base* dos kits (`produtos.price`), mas o vendedor vê o preço da unidade (`precos_franquia`), que na Matriz fica de 0% a 9,4% acima. O cabo de 4 mm também caiu de R$ 5,87 para R$ 4,25/m na Helte (08/10). Refeita com o preço da Matriz e o cabo atual (`referencias/helte-20261009.json`), a reserva passa a **R$ 139,83/kWp**: margem média de 19,5% (ponderada 19,28%), nenhum promocional abaixo de 18% e, com alvo de 22%, só o inversor de 17 e o micro de 4 módulos ficam acima do preço por custos. Sem os micros de 4 a 7, a tarifa seria 133,55/kWp. Os números abaixo são da primeira versão e ficam como histórico.
