@@ -1141,20 +1141,44 @@
   }
 
   // ------------------------------------------------------------ ficha do projeto (painel lateral)
+  // Mesmo desenho da ficha do cliente (ui-v2-ficha.js): painel flutuante, chip de status, etapas em
+  // bolinhas, caixinhas de resumo e abas sublinhadas.
+  E.cli = {};
+  E.cheia = lsGet('eng_cheia') === '1';
+  // cadastro atual do cliente (a aba Dados mostra o que o comercial tem hoje, não só o que foi enviado)
+  async function carregarCliente(p) {
+    if (!p || !p.cliente_id) return null;
+    const { data, error } = await sb().from('clientes')
+      .select('id, nome, documento, telefone, email, cep, endereco, numero, complemento, bairro, cidade, uf, latitude, longitude, rg, rg_orgao, genero, estado_civil, nacionalidade, profissao, padrao_localizacao, documentos_dados')
+      .eq('id', p.cliente_id).maybeSingle();
+    if (error) throw error;
+    E.cli[p.cliente_id] = data || null;
+    return data;
+  }
   async function abrir(id, aba) {
     if (E.aberto !== id) E.prob = {};
     E.aberto = id;
+    E.stMenu = false;
     E.ptab = aba || (E.ctx === 'eng' && central() ? 'dim' : 'tl');
     pintarDrawer();
     try {
       if (!E.projetos || !E.projetos.some((p) => p.id === id)) await recarregarProjeto(id);
       else await Promise.all([carregarEventos(id), carregarOS(id)]);
       const p = E.projetos.find((x) => x.id === id);
+      if (p) await carregarCliente(p).catch((e) => console.warn('[eng] cadastro do cliente', e));
       if (p && central() && p.status === 'validacao' && !p.dim) await rodarAutomaticos();
     } catch (e) { console.error('[eng] abrir projeto', e); toast('Não foi possível abrir o projeto: ' + e.message); }
     pintarDrawer();
   }
-  function fechar() { fecharVisor(); E.aberto = null; const d = document.getElementById('eg-drawer'); if (d) d.remove(); document.body.classList.remove('eg-lock'); }
+  function fechar() { fecharVisor(); E.aberto = null; E.stMenu = false; const d = document.getElementById('eg-drawer'); if (d) d.remove(); document.body.classList.remove('eg-lock'); }
+  // fecha o menu de status sem redesenhar (o clique que fechou ainda precisa chegar no alvo)
+  function fecharStMenu() {
+    E.stMenu = false;
+    const m = document.querySelector('#eg-drawer .eg-stmenu');
+    if (m) m.remove();
+    const b = document.querySelector('#eg-drawer .eg-stchip');
+    if (b) b.setAttribute('aria-expanded', 'false');
+  }
 
   function pintarDrawer() {
     if (!E.aberto) return;
@@ -1164,65 +1188,144 @@
       d = document.createElement('div');
       d.id = 'eg-drawer';
       d.className = 'eg-scrim';
-      d.addEventListener('mousedown', (e) => { if (e.target === d) fechar(); });
+      d.addEventListener('mousedown', (e) => {
+        if (E.stMenu && !e.target.closest('.eg-stwrap')) fecharStMenu();
+        if (e.target === d) fechar();
+      });
       document.body.appendChild(d);
       document.body.classList.add('eg-lock');
     }
-    const painel = d.querySelector('.eg-panel');
-    const y = painel ? painel.scrollTop : 0;
-    if (!p) { d.innerHTML = `<div class="eg-panel rd eg"><div class="rd-loading">${ic('loader-2')}Abrindo o projeto...</div></div>`; icons(); return; }
+    const corpoAntes = d.querySelector('.eg-pb');
+    const y = corpoAntes ? corpoAntes.scrollTop : 0;
+    const cls = 'eg-panel rd eg' + (E.cheia ? ' cheia' : '');
+    if (!p) { d.innerHTML = `<div class="${cls}"><div class="rd-loading">${ic('loader-2')}Abrindo o projeto...</div></div>`; icons(); return; }
     const eng = central();
-    const abas = [['tl', 'history', 'Timeline'], ['dim', 'zap', 'Dimensionamento'], ['docs', 'folder-open', 'Documentos'], ['conc', 'landmark', 'Concessionária'], ['os', 'clipboard-list', 'Ordem de serviço'], ['resumo', 'layout-list', 'Resumo']];
-    const nivel = NIVEL[p.status];
-    const ruim = ST[p.status] && ST[p.status].tone === 'bad';
-    const corpo = ({ resumo: abaResumo, dim: abaDim, docs: abaDocs, conc: abaConc, os: abaOS, tl: abaTL })[E.ptab] || abaResumo;
-    d.innerHTML = `<div class="eg-panel rd eg" role="dialog" aria-modal="true">
+    const evs = E.ev[p.id];
+    const pd = evs ? pendencias(p) : null;
+    const nDocs = docsProjeto(p).length;
+    const nOS = (E.os[p.id] || []).length;
+    const abas = [['dados', 'id-card', 'Dados'], ['tl', 'history', 'Timeline', evs ? evs.length : 0], ['dim', 'zap', 'Dimensionamento'],
+      ['docs', 'folder-open', 'Documentos', nDocs, !!(pd && pd.aguardando)], ['conc', 'landmark', 'Concessionária'], ['os', 'clipboard-list', 'Ordem de serviço', nOS]];
+    const corpo = ({ dados: abaDados, dim: abaDim, docs: abaDocs, conc: abaConc, os: abaOS, tl: abaTL })[E.ptab] || abaDados;
+    const os = (E.os[p.id] || [])[0];
+    const inst = (p.snapshot && p.snapshot.instalacao) || {};
+    d.innerHTML = `<div class="${cls}" role="dialog" aria-modal="true" aria-label="Projeto ${pnum(p)}">
       <div class="eg-ph">
-        <div class="rd-ch"><div>
-          <div class="eg-pnum">${pnum(p)} · ${esc(nomeFranquia(p))}</div>
-          <h2>${esc(p.cliente_nome || 'Cliente')}</h2>
-          <div class="rd-muted">${esc(p.cidade || '')} · ${nf(p.kwp, 2)} kWp · ${esc(LIG[p.snapshot && p.snapshot.instalacao && p.snapshot.instalacao.tipo_ligacao] || 'ligação não informada')} · enviado por ${esc(p.enviado_por_nome || '—')} em ${dataBR(p.created_at)}</div>
+        <div class="eg-top">
+          <i class="eg-av">${ic('sun')}</i>
+          <div class="eg-tx">
+            <h2><span class="eg-nome">${esc(p.cliente_nome || 'Cliente')}</span>${stChip(p, eng)}${compPill(p)}${alertaPill(p)}</h2>
+            <div class="eg-sub">
+              <span class="eg-sub-n">${ic('hash')}${pnum(p).slice(2)}</span>
+              <span>${ic('store')}${esc(nomeFranquia(p))}</span>
+              ${p.cidade ? `<span>${ic('map-pin')}${esc(p.cidade)}</span>` : ''}
+              <span>${ic('zap')}${nf(p.kwp, 2)} kWp</span>
+              <span>${ic('plug')}${esc(LIG[inst.tipo_ligacao] || 'ligação não informada')}</span>
+              <span class="eg-sub-env">${ic('send')}enviado por ${esc(p.enviado_por_nome || '—')} em ${dataBR(p.created_at)}</span>
+            </div>
+          </div>
+          ${eng ? `<div class="eg-tacts">${acoesEng(p)}</div>` : ''}
+          <div class="eg-tsq">
+            ${os ? `<button class="eg-sq" onclick="EV.imprimirOS('${os.id}')" title="Imprimir OS">${ic('printer')}</button>` : ''}
+            <button class="eg-sq eg-sq-cheia" onclick="EV.cheia()" title="${E.cheia ? 'Voltar ao painel lateral' : 'Abrir em tela cheia'}">${ic(E.cheia ? 'minimize-2' : 'maximize-2')}</button>
+            <button class="eg-sq" onclick="EV.fechar()" title="Fechar (Esc)">${ic('x')}</button>
+          </div>
         </div>
-        <div class="eg-pacts">${stPill(p)}${dimPill(p)}${docsPill(p)}${compPill(p)}<button class="rd-btn sm ghost" onclick="EV.fechar()" title="Fechar">${ic('x')}</button></div></div>
-        ${p.status === 'cancelado' ? '' : `<div class="eg-steps">${LINHA.map((sid) => { const s = ST[sid]; const n = NIVEL[sid]; return `<div class="${n < nivel ? 'done' : n === nivel ? (ruim ? 'bad' : 'cur') : ''}"><i></i><span>${esc(s.n)}</span></div>`; }).join('')}</div>`}
-        ${eng ? acoesEng(p) : acoesFranquia(p)}
-        <div class="rd-tabs eg-ptabs">${abas.map(([k, i, l]) => `<button class="rd-tab ${E.ptab === k ? 'on' : ''}" onclick="EV.aba('${k}')">${ic(i)}${l}</button>`).join('')}</div>
+        ${p.status === 'cancelado' ? '' : etapasHTML(p)}
+        ${resumoTopoHTML(p, eng, pd)}
+        ${avisoTopoHTML(p, eng, pd)}
+        <div class="eg-tabs" role="tablist">${abas.map(([k, i, l, n, w]) => `<button role="tab" aria-selected="${E.ptab === k}" class="${E.ptab === k ? 'on' : ''}" onclick="EV.aba('${k}')">${ic(i)}${l}${n ? `<em class="${w ? 'w' : ''}">${n}</em>` : ''}</button>`).join('')}</div>
       </div>
-      <div class="eg-pb">${corpo(p)}</div>
+      <div class="eg-pb">${eng ? '' : acoesFranquia(p)}${corpo(p)}</div>
     </div>`;
     icons();
-    const np = d.querySelector('.eg-panel');
+    const np = d.querySelector('.eg-pb');
     if (np && y) np.scrollTop = y;
     if (E.ptab === 'docs' || E.ptab === 'conc') assinarDocs(p);
   }
 
+  const TOM_CHIP = { info: 't-blue', bad: 't-red', ok: 't-green', at: 't-orange', gray: 't-gray' };
+  // status: para a engenharia é o próprio "Mover para..." (abre a lista de status)
+  function stChip(p, eng) {
+    const s = ST[p.status] || ST.cancelado;
+    const tom = TOM_CHIP[s.tone] || 't-gray';
+    if (!eng) return `<span class="eg-chip dot ${tom}">${esc(s.n)}</span>`;
+    const menu = E.stMenu ? `<div class="eg-stmenu" role="menu"><small>Mover para</small>${STATUS.map((x) => `<button role="menuitem" class="${x.id === p.status ? 'cur' : ''}" ${x.id === p.status ? 'disabled' : `onclick="EV.stMenu(false);EV.mudar('${p.id}','${x.id}')"`}><i style="background:${COR[x.tone]}"></i>${esc(x.n)}</button>`).join('')}${p.status !== 'cancelado' ? `<hr><button role="menuitem" class="cancel" onclick="EV.stMenu(false);EV.mudar('${p.id}','cancelado')">${ic('ban')}Cancelar projeto</button>` : ''}</div>` : '';
+    return `<span class="eg-stwrap"><button class="eg-chip dot ${tom} eg-stchip" onclick="EV.stMenu()" title="Mover para outro status" aria-haspopup="menu" aria-expanded="${!!E.stMenu}">${esc(s.n)}${ic('chevron-down')}</button>${menu}</span>`;
+  }
+
+  // caminho principal em bolinhas (igual ao funil da ficha); o desvio (reprovado/reenviado) aparece no lugar da etapa
+  function etapasHTML(p) {
+    const nivel = NIVEL[p.status];
+    const ruim = ST[p.status] && ST[p.status].tone === 'bad';
+    const fim = p.status === 'projeto_concluido';
+    return `<div class="eg-pst">${LINHA.map((sid, i) => {
+      const done = i < nivel || fim;
+      const c = done ? 'done' : i === nivel ? (ruim ? 'bad' : 'cur') : '';
+      const nome = i === nivel ? ST[p.status].n : ST[sid].n;
+      return `${i ? `<span class="ln ${i <= nivel ? 'done' : ''}"></span>` : ''}<div class="st ${c}"><i>${done ? ic('check') : c === 'bad' ? ic('x') : i + 1}</i><span>${esc(nome)}</span></div>`;
+    }).join('')}</div>`;
+  }
+
+  function resumoTopoHTML(p, eng, pd) {
+    const s = ST[p.status] || ST.cancelado;
+    const resp = p.responsavel_nome
+      ? `<div><small>Responsável</small><b>${ic('user-check')}${esc(p.responsavel_nome)}</b></div>`
+      : eng ? `<button class="lk" onclick="EV.assumir('${p.id}')" title="Assumir este projeto"><small>Responsável</small><b>Ninguém ainda<span class="eg-assumir">${ic('hand')}Assumir</span></b></button>`
+        : `<div><small>Responsável</small><b>Ninguém ainda</b></div>`;
+    const d = dias(p.status_desde || p.created_at);
+    const lado = p.status === 'projeto_concluido' ? 'Concluído' : p.status === 'cancelado' ? 'Cancelado'
+      : `${LADOS[s.lado] || '—'} · há ${d} dia${d === 1 ? '' : 's'}`;
+    let dim;
+    if (['validacao', 'validacao_reprovada'].includes(p.status)) {
+      dim = !p.dim_status ? ['', 'loader-2', 'Calculando'] : p.dim_status === 'ok' ? ['g', 'circle-check', 'Auto aprovado'] : ['r', 'triangle-alert', 'Precisa revisão'];
+    } else dim = NIVEL[p.status] >= 1 ? ['g', 'circle-check', 'Validado'] : ['', 'minus', '—'];
+    const falt = docsFaltando(p);
+    const n = docsProjeto(p).length;
+    let doc;
+    if (pd && pd.aguardando) doc = ['r', 'file-x', pd.aguardando + (pd.aguardando > 1 ? ' arquivos reprovados' : ' arquivo reprovado')];
+    else if (pd && p.status === 'validacao_reprovada') doc = ['o', 'refresh-cw', 'Trocados · falta reenviar'];
+    else if (pd) doc = ['g', 'circle-check', 'Arquivos trocados'];
+    else if (falt.length && NIVEL[p.status] <= 1) doc = ['o', 'triangle-alert', 'Faltou ' + falt.length + (falt.length > 1 ? ' documentos' : ' documento')];
+    else doc = n ? ['g', 'circle-check', n + (n > 1 ? ' arquivos' : ' arquivo')] : ['', 'minus', 'Nenhum arquivo'];
+    return `<div class="eg-sum">
+      ${resp}
+      <div class="${atrasado(p) ? 'r' : ''}"><small>Com quem está${atrasado(p) ? ' · atrasado' : ''}</small><b>${lado}</b></div>
+      <button class="lk ${dim[0]}" onclick="EV.aba('dim')" title="Abrir Dimensionamento"><small>Dimensionamento</small><b>${ic(dim[1])}${dim[2]}</b></button>
+      <button class="lk ${doc[0]}" onclick="EV.aba('docs')" title="${falt.length ? 'Faltou: ' + esc(falt.join(', ')) : 'Abrir Documentos'}"><small>Documentos</small><b>${ic(doc[1])}${doc[2]}</b></button>
+    </div>`;
+  }
+
+  function avisoTopoHTML(p, eng, pd) {
+    if (p.status === 'validacao_reprovada' && eng) {
+      const n = pd ? pd.docs.length : 0, ok = pd ? pd.docs.length - pd.aguardando : 0;
+      return `<div class="eg-aviso">${ic('hourglass')}<span>Com a franquia para correção${n ? ' · ' + ok + ' de ' + n + ' arquivo(s) já trocado(s)' : ''}</span></div>`;
+    }
+    if (['projeto_reprovado', 'cancelado'].includes(p.status)) {
+      const m = ultimoMotivo(p);
+      return m ? `<div class="eg-aviso ${p.status === 'cancelado' ? 'g' : 'r'}">${ic(p.status === 'cancelado' ? 'ban' : 'circle-x')}<span>${p.status === 'cancelado' ? 'Cancelado' : 'Reprovado pela concessionária'}: ${esc(m)}</span></div>` : '';
+    }
+    return '';
+  }
+
+  // próximo passo da engenharia (aprovar = verde; reprovar = vermelho claro; demais = laranja)
   function acoesEng(p) {
-    const s = p.status;
-    const btn = (st, txt, cls = '', icone = 'arrow-right') => `<button class="rd-btn sm ${cls}" onclick="EV.mudar('${p.id}','${st}')">${ic(icone)}${txt}</button>`;
-    const prox = {
-      validacao: [p.dim_status === 'ok' ? btn('validacao_aprovada', 'Aprovar e gerar OS', 'pri', 'check') : btn('validacao_aprovada', 'Aprovar mesmo assim e gerar OS', '', 'check'), btn('validacao_reprovada', 'Reprovar validação', 'danger', 'undo-2')],
-      validacao_reprovada: [],
+    const btn = (st, txt, cls, icone = 'arrow-right', dica = '') => `<button class="eg-btn ${cls}" onclick="EV.mudar('${p.id}','${st}')"${dica ? ` title="${dica}"` : ''}>${ic(icone)}${txt}</button>`;
+    const reprovarProj = btn('projeto_reprovado', 'Projeto reprovado', 'bad', 'x');
+    const aprovarProj = btn('projeto_aprovado', 'Projeto aprovado', 'ok', 'check');
+    return ({
+      validacao: [btn('validacao_reprovada', 'Reprovar validação', 'bad', 'undo-2', 'Devolver à franquia'),
+        p.dim_status === 'ok' ? btn('validacao_aprovada', 'Aprovar e gerar OS', 'ok', 'check')
+          : btn('validacao_aprovada', 'Aprovar e gerar OS', 'oks', 'check', 'O dimensionamento automático não passou: confira antes de aprovar')],
       validacao_aprovada: [btn('elaborar_projeto', 'Elaborar projeto', 'pri')],
       elaborar_projeto: [btn('projeto_enviado', 'Projeto enviado', 'pri', 'send')],
-      projeto_enviado: [btn('projeto_aprovado', 'Projeto aprovado', 'pri', 'check'), btn('projeto_reprovado', 'Projeto reprovado', 'danger', 'x')],
+      projeto_enviado: [reprovarProj, aprovarProj],
       projeto_reprovado: [btn('projeto_reenviado', 'Projeto reenviado', 'pri', 'send')],
-      projeto_reenviado: [btn('projeto_aprovado', 'Projeto aprovado', 'pri', 'check'), btn('projeto_reprovado', 'Projeto reprovado', 'danger', 'x')],
+      projeto_reenviado: [reprovarProj, aprovarProj],
       projeto_aprovado: [btn('solicitacao_vistoria', 'Obra concluída: solicitar vistoria', 'pri')],
       solicitacao_vistoria: [btn('vistoria_solicitada', 'Vistoria solicitada', 'pri', 'send')],
-      vistoria_solicitada: [btn('projeto_concluido', 'Projeto concluído', 'pri', 'flag')],
-      projeto_concluido: [],
-      cancelado: [],
-    }[s] || [];
-    if (s === 'validacao_reprovada') {
-      const pd = pendencias(p);
-      const n = pd ? pd.docs.length : 0, ok = pd ? pd.docs.length - pd.aguardando : 0;
-      prox.push('<span class="eg-espera">' + ic('hourglass') + 'Com a franquia para correção' + (n ? ' · ' + ok + ' de ' + n + ' arquivo(s) já trocado(s)' : '') + '</span>');
-    }
-    const meu = p.responsavel_nome ? `<span class="rd-muted">Responsável: <b>${esc(p.responsavel_nome)}</b></span>` : `<button class="rd-btn sm ghost" onclick="EV.assumir('${p.id}')">${ic('hand')}Assumir</button>`;
-    return `<div class="eg-acts">${prox.join('')}
-      <span class="rd-grow"></span>${meu}
-      <select class="rd-inline-sel" onchange="if(this.value){EV.mudar('${p.id}',this.value);this.value=''}" title="Mover para qualquer status"><option value="">Mover para...</option>${STATUS.filter((x) => x.id !== s).map((x) => `<option value="${x.id}">${esc(x.n)}</option>`).join('')}${s !== 'cancelado' ? '<option value="cancelado">Cancelar projeto</option>' : ''}</select>
-    </div>`;
+      vistoria_solicitada: [btn('projeto_concluido', 'Projeto concluído', 'ok', 'flag')],
+    }[p.status] || []).join('');
   }
 
   // ------------------------------------------------------------ correção pela franquia (validação reprovada)
@@ -1292,31 +1395,91 @@
     return ev.length ? ev[ev.length - 1].texto : null;
   }
 
-  function abaResumo(p) {
-    const sn = p.snapshot || {}, c = sn.cliente || {}, inst = sn.instalacao || {};
+  // campo só leitura no formato dos campos da ficha do cliente; "copiar" aparece ao passar o mouse
+  function campoRO(rotulo, valor, cls = '', copiar = false, extra = '') {
+    const v = vazio(valor) ? '' : String(valor).trim();
+    return `<div class="${cls}"><label>${rotulo}</label><div class="eg-ro ${v ? '' : 'vz'}"><span>${v ? esc(v) : 'não informado'}</span>${extra}${v && copiar ? `<button type="button" class="eg-cp" data-v="${esc(v)}" onclick="EV.copiar(this)" title="Copiar">${ic('copy')}</button>` : ''}</div></div>`;
+  }
+  function copiar(b) {
+    const v = b.getAttribute('data-v') || '';
+    const ok = () => { b.innerHTML = ic('check'); b.classList.add('ok'); icons(); setTimeout(() => { b.innerHTML = ic('copy'); b.classList.remove('ok'); icons(); }, 1200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(ok, () => toast('Não foi possível copiar'));
+    else toast('Não foi possível copiar');
+  }
+  function eqBox(eq, tipo, icone) {
+    const st = !eq ? pill('sem vínculo', 'bad') : fichaOk(eq) ? (eq.ficha_conferida ? pill('ficha ok', 'ok') : pill('ficha a conferir', 'at')) : pill('ficha pendente', 'bad');
+    return `<div class="eg-eqb"><span class="ei">${ic(icone)}</span><div class="et"><small>${tipo}</small><b class="${eq ? '' : 'vz'}">${eq ? `${eq.qtd}× ${esc(eq.nome)}` : 'não vinculado'}</b></div>${st}</div>`;
+  }
+
+  // Aba Dados: tudo do cliente e da instalação, só leitura. Quem corrige é o comercial, na ficha do cliente.
+  function abaDados(p) {
+    const sn = p.snapshot || {}, inst = sn.instalacao || {};
+    const eng = central();
+    // cadastro atual por cima do que foi enviado (campo vazio no cadastro não apaga o enviado)
+    const c = { ...(sn.cliente || {}) };
+    const vivo = p.cliente_id ? E.cli[p.cliente_id] : null;
+    if (vivo) Object.entries(vivo).forEach(([k, v]) => { if (!vazio(v)) c[k] = v; });
+    const op = (lista, v) => { const o = (lista || []).find(([k]) => k && k === v); return o ? o[1] : ''; };
+    const gen = typeof CRM360_GENEROS !== 'undefined' ? CRM360_GENEROS : [];
+    const civ = typeof CRM360_ESTADOS_CIVIS !== 'undefined' ? CRM360_ESTADOS_CIVIS : [];
+    const pj = String(c.documento || '').replace(/\D/g, '').length === 14;
+    const rep = pj ? (((c.documentos_dados || {}).cliente || {}).representante || null) : null;
+    const rg = (r, o) => [r, o].filter((x) => !vazio(x)).join(' · ');
+    const cidade = c.cidade && (String(c.cidade).includes('/') || !c.uf) ? c.cidade : [c.cidade, c.uf].filter(Boolean).join('/');
+    const temGps = Number.isFinite(num(c.latitude)) && Number.isFinite(num(c.longitude)) && num(c.latitude) !== 0;
+    const gps = temGps ? `${num(c.latitude).toFixed(6)}, ${num(c.longitude).toFixed(6)}` : '';
+    const mapa = temGps ? `<a class="eg-cp on" href="https://www.google.com/maps?q=${num(c.latitude)},${num(c.longitude)}" target="_blank" rel="noopener noreferrer" title="Abrir no mapa">${ic('map')}</a>` : '';
     const t = tempoPorLado(p, E.ev[p.id]);
     const tot = Object.values(t).reduce((a, b) => a + b, 0) || 1;
-    const kv = (l, v) => `<div><div class="l">${l}</div><div class="v">${v || '—'}</div></div>`;
-    return `<div class="rd-grid rd-half">
-      <div class="rd-card"><h3>${ic('user')}Cliente</h3>
-        <div class="rd-kv" style="grid-template-columns:1fr 1fr">${kv('Nome', esc(c.nome))}${kv('CPF/CNPJ', esc(c.documento))}${kv('Telefone', esc(c.telefone))}${kv('Vendedor', esc(c.vendedor_nome || c.vendedor_email))}
-        ${kv('Endereço', esc([c.endereco, c.numero, c.complemento, c.bairro].filter(Boolean).join(', ')))}${kv('Cidade', esc([c.cidade, c.uf].filter(Boolean).join(' - ')))}</div></div>
-      <div class="rd-card"><h3>${ic('home')}Instalação</h3>
-        <div class="rd-kv" style="grid-template-columns:1fr 1fr">${kv('Ligação', esc(LIG[inst.tipo_ligacao]))}${kv('UC', esc(p.uc || inst.numero_instalacao))}${kv('Concessionária', esc(p.concessionaria || inst.concessionaria))}${kv('Telhado', esc(inst.telhado))}
-        ${kv('Distância módulos → inversor', inst.distancia_m ? esc(inst.distancia_m) + ' m' : '')}${kv('Localização do padrão', esc(c.padrao_localizacao))}</div>
-        ${inst.obs ? `<p class="rd-tip">${ic('message-square')}${esc(inst.obs)}</p>` : ''}</div>
-    </div>
-    <div class="rd-grid rd-half" style="margin-top:14px">
-      <div class="rd-card"><h3>${ic('package')}Kit da venda</h3><p class="rd-sub">${esc((sn.venda && sn.venda.kit_nome) || '—')}</p>
-        ${eqLinha(sn.modulo, 'Módulo')}${eqLinha(sn.inversor, ehMicro(sn.inversor) ? 'Microinversor' : 'Inversor')}
-        ${!sn.kit ? `<div class="rd-muted">Kit não encontrado no catálogo: a engenharia escolhe os equipamentos.</div>` : ''}</div>
-      <div class="rd-card"><h3>${ic('timer')}Tempo com cada lado</h3><p class="rd-sub">Contado pelo relógio do servidor, a cada mudança de status</p>
-        ${Object.entries(LADOS).map(([k, l]) => `<div class="eg-barra" style="cursor:default"><span>${l}</span><div class="rd-meter"><i style="width:${(t[k] / tot) * 100}%;background:${{ eng: 'var(--v2-blue)', franquia: 'var(--v2-orange)', conc: 'var(--v2-gray)', obra: 'var(--v2-green)' }[k]}"></i></div><b>${nf(t[k], 1)}d</b></div>`).join('')}</div>
+    const agora = ['projeto_concluido', 'cancelado'].includes(p.status) ? null : (ST[p.status] || {}).lado;
+    const CORES = { eng: 'var(--v2-blue)', franquia: 'var(--v2-orange)', conc: 'var(--v2-gray)', obra: 'var(--v2-green)' };
+    const fichaBtn = !eng && p.cliente_id && typeof openCrm360 === 'function'
+      ? `<button class="eg-link" onclick="EV.fechar();openCrm360('${p.cliente_id}')">Abrir ficha do cliente ${ic('arrow-right')}</button>` : '';
+
+    const pessoa = pj
+      ? `${campoRO('Razão social', c.nome, 's2', true)}${campoRO('CNPJ', c.documento, '', true)}${campoRO('Telefone', c.telefone, '', true)}
+         ${campoRO('E-mail', c.email, 's2', true)}
+         ${rep ? `<div class="eg-secl">Representante legal</div>
+         ${campoRO('Nome', rep.nome, 's2', true)}${campoRO('CPF', rep.cpf, '', true)}${campoRO('RG', rg(rep.rg, rep.rg_orgao), '', true)}
+         ${campoRO('Estado civil', op(civ, rep.estado_civil))}${campoRO('Nacionalidade', rep.nacionalidade)}${campoRO('Profissão', rep.profissao, 's2')}` : ''}`
+      : `${campoRO('Nome', c.nome, 's2', true)}${campoRO('CPF', c.documento, '', true)}${campoRO('RG', rg(c.rg, c.rg_orgao), '', true)}
+         ${campoRO('Telefone', c.telefone, '', true)}${campoRO('E-mail', c.email, 's2', true)}${campoRO('Gênero', op(gen, c.genero))}
+         ${campoRO('Estado civil', op(civ, c.estado_civil))}${campoRO('Nacionalidade', c.nacionalidade)}${campoRO('Profissão', c.profissao, 's2')}`;
+
+    return `<div class="eg-dados">
+      <div class="eg-roaviso">${ic('lock')}<span>${eng ? 'Somente leitura. Os dados do cliente são do comercial: se algo estiver errado, peça a correção pela Timeline.' : 'Dados do cadastro do cliente. Para corrigir, edite na ficha do cliente.'}</span>${fichaBtn}</div>
+      <div class="eg-card"><h3>${ic(pj ? 'building-2' : 'user')}Cliente<span class="eg-h3sub">${pj ? 'Empresa' : 'Pessoa física'}</span></h3>
+        <div class="eg-fl">
+          ${pessoa}
+          <div class="eg-secl">Endereço</div>
+          ${campoRO('CEP', c.cep, '', true)}${campoRO('Endereço', c.endereco, 's2', true)}${campoRO('Número', c.numero)}
+          ${campoRO('Complemento', c.complemento)}${campoRO('Bairro', c.bairro)}${campoRO('Cidade/UF', cidade, 's2')}
+          <div class="eg-secl">Venda</div>
+          ${campoRO('Vendedor', c.vendedor_nome || c.vendedor_email)}${campoRO('Unidade', nomeFranquia(p))}
+          ${campoRO('Data da venda', sn.venda && sn.venda.em ? dataBR(sn.venda.em) : '')}${campoRO('Enviado à engenharia', `${p.enviado_por_nome || '—'} · ${dataBR(p.created_at)}`)}
+        </div>
+      </div>
+      <div class="eg-dados2">
+        <div class="eg-card"><h3>${ic('house')}Instalação</h3>
+          <div class="eg-fl c2">
+            ${campoRO('Ligação', LIG[inst.tipo_ligacao])}${campoRO('UC', p.uc || inst.numero_instalacao, '', true)}
+            ${campoRO('Concessionária', p.concessionaria || inst.concessionaria)}${campoRO('Telhado', inst.telhado)}
+            ${campoRO('Distância módulos → inversor', inst.distancia_m ? nf(inst.distancia_m, 0) + ' m' : '')}${campoRO('Localização do padrão', c.padrao_localizacao)}
+            ${campoRO('Localização (GPS)', gps, 'full', true, mapa)}
+            ${inst.obs ? campoRO('Observação da franquia', inst.obs, 'full') : ''}
+          </div>
+        </div>
+        <div class="eg-card"><h3>${ic('package')}Kit da venda</h3>
+          <div class="eg-kitn">${esc((sn.venda && sn.venda.kit_nome) || '—')}</div>
+          ${eqBox(sn.modulo, 'Módulo', 'layout-grid')}${eqBox(sn.inversor, ehMicro(sn.inversor) ? 'Microinversor' : 'Inversor', 'cpu')}
+          ${!sn.kit ? `<div class="eg-dica">${ic('info')}<span>Kit não encontrado no catálogo: a engenharia escolhe os equipamentos.${eng ? ` <button class="eg-link" onclick="EV.aba('dim')">Ir para Dimensionamento ${ic('arrow-right')}</button>` : ''}</span></div>` : ''}
+        </div>
+      </div>
+      <div class="eg-card"><h3>${ic('timer')}Tempo com cada lado<span class="eg-h3sub">relógio do servidor, a cada mudança de status</span></h3>
+        <div class="eg-tbar">${Object.keys(LADOS).filter((k) => t[k] > 0).map((k) => `<i style="width:${(t[k] / tot) * 100}%;background:${CORES[k]}" title="${LADOS[k]}: ${nf(t[k], 1)} dias"></i>`).join('')}</div>
+        <div class="eg-tleg">${Object.entries(LADOS).map(([k, l]) => `<div class="${agora === k ? 'agora' : ''}"><small><i style="background:${CORES[k]}"></i>${l}</small><b>${nf(t[k], 1)} <em>dia${nf(t[k], 1) === '1,0' ? '' : 's'}</em></b></div>`).join('')}</div>
+      </div>
     </div>`;
-  }
-  function eqLinha(eq, tipo) {
-    if (!eq) return `<div class="eg-eq"><span class="rd-tag">${tipo}</span><b>—</b>${pill('sem vínculo', 'bad')}</div>`;
-    return `<div class="eg-eq"><span class="rd-tag">${tipo}</span><b>${eq.qtd}× ${esc(eq.nome)}</b>${fichaOk(eq) ? (eq.ficha_conferida ? pill('ficha ok', 'ok') : pill('ficha a conferir', 'at')) : pill('ficha pendente', 'bad')}</div>`;
   }
 
   function abaDim(p) {
@@ -2197,7 +2360,10 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
     concTodos: () => { E.concTodos = true; pintar(); },
     soCompensacao: () => { E.soComp = true; E.view = 'lista'; E.fst = ''; if (typeof setTab === 'function') setTab('funil'); },
     verStatus: (s) => { E.fst = s; E.view = 'lista'; if (E.tab !== 'funil' && E.ctx === 'eng' && typeof setTab === 'function') setTab('funil'); else pintar(); },
-    abrir, fechar, aba: (k) => { E.ptab = k; pintarDrawer(); }, mudar, confirmarMudar, assumir, reenviar, comentar, salvarConc,
+    abrir, fechar, aba: (k) => { E.ptab = k; E.stMenu = false; pintarDrawer(); }, mudar,
+    stMenu: (v) => { if (v === false) { fecharStMenu(); return; } E.stMenu = !E.stMenu; pintarDrawer(); },
+    cheia: () => { E.cheia = !E.cheia; lsSet('eng_cheia', E.cheia ? '1' : '0'); pintarDrawer(); },
+    copiar, confirmarMudar, assumir, reenviar, comentar, salvarConc,
     compModal, salvarComp, compFeita: (id) => salvarComp(id, 'feita'), compRemover: (id) => { if (confirm('Remover a compensação deste projeto?')) salvarComp(id, 'remover'); },
     gerarOS, imprimirOS, recalcular, calculadora,
     // calculadora
@@ -2285,6 +2451,7 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (document.getElementById('eg-scrim')) { e.stopPropagation(); fecharModal(); return; }
+    if (E.stMenu && document.getElementById('eg-drawer')) { e.stopPropagation(); fecharStMenu(); return; }
     if (document.getElementById('eg-drawer')) { e.stopPropagation(); fechar(); }
   }, true);
 })();
