@@ -109,6 +109,7 @@
     const app = $('#app-content'); if (app) app.classList.remove('v2-rail', 'v2-open');
     mounted = false;
     lastSig = '';
+    Object.assign(EXTRA, EXTRA_VAZIO(), { uid: null }); // saiu: a busca esquece os outros ambientes
   }
 
   // ---------- pintura ----------
@@ -280,8 +281,46 @@
 
   // ---------- busca global ----------
   const P = { q: '', idx: 0, scope: 'all', flat: [] };
-  const SCOPES = [['all', 'Tudo', 'search'], ['cli', 'Clientes', 'users'], ['prop', 'Propostas', 'file-signature'], ['nav', 'Telas e ações', 'layout-grid']];
-  const GNAME = { cli: 'Clientes', prop: 'Propostas', nav: 'Telas e ações' };
+  // grupos na ordem em que aparecem; env = ambiente que a pessoa precisa acessar
+  const GRUPOS = [['cli', 'Clientes', 'users'], ['prop', 'Propostas', 'file-signature'], ['eng', 'Projetos', 'ruler', 'engenharia'], ['om', 'O&M', 'wrench', 'om'],
+    ['fin', 'Financeiro', 'wallet', 'financeiro'], ['rede', 'Rede', 'network', 'rede'], ['nav', 'Telas e ações', 'layout-grid']];
+  const GNAME = Object.fromEntries(GRUPOS.map((g) => [g[0], g[1]]));
+  const SCOPES = () => [['all', 'Tudo', 'search'], ...GRUPOS.filter((g) => !g[3] || envAllowed(g[3]))];
+
+  // Dados dos outros ambientes: cada ambiente só carrega a lista quando é aberto,
+  // então a busca puxa uma versão leve na primeira vez que abre (renova a cada
+  // 2 min). Só dos ambientes que a pessoa acessa; o banco já limita o que vem.
+  const EXTRA_VAZIO = () => ({ em: 0, carregando: null, eng: [], os: [], propOm: [], unidades: [], cnpjs: [] });
+  const EXTRA = { uid: null, ...EXTRA_VAZIO() };
+  const OS_ST = { agendada: 'Agendada', deslocamento: 'Em deslocamento', em_atendimento: 'Em atendimento', finalizada: 'Finalizada', cancelada: 'Cancelada' };
+  function carregarExtras() {
+    // outro usuário no mesmo navegador: descarta o que era do anterior
+    const uid = (state.currentUser && state.currentUser.id) || null;
+    if (EXTRA.uid !== uid) Object.assign(EXTRA, EXTRA_VAZIO(), { uid });
+    if (!uid || EXTRA.carregando || Date.now() - EXTRA.em < 120000 || typeof supabaseClient === 'undefined') return;
+    const sb = supabaseClient;
+    const lista = (q, k) => Promise.resolve(q).then((r) => {
+      if (r && r.error) console.warn('[ui-v2] busca ' + k, r.error.message);
+      if (EXTRA.uid === uid) EXTRA[k] = (r && !r.error && Array.isArray(r.data)) ? r.data : [];
+    }).catch(() => { if (EXTRA.uid === uid) EXTRA[k] = []; });
+    const t = [];
+    if (envAllowed('engenharia')) t.push(lista(sb.from('eng_projetos').select('id, numero, status, status_desde, cliente_nome, cidade, kwp, uc, protocolo').neq('status', 'cancelado').order('created_at', { ascending: false }).limit(3000), 'eng'));
+    if (envAllowed('om')) {
+      t.push(lista(sb.rpc('list_om_os'), 'os'));
+      if (!state.isTecnico) t.push(lista(sb.rpc('list_om_propostas'), 'propOm'));
+    }
+    if (envAllowed('rede') && state.isAdmin) {
+      t.push(lista(sb.from('franquias').select('id, nome, cidade, uf, tipo, ativo').order('nome'), 'unidades'));
+      t.push(lista(sb.from('rede_empresas').select('id, franquia_id, cnpj, razao_social, nome_fantasia, ativo').order('razao_social'), 'cnpjs'));
+    }
+    if (!t.length) return;
+    const p = EXTRA.carregando = Promise.all(t).then(() => {
+      if (EXTRA.carregando !== p) return;
+      EXTRA.em = Date.now(); EXTRA.carregando = null;
+      if (palOpen()) paintPalette();
+    });
+  }
+  const juntar = (...a) => a.filter((x) => x != null && x !== '').join(' · ');
   function buildIndex() {
     const items = [];
     (state.clientes || []).forEach((c) => {
@@ -294,6 +333,29 @@
       const valor = preco ? ' · ' + Number(preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : '';
       items.push({ g: 'prop', t: `${p.numero ? '#' + p.numero + ' · ' : ''}${p.cliente_nome || 'Proposta'}`, s: `${p.kit_nome || ''}${valor}${p.status ? ' · ' + sentence(p.status) : ''}`, k: 'proposta', i: 'file-signature', run: () => { if (p.cliente_id && has('openCrm360')) openCrm360(p.cliente_id, 'propostas'); else if (has('setTab')) { setEnvironmentIf('comercial'); setTab('propostas'); } } });
     });
+    if (envAllowed('engenharia')) EXTRA.eng.forEach((p) => {
+      const st = has('engStatusInfo') ? engStatusInfo(p.status) : null;
+      items.push({ g: 'eng', t: `P-${String(p.numero || 0).padStart(4, '0')} · ${p.cliente_nome || 'Projeto'}`, s: juntar(st ? st.n : sentence(p.status), p.cidade, p.kwp ? String(p.kwp).replace('.', ',') + ' kWp' : ''),
+        k: `projeto engenharia ${p.numero || ''} ${p.uc || ''} ${p.protocolo || ''}`, i: 'ruler', run: () => { setEnvironmentIf('engenharia'); setTab('funil'); if (window.EV && EV.abrir) EV.abrir(p.id); } });
+    });
+    if (envAllowed('om')) {
+      EXTRA.os.forEach((o) => items.push({ g: 'om', t: `${o.numero || 'OS'} · ${o.cliente || 'Cliente'}`, s: juntar('OS', o.tipo_servico, OS_ST[o.status] || sentence(o.status)),
+        k: 'os ordem de servico manutencao', i: 'clipboard-list', run: () => { setEnvironmentIf('om'); setTab('os'); if (has('omOsAbrir')) omOsAbrir(o.id); } }));
+      EXTRA.propOm.forEach((p) => items.push({ g: 'om', t: `${p.numero || 'Proposta O&M'} · ${p.cliente || 'Cliente'}`, s: juntar('Proposta O&M', p.tipo_servico || p.titulo, has('omPropStatusLabel') ? omPropStatusLabel(p.status) : sentence(p.status)),
+        k: 'proposta om manutencao', i: 'file-signature', run: () => { setEnvironmentIf('om'); setTab('propostas'); if (has('omOpenPropostaDetail')) omOpenPropostaDetail(p.id); } }));
+    }
+    // títulos do Financeiro pela venda (mesmo atalho da aba Vendas)
+    if (envAllowed('financeiro') && window.vendasAndamento) (state.vendas || []).forEach((v) => {
+      if (!v || !v.cliente_nome) return;
+      items.push({ g: 'fin', t: `Títulos · ${v.cliente_nome}`, s: juntar('Recebíveis', v.kit_nome), k: 'financeiro recebiveis titulos parcelas pagamento', i: 'receipt', run: () => window.vendasAndamento.irFinanceiro('titulos', v.cliente_id, v.id) });
+    });
+    if (envAllowed('rede') && state.isAdmin) {
+      const nomeUn = (id) => ((EXTRA.unidades.find((f) => f.id === id) || {}).nome || '');
+      EXTRA.unidades.forEach((f) => items.push({ g: 'rede', t: f.nome, s: juntar(f.tipo === 'franquia' ? 'Franquia' : 'Unidade própria', [f.cidade, f.uf].filter(Boolean).join('/'), f.ativo === false ? 'inativa' : ''),
+        k: 'unidade franquia', i: 'store', run: () => { setEnvironmentIf('rede'); if (has('redeAbrirUnidade')) redeAbrirUnidade(f.id); } }));
+      EXTRA.cnpjs.forEach((e) => items.push({ g: 'rede', t: e.razao_social || e.nome_fantasia || e.cnpj, s: juntar('CNPJ ' + (e.cnpj || '—'), nomeUn(e.franquia_id)),
+        k: `cnpj empresa ${String(e.cnpj || '').replace(/\D/g, '')} ${e.nome_fantasia || ''}`, i: 'landmark', run: () => { setEnvironmentIf('rede'); if (has('redeAbrirUnidade')) redeAbrirUnidade(e.franquia_id, 'empresas'); } }));
+    }
     Object.entries(ENVS).filter(([k]) => envAllowed(k)).forEach(([k, v]) => {
       const list = withEnv(k, () => tabs());
       list.forEach((t) => items.push({ g: 'nav', t: sentence(t.label), s: `Ir para ${v.n} › ${sentence(t.label)}`, k: v.n + ' tela aba', i: t.icon || 'circle', run: () => { setEnvironmentIf(k); setTab(t.id); } }));
@@ -302,6 +364,8 @@
     const cta = ctaFor('comercial');
     if (cta && envAllowed('comercial')) acts.push(['Nova proposta', 'Escolher cliente e montar proposta', 'file-plus-2', () => { setEnvironmentIf('comercial'); window[cta[1]](); }]);
     if (has('openClientModal') && envAllowed('comercial')) acts.push(['Novo cliente', 'Cadastrar cliente no funil', 'user-plus', () => openClientModal()]);
+    const ctaOm = ctaFor('om');
+    if (ctaOm && envAllowed('om') && !state.isTecnico) acts.push([ctaOm[0], 'Manutenção e limpeza', 'wrench', () => { setEnvironmentIf('om'); window[ctaOm[1]](); }]);
     if (has('openProfileModal')) acts.push(['Meu perfil', 'Nome, foto, senha e segurança', 'user', () => openProfileModal()]);
     if (has('setThemePreference')) acts.push([document.documentElement.getAttribute('data-theme') === 'dark' ? 'Tema claro' : 'Tema escuro', 'Trocar a aparência', 'sun-moon', () => setThemePreference(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')]);
     if (has('userCanAccessAdminPanel') && userCanAccessAdminPanel()) acts.push(['Painel administrativo', 'Usuários, kits, financiadoras', 'settings', () => openAdmin()]);
@@ -333,9 +397,9 @@
       Object.keys(groups).forEach((g) => { groups[g].sort((a, b) => b.score - a.score); groups[g] = groups[g].slice(0, P.scope === 'all' ? 6 : 40); });
     }
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    $('#v2-palscope').innerHTML = SCOPES.map((s) => `<button class="${P.scope === s[0] ? 'on' : ''}" data-v2="scope-pal" data-scope="${s[0]}">${ic(s[2])}${s[1]}${toks.length ? `<em>${s[0] === 'all' ? total : counts[s[0]] || 0}</em>` : ''}</button>`).join('');
+    $('#v2-palscope').innerHTML = SCOPES().map((s) => `<button class="${P.scope === s[0] ? 'on' : ''}" data-v2="scope-pal" data-scope="${s[0]}">${ic(s[2])}${s[1]}${toks.length ? `<em>${s[0] === 'all' ? total : counts[s[0]] || 0}</em>` : ''}</button>`).join('');
     P.flat = []; let html = '';
-    ['cli', 'prop', 'nav'].forEach((g) => {
+    GRUPOS.forEach(([g]) => {
       const list = groups[g]; if (!list || !list.length) return;
       html += `<h6>${!toks.length ? 'Atalhos' : GNAME[g]}</h6>`;
       list.forEach((x) => {
@@ -345,7 +409,8 @@
         html += `<div class="v2-res ${i === P.idx ? 'on' : ''}" data-v2="res" data-ri="${i}">${icon}<div class="tx"><b>${hl(x.t, P.q)}</b><small>${hl(x.s, P.q)}</small></div><span class="go">${x.g === 'nav' ? 'Ir' : 'Abrir'}${ic('corner-down-left')}</span></div>`;
       });
     });
-    $('#v2-palres').innerHTML = html || `<div class="v2-pal-empty"><b>Nada encontrado para “${esc(P.q)}”</b>Tente pelo telefone, cidade ou número da proposta.</div>`;
+    const buscando = toks.length && EXTRA.carregando ? '<div class="v2-pal-load">Buscando também nos outros ambientes...</div>' : '';
+    $('#v2-palres').innerHTML = (html || (buscando ? '' : `<div class="v2-pal-empty"><b>Nada encontrado para “${esc(P.q)}”</b>Tente pelo telefone, cidade, CNPJ ou número da proposta, OS ou projeto.</div>`)) + buscando;
     icons();
     const on = $('#v2-palres .v2-res.on'); if (on) on.scrollIntoView({ block: 'nearest' });
   }
@@ -353,7 +418,7 @@
     if (!mounted) return;
     closeAll(); P.q = ''; P.idx = 0; P.scope = 'all';
     $('#v2-palq').value = ''; $('#v2-pal').classList.add('on'); $('#v2-palscrim').classList.add('on');
-    paintPalette(); setTimeout(() => $('#v2-palq').focus(), 30);
+    carregarExtras(); paintPalette(); setTimeout(() => $('#v2-palq').focus(), 30);
   }
   function closePalette() { const p = $('#v2-pal'); if (p) p.classList.remove('on'); const s = $('#v2-palscrim'); if (s) s.classList.remove('on'); }
   const palOpen = () => !!($('#v2-pal') && $('#v2-pal').classList.contains('on'));
@@ -361,7 +426,7 @@
   function paletteKeys(e) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const n = Math.max(P.flat.length, 1); P.idx = (P.idx + (e.key === 'ArrowDown' ? 1 : -1) + n) % n; paintPalette(); }
     else if (e.key === 'Enter') { e.preventDefault(); runResult(P.idx); }
-    else if (e.key === 'Tab') { e.preventDefault(); const i = SCOPES.findIndex((s) => s[0] === P.scope); P.scope = SCOPES[(i + (e.shiftKey ? -1 : 1) + SCOPES.length) % SCOPES.length][0]; P.idx = 0; paintPalette(); }
+    else if (e.key === 'Tab') { e.preventDefault(); const S = SCOPES(); const i = S.findIndex((s) => s[0] === P.scope); P.scope = S[(i + (e.shiftKey ? -1 : 1) + S.length) % S.length][0]; P.idx = 0; paintPalette(); }
   }
 
   // ---------- cliques ----------

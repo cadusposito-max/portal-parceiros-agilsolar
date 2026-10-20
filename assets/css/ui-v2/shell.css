@@ -310,6 +310,7 @@ html[data-ui="v2"] .v2-res .go svg { width: 15px; height: 15px; }
 html[data-ui="v2"] .v2-res.on .go { opacity: 1; }
 html[data-ui="v2"] .v2-pal-empty { padding: 40px 20px; text-align: center; color: var(--v2-gray); font-size: 14px; }
 html[data-ui="v2"] .v2-pal-empty b { display: block; color: var(--v2-ink); font-size: 16px; margin: 4px 0; }
+html[data-ui="v2"] .v2-pal-load { padding: 10px 12px 12px; color: var(--v2-gray); font-size: 12.5px; }
 html[data-ui="v2"] .v2-pal-foot { display: flex; gap: 16px; padding: 10px 18px; border-top: 1px solid var(--v2-line); font-size: 12px; color: var(--v2-gray); font-weight: 600; flex-shrink: 0; }
 html[data-ui="v2"] .v2-pal-foot span { display: flex; gap: 6px; align-items: center; }
 @media (max-width: 760px) {
