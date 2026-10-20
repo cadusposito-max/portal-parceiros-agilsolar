@@ -197,14 +197,19 @@
   const fctDe = (t) => (FCT_PVC.find(([tt]) => tt >= t) || [, 0.5])[1]; // arredonda a temperatura para cima
   const fcaDe = (n) => (n <= 1 ? 1 : n === 2 ? 0.8 : n === 3 ? 0.7 : n === 4 ? 0.65 : n === 5 ? 0.6 : n === 6 ? 0.57 : n === 7 ? 0.54 : n === 8 ? 0.52 : n <= 11 ? 0.5 : n <= 15 ? 0.45 : n <= 19 ? 0.41 : 0.38);
   const peDe = (sec) => (sec <= 16 ? sec : sec <= 35 ? 16 : sec / 2);
-  // o = { iSaida, disjMax, dist (m, inversor -> quadro), tamb, circ, metodo }
+  // o = { iSaida, disjMax, dist (m, inversor -> quadro), tamb, circ, metodo, cabo?, disj? }
+  // cabo / disj informados = escolha do engenheiro: entram no lugar do automático
+  // e as verificações (Ib <= In <= Iz, queda) são feitas sobre eles.
   function protecoes(potW, rede, o = {}) {
     const v = rede === 'tri_380' ? 380 : 220;
     const tri = rede === 'tri_220' || rede === 'tri_380';
     const iCalc = tri ? potW / (Math.sqrt(3) * v) : potW / v;
     const iFicha = num(o.iSaida);
     const ib = iFicha > 0 ? iFicha : iCalc;
-    const disj = DISJUNTORES.find((d) => d >= ib) || DISJUNTORES[DISJUNTORES.length - 1];
+    const disjAuto = DISJUNTORES.find((d) => d >= ib) || DISJUNTORES[DISJUNTORES.length - 1];
+    const disjManual = DISJUNTORES.includes(num(o.disj));
+    const disj = disjManual ? num(o.disj) : disjAuto;
+    const caboManual = SECOES.includes(num(o.cabo)) && num(o.cabo) >= 2.5;
     const disjMax = num(o.disjMax) > 0 ? num(o.disjMax) : null;
     const tamb = numOu(o.tamb, TEMP_AMB);
     const circ = Math.max(1, Math.round(numOu(o.circ, 1)));
@@ -213,16 +218,17 @@
     const dist = num(o.dist) > 0 ? num(o.dist) : 0;
     const quedaDe = (sec) => { const dv = (tri ? Math.sqrt(3) : 2) * 0.0172 * dist * ib / sec; return { dv, pct: (dv / v) * 100 }; };
     const izDe = (sec) => IZ_TAB[metodo][sec][tri ? 1 : 0] * fct * fca;
-    let cabo = SECOES.find((sec) => sec >= 2.5 && izDe(sec) >= disj && (!dist || quedaDe(sec).pct <= LIMITE_QUEDA_CA));
-    let porCapacidade = SECOES.find((sec) => sec >= 2.5 && izDe(sec) >= disj);
-    const estourou = !cabo;
-    if (!cabo) cabo = SECOES[SECOES.length - 1];
+    let caboAuto = SECOES.find((sec) => sec >= 2.5 && izDe(sec) >= disj && (!dist || quedaDe(sec).pct <= LIMITE_QUEDA_CA));
+    const porCapacidade = SECOES.find((sec) => sec >= 2.5 && izDe(sec) >= disj);
+    const estourou = !caboManual && !caboAuto;
+    if (!caboAuto) caboAuto = SECOES[SECOES.length - 1];
+    const cabo = caboManual ? num(o.cabo) : caboAuto;
     const queda = dist ? { dist, ...quedaDe(cabo) } : null;
     return {
       corrente: ib, ib, iCalc, iFicha: iFicha > 0 ? iFicha : null, tensao: v,
-      disjuntor: disj, disjMax, polos: tri ? 'tripolar' : 'bipolar',
-      cabo, pe: peDe(cabo), iz: izDe(cabo), izTab: IZ_TAB[metodo][cabo][tri ? 1 : 0], fct, fca, tamb, circ, metodo,
-      carregados: tri ? 3 : 2, subiuPorQueda: !!(porCapacidade && cabo > porCapacidade), estourou, queda,
+      disjuntor: disj, disjMax, polos: tri ? 'tripolar' : 'bipolar', disjAuto, disjManual,
+      cabo, pe: peDe(cabo), iz: izDe(cabo), izTab: IZ_TAB[metodo][cabo][tri ? 1 : 0], fct, fca, tamb, circ, metodo, caboAuto, caboManual,
+      carregados: tri ? 3 : 2, subiuPorQueda: !caboManual && !!(porCapacidade && cabo > porCapacidade), estourou, queda,
       condutores: tri ? '3F + N + PE' : 'F + N + PE',
     };
   }
@@ -325,7 +331,7 @@
     }
     add('Tipo de ligação', `${inv.nome} (${(REDES_INV.find((x) => x[0] === f.rede) || [, 'rede não informada'])[1]}) com ${LIG[lig] || 'ligação não informada'}`, 'compatível', ligacaoOk(f.rede, lig) ? 'ok' : 'não', !!lig && ligacaoOk(f.rede, lig));
     const ca = o.ca || {};
-    const pr = protecoes(potCA / inv.qtd, f.rede, { iSaida: f.i_saida_ca, disjMax: f.disj_max, dist: ca.dist, tamb: ca.tamb, circ: ca.circ, metodo: ca.metodo });
+    const pr = protecoes(potCA / inv.qtd, f.rede, { iSaida: f.i_saida_ca, disjMax: f.disj_max, dist: ca.dist, tamb: ca.tamb, circ: ca.circ, metodo: ca.metodo, cabo: ca.cabo, disj: ca.disj });
     add('Disjuntor CA (NBR 5410)', `Ib ${nf(pr.ib, 1)} A ≤ In ${pr.disjuntor} A ≤ Iz ${nf(pr.iz, 1)} A · cabo ${String(pr.cabo).replace('.', ',')} mm²`, `≤ ${nf(pr.iz, 1)} A`, `${pr.disjuntor} A`, pr.ib <= pr.disjuntor && pr.disjuntor <= pr.iz && !pr.estourou, pr.disjuntor, pr.iz);
     if (pr.disjMax) add('Disjuntor x fabricante', 'Disjuntor máximo indicado na ficha', `≤ ${nf(pr.disjMax, 0)} A`, `${pr.disjuntor} A`, pr.disjuntor <= pr.disjMax, pr.disjuntor, pr.disjMax);
     if (pr.queda) add('Queda de tensão CA', `${nf(pr.queda.dist, 0)} m · cabo ${String(pr.cabo).replace('.', ',')} mm² · ${nf(pr.ib, 1)} A`, `≤ ${LIMITE_QUEDA_CA} %`, `${nf(pr.queda.pct, 2)} %`, pr.queda.pct <= LIMITE_QUEDA_CA, pr.queda.pct, LIMITE_QUEDA_CA);
@@ -731,7 +737,7 @@
     const hspF = num(state.franquiaHsp);
     return {
       modId: '', invId: '', nmod: 9, ninv: 1, hsp: hspF > 0 ? hspF : 5.4, perdas: PERDAS, tmin: TEMP_MIN, tmax: TEMP_CELULA,
-      lig: 'mono_220', dist: 15, bitola: CABO_CC, distCA: 10, tamb: TEMP_AMB, circ: 1, metodo: 'B1', manual: { mod: {}, inv: {} },
+      lig: 'mono_220', dist: 15, bitola: CABO_CC, distCA: 10, tamb: TEMP_AMB, circ: 1, metodo: 'B1', caboCA: '', disjCA: '', manual: { mod: {}, inv: {} },
       projId: null, res: null, sujo: false, arranjo: null, editArranjo: false,
     };
   }
@@ -779,6 +785,7 @@
     const proj = c.projId && (E.projetos || []).find((p) => p.id === c.projId);
     const opt = (lista, sel) => lista.map((x) => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.nome)}${x.marca && x.tipo === 'modulo' ? ' · ' + esc(x.marca) : ''}</option>`).join('');
     const inp = (id, v, w) => `<input inputmode="decimal" value="${esc(String(v ?? '').replace('.', ','))}" oninput="EV.cSet('${id}',this.value)" ${w ? `style="width:${w}"` : ''}>`;
+    const prAuto = c.res && c.res.protecoes; // mostra o automático da última validação
     return `<div class="rd-bar">
         ${proj ? `<span class="rd-sel">${ic('folder-open')}<b style="font-weight:700">${pnum(proj)} · ${esc(proj.cliente_nome || '')}</b><button class="rd-btn sm ghost" onclick="EV.cProjeto('')" title="Sair do projeto">${ic('x')}</button></span>`
           : `<span class="rd-muted" style="font-weight:600">Simulação avulsa</span><button class="rd-btn" onclick="EV.cProjetoModal()" ${projs.length ? '' : 'disabled title="Nenhum projeto em andamento"'}>${ic('folder-open')}Abrir projeto</button>`}
@@ -798,6 +805,8 @@
             <div class="eg-lc2"><label>Ligação<select onchange="EV.cSet('lig',this.value)">${LIGACOES.map(([v, l]) => `<option value="${v}" ${c.lig === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
               <label>Distância CC (m) · bitola<span class="eg-dist">${inp('dist', c.dist)}<select onchange="EV.cSet('bitola',this.value)">${[4, 6, 10].map((b) => `<option value="${b}" ${num(c.bitola) === b ? 'selected' : ''}>${b} mm²</option>`).join('')}</select></span></label></div>
             <div class="eg-lc4" style="margin-top:6px"><label title="Do inversor até o quadro">Dist. CA (m)${inp('distCA', c.distCA)}</label><label title="Temperatura ambiente do cabo CA (FCT, Tabela 40)">T. amb. °C${inp('tamb', c.tamb)}</label><label title="Circuitos no mesmo eletroduto (FCA, Tabela 42)">Circuitos${inp('circ', c.circ)}</label><label title="Método de instalação (Tabela 33)">Método<select onchange="EV.cSet('metodo',this.value)">${METODOS.map(([v, l]) => `<option value="${v}" title="${l}" ${c.metodo === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
+            <div class="eg-lc2" style="margin-top:6px"><label title="Automático: menor seção que atende Iz ≥ In e a queda CA">Cabo CA<select onchange="EV.cSet('caboCA',this.value)"><option value="">Automático${prAuto ? ` · ${String(prAuto.caboAuto).replace('.', ',')} mm²` : ''}</option>${SECOES.filter((s) => s >= 2.5).map((s) => `<option value="${s}" ${num(c.caboCA) === s ? 'selected' : ''}>${String(s).replace('.', ',')} mm²</option>`).join('')}</select></label>
+              <label title="Automático: 1º disjuntor padrão ≥ Ib">Disjuntor CA<select onchange="EV.cSet('disjCA',this.value)"><option value="">Automático${prAuto ? ` · ${prAuto.disjAuto} A` : ''}</option>${DISJUNTORES.map((d) => `<option value="${d}" ${num(c.disjCA) === d ? 'selected' : ''}>${d} A</option>`).join('')}</select></label></div>
           </div>
           <button class="rd-btn blue eg-validar" onclick="EV.cValidar()">${ic('shield-check')}Validar</button>
           <div class="eg-sujo" id="eg-c-sujo" ${c.sujo ? '' : 'hidden'}>${ic('refresh-cw')}Valores mudaram: valide de novo</div>
@@ -852,9 +861,9 @@
             <div class="eg-gmt">${r.monthlyGeneration.map((g, i) => `<span><small>${MES[i]}</small>${nf(g)}</span>`).join('')}</div></div>
           <div class="eg-pn"><h4>${ic('shield')}Proteções e cabos<span class="rd-muted" style="font-weight:600;font-size:11px">NBR 5410${r.inversores > 1 ? ' · por inversor' : ''}</span></h4>
             <div class="eg-ln"><span>Ib · corrente de projeto<small>${pr.iFicha ? 'corrente de saída da ficha' : nf(r.potCA / r.inversores) + ' W ÷ ' + (pr.carregados === 3 ? '√3 × ' : '') + pr.tensao + ' V'}</small></span><b>${nf(pr.ib, 1)} A</b></div>
-            <div class="eg-ln"><span>In · disjuntor CA<small>1º padrão ≥ Ib${pr.disjMax ? ` · fabricante até ${nf(pr.disjMax)} A` : ''}</small></span><b>${pr.disjuntor} A ${pr.polos} C</b></div>
+            <div class="eg-ln"><span>In · disjuntor CA<small>${pr.disjManual ? `escolhido na mão · automático ${pr.disjAuto} A` : '1º padrão ≥ Ib'}${pr.disjMax ? ` · fabricante até ${nf(pr.disjMax)} A` : ''}</small></span><b>${pr.disjuntor} A ${pr.polos} C</b></div>
             <div class="eg-ln"><span>Iz · capacidade do cabo<small>${nf(pr.izTab, 1)} A × FCT ${nf(pr.fct, 2)} (${nf(pr.tamb)} °C) × FCA ${nf(pr.fca, 2)}</small></span><b>${nf(pr.iz, 1)} A</b></div>
-            <div class="eg-ln"><span>Cabo CA<small>método ${pr.metodo} · ${pr.carregados} carregados · PE ${String(pr.pe).replace('.', ',')} mm²</small></span><b>${String(pr.cabo).replace('.', ',')} mm²</b></div>
+            <div class="eg-ln"><span>Cabo CA<small>${pr.caboManual ? `escolhido na mão · automático ${String(pr.caboAuto).replace('.', ',')} mm² · ` : ''}método ${pr.metodo} · ${pr.carregados} carregados · PE ${String(pr.pe).replace('.', ',')} mm²</small></span><b>${String(pr.cabo).replace('.', ',')} mm²</b></div>
             ${pr.queda ? `<div class="eg-ln"><span>Queda CA · ${nf(pr.queda.dist)} m<small>${pr.subiuPorQueda ? 'cabo aumentado pela queda' : 'limite ' + LIMITE_QUEDA_CA + ' % (NBR 5410)'}</small></span><b style="color:${pr.queda.pct <= LIMITE_QUEDA_CA ? 'var(--eg-verde)' : 'var(--v2-red)'}">${nf(pr.queda.pct, 2)} %</b></div>` : ''}
             <div class="eg-ln"><span>DPS classe II</span><b>CA${r.tipo === 'micro' ? '' : ` · CC ≥ ${nf(Math.ceil(maxVoc / 100) * 100)} V`}</b></div>
             ${r.tipo === 'micro' ? '' : `<div class="eg-ln"><span>Fusível de string</span><b>${(r.maxPar || 0) >= 3 ? 'necessário' : 'não precisa'}</b></div>`}</div>
@@ -925,7 +934,7 @@
     const c = C();
     const mod = calcEquip('mod'), inv = calcEquip('inv');
     if (!mod || !inv) { toast('Escolha o módulo e o inversor.'); return; }
-    c.res = calcularSistema({ mod, inv, hsp: c.hsp, perdas: c.perdas, tmin: c.tmin, tmax: c.tmax, lig: c.lig, dist: c.dist, bitola: c.bitola, arranjo: c.arranjo, ca: { dist: c.distCA, tamb: c.tamb, circ: c.circ, metodo: c.metodo } });
+    c.res = calcularSistema({ mod, inv, hsp: c.hsp, perdas: c.perdas, tmin: c.tmin, tmax: c.tmax, lig: c.lig, dist: c.dist, bitola: c.bitola, arranjo: c.arranjo, ca: { dist: c.distCA, tamb: c.tamb, circ: c.circ, metodo: c.metodo, cabo: c.caboCA, disj: c.disjCA } });
     c.sujo = false;
     c.editArranjo = false;
     pintar();
@@ -946,6 +955,16 @@
       if (inst.tipo_ligacao) c.lig = inst.tipo_ligacao;
       c.dist = num(inst.distancia_m) > 0 ? num(inst.distancia_m) : '';
       if (p.dim && p.dim.arranjo_personalizado && p.dim.distribution) c.arranjo = p.dim.distribution;
+      // dimensionamento salvo pela calculadora: volta com a parte CA como o engenheiro deixou
+      const pr = p.dim && p.dim.manual && p.dim.protecoes;
+      if (pr) {
+        c.distCA = pr.queda ? pr.queda.dist : '';
+        if (pr.tamb != null) c.tamb = pr.tamb;
+        if (pr.circ) c.circ = pr.circ;
+        if (pr.metodo) c.metodo = pr.metodo;
+        if (pr.caboManual) c.caboCA = pr.cabo;
+        if (pr.disjManual) c.disjCA = pr.disjuntor;
+      }
     }
     calcGarantirPadrao();
   }
