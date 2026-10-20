@@ -129,15 +129,17 @@
           <button type="button" class="cc-x" aria-label="Remover faixa" onclick="CentroCustoTela.faixaRemover('${k}', ${i})"><i data-lucide="x"></i></button></div>`).join('')}
         <button type="button" class="cc-link" onclick="CentroCustoTela.faixaAdd('${k}')"><i data-lucide="plus"></i>Faixa</button>
         <p class="cc-hint">Acima da última faixa, vale o valor da última.</p></div>` : '';
-    // Bases por quantidade: até o limite não cobra (fica na parte fixa); acima, cobra o excedente.
-    const acima = calc().aceitaAcima(l) ? `<div class="cc-acima">cobra só acima de
-        <input type="number" min="0" step="${l.b === 'modulo' || l.b === 'inversor' ? '1' : '0.01'}" value="${num(l.acima)}" aria-label="Cobrar ${esc(rotulo)} só acima de" oninput="CentroCustoTela.acima('${k}', this.value)">
-        <span>${UNIDADES[l.b]}</span><span>(0 = desde o primeiro)</span></div>` : '';
+    // Bases por quantidade: até o limite cobra um valor fixo; acima, o valor × a quantidade toda.
+    const limite = calc().aceitaLimite(l) ? `<div class="cc-limite">até
+        <input type="number" min="0" step="${l.b === 'modulo' || l.b === 'inversor' ? '1' : '0.01'}" value="${num(l.ate)}" aria-label="Limite de ${esc(rotulo)}" oninput="CentroCustoTela.limite('${k}', 'ate', this.value)">
+        <span>${UNIDADES[l.b]} cobra fixo</span>
+        <label class="cc-val"><span>R$</span><input type="number" min="0" step="0.01" value="${num(l.ate_valor)}" aria-label="Valor fixo até o limite de ${esc(rotulo)}" oninput="CentroCustoTela.limite('${k}', 'ate_valor', this.value)"></label>
+        <p class="cc-hint">Acima disso, o valor × todos os ${UNIDADES[l.b]}. Limite 0 = sem valor fixo.</p></div>` : '';
     return `<div class="cc-linha${extra ? ' is-extra' : ''}">
         <div class="cc-l1">${nome}${remover}</div>
         <div class="cc-l2">${valor}
           <select aria-label="Forma de cálculo de ${esc(rotulo)}" onchange="CentroCustoTela.forma('${k}', this.value)">${formas().map(([v, n]) => `<option value="${v}"${v === forma ? ' selected' : ''}>${n}</option>`).join('')}</select>
-        </div>${acima}${faixas}
+        </div>${limite}${faixas}
       </div>`;
   }
 
@@ -295,10 +297,11 @@
     unidade(fid) { if (state.isAdmin) render(fid); },
     modo(m) { cc.modo = m === 'custos' ? 'custos' : 'markup'; marcarSujo(true); pintar(); },
     valor(k, v) { if (cc.linhas[k]) { cc.linhas[k].v = Math.max(0, parseFloat(v) || 0); mudou(); } },
-    acima(k, v) {
-      const l = cc.linhas[k]; if (!l) return;
-      const a = Math.max(0, parseFloat(v) || 0);
-      if (a > 0) l.acima = a; else delete l.acima;
+    // campo: 'ate' (limite na unidade da base) | 'ate_valor' (R$ fixo até o limite)
+    limite(k, campo, v) {
+      const l = cc.linhas[k]; if (!l || !['ate', 'ate_valor'].includes(campo)) return;
+      const x = Math.max(0, parseFloat(v) || 0);
+      if (campo === 'ate' && !x) delete l.ate; else l[campo] = x;
       mudou();
     },
     nome(k, v) { if (cc.linhas[k]) { cc.linhas[k].nome = String(v).slice(0, 40); marcarSujo(true); } },

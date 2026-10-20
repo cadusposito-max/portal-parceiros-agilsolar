@@ -33,8 +33,9 @@
 #fin-cc .cc-faixas { flex-basis: 100%; padding: 4px 0 2px 12px; border-left: 2px solid var(--v2-line, #262626); }
 #fin-cc .cc-faixa { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-size: 12px; color: var(--v2-ink-2, #9ca3af); white-space: nowrap; }
 #fin-cc .cc-faixa > input { width: 76px; text-align: right; }
-#fin-cc .cc-acima { flex-basis: 100%; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--v2-ink-2, #9ca3af); }
-#fin-cc .cc-acima input { width: 76px; height: 30px; text-align: right; border: 1px solid var(--v2-line-strong, #3f3f46); border-radius: var(--v2-r-ctl, 10px); background: var(--v2-card, #050505); color: inherit; font: inherit; font-weight: 800; padding: 0 8px; }
+#fin-cc .cc-limite { flex-basis: 100%; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--v2-ink-2, #9ca3af); }
+#fin-cc .cc-limite > input { width: 76px; height: 34px; text-align: right; border: 1px solid var(--v2-line-strong, #3f3f46); border-radius: var(--v2-r-ctl, 10px); background: var(--v2-card, #050505); color: inherit; font: inherit; font-weight: 800; padding: 0 8px; }
+#fin-cc .cc-limite .cc-hint { flex-basis: 100%; text-align: right; margin: 0; }
 #fin-cc .cc-x { width: 30px; height: 30px; display: grid; place-items: center; border: 0; background: transparent; color: var(--v2-ink-2, #9ca3af); cursor: pointer; border-radius: 8px; }
 #fin-cc .cc-x:hover { color: var(--v2-red, #ef4444); background: var(--v2-hover, rgba(255,255,255,.05)); }
 #fin-cc .cc-x svg, #fin-cc .cc-link svg { width: 14px; height: 14px; }

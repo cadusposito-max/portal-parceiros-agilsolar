@@ -3,7 +3,8 @@
    - t 'brl', b: v (fixo por obra) | modulo | kwp | inversor (qtd de inversores/micros) |
      kw_inversor (kW de inversor: potência × quantidade) | faixa (tabela por kWp)
    - t 'pct', b: v (% da venda) | vk (% da venda − kit) | kit (% do custo do kit)
-   - acima (opcional, bases por quantidade): cobra só o que passar do limite (ex.: módulos acima de 10).
+   - ate + ate_valor (opcional, bases por quantidade): até `ate` cobra o fixo `ate_valor`;
+     acima disso, v × a quantidade toda (ex.: até 6 módulos R$ 400; com 7, 7 × R$ 50).
    Linhas personalizadas usam chave extra_* e levam nome. */
 (function (root) {
   'use strict';
@@ -13,7 +14,8 @@
   const basesPct = { v: '% da venda', vk: '% da venda − kit', kit: '% do custo do kit' };
   const ehExtra = k => /^extra_[a-z0-9]{1,20}$/.test(String(k));
   const BASES_QTD = ['modulo', 'kwp', 'inversor', 'kw_inversor'];
-  const aceitaAcima = l => !!l && l.t === 'brl' && BASES_QTD.includes(l.b);
+  const aceitaLimite = l => !!l && l.t === 'brl' && BASES_QTD.includes(l.b);
+  const temLimite = l => aceitaLimite(l) && n(l.ate) > 0;
   function faixasLimpa(faixas) {
     return (Array.isArray(faixas) ? faixas : [])
       .map(f => ({ ate: n(f && f.ate), valor: Math.max(0, n(f && f.valor)) }))
@@ -25,7 +27,7 @@
     const ok = Object.keys(t === 'pct' ? basesPct : bases);
     const out = { t, v: n(v), b: ok.includes(b) ? b : 'v' };
     if (out.t === 'brl' && out.b === 'faixa') out.faixas = faixasLimpa(extra.faixas);
-    if (aceitaAcima(out) && n(extra.acima) > 0) out.acima = n(extra.acima);
+    if (aceitaLimite(out) && n(extra.ate) > 0) { out.ate = n(extra.ate); out.ate_valor = Math.max(0, n(extra.ate_valor)); }
     if (extra.nome != null) out.nome = String(extra.nome).slice(0, 40);
     return out;
   }
@@ -42,16 +44,13 @@
     if (l.b === 'kw_inversor') return n(contexto.kwInversor);
     return 1;
   }
-  // Quantidade cobrada: com limite, só o que passa dele (até o limite fica na parte fixa).
-  function quantidadeCobrada(l, contexto) {
-    const q = quantidade(l, contexto);
-    return aceitaAcima(l) && n(l.acima) > 0 ? Math.max(0, q - n(l.acima)) : q;
-  }
   // Parte da linha que não depende da venda (R$ e % do kit).
   function fixoDaLinha(l, kit, contexto) {
     if (l.t === 'pct') return l.b === 'kit' ? r2(n(kit) * n(l.v) / 100) : 0;
     if (l.b === 'faixa') return r2(n(faixaValor(l.faixas, contexto.kwp)));
-    return r2(n(l.v) * quantidadeCobrada(l, contexto));
+    const q = quantidade(l, contexto);
+    if (temLimite(l) && q <= n(l.ate)) return r2(n(l.ate_valor));
+    return r2(n(l.v) * q);
   }
   function valor(l, venda, kit, contexto = {}) {
     if (!l) return 0;
@@ -120,6 +119,6 @@
       && Object.entries(linhas).every(([k,l]) => k in esperado || ['eletrica','eletrica_fixa','instalacao'].includes(k) || n(l.v) === 0)
       && Object.values(contrato || {}).every(l => n(l.v) === 0);
   }
-  root.CentroCustoCalc = { aceitaAcima, linha, valor, calcular, projeto, bases, basesPct, ehExtra, faixaValor, saldoParaMargem, referenciaHelte, aceitaReferenciaHelte };
+  root.CentroCustoCalc = { aceitaLimite, temLimite, linha, valor, calcular, projeto, bases, basesPct, ehExtra, faixaValor, saldoParaMargem, referenciaHelte, aceitaReferenciaHelte };
   if (typeof module !== 'undefined') module.exports = root.CentroCustoCalc;
 })(typeof window === 'undefined' ? globalThis : window);

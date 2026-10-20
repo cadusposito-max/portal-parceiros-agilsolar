@@ -44,15 +44,17 @@ test('R$ por kW do inversor: valor × potência total de inversor (potência × 
  const a={linhas:base,kit:8000,modulos:10,kwp:6.2,inversores:1,kwInversor:5,margem:22};
  const d=c.calcular(a),v=c.calcular({...a,venda:d.vendaAlvo});assert.equal(v.valores.el,600);assert.ok(v.lucroLiq/v.receita>=.22-1e-7);
 });
-test('Limite "acima de": até o limite não cobra; acima, cobra só o excedente',()=>{
- const el=c.linha('brl',50,'modulo',{acima:10});assert.equal(el.acima,10);
- assert.equal(c.valor(el,0,0,{modulos:8}),0);assert.equal(c.valor(el,0,0,{modulos:10}),0);assert.equal(c.valor(el,0,0,{modulos:14}),200);
- const kw=c.linha('brl',118.5,'kwp',{acima:5});assert.equal(c.valor(kw,0,0,{kwp:6.2}),142.2);
- assert.equal(c.linha('brl',50,'v',{acima:10}).acima,undefined); // fixo por obra não tem limite
- assert.equal(c.linha('brl',50,'modulo',{acima:0}).acima,undefined);
- // dentro do limite não é "dado faltando": o preço sai
- const linhas={imposto:{t:'pct',v:13.8,b:'vk'},fixa:c.linha('brl',600,'v'),el};
- const d=c.calcular({linhas,kit:5000,modulos:8,kwp:4.96,margem:22});assert.equal(d.erros.length,0);
- const d2=c.calcular({linhas,kit:5000,modulos:14,kwp:8.68,margem:22});
- assert.equal(c.calcular({linhas,kit:5000,modulos:14,kwp:8.68,margem:22,venda:d2.vendaAlvo}).valores.el,200);
+test('Limite: até N cobra o fixo; acima, valor × a quantidade toda (sem somar o fixo)',()=>{
+ const el=c.linha('brl',50,'modulo',{ate:6,ate_valor:400});assert.equal(el.ate,6);assert.equal(el.ate_valor,400);
+ assert.equal(c.valor(el,0,0,{modulos:4}),400);assert.equal(c.valor(el,0,0,{modulos:6}),400);
+ assert.equal(c.valor(el,0,0,{modulos:7}),350);assert.equal(c.valor(el,0,0,{modulos:10}),500);
+ const kw=c.linha('brl',120,'kwp',{ate:5,ate_valor:700});assert.equal(c.valor(kw,0,0,{kwp:5}),700);assert.equal(c.valor(kw,0,0,{kwp:6.2}),744);
+ assert.equal(c.linha('brl',50,'v',{ate:6,ate_valor:400}).ate,undefined); // fixo por obra não tem limite
+ const sem=c.linha('brl',50,'modulo',{ate:0,ate_valor:400});assert.equal(sem.ate,undefined);assert.equal(c.valor(sem,0,0,{modulos:4}),200); // limite 0 = sem fixo
+ const linhas={imposto:{t:'pct',v:13.8,b:'vk'},el};
+ for(const [modulos,esperado] of [[6,400],[7,350]]){
+  const a={linhas,kit:5000,modulos,kwp:modulos*.62,margem:22};
+  const d=c.calcular(a);assert.equal(d.erros.length,0);
+  const v=c.calcular({...a,venda:d.vendaAlvo});assert.equal(v.valores.el,esperado);assert.ok(v.lucroLiq/v.receita>=.22-1e-7);
+ }
 });

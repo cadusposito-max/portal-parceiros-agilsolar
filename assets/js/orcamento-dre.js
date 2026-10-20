@@ -253,7 +253,7 @@
       const base = l.t === 'pct'
         ? `<select data-orc-base="${def.key}" class="orc-base">${Object.entries(BASES).map(([k, n]) => `<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`
         : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${Object.entries(CentroCustoCalc.bases).filter(([k]) => k !== 'faixa').map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
-      ctrl = seg + inp + base + (acimaTxt(l) ? `<span class="text-[11px] text-neutral-500 font-bold">${acimaTxt(l).trim()}</span>` : '');
+      ctrl = seg + inp + base + (limiteTxt(l) ? `<span class="text-[11px] text-neutral-500 font-bold">${limiteTxt(l)}</span>` : '');
     }
     if (cur._mob) return linhaRowMob(def, l, travada, tag, ctrl);
     return `<div class="orc-row orc-linha px-5 py-2 lg:py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5" data-orc-row="${def.key}">
@@ -269,10 +269,11 @@
     if (l.t === 'brl' && l.b === 'faixa') return 'Tabela por faixa de kWp';
     return l.t === 'pct'
       ? pctFmt(l.v) + '% ' + (BASES[l.b] || '').replace(/^% /, '')
-      : money(l.v) + ' ' + (CentroCustoCalc.bases[l.b] || '').replace(/^R\$ /, '') + acimaTxt(l);
+      : money(l.v) + ' ' + (CentroCustoCalc.bases[l.b] || '').replace(/^R\$ /, '') + (limiteTxt(l) ? ' · ' + limiteTxt(l) : '');
   }
-  const UNID_ACIMA = { modulo: 'módulos', kwp: 'kWp', inversor: 'inversores', kw_inversor: 'kW' };
-  const acimaTxt = (l) => CentroCustoCalc.aceitaAcima(l) && num(l.acima) > 0 ? ` acima de ${pctFmt(l.acima)} ${UNID_ACIMA[l.b]}` : '';
+  // "até 6 módulos: R$ 400,00" (fixo até o limite; acima, valor × quantidade toda)
+  const UNID_LIMITE = { modulo: 'módulos', kwp: 'kWp', inversor: 'inversores', kw_inversor: 'kW' };
+  const limiteTxt = (l) => CentroCustoCalc.temLimite(l) ? `até ${pctFmt(l.ate)} ${UNID_LIMITE[l.b]}: ${money(l.ate_valor)}` : '';
 
   // Celular: a linha mostra nome, regra e valor; os controles só abrem ao tocar.
   function linhaRowMob(def, l, travada, tag, ctrl) {
@@ -677,7 +678,7 @@
     const l = cur.linhas[key]; if (!l || l.t === tipo) return;
     const venda = num(cur.receita), kit = num(cur.kit);
     const atual = valorLinha(l, venda, kit);
-    delete l.acima;
+    delete l.ate; delete l.ate_valor;
     if (tipo === 'brl') { l.t = 'brl'; l.b = 'v'; l.v = r2(atual); }
     else {
       l.t = 'pct'; l.b = 'v';
@@ -721,8 +722,8 @@
       const t = ev.target;
       if (t.matches('[data-orc-base]')) {
         const l = cur.linhas[t.getAttribute('data-orc-base')];
-        // O limite "acima de" é na unidade da base antiga: trocar a base zera o limite.
-        if (l) { const novo = linha(l.t, l.v, t.value, { ...l, acima: t.value === l.b ? l.acima : 0 }); delete l.acima; Object.assign(l, novo); recalc(); }
+        // O limite é na unidade da base antiga: trocar a base zera o limite.
+        if (l) { const novo = linha(l.t, l.v, t.value, { ...l, ate: t.value === l.b ? l.ate : 0 }); delete l.ate; delete l.ate_valor; Object.assign(l, novo); recalc(); }
       } else if (t.matches('[data-orc-ex-field="tipo"]')) {
         const wrap = t.closest('[data-orc-extra]'); if (!wrap) return;
         const i = parseInt(wrap.getAttribute('data-orc-extra'), 10);
