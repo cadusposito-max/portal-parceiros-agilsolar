@@ -1184,6 +1184,7 @@
     if (!E.aberto) return;
     const p = (E.projetos || []).find((x) => x.id === E.aberto);
     let d = document.getElementById('eg-drawer');
+    const novo = !d;
     if (!d) {
       d = document.createElement('div');
       d.id = 'eg-drawer';
@@ -1197,7 +1198,8 @@
     }
     const corpoAntes = d.querySelector('.eg-pb');
     const y = corpoAntes ? corpoAntes.scrollTop : 0;
-    const cls = 'eg-panel rd eg' + (E.cheia ? ' cheia' : '');
+    // cada repintura recria o painel: a animação de entrada só vale quando ele acabou de abrir
+    const cls = 'eg-panel rd eg' + (E.cheia ? ' cheia' : '') + (novo ? ' entra' : '');
     if (!p) { d.innerHTML = `<div class="${cls}"><div class="rd-loading">${ic('loader-2')}Abrindo o projeto...</div></div>`; icons(); return; }
     const eng = central();
     const evs = E.ev[p.id];

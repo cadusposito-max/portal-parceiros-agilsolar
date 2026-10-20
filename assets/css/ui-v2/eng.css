@@ -84,7 +84,8 @@
 /* ficha do projeto: mesmo desenho da ficha do cliente (ficha.css, .v2f-*) */
 body.eg-lock { overflow: hidden; }
 .eg-scrim { position: fixed; inset: 0; background: var(--v2-scrim); z-index: 150; }
-.eg-panel { position: absolute; inset: 12px 12px 12px auto; width: min(1180px, calc(100vw - 24px)); border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; background: var(--v2-bg); box-shadow: 0 24px 80px rgba(15,27,38,.3); color: var(--v2-ink); font-size: 14px; animation: egIn .22s cubic-bezier(.2,.8,.2,1); }
+.eg-panel { position: absolute; inset: 12px 12px 12px auto; width: min(1180px, calc(100vw - 24px)); border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; background: var(--v2-bg); box-shadow: 0 24px 80px rgba(15,27,38,.3); color: var(--v2-ink); font-size: 14px; }
+.eg-panel.entra { animation: egIn .22s cubic-bezier(.2,.8,.2,1); }
 .eg-panel.cheia { inset: 0; width: auto; border-radius: 0; box-shadow: none; }
 @keyframes egIn { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
 .eg-panel > .rd-loading { margin: auto; }
