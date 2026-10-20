@@ -16,6 +16,7 @@
       ['ajuda', 'Ajuda de custo instalação'], ['vistoria', 'Vistoria'], ['outros', 'Outros custos']] },
   ];
   const FIXAS = GRUPOS.flatMap((g) => g.linhas.map(([k]) => k));
+  const UNIDADES = { modulo: 'módulos', kwp: 'kWp', inversor: 'inversores', kw_inversor: 'kW de inversor' };
   const MAX_EXTRAS = 15;
 
   let cc = null; // { fid, data, linhas, mmin, malvo, modo, sujo, sim, custos }
@@ -128,11 +129,15 @@
           <button type="button" class="cc-x" aria-label="Remover faixa" onclick="CentroCustoTela.faixaRemover('${k}', ${i})"><i data-lucide="x"></i></button></div>`).join('')}
         <button type="button" class="cc-link" onclick="CentroCustoTela.faixaAdd('${k}')"><i data-lucide="plus"></i>Faixa</button>
         <p class="cc-hint">Acima da última faixa, vale o valor da última.</p></div>` : '';
+    // Bases por quantidade: até o limite não cobra (fica na parte fixa); acima, cobra o excedente.
+    const acima = calc().aceitaAcima(l) ? `<div class="cc-acima">cobra só acima de
+        <input type="number" min="0" step="${l.b === 'modulo' || l.b === 'inversor' ? '1' : '0.01'}" value="${num(l.acima)}" aria-label="Cobrar ${esc(rotulo)} só acima de" oninput="CentroCustoTela.acima('${k}', this.value)">
+        <span>${UNIDADES[l.b]}</span><span>(0 = desde o primeiro)</span></div>` : '';
     return `<div class="cc-linha${extra ? ' is-extra' : ''}">
         <div class="cc-l1">${nome}${remover}</div>
         <div class="cc-l2">${valor}
           <select aria-label="Forma de cálculo de ${esc(rotulo)}" onchange="CentroCustoTela.forma('${k}', this.value)">${formas().map(([v, n]) => `<option value="${v}"${v === forma ? ' selected' : ''}>${n}</option>`).join('')}</select>
-        </div>${faixas}
+        </div>${acima}${faixas}
       </div>`;
   }
 
@@ -290,6 +295,12 @@
     unidade(fid) { if (state.isAdmin) render(fid); },
     modo(m) { cc.modo = m === 'custos' ? 'custos' : 'markup'; marcarSujo(true); pintar(); },
     valor(k, v) { if (cc.linhas[k]) { cc.linhas[k].v = Math.max(0, parseFloat(v) || 0); mudou(); } },
+    acima(k, v) {
+      const l = cc.linhas[k]; if (!l) return;
+      const a = Math.max(0, parseFloat(v) || 0);
+      if (a > 0) l.acima = a; else delete l.acima;
+      mudou();
+    },
     nome(k, v) { if (cc.linhas[k]) { cc.linhas[k].nome = String(v).slice(0, 40); marcarSujo(true); } },
     forma(k, valor) {
       const l = cc.linhas[k]; if (!l) return;

@@ -44,3 +44,15 @@ test('R$ por kW do inversor: valor × potência total de inversor (potência × 
  const a={linhas:base,kit:8000,modulos:10,kwp:6.2,inversores:1,kwInversor:5,margem:22};
  const d=c.calcular(a),v=c.calcular({...a,venda:d.vendaAlvo});assert.equal(v.valores.el,600);assert.ok(v.lucroLiq/v.receita>=.22-1e-7);
 });
+test('Limite "acima de": até o limite não cobra; acima, cobra só o excedente',()=>{
+ const el=c.linha('brl',50,'modulo',{acima:10});assert.equal(el.acima,10);
+ assert.equal(c.valor(el,0,0,{modulos:8}),0);assert.equal(c.valor(el,0,0,{modulos:10}),0);assert.equal(c.valor(el,0,0,{modulos:14}),200);
+ const kw=c.linha('brl',118.5,'kwp',{acima:5});assert.equal(c.valor(kw,0,0,{kwp:6.2}),142.2);
+ assert.equal(c.linha('brl',50,'v',{acima:10}).acima,undefined); // fixo por obra não tem limite
+ assert.equal(c.linha('brl',50,'modulo',{acima:0}).acima,undefined);
+ // dentro do limite não é "dado faltando": o preço sai
+ const linhas={imposto:{t:'pct',v:13.8,b:'vk'},fixa:c.linha('brl',600,'v'),el};
+ const d=c.calcular({linhas,kit:5000,modulos:8,kwp:4.96,margem:22});assert.equal(d.erros.length,0);
+ const d2=c.calcular({linhas,kit:5000,modulos:14,kwp:8.68,margem:22});
+ assert.equal(c.calcular({linhas,kit:5000,modulos:14,kwp:8.68,margem:22,venda:d2.vendaAlvo}).valores.el,200);
+});
