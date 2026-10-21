@@ -1,0 +1,136 @@
+/* ==========================================
+   VISUAL NOVO (v2) — CELULAR (até 760px)
+   Carrega por último. No computador nada daqui vale.
+   - listas (Clientes, Funil em lista, Propostas) sem cartão por fora: uma linha
+     por item, de ponta a ponta, separadas por um traço fino
+   - pessoa física com as iniciais numa bolinha colorida (data-ini, ui-v2-screens.js)
+   - Vendas: um cartão por venda (.v2-vm) com a faixa da etapa atual embaixo
+   - números do topo: o principal em destaque e os outros numa faixa de 3
+   ========================================== */
+html[data-ui="v2"] .v2s .v2-mval { display: none; } /* valor ao lado do nome: só no celular */
+
+@media (max-width: 760px) {
+  /* ---- topo: ícones sem a bolinha de fundo ---- */
+  html[data-ui="v2"] .v2-mtop .v2-icb { width: 40px; height: 40px; background: transparent !important; box-shadow: none !important; color: var(--v2-ink-2); }
+  html[data-ui="v2"] .v2-mtop .v2-icb svg { width: 21px; height: 21px; }
+
+  /* lista ou quadro: no celular Clientes, Propostas e Vendas são sempre lista */
+  html[data-ui="v2"] body:is([data-v2screen="clientes"], [data-v2screen="propostas"], [data-v2screen="vendas"]) .v2s .v2-viewseg { display: none; }
+
+  /* ---- iniciais ---- */
+  html[data-ui="v2"] .v2s .v2-ini[data-ini] { background: color-mix(in srgb, var(--avc) 18%, transparent) !important; color: color-mix(in srgb, var(--avc) 78%, var(--v2-ink)) !important; }
+  html[data-ui="v2"] .v2s .v2-ini[data-ini] svg { display: none !important; }
+  html[data-ui="v2"] .v2s .v2-ini[data-ini]::before { content: attr(data-ini); font-size: 13px; font-weight: 800; letter-spacing: .02em; }
+
+  /* ---- listas ---- */
+  html[data-ui="v2"] .v2s .v2-lista { background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-tscroll { margin: 0; padding: 0; overflow: visible; }
+  html[data-ui="v2"] .v2s .v2-lista table.v2-table { border-spacing: 0; font-size: 14px; }
+  html[data-ui="v2"] .v2s .v2-lista table.v2-table thead { display: none; }
+  html[data-ui="v2"] .v2s .v2-lista table.v2-table td { background: transparent; padding: 12px 2px; border-bottom: 1px solid var(--v2-line) !important; border-radius: 0 !important; vertical-align: middle; }
+  html[data-ui="v2"] .v2s .v2-lista table.v2-table td:first-child { padding-left: 4px; }
+  html[data-ui="v2"] .v2s .v2-lista table.v2-table tbody tr:last-child td { border-bottom: 0 !important; }
+  html[data-ui="v2"] .v2s .v2-lista table.v2-table tbody tr:hover td { background: transparent; }
+  html[data-ui="v2"] .v2s .v2-lista table.v2-table tbody tr:active td { background: var(--v2-hover); }
+  html[data-ui="v2"] .v2s .v2-lista .v2-who { gap: 12px; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-ini { width: 40px; height: 40px; border-radius: 50%; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-who > div { flex: 1; overflow-wrap: normal; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-nm { display: block; font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-nm .v2-alarm { vertical-align: -2px; margin-left: 2px; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-who small { font-size: 12.5px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-visline { margin-top: 5px; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-mstline { display: flex !important; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-mstline .v2-leadmeta { margin-left: 0; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-acts { gap: 4px; }
+  /* WhatsApp: bolinha verde; o resto da linha já abre a ficha */
+  html[data-ui="v2"] .v2s .v2-lista .v2-sq.wa { width: 40px; height: 40px; border-radius: 50%; background: rgba(31,169,113,.14); color: #12764E; }
+  html[data-ui="v2"][data-theme="dark"] .v2s .v2-lista .v2-sq.wa { color: #4FD49A; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-sq.wa svg { width: 18px !important; height: 18px !important; }
+  /* Propostas: nome e valor na mesma linha; embaixo status · "aberta 3×" */
+  html[data-ui="v2"] .v2s .v2-lista .v2-nmrow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-nmrow .v2-nm { flex: 1; min-width: 0; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-mval { display: inline; flex: none; font-size: 14px; font-weight: 800; white-space: nowrap; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-mline { gap: 6px; }
+  /* copiar link e PDF um embaixo do outro: sobra mais espaço pro nome */
+  html[data-ui="v2"] body[data-v2screen="propostas"] .v2s .v2-lista .v2-acts { flex-direction: column; }
+  html[data-ui="v2"] body[data-v2screen="propostas"] .v2s .v2-lista .v2-sq { width: 34px; height: 34px; }
+  html[data-ui="v2"] .v2s .v2-minfo { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 700; color: var(--v2-orange-text); white-space: nowrap; }
+  html[data-ui="v2"] .v2s .v2-minfo svg { width: 12px !important; height: 12px !important; }
+
+  /* Clientes: busca + "novo cliente" só com o ícone na mesma linha */
+  html[data-ui="v2"] body[data-v2screen="clientes"] .v2s .v2-toolbar .v2-sbox { flex: 1 1 0; }
+  html[data-ui="v2"] .v2s .v2-novocli { width: 44px; height: 44px; padding: 0 !important; justify-content: center; flex: none; border-radius: 14px; }
+  html[data-ui="v2"] .v2s .v2-novocli span { display: none; }
+
+  /* ---- números do topo ---- */
+  html[data-ui="v2"] .v2s .v2-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  html[data-ui="v2"] .v2s .v2-kpi.hero { grid-column: 1 / -1; padding: 14px 16px; }
+  html[data-ui="v2"] .v2s .v2-kpi.hero .h { margin-bottom: 4px; }
+  html[data-ui="v2"] .v2s .v2-kpi.hero .ic { width: 32px; height: 32px; border-radius: 10px; }
+  html[data-ui="v2"] .v2s .v2-kpi.hero .v { font-size: 26px; }
+  html[data-ui="v2"] .v2s .v2-kpi.hero .foot { margin-top: 4px; }
+  html[data-ui="v2"] .v2s .v2-kpi:not(.hero) { padding: 10px 12px; border-radius: 16px; }
+  html[data-ui="v2"] .v2s .v2-kpi:not(.hero) :is(.ic, .foot) { display: none; }
+  html[data-ui="v2"] .v2s .v2-kpi:not(.hero) .h { margin-bottom: 2px; }
+  html[data-ui="v2"] .v2s .v2-kpi:not(.hero) .h span { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html[data-ui="v2"] .v2s .v2-kpi:not(.hero) .v { font-size: 16px; }
+
+  /* ---- Início: "Para hoje" logo depois dos números ---- */
+  html[data-ui="v2"] .v2-dash :is(.v2-row-hoje, .v2-col-hoje) { display: contents; }
+  html[data-ui="v2"] .v2-dash > :is(.v2-legacy, .v2-row),
+  html[data-ui="v2"] .v2-dash :is(.v2-row-hoje, .v2-col-hoje) > .v2-card { order: 2; }
+  html[data-ui="v2"] .v2-dash #v2-hoje { order: 1; }
+  html[data-ui="v2"] .v2s .v2-hoje { padding: 16px 14px; }
+  html[data-ui="v2"] .v2s .v2-hj { padding: 9px 2px; align-items: flex-start; }
+  html[data-ui="v2"] .v2s .v2-hj .ac { flex-direction: column; }
+
+  /* ---- Vendas: etapas viram pílulas que rolam de lado ---- */
+  html[data-ui="v2"] .v2s .pv-bloco .v2-ch small { display: none; }
+  html[data-ui="v2"] .v2s .pv-fases { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 2px 12px; }
+  html[data-ui="v2"] .v2s .pv-fases::-webkit-scrollbar { display: none; }
+  html[data-ui="v2"] .v2s .pv-fase { flex: none; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 999px; border-width: 1px; box-shadow: none; }
+  html[data-ui="v2"] .v2s .pv-fase small { font-size: 12.5px; color: var(--v2-ink-2); white-space: nowrap; }
+  html[data-ui="v2"] .v2s .pv-fase small svg { width: 14px; height: 14px; }
+  html[data-ui="v2"] .v2s .pv-fase b { margin: 0; font-size: 12.5px; color: var(--v2-gray); }
+  html[data-ui="v2"] .v2s .pv-fase.on { background: var(--v2-ink); border-color: transparent; }
+  html[data-ui="v2"] .v2s .pv-fase.on :is(small, b) { color: var(--v2-bg); }
+  html[data-ui="v2"] .v2s .pv-fase.warn { background: rgba(209,67,67,.12); border-color: transparent; }
+  html[data-ui="v2"] .v2s .pv-fase.warn :is(small, b) { color: var(--v2-red); }
+
+  /* ---- Vendas: um cartão por venda ---- */
+  html[data-ui="v2"] .v2s .v2-vmlista { display: flex; flex-direction: column; gap: 10px; }
+  html[data-ui="v2"] .v2s .v2-vmlista > .v2-ch { margin: 4px 4px 0 !important; }
+  html[data-ui="v2"] .v2s .v2-vm { background: var(--v2-card); border: 1px solid var(--v2-line); border-radius: 20px; box-shadow: var(--v2-shadow); overflow: hidden; cursor: pointer; }
+  html[data-ui="v2"] .v2s .v2-vm.late { border-color: rgba(209,67,67,.35); }
+  html[data-ui="v2"] .v2s .v2-vm.on { border-color: var(--v2-blue); }
+  html[data-ui="v2"] .v2s .v2-vm:active { transform: scale(.995); }
+  html[data-ui="v2"] .v2s .v2-vm-in { padding: 14px 16px 12px; }
+  html[data-ui="v2"] .v2s .v2-vm-top { display: flex; gap: 12px; align-items: flex-start; }
+  html[data-ui="v2"] .v2s .v2-vm-nm { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 800; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  html[data-ui="v2"] .v2s .v2-vm-val { flex: none; text-align: right; }
+  html[data-ui="v2"] .v2s .v2-vm-val b { font-size: 16px; font-weight: 800; white-space: nowrap; }
+  html[data-ui="v2"] .v2s .v2-vm-val b small { font-size: 11px; font-weight: 700; color: var(--v2-ink-2); margin-right: 3px; }
+  html[data-ui="v2"] .v2s .v2-vm-val > small { display: block; margin-top: 1px; font-size: 11px; font-weight: 600; color: var(--v2-gray); }
+  html[data-ui="v2"] .v2s .v2-vm-vend { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 12px; font-weight: 600; color: var(--v2-ink-2); }
+  html[data-ui="v2"] .v2s .v2-vm-vend svg { width: 13px; height: 13px; flex: none; }
+  html[data-ui="v2"] .v2s .v2-vm-kit { display: flex; align-items: center; gap: 8px; margin-top: 10px; min-width: 0; }
+  html[data-ui="v2"] .v2s .v2-vm-kwp { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 999px; background: var(--v2-orange-50); color: var(--v2-orange-text); font-size: 11.5px; font-weight: 800; white-space: nowrap; }
+  html[data-ui="v2"] .v2s .v2-vm-kwp svg { width: 12px; height: 12px; }
+  html[data-ui="v2"] .v2s .v2-vm-kit .tx { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: var(--v2-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html[data-ui="v2"] .v2s .v2-vm-bar { display: flex; align-items: center; gap: 4px; margin-top: 12px; }
+  html[data-ui="v2"] .v2s .v2-vm-bar i { flex: 1; height: 6px; border-radius: 3px; background: var(--v2-line-strong); }
+  html[data-ui="v2"] .v2s .v2-vm-bar i.ok { background: var(--v2-blue); }
+  html[data-ui="v2"] .v2s .v2-vm-bar i.cur { background: color-mix(in srgb, var(--v2-blue) 45%, transparent); }
+  html[data-ui="v2"] .v2s .v2-vm-bar i.late { background: var(--v2-red); }
+  html[data-ui="v2"] .v2s .v2-vm-bar em { margin-left: 4px; font-style: normal; font-size: 11px; font-weight: 800; color: var(--v2-gray); }
+  html[data-ui="v2"] .v2s .v2-vm-ft { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: 12.5px; background: var(--v2-blue-50); color: var(--v2-blue-text); }
+  html[data-ui="v2"] .v2s .v2-vm-ft svg { width: 16px; height: 16px; flex: none; }
+  html[data-ui="v2"] .v2s .v2-vm-ft b { font-weight: 800; white-space: nowrap; }
+  html[data-ui="v2"] .v2s .v2-vm-ft span { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html[data-ui="v2"] .v2s .v2-vm-ft.late { background: rgba(209,67,67,.12); color: var(--v2-red); }
+  html[data-ui="v2"][data-theme="dark"] .v2s .v2-vm-ft.late { color: #F07B7B; }
+  html[data-ui="v2"] .v2s .v2-vm-ft.ok { background: rgba(31,169,113,.13); color: #12764E; }
+  html[data-ui="v2"][data-theme="dark"] .v2s .v2-vm-ft.ok { color: #4FD49A; }
+  /* aberto: as 5 etapas no próprio cartão */
+  html[data-ui="v2"] .v2s .v2-vm .pv-abre { padding: 0 12px 12px; }
+}

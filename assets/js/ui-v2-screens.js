@@ -49,7 +49,26 @@
     if (dig === 11) return 'PF';
     return PJ_NOME.test(String((c && c.nome) || nome || '')) ? 'PJ' : 'PF';
   }
-  const avCliente = (cliente, nome, extra = '') => { const pj = tipoCliente(cliente, nome) === 'PJ'; return `<i class="v2-ini ${pj ? 'pj' : 'pf'} ${extra}" title="${pj ? 'Empresa' : 'Pessoa física'}">${ic(pj ? 'building-2' : 'user')}</i>`; };
+  // No celular a pessoa física aparece com as iniciais numa bolinha colorida
+  // (data-ini + --avc, ver mobile.css); empresa continua com o prédio.
+  const AV_CORES = ['#008FD4', '#FAA519', '#1FA971', '#8E7CF0', '#E0729B', '#808284'];
+  const AV_PULA = new Set(['DA', 'DE', 'DO', 'DAS', 'DOS', 'E', 'EM']);
+  function iniciais(nome) {
+    const p = String(nome || '').toUpperCase().split(/\s+/).map((w) => w.replace(/[^A-ZÀ-Ý]/g, '')).filter((w) => w && !AV_PULA.has(w));
+    return p.length ? p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '') : '';
+  }
+  function corAvatar(nome) {
+    let h = 0;
+    for (const ch of String(nome || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return AV_CORES[h % AV_CORES.length];
+  }
+  const avCliente = (cliente, nome, extra = '') => {
+    const pj = tipoCliente(cliente, nome) === 'PJ';
+    const n = nome || (cliente && typeof cliente === 'object' ? cliente.nome : '');
+    const ini = pj ? '' : iniciais(n);
+    return `<i class="v2-ini ${pj ? 'pj' : 'pf'} ${extra}" title="${pj ? 'Empresa' : 'Pessoa física'}"${ini ? ` data-ini="${esc(ini)}" style="--avc:${corAvatar(n)}"` : ''}>${ic(pj ? 'building-2' : 'user')}</i>`;
+  };
+  const celular = () => window.matchMedia('(max-width: 760px)').matches;
   const avPessoa = (cls = '', style = '') => `<i class="v2-ini ${cls}" ${style ? `style="${style}"` : ''}>${ic('user')}</i>`;
   const avFranquia = () => `<i class="v2-ini">${ic('store')}</i>`;
   window.uiV2TipoCliente = tipoCliente;
@@ -186,7 +205,7 @@
 
   // ==================== VISÃO GERAL (Comercial) ====================
   function renderDashboardV2(container) {
-    container.className = 'v2s';
+    container.className = 'v2s v2-dash';
 
     // --- mesmos filtros do dashboard.js: escopo → franquia → vendedor → período
     const clientesScope = getDashboardScopedRows(state.clientes || []);
@@ -384,7 +403,7 @@
       ${kpis}
       ${meta ? `<div class="v2-legacy">${meta}</div>` : ''}
       <div class="v2-row">${grafico}${funilCard}</div>
-      <div class="v2-row">${propostasCard}<div style="display:flex;flex-direction:column;gap:16px;min-width:0">${quickCard}${comunicadosCard}</div></div>
+      <div class="v2-row v2-row-hoje">${propostasCard}<div class="v2-col-hoje" style="display:flex;flex-direction:column;gap:16px;min-width:0">${quickCard}${comunicadosCard}</div></div>
       ${analise}
       ${metasEquipe ? `<div class="v2-legacy">${metasEquipe}</div>` : ''}
     `;
@@ -482,7 +501,8 @@
       <button class="v2-btn2 hide-m" onclick="adminEnriquecerCidades()" title="Preenche coordenadas e HSP dos clientes antigos">${ic('sun')}HSP</button>` : '';
     const sortSeg = !state.isAdmin ? `<div class="v2-seg flat v2-fx" data-titulo="Ordenar por">${CLIENT_SORT_OPTIONS.map((o) => `<button class="${state.clienteSort === o.v ? 'on' : ''}" onclick="setClienteSort('${o.v}')">${o.v === 'alpha' ? 'A–Z' : 'Mais recentes'}</button>`).join('')}</div>` : '';
 
-    const vista = modo('clientes', 'lista', ['lista', 'kanban']);
+    // no celular é sempre lista (o quadro fica no Funil)
+    const vista = celular() ? 'lista' : modo('clientes', 'lista', ['lista', 'kanban']);
     const vazio = `<div class="v2-card v2-empty">${source.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum cliente na carteira ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Cadastrar cliente</button></div></div>`;
 
     container.dataset.v2total = String(filtered.length); container.dataset.v2nome = 'cliente|clientes';
@@ -495,7 +515,7 @@
         ${viewSeg('clientes', vista, ['lista', 'kanban'])}
         ${adminBtns}
         <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
-        <button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Novo cliente</button>
+        <button class="v2-btnp v2-novocli" onclick="openClientModal()" title="Novo cliente">${ic('user-plus')}<span>Novo cliente</span></button>
       </div>
       ${statusPills(source, window.uiV2Screens.soLeadMeta ? null : cur, leadMetaPill(source))}
       ${adminFiltersRow(source)}
@@ -514,7 +534,7 @@
       const wa = waLink(c);
       const meta = leadMetaChip(c, true);
       return `<tr onclick="openCrm360('${esc(c.id)}')">
-        <td><div class="v2-who">${avCliente(c)}<div>${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}<small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}${etqLinha(c.id, 3)}<span class="show-m v2-mstline"><span class="v2-chip dot ${st[1]}">${st[0]}</span>${meta}</span></div></div></td>
+        <td><div class="v2-who">${avCliente(c)}<div><span class="v2-nm">${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}</span><small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}${etqLinha(c.id, 3)}<span class="show-m v2-mstline"><span class="v2-chip dot ${st[1]}">${st[0]}</span>${meta}</span></div></div></td>
         <td class="hide-m">${esc(c.cidade || '—')}${Number(c.hsp) > 0 ? `<small class="muted" style="display:block;font-size:12px">HSP ${esc(String(c.hsp).replace('.', ','))}</small>` : ''}</td>
         <td class="hide-m"><button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Alterar status">${st[0]}</button></td>
         <td class="hide-m">${nProp ? `${nProp} proposta${nProp > 1 ? 's' : ''}` : '<span class="muted">—</span>'}${nVend ? `<small style="display:block;font-size:12px;color:#1FA971;font-weight:700">${nVend} venda${nVend > 1 ? 's' : ''}</small>` : ''}</td>
@@ -524,10 +544,10 @@
         <td><div class="v2-acts">
           ${wa ? `<a class="v2-sq wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="WhatsApp">${ic('message-circle')}</a>` : ''}
           <button class="v2-sq hide-m" onclick="event.stopPropagation(); openProposalBuilder('${esc(c.id)}')" title="Nova proposta">${ic('file-plus-2')}</button>
-          <button class="v2-sq" onclick="event.stopPropagation(); openCrm360('${esc(c.id)}')" title="Abrir ficha">${ic('chevron-right')}</button>
+          <button class="v2-sq hide-m" onclick="event.stopPropagation(); openCrm360('${esc(c.id)}')" title="Abrir ficha">${ic('chevron-right')}</button>
         </div></td></tr>`;
     }).join('');
-    return `<div class="v2-card" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+    return `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
         <thead><tr><th>Cliente</th><th class="hide-m">Cidade</th><th class="hide-m">Status</th><th class="hide-m">Propostas</th><th class="hide-m">Em aberto</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Cadastro</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>
       ${rodapeLista(visiveis.length, filtered.length, 'clientesMostrarMais()', 'cliente|clientes')}`;
@@ -659,7 +679,7 @@
     const showSeller = canUseDashVendedorFilter();
 
     const kpi = (label, value, icon, color, sub, hero) => `<div class="v2-card v2-kpi ${hero ? 'hero' : ''}" style="cursor:default"><div class="h"><span>${label}</span><div class="ic" style="background:${color}1F;color:${color}">${ic(icon)}</div></div><div class="v">${value}</div><div class="foot"><span>${sub}</span></div></div>`;
-    const vista = modo('propostas', 'kanban', ['kanban', 'lista']);
+    const vista = celular() ? 'lista' : modo('propostas', 'kanban', ['kanban', 'lista']);
     // Lista: lote único sobre o filtro. Kanban: o lote vale POR COLUNA — antes era um
     // lote só (as mais recentes de todas as etapas) repartido nas colunas, e as etapas
     // pequenas (Enviadas, Vistas, Aceitas) perdiam as propostas mais antigas e a soma.
@@ -691,10 +711,10 @@
       return `<div class="v2-col"><div class="v2-colh"><i class="dot" style="background:${{ GERADA: '#808284', ENVIADA: '#008FD4', VISTA: '#FAA519', ACEITA: '#1FA971' }[s]}"></i><b>${PROP_ST[s][0]}s</b><em>${count[s] || 0}</em><small title="${soma ? money(soma) : ''}">${soma ? moneyC(soma) : ''}</small></div>
         ${items.length ? items.map(kcard).join('') : '<div class="v2-drop">Nenhuma proposta</div>'}</div>`;
     }).join('')}</div>`;
-    const lista = () => `<div class="v2-card" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+    const lista = () => `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
         <thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Status</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Criada</th><th class="hide-m">Valor</th><th></th></tr></thead>
         <tbody>${visible.map((p) => { const [stl, stc] = PROP_ST[propostaStatus(p)] || PROP_ST.GERADA; return `<tr ${abrir(p)}>
-          <td><div class="v2-who">${avCliente(p.cliente_id, p.cliente_nome)}<div>${esc(p.cliente_nome || 'Sem cliente')}<small style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small><span class="show-m v2-mline"><span class="v2-chip dot ${stc}">${stl}</span><b>${moneyC(propostaPreco(p))}</b></span></div></div></td>
+          <td><div class="v2-who">${avCliente(p.cliente_id, p.cliente_nome)}<div><span class="v2-nmrow"><span class="v2-nm">${esc(p.cliente_nome || 'Sem cliente')}</span><b class="v2-mval">${moneyC(propostaPreco(p))}</b></span><small style="max-width:300px;overflow:hidden;text-overflow:ellipsis">${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome || 'Proposta personalizada')}</small><span class="show-m v2-mline"><span class="v2-chip dot ${stc}">${stl}</span>${propostaStatus(p) === 'VISTA' ? `<span class="v2-minfo">${ic('flame')}${infoTx(p)}</span>` : ''}</span></div></div></td>
           <td class="hide-m">${kwpTx(p)}</td>
           <td class="hide-m"><span class="v2-chip dot ${stc}" title="${esc(infoTx(p))}">${stl}</span></td>
           ${showSeller ? `<td class="hide-m">${esc(vendNome(p.vendedor_email))}</td>` : ''}
@@ -717,7 +737,7 @@
         ${filtrosAtivos ? `<button class="v2-pill v2-fclear" onclick="limparPropostasFiltros()">${ic('filter-x')}Limpar · ${filtered.length} de ${escopo.length}</button>` : ''}
         <div class="v2-grow"></div>
         ${viewSeg('propostas', vista, ['kanban', 'lista'])}
-        <button class="v2-btno" style="width:auto;height:44px" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button>
+        <button class="v2-btno hide-m" style="width:auto;height:44px" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button>
       </div>
       <div class="v2-pills">${pill('ALL', 'Todas')}${pill('GERADA', 'Geradas')}${pill('ENVIADA', 'Enviadas')}${pill('VISTA', 'Vistas')}${pill('ACEITA', 'Aceitas')}</div>
       ${visible.length ? (vista === 'kanban' ? kanban() : lista()) : `<div class="v2-card v2-empty">${filtrosAtivos ? 'Nenhuma proposta com esses filtros.' : 'Nenhuma proposta gerada ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button></div></div>`}
@@ -839,6 +859,29 @@
         ${inf ? (sel ? VA.painelCard(v, inf) : `<div class="pv-cardtrk">${VA.trilho(v, inf)}${VA.agora(v, inf)}</div>`) : ''}
         <div class="ft"><div class="price">${money(getSaleValue(v))}<small>valor da venda</small></div>${acoesVenda(v)}</div>
       </div>`; }).join('');
+    // Celular: um cartão por venda — nome e valor em cima, kit, barra das 5 etapas
+    // e uma faixa colorida embaixo com a etapa atual (vermelha se precisa de atenção).
+    // Tocar abre a lista curta das etapas no próprio cartão (painelCard).
+    const valorM = (v) => `<small>R$</small>${esc(money(getSaleValue(v)).replace(/^R\$\s*/, '').replace(/,00$/, ''))}`;
+    const faixaM = (inf) => {
+      if (inf.fase === 5) return `<div class="v2-vm-ft ok">${ic('circle-check')}<b>Tudo pronto</b><span>monitorando</span>${ic('chevron-down')}</div>`;
+      const f = VA.FASES[inf.fase];
+      const late = inf.s[inf.fase] === 'late';
+      return `<div class="v2-vm-ft ${late ? 'late' : ''}">${ic(late ? 'triangle-alert' : f.i)}<b>${esc(f.n)}</b><span>${esc(inf.t[f.id][0])}</span>${ic('chevron-down')}</div>`;
+    };
+    const vmCard = (v) => {
+      const k = kitVenda(v); const inf = VA ? VA.info(v) : null; const sel = VA && aberta === v.id;
+      const kit = [k.nome, k.marca].filter(Boolean).join(' · ');
+      return `<article class="v2-vm ${sel ? 'on' : ''} ${inf && inf.atencao ? 'late' : ''}" onclick="${clique(v)}">
+        <div class="v2-vm-in">
+          <div class="v2-vm-top"><b class="v2-vm-nm">${esc(v.cliente_nome || '—')}</b><div class="v2-vm-val"><b>${valorM(v)}</b><small>${esc(formatDate(v.created_at))}</small></div></div>
+          ${showSeller ? `<div class="v2-vm-vend">${ic('user-round')}${esc(vendNome(v.vendedor_email))}${state.isAdmin && state.adminViewAll && v.franquia_id ? ' · ' + esc(getFranquiaNameById(v.franquia_id)) : ''}</div>` : ''}
+          <div class="v2-vm-kit">${v.kit_power ? `<span class="v2-vm-kwp">${ic('sun')}${kwpVenda(v)}</span>` : ''}<span class="tx" title="${esc(k.equipTitulo || kit)}">${esc(kit || '—')}</span></div>
+          ${inf ? `<div class="v2-vm-bar">${inf.s.map((x, i) => `<i class="${x} ${i === inf.fase ? 'cur' : ''}"></i>`).join('')}<em>${Math.min(inf.fase + 1, 5)}/5</em></div>` : ''}
+        </div>
+        ${inf ? (sel ? VA.painelCard(v, inf) : faixaM(inf)) : ''}
+      </article>`;
+    };
     const mais = rodapeLista(Math.min(limite, lista.length), lista.length, 'uiV2Screens.maisVendas()', 'venda|vendas');
     const filtrando = VA && String(faseSel) !== 'todas';
     const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas${filtrando ? ` · ${lista.length} nesta etapa` : ''}</h3><small>${VA ? 'Clique numa venda para ver o panorama dela' : 'Clique para abrir a ficha do cliente'}</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
@@ -850,6 +893,7 @@
       ${VA && vendas.length ? VA.fasesHTML(vendas, faseSel) : ''}
       ${ranking}
       ${!lista.length ? `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-empty">${filtrando ? 'Nenhuma venda nesta etapa.' : 'Nenhuma venda com os filtros atuais.'}</div></div>`
+        : celular() ? `<div class="v2-vmlista">${cab}${visiveis.map(vmCard).join('')}${mais}</div>`
         : vista === 'cards' ? `<div>${cab}<div class="v2-pgrid ${aberta && visiveis.some((v) => v.id === aberta) ? 'pv-aberto' : ''}">${cards}</div>${mais}</div>`
         : `<div class="v2-card" style="padding:14px 16px">${cab}<div class="v2-tscroll"><table class="v2-table"><thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Data</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th>Valor</th>${VA ? '<th class="pv-col">Andamento</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>${mais}</div>`}`;
     if (window.lucide) window.lucide.createIcons();
