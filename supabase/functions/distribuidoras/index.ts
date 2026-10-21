@@ -2,6 +2,7 @@
 // verify_jwt = true. Ações:
 //   { acao: "testar", provedor }               -> admin: loga na distribuidora e grava o status
 //   { acao: "opcoes", provedor }                -> módulos e marcas de inversor/micro (do espelho, sem consultar a distribuidora)
+//   { acao: "atualizar_catalogo", provedor }    -> só o pg_cron da madrugada (header x-internal-secret): renova o espelho
 //   { acao: "cotar", provedor, placas, tipo, modulo?, marca?, telhado? } -> qualquer usuário ativo: cota os kits,
 //        telhado = chave da tabela estruturas (ceramico, laje, solo...; ver TELHADOS). Sem telhado = cerâmico.
 //   { acao: "cotar", provedor, placas, modulo, inversores: [{ item, qtd }], telhado? } -> admin/gestor (modo avançado):
@@ -21,6 +22,8 @@ const json = (status: number, body: unknown) =>
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// Agendamento do banco (vault internal_trigger_secret, o mesmo do push).
+const INTERNAL_SECRET = Deno.env.get("INTERNAL_TRIGGER_SECRET") ?? "";
 
 function jwtPayload(token: string): Record<string, any> | null {
   try {
@@ -79,9 +82,19 @@ const BLOQ = { ate: 0, motivo: "403" }; // atalho em memória; o que vale fica e
 type TipoErro = "bloqueio" | "instavel" | "recusado";
 const erroTipo = (msg: string, tipo: TipoErro) => Object.assign(new Error(msg), { tipo });
 const tipoDoErro = (err: unknown): TipoErro | null => ((err as any)?.tipo as TipoErro) ?? null;
-const erroBloqueio = (ate: number, motivo = "403") => erroTipo(motivo === "429"
+// "ate" vai junto pra tela tentar de novo sozinha quando a pausa acabar.
+const erroBloqueio = (ate: number, motivo = "403") => Object.assign(erroTipo(motivo === "429"
   ? `A Belenus pediu pra aguardar antes de novas consultas. Novas tentativas estão pausadas até ${horaBR(ate)}.`
-  : `A Belenus está recusando as consultas da plataforma no momento. Por precaução, novas tentativas estão pausadas até ${horaBR(ate)}. Esse horário é uma pausa do nosso sistema, não uma previsão de liberação da Belenus.`, "bloqueio");
+  : `A Belenus está recusando as consultas da plataforma no momento. Por precaução, novas tentativas estão pausadas até ${horaBR(ate)}. Esse horário é uma pausa do nosso sistema, não uma previsão de liberação da Belenus.`, "bloqueio"), { ate });
+const ateDoErro = (err: unknown) => Number((err as any)?.ate) || null;
+// Ritmo: no máximo uma consulta a cada 400 ms por instância (a Belenus vinha recebendo ~4 por segundo).
+// Um 403 isolado é repetido UMA vez depois de 6 s, do mesmo jeito; repetiu, pausa como antes.
+// Em 19/10 passaram 16 consultas em 14 s e em 21/10 a 8ª em 12 s levou 403: a recusa não é uma
+// conta fixa, então vale uma segunda tentativa calma antes de travar a cotação.
+const INTERVALO_MS = 400;
+const ESPERA_403_MS = 6_000;
+const RITMO = { livre: 0 };
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Retry-After em segundos ou data HTTP. Respeita o prazo pedido (no mínimo 5 s, no máximo
 // 24 h contra valor absurdo); sem prazo válido devolve 0 e o 429 usa o padrão de 1 min.
 function prazoRetryAfter(valor: string | null) {
@@ -112,6 +125,7 @@ class Belenus {
   site = "0001";
   private diagnosticoId = crypto.randomUUID();
   private recusas = { n: 0, ultima: 0 }; // recusas (403) seguidas, lidas do banco no login
+  private repetiu403 = false; // a segunda tentativa após 403 é uma só por chamada da função
   constructor(private email: string, private senha: string, private provedor = "belenus") {}
 
   async login(forcar = false) {
@@ -155,6 +169,9 @@ class Belenus {
 
   async req(path: string, body: unknown, auth = true, timeoutMs = 30000, repetida = false): Promise<any> {
     if (BLOQ.ate > Date.now()) throw erroBloqueio(BLOQ.ate, BLOQ.motivo); // não insiste no meio de uma cotação
+    const vez = Math.max(Date.now(), RITMO.livre);
+    RITMO.livre = vez + INTERVALO_MS;
+    if (vez > Date.now()) await dormir(vez - Date.now());
     const inicio = Date.now();
     const etapa = path.split("?")[0];
     let resposta: Response | undefined;
@@ -190,6 +207,12 @@ class Belenus {
           await this.login(true);
           return this.req(path, body, auth, timeoutMs, true);
         }
+      }
+      if (r.status === 403 && auth && !this.repetiu403) {
+        this.repetiu403 = true;
+        clearTimeout(t);
+        await dormir(ESPERA_403_MS);
+        return this.req(path, body, auth, timeoutMs, true);
       }
       if (r.status === 403) {
         const agora = Date.now();
@@ -335,9 +358,11 @@ async function cidadeDaUnidade(franquiaId: string | null): Promise<{ cidade: str
 // Módulos e inversores (sem preço) ficam espelhados em distribuidora_catalogo: a tela abre sem
 // consultar a Belenus. Na cotação, as recomendações de inversor são consultadas para o projeto
 // real: a lista pode se repetir, mas numInversores e os limites somados dependem do projeto.
-// Passou de 24 h: usa o espelho atual para os filtros e atualiza em segundo plano.
+// Quem renova é o agendamento da madrugada (pg_cron → acao "atualizar_catalogo"): renovar quando
+// a tela abria somava as 4 consultas do catálogo às da primeira cotação do dia (21/10: 403).
+// Passou de 3 dias (agendamento falhou): usa o espelho atual e atualiza em segundo plano.
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
-const CATALOGO_VALIDADE_MS = 24 * 60 * 60_000;
+const CATALOGO_VALIDADE_MS = 3 * 24 * 60 * 60_000;
 const INV_GRUPOS = [
   { grupo: "mono", tipo: "Inversor String On-grid", lig: "Monofásico", tensao: "127/220V" },
   { grupo: "tri", tipo: "Inversor String On-grid", lig: "Trifásico", tensao: "220V" },
@@ -586,7 +611,7 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
       });
     } catch (err) {
       // Sem tipo = falha nossa ao montar/ler a resposta: trata como instabilidade, não como falta do kit.
-      resultados.push({ erro: String((err as Error).message || err), tipo: tipoDoErro(err) ?? "instavel", inv: e.inv, micro: e.micro });
+      resultados.push({ erro: String((err as Error).message || err), tipo: tipoDoErro(err) ?? "instavel", ate: ateDoErro(err), inv: e.inv, micro: e.micro });
     }
   }
   return resultados;
@@ -668,16 +693,30 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { error: "Método não permitido" });
   if (!SUPABASE_URL || !SERVICE_ROLE) return json(500, { error: "Configuração ausente" });
 
-  const auth = req.headers.get("Authorization") ?? "";
-  const claims = auth.startsWith("Bearer ") ? jwtPayload(auth.slice(7)) : null;
-  const userId = String(claims?.sub ?? "");
-  if (!userId) return json(401, { error: "Sessão inválida" });
-
   let body: any;
   try { body = await req.json(); } catch { return json(400, { error: "Pedido inválido" }); }
   const provedor = String(body?.provedor ?? "");
   const acao = String(body?.acao ?? "");
   if (provedor !== "belenus") return json(400, { error: "Integração não disponível" });
+
+  if (acao === "atualizar_catalogo") {
+    if (!INTERNAL_SECRET || req.headers.get("x-internal-secret") !== INTERNAL_SECRET) return json(401, { error: "unauthorized" });
+    const cred = await rest("rpc/integracao_credencial", { method: "POST", body: JSON.stringify({ p_provedor: provedor }) }).catch(() => null);
+    if (!cred?.usuario || !cred?.senha || !cred.ativo) return json(200, { ok: false, error: "Integração desligada" });
+    const bel = new Belenus(cred.usuario, cred.senha);
+    if (cred.opcoes?.site) bel.site = String(cred.opcoes.site);
+    try {
+      const cat = await catalogoAtualizar(bel, provedor);
+      return json(200, { ok: !!cat, modulos: cat?.modulos.length ?? 0, inversores: cat?.inversores.length ?? 0 });
+    } catch (err) {
+      return json(200, { ok: false, error: String((err as Error).message || err) });
+    }
+  }
+
+  const auth = req.headers.get("Authorization") ?? "";
+  const claims = auth.startsWith("Bearer ") ? jwtPayload(auth.slice(7)) : null;
+  const userId = String(claims?.sub ?? "");
+  if (!userId) return json(401, { error: "Sessão inválida" });
 
   // Conta ativa + papel conferidos no banco (o claim pode estar velho).
   const contas = await rest(`user_accounts?user_id=eq.${userId}&select=role,ativo,franquia_id`).catch(() => []);
@@ -765,7 +804,7 @@ Deno.serve(async (req) => {
         }] });
       } catch (err) {
         if (tipoDoErro(err) === "recusado") emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
-        return json(200, { ok: false, error: String((err as Error).message || err), tipo: tipoDoErro(err) });
+        return json(200, { ok: false, error: String((err as Error).message || err), tipo: tipoDoErro(err), ate: ateDoErro(err) });
       }
     }
     try {
@@ -781,7 +820,7 @@ Deno.serve(async (req) => {
       if (res.some((r) => !r.erro)) await bel.zerarRecusas();
       const saida: any[] = [];
       for (const r of res) {
-        if (r.erro) { saida.push({ erro: r.erro, tipo: r.tipo, opcao: r.micro ? "Microinversor" : nomeInv(r.inv) }); continue; }
+        if (r.erro) { saida.push({ erro: r.erro, tipo: r.tipo, ate: r.ate, opcao: r.micro ? "Microinversor" : nomeInv(r.inv) }); continue; }
         let { preco, preco_de } = precificar(r.custo, r.micro);
         let precificacao: any = {modo:'markup', ...REGRA};
         if (modo === 'custos') {
@@ -812,7 +851,7 @@ Deno.serve(async (req) => {
       saida.sort((a, b) => (a.erro ? 1 : 0) - (b.erro ? 1 : 0) || (a.preco ?? 0) - (b.preco ?? 0));
       return json(200, { ok: true, kits: saida });
     } catch (err) {
-      return json(200, { ok: false, error: String((err as Error).message || err) });
+      return json(200, { ok: false, error: String((err as Error).message || err), tipo: tipoDoErro(err), ate: ateDoErro(err) });
     }
   }
 

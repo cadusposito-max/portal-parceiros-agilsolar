@@ -33,6 +33,27 @@ let _pbCotSeq = 0;
 // de novo: poupa a Belenus de quem clica duas vezes ou troca de marca e volta.
 const _pbCotMemo = new Map();
 const PB_COT_MEMO_MS = 10 * 60_000;
+// Distribuidora pausada: quando a pausa acaba a tela cota de novo sozinha (uma vez só), se nada mudou.
+let _pbCotRetomar = null; // { timer, em }
+
+function pbCotCancelarRetomada() {
+  if (_pbCotRetomar) clearTimeout(_pbCotRetomar.timer);
+  _pbCotRetomar = null;
+}
+
+function pbCotAgendarRetomada(ate, seq, cot, auto) {
+  pbCotCancelarRetomada();
+  const falta = Number(ate) - Date.now();
+  if (auto || !(falta > 0) || falta > 30 * 60_000) return;
+  const em = Number(ate) + 3000;
+  const timer = setTimeout(() => {
+    _pbCotRetomar = null;
+    // Mudou a escolha, o cliente ou saiu da tela: não cota por conta própria.
+    if (seq !== _pbCotSeq || cot !== _pbCot || cot.carregando || !cot.erro || !document.getElementById('pb-cot-placas')) return;
+    pbIntegracaoCotar(true);
+  }, em - Date.now());
+  _pbCotRetomar = { timer, em };
+}
 
 async function carregarIntegracoesAtivas(force = false) {
   if (_integracoesAtivas && !force) return _integracoesAtivas;
@@ -99,13 +120,17 @@ function pbIntegracaoAlertaHTML(msg, contexto = 'cotar') {
   const txt = String(msg || '').replace(/^Não foi possível buscar os equipamentos da distribuidora:\s*/i, '').trim();
   // Pausa: 403 ("recusando as consultas") ou 429 ("pediu pra aguardar"), sempre com o horário.
   const bloqueio = txt.match(/(?:recusando as consultas|pediu pra aguardar)[\s\S]*?(\d{1,2}:\d{2})/i);
-  let tipo = 'aviso', icone = 'alert-triangle', titulo, corpo, hora = '';
+  let tipo = 'aviso', icone = 'alert-triangle', titulo, corpo, hora = '', chip = '';
   if (bloqueio) {
     icone = 'hourglass'; hora = bloqueio[1];
     titulo = `${nome} pausada por alguns minutos`;
     corpo = /pediu pra aguardar/i.test(txt)
       ? `A ${nome} pediu pra aguardar antes de novas consultas.`
       : `A ${nome} recusou uma consulta. Nosso sistema pausou novas tentativas por precaução; o horário abaixo não garante a liberação pela distribuidora.`;
+    if (contexto === 'cotar' && _pbCotRetomar) {
+      corpo += ' Pode deixar a tela aberta: a cotação roda de novo sozinha.';
+      chip = `Cota de novo sozinho às ${new Date(_pbCotRetomar.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    }
   } else if (/^Esse kit não está disponível/i.test(txt)) {
     icone = 'package-x';
     titulo = `Kit indisponível na ${nome}`;
@@ -120,16 +145,17 @@ function pbIntegracaoAlertaHTML(msg, contexto = 'cotar') {
     titulo = contexto === 'equipamentos' ? 'Não foi possível buscar os equipamentos' : 'Não foi possível cotar agora';
     corpo = state.isAdmin && txt ? txt : `A ${nome} não respondeu. Tente de novo em instantes.`;
   }
-  return pbAlertaHTML({ tipo, icone, titulo, corpo, hora });
+  return pbAlertaHTML({ tipo, icone, titulo, corpo, hora, chip });
 }
 
-function pbAlertaHTML({ tipo = 'aviso', icone = 'alert-triangle', titulo, corpo = '', hora = '' }) {
+function pbAlertaHTML({ tipo = 'aviso', icone = 'alert-triangle', titulo, corpo = '', hora = '', chip = '' }) {
+  if (hora && !chip) chip = `Nova tentativa após ${hora}`;
   return `<div class="pb-alerta pb-alerta-${tipo}" role="${tipo === 'erro' ? 'alert' : 'status'}">
       <i data-lucide="${icone}"></i>
       <div>
         <p class="pb-alerta-t">${escapeHTML(titulo)}</p>
         ${corpo ? `<p class="pb-alerta-b">${escapeHTML(corpo)}</p>` : ''}
-        ${hora ? `<span class="pb-alerta-chip"><i data-lucide="clock"></i>Nova tentativa após ${escapeHTML(hora)}</span>` : ''}
+        ${chip ? `<span class="pb-alerta-chip"><i data-lucide="clock"></i>${escapeHTML(chip)}</span>` : ''}
       </div>
     </div>`;
 }
@@ -191,6 +217,7 @@ function pbIntegracaoPlacas(value) {
 // Parâmetro mudou: some com os kits e o kit escolhido, e descarta a cotação em andamento.
 function pbIntegracaoInvalidar() {
   _pbCotSeq++;
+  pbCotCancelarRetomada();
   _pbCot.kits = []; _pbCot.erro = ''; _pbCot.cotadoEm = 0;
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbFornecimentoSync();
@@ -277,7 +304,9 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
   // Opções que não saíram quando outras saíram (ou, pro admin, sempre: ele vê o motivo).
   // "Indisponível" só quando a distribuidora recusou o equipamento; sem resposta, pede pra tentar de novo.
   const semResposta = erros.filter((e) => pbCotErroTipo(e) !== 'recusado');
-  const avisoOpcoes = erros.length && !_pbCot.carregando && (kits.length || state.isAdmin)
+  // Nada saiu e todas pararam na pausa: o cartão da pausa acima já diz tudo (não repete).
+  const soPausa = !kits.length && _pbCot.erro && erros.every((e) => pbCotErroTipo(e) === 'bloqueio');
+  const avisoOpcoes = erros.length && !_pbCot.carregando && !soPausa && (kits.length || state.isAdmin)
     ? pbAlertaHTML({
       icone: 'package-x', titulo: 'Algumas opções não saíram',
       corpo: `Não saíram agora: ${erros.map((e) => e.opcao + (state.isAdmin && e.erro ? ` (${e.erro})` : '')).join(', ')}. `
@@ -300,9 +329,11 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
     ${avisoOpcoes}`;
 }
 
-async function pbIntegracaoCotar() {
+// auto = tentativa que a própria tela faz quando a pausa da distribuidora acaba.
+async function pbIntegracaoCotar(auto = false) {
   const provedor = pbIntegracaoAtual();
   if (!provedor || _pbCot.carregando) return;
+  pbCotCancelarRetomada();
   const placas = Math.round(Number(document.getElementById('pb-cot-placas')?.value || _pbCot.placas));
   if (!Number.isFinite(placas) || placas < 4 || placas > 150) { showToast('Informe de 4 a 150 placas.'); return; }
   _pbCot.placas = String(placas);
@@ -328,7 +359,7 @@ async function pbIntegracaoCotar() {
   try {
     const { data, error } = await invocarDistribuidoras(pedido);
     if (error) throw error;
-    if (!data?.ok) throw new Error(data?.error || 'Não foi possível cotar agora.');
+    if (!data?.ok) throw Object.assign(new Error(data?.error || 'Não foi possível cotar agora.'), { ate: data?.tipo === 'bloqueio' ? data.ate : null });
     if (seq !== _pbCotSeq || cot !== _pbCot || cot.telhado !== telhado) return; // a escolha mudou no meio: resposta velha não entra
     const kits = data.kits || [];
     let erro = '';
@@ -339,6 +370,7 @@ async function pbIntegracaoCotar() {
       const instavel = kits.find((k) => pbCotErroTipo(k) === 'instavel');
       erro = bloq?.erro || (instavel && !kits.some((k) => pbCotErroTipo(k) === 'recusado') ? instavel.erro : '')
         || 'Esse kit não está disponível no momento. Escolha outro módulo ou outro inversor e cote de novo.';
+      if (bloq) pbCotAgendarRetomada(bloq.ate, seq, cot, auto);
     }
     const em = Date.now();
     Object.assign(_pbCot, { kits, erro, cotadoEm: em });
@@ -346,7 +378,10 @@ async function pbIntegracaoCotar() {
     if (!kits.some((k) => k.erro && pbCotErroTipo(k) !== 'recusado')) _pbCotMemo.set(memoChave, { kits, erro, em });
   } catch (err) {
     console.error('[integrações] cotar', err);
-    if (seq === _pbCotSeq && cot === _pbCot) _pbCot.erro = err?.message || 'Não foi possível cotar agora. Tente de novo.';
+    if (seq === _pbCotSeq && cot === _pbCot) {
+      _pbCot.erro = err?.message || 'Não foi possível cotar agora. Tente de novo.';
+      if (err?.ate) pbCotAgendarRetomada(err.ate, seq, cot, auto);
+    }
   } finally {
     cot.carregando = false;
     if (cot === _pbCot) pbFornecimentoSync();
