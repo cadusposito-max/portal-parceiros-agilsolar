@@ -12,6 +12,8 @@ html[data-ui="v2"] .rd { color: var(--v2-ink); font-size: 14px; }
 .rd-sel { display: inline-flex; align-items: center; gap: 8px; background: var(--v2-card); border: 1px solid var(--v2-line); border-radius: var(--v2-r-ctl); padding: 0 10px; height: 40px; box-shadow: var(--v2-shadow); color: var(--v2-ink); }
 .rd-sel select, .rd-sel input { border: 0; background: none; font: inherit; font-weight: 700; color: var(--v2-ink); outline: 0; height: 38px; }
 .rd-sel input { font-weight: 500; width: 190px; }
+/* o tema escuro pinta todo campo (reskin.css); dentro da caixinha o campo fica transparente */
+html[data-ui="v2"] body #main-container .rd-sel :is(input, select) { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
 .rd-sel select option { color: #0F1B26; }
 
 .rd-btn { height: 40px; padding: 0 16px; border-radius: var(--v2-r-ctl); border: 1px solid var(--v2-line-strong); background: var(--v2-card); font: inherit; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; color: var(--v2-ink); white-space: nowrap; cursor: pointer; }

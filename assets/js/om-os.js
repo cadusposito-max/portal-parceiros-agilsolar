@@ -256,23 +256,24 @@
       <span class="w-[115px] shrink-0">Agenda</span>
       <span class="w-[170px] shrink-0 text-right">Status</span>
     </div>`;
-    return head + `<div class="border border-neutral-800 divide-y divide-neutral-800 bg-neutral-900/20">${r.map(osRow).join('')}</div>`;
+    return head + `<div class="om-oslist border border-neutral-800 divide-y divide-neutral-800 bg-neutral-900/20">${r.map(osRow).join('')}</div>`;
   }
 
   function osRow(o) {
     const st = STATUS[o.status] || STATUS.agendada;
     const pr = PRIO[o.prioridade];
     const chip = (typeof omChip === 'function') ? omChip(st.label, st.tone) : esc(st.label);
+    // om-osrow*: no celular vira cartão (número e status em cima, serviço, cliente e data embaixo — mobile.css)
     return `<button onclick="omOsAbrir('${esc(o.id)}')"
-      class="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-blue-500/[0.06] transition-colors">
-      <span class="w-[90px] shrink-0 text-[12px] font-black text-white">${esc(o.numero || 'OS')}</span>
-      <span class="flex-1 min-w-0">
+      class="om-osrow w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-blue-500/[0.06] transition-colors">
+      <span class="om-osrow-num w-[90px] shrink-0 text-[12px] font-black text-white">${esc(o.numero || 'OS')}</span>
+      <span class="om-osrow-tx flex-1 min-w-0">
         <span class="block text-[13px] font-semibold text-neutral-100 truncate">${esc(o.tipo_servico || '—')}</span>
         <span class="block text-[11.5px] text-neutral-500 truncate">${esc(o.cliente || '')}</span>
       </span>
-      <span class="hidden sm:flex items-center gap-1.5 text-[11px] text-neutral-400 w-[115px] shrink-0">
+      <span class="om-osrow-ag hidden sm:flex items-center gap-1.5 text-[11px] text-neutral-400 w-[115px] shrink-0">
         <i data-lucide="calendar-clock" class="w-3 h-3 shrink-0"></i>${esc(fmtDateTime(o.agendado_para))}</span>
-      <span class="flex items-center gap-2 justify-end w-auto sm:w-[170px] shrink-0">
+      <span class="om-osrow-st flex items-center gap-2 justify-end w-auto sm:w-[170px] shrink-0">
         ${pr ? `<span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${pr.cls}">${pr.label}</span>` : ''}
         ${chip}
       </span>

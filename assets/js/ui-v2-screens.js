@@ -1071,7 +1071,7 @@
             <button class="v2-sq del" title="${state.isAdmin && !state.adminKitsFranquia ? 'Excluir do catálogo' : 'Remover/ocultar'}" onclick="event.stopPropagation(); deleteItem('${id}')">${ic('trash-2')}</button>
           </div>`;
     };
-    const vista = modo('produtos_kits', 'cards', ['cards', 'lista']);
+    const vista = celular() ? 'cards' : modo('produtos_kits', 'cards', ['cards', 'lista']);
     const kitRow = (k) => {
       const inativo = k.ativo === false;
       const micro = k.categoria === 'kitsMicro';
@@ -1161,7 +1161,7 @@
           <button class="v2-sq del" title="Excluir" onclick="event.stopPropagation(); deleteEquipamento('${id}')">${ic('trash-2')}</button>
         </div>`;
     };
-    const vista = modo('produtos_equip', 'lista', ['lista', 'cards']);
+    const vista = celular() ? 'cards' : modo('produtos_equip', 'lista', ['lista', 'cards']);
     const eqCard = (e) => {
       const inativo = e.ativo === false;
       const temCusto = e.custo !== null && e.custo !== undefined && e.custo !== '';

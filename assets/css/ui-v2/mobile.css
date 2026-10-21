@@ -14,8 +14,8 @@ html[data-ui="v2"] .v2s .v2-mval { display: none; } /* valor ao lado do nome: s�
   html[data-ui="v2"] .v2-mtop .v2-icb { width: 40px; height: 40px; background: transparent !important; box-shadow: none !important; color: var(--v2-ink-2); }
   html[data-ui="v2"] .v2-mtop .v2-icb svg { width: 21px; height: 21px; }
 
-  /* lista ou quadro: no celular Clientes, Propostas e Vendas são sempre lista */
-  html[data-ui="v2"] body:is([data-v2screen="clientes"], [data-v2screen="propostas"], [data-v2screen="vendas"]) .v2s .v2-viewseg { display: none; }
+  /* lista ou quadro: no celular Clientes, Propostas e Vendas são sempre lista; Produtos, sempre cartões */
+  html[data-ui="v2"] body:is([data-v2screen="clientes"], [data-v2screen="propostas"], [data-v2screen="vendas"], [data-v2screen="produtos"]) .v2s .v2-viewseg { display: none; }
 
   /* ---- iniciais ---- */
   html[data-ui="v2"] .v2s .v2-ini[data-ini] { background: color-mix(in srgb, var(--avc) 18%, transparent) !important; color: color-mix(in srgb, var(--avc) 78%, var(--v2-ink)) !important; }
@@ -61,6 +61,46 @@ html[data-ui="v2"] .v2s .v2-mval { display: none; } /* valor ao lado do nome: s�
   html[data-ui="v2"] body[data-v2screen="clientes"] .v2s .v2-toolbar .v2-sbox { flex: 1 1 0; }
   html[data-ui="v2"] .v2s .v2-novocli { width: 44px; height: 44px; padding: 0 !important; justify-content: center; flex: none; border-radius: 14px; }
   html[data-ui="v2"] .v2s .v2-novocli span { display: none; }
+
+  /* ---- Engenharia: busca na linha toda e os filtros lado a lado embaixo ---- */
+  html[data-ui="v2"] .eg .rd-bar { gap: 8px; justify-content: flex-start; }
+  html[data-ui="v2"] .eg .rd-bar > label.rd-sel:first-child { flex: 1 1 100%; min-width: 0; }
+  html[data-ui="v2"] .eg .rd-bar > .rd-grow { display: none; }
+  html[data-ui="v2"] .eg .rd-bar .eg-seg .rd-tab { padding: 0 10px; }
+  html[data-ui="v2"] .eg .rd-bar .eg-seg .rd-tab svg { display: none; }
+  html[data-ui="v2"] .eg .rd-bar > .rd-btn.ghost { padding: 0 10px; margin-left: auto; }
+  html[data-ui="v2"] .eg .eg-fchip { height: 32px; padding: 0 9px; font-size: 12px; gap: 5px; }
+  html[data-ui="v2"] .eg .eg-fchip svg { display: none; }
+  /* listas (projetos, OS, catálogo): um cartão por item, como em Vendas */
+  html[data-ui="v2"] .eg .rd-card:has(> table.rd-t.cards:only-child) { background: transparent !important; box-shadow: none !important; border: 0 !important; padding: 0 !important; }
+  html[data-ui="v2"] .eg .rd-card > table.rd-t.cards:only-child tbody { display: flex; flex-direction: column; gap: 10px; }
+  html[data-ui="v2"] .eg .rd-card > table.rd-t.cards:only-child tr { background: var(--v2-card); border: 1px solid var(--v2-line); border-radius: 18px; padding: 14px 16px; box-shadow: var(--v2-shadow); }
+  /* status da lista: uma faixa que rola de lado em vez de 6 linhas de botões */
+  html[data-ui="v2"] .eg > .rd-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: -12px; margin-right: -12px; padding: 2px 12px; }
+  html[data-ui="v2"] .eg > .rd-chips::-webkit-scrollbar { display: none; }
+  html[data-ui="v2"] .eg > .rd-chips .rd-chip { flex: none; white-space: nowrap; }
+
+  /* ---- O&M: o título já está no topo; do cabeçalho grande fica só o botão ---- */
+  html[data-ui="v2"] .om-ph { padding: 0 !important; margin-bottom: 12px !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+  html[data-ui="v2"] .om-ph > .absolute, html[data-ui="v2"] .om-ph .om-ph-id { display: none !important; }
+  html[data-ui="v2"] .om-ph:not(:has(.om-ph-acts)) { display: none !important; }
+  /* OS: busca na linha toda; ordenar e lista/quadro embaixo */
+  html[data-ui="v2"] .om-env div:has(> #om-os-search) { flex: 1 1 100% !important; }
+  /* OS em lista: um cartão por OS — número e status em cima, serviço e cliente inteiros, data embaixo */
+  html[data-ui="v2"] .om-oslist { border: 0 !important; background: transparent !important; display: flex; flex-direction: column; gap: 8px; }
+  html[data-ui="v2"] .om-oslist > .om-osrow { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; padding: 12px 14px !important; background: var(--v2-card); border: 1px solid var(--v2-line) !important; border-radius: 16px; box-shadow: var(--v2-shadow); }
+  html[data-ui="v2"] .om-osrow-num { grid-column: 1; grid-row: 1; width: auto !important; font-size: 11.5px !important; color: var(--v2-gray) !important; align-self: center; }
+  html[data-ui="v2"] .om-osrow-st { grid-column: 2; grid-row: 1; width: auto !important; }
+  html[data-ui="v2"] .om-osrow-tx { grid-column: 1 / -1; grid-row: 2; }
+  html[data-ui="v2"] .om-osrow-tx > span { white-space: normal !important; overflow: visible !important; }
+  html[data-ui="v2"] .om-osrow-tx > span:first-child { font-size: 14px !important; font-weight: 800 !important; }
+  html[data-ui="v2"] .om-osrow-ag { display: flex !important; grid-column: 1 / -1; grid-row: 3; width: auto !important; margin-top: 3px; }
+
+  /* ---- Financeiro: o selo de status do título não quebra linha ---- */
+  html[data-ui="v2"] #rec-cards .metric-card > div:first-child > span:last-child { flex: none; white-space: nowrap; }
+
+  /* ---- ficha do cliente: nome em até 2 linhas ---- */
+  html[data-ui="v2"] .v2f-nome { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 
   /* ---- números do topo ---- */
   html[data-ui="v2"] .v2s .v2-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }

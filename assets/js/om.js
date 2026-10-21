@@ -169,11 +169,11 @@ function omHeroBanner({ name, subtitle, badgeText, badgeIcon }) {
 // Cabeçalho padrão para rotas internas
 function omPageHeader({ icon, title, subtitle, actions = '' }) {
   return `
-    <section class="relative overflow-hidden bg-gradient-to-b from-neutral-900 to-[#0d0d0d] border border-neutral-800 p-6 md:p-7 mb-5">
+    <section class="om-ph relative overflow-hidden bg-gradient-to-b from-neutral-900 to-[#0d0d0d] border border-neutral-800 p-6 md:p-7 mb-5">
       <div class="absolute inset-0 pointer-events-none"
         style="background: radial-gradient(600px 220px at 92% 30%, rgba(59,130,246,.10), transparent 60%);"></div>
       <div class="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex items-start gap-4 min-w-0">
+        <div class="om-ph-id flex items-start gap-4 min-w-0">
           <div class="w-11 h-11 bg-blue-500/10 text-blue-400 grid place-items-center border border-blue-500/20 shrink-0">
             <i data-lucide="${icon}" class="w-5 h-5"></i>
           </div>
@@ -183,7 +183,7 @@ function omPageHeader({ icon, title, subtitle, actions = '' }) {
             <div class="text-neutral-400 text-sm mt-1.5 max-w-2xl">${subtitle}</div>
           </div>
         </div>
-        ${actions ? `<div class="flex items-center gap-2 flex-wrap">${actions}</div>` : ''}
+        ${actions ? `<div class="om-ph-acts flex items-center gap-2 flex-wrap">${actions}</div>` : ''}
       </div>
     </section>
   `;

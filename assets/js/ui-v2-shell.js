@@ -166,9 +166,10 @@
     // atualiza esses pontos, sem recriar menu e ícones (era ~40ms por vez).
     const sig = JSON.stringify([k, T.map((t) => [t.id, t.label, t.icon]), u.nome, u.email, u.role, u.avatar, u.unidade, cta && cta[0], chatOn, canAdmin, multiEnv,
       state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn, tarefasOn]);
-    // celular: a tela inicial ganha a barra de busca grande (ver shell.css)
+    // celular: a tela inicial do Comercial ganha a barra de busca grande (ver shell.css);
+    // nos outros ambientes a tela inicial já tem a busca dela e a geral fica na lupa
     const top = $('#v2-top');
-    if (top) top.classList.toggle('home', !!T[0] && cur === T[0].id);
+    if (top) top.classList.toggle('home', k === 'comercial' && !!T[0] && cur === T[0].id);
     if (sig === lastSig && $('#v2-side').firstChild) { paintLight(cur, title, sub, unread, notifCnt); return; }
     lastSig = sig;
 
