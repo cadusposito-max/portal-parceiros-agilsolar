@@ -431,6 +431,8 @@
   const ST_CLI = { NOVO: ['Novo', 't-gray', '#808284'], 'PROPOSTA ENVIADA': ['Enviada', 't-blue', '#008FD4'], 'EM NEGOCIAÇÃO': ['Em negociação', 't-orange', '#FAA519'], FECHADO: ['Fechado', 't-green', '#1FA971'], PERDIDO: ['Perdido', 't-red', '#D14343'] };
   const stCli = (s) => ST_CLI[normalizeClientStatus(s)] || ST_CLI.NOVO;
   const vendNome = (email) => (has('dashVendedorNome') ? dashVendedorNome(email) : String(email || '').split('@')[0]);
+  // "Carlos Eduardo da Silva" → "Carlos Silva" (vendedor na linha do cliente, no celular)
+  const nomeCurto = (nome) => { const p = String(nome || '').trim().split(/\s+/); return p.length > 1 ? `${p[0]} ${p[p.length - 1]}` : p[0] || ''; };
 
   // mesma fonte e mesmos filtros de clientes.js (admin x regular)
   function clientesRows() {
@@ -534,7 +536,7 @@
       const wa = waLink(c);
       const meta = leadMetaChip(c, true);
       return `<tr onclick="openCrm360('${esc(c.id)}')">
-        <td><div class="v2-who">${avCliente(c)}<div><span class="v2-nm">${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}</span><small>${esc(c.telefone || '—')}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}${etqLinha(c.id, 3)}<span class="show-m v2-mstline"><span class="v2-chip dot ${st[1]}">${st[0]}</span>${meta}</span></div></div></td>
+        <td><div class="v2-who">${avCliente(c)}<div><span class="v2-nm">${esc(c.nome || 'Cliente')} ${followLate(c) ? `<span class="v2-alarm" title="Follow-up atrasado: ${esc(c.proxima_acao_nota || 'agendado')}">${ic('alarm-clock')}</span>` : ''}</span><small>${esc(c.telefone || '—')}${showSeller ? `<span class="v2-mvend"> · ${ic('user-round')}${esc(nomeCurto(vendNome(c.vendedor_email)))}</span>` : ''}</small>${vistoriaChip(c) || engChip(c) ? `<span class="v2-visline">${vistoriaChip(c)}${engChip(c)}</span>` : ''}${etqLinha(c.id, 3)}<span class="show-m v2-mstline"><span class="v2-chip dot ${st[1]}">${st[0]}</span>${meta}</span></div></div></td>
         <td class="hide-m">${esc(c.cidade || '—')}${Number(c.hsp) > 0 ? `<small class="muted" style="display:block;font-size:12px">HSP ${esc(String(c.hsp).replace('.', ','))}</small>` : ''}</td>
         <td class="hide-m"><button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Alterar status">${st[0]}</button></td>
         <td class="hide-m">${nProp ? `${nProp} proposta${nProp > 1 ? 's' : ''}` : '<span class="muted">—</span>'}${nVend ? `<small style="display:block;font-size:12px;color:#1FA971;font-weight:700">${nVend} venda${nVend > 1 ? 's' : ''}</small>` : ''}</td>

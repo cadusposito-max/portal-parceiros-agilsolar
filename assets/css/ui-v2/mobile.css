@@ -8,6 +8,7 @@
    - números do topo: o principal em destaque e os outros numa faixa de 3
    ========================================== */
 html[data-ui="v2"] .v2s .v2-mval { display: none; } /* valor ao lado do nome: só no celular */
+html[data-ui="v2"] .v2s .v2-mvend { display: none; } /* vendedor na linha do telefone: só no celular (no PC tem coluna) */
 
 @media (max-width: 760px) {
   /* ---- topo: ícones sem a bolinha de fundo ---- */
@@ -39,6 +40,8 @@ html[data-ui="v2"] .v2s .v2-mval { display: none; } /* valor ao lado do nome: s�
   html[data-ui="v2"] .v2s .v2-lista .v2-nm .v2-alarm { vertical-align: -2px; margin-left: 2px; }
   html[data-ui="v2"] .v2s .v2-lista .v2-who small { font-size: 12.5px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   html[data-ui="v2"] .v2s .v2-lista .v2-visline { margin-top: 5px; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-mvend { display: inline; color: var(--v2-ink-2); font-weight: 600; white-space: nowrap; }
+  html[data-ui="v2"] .v2s .v2-lista .v2-mvend svg { display: inline-block !important; width: 12px !important; height: 12px !important; vertical-align: -1px; margin-right: 3px; }
   html[data-ui="v2"] .v2s .v2-lista .v2-mstline { display: flex !important; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
   html[data-ui="v2"] .v2s .v2-lista .v2-mstline .v2-leadmeta { margin-left: 0; }
   html[data-ui="v2"] .v2s .v2-lista .v2-acts { gap: 4px; }
