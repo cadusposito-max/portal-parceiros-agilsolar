@@ -140,7 +140,8 @@
   function eletInfo(o) {
     const pos = o.pos || {}, s = pos.eletrica_status;
     const falta = (Array.isArray(pos.eletrica_itens) ? pos.eletrica_itens : []).filter((x) => x && x.falta).length;
-    if (falta) return { st: 'late', ok: true, t: falta === 1 ? '1 item faltando' : falta + ' itens faltando', falta };
+    // item faltando na conferência: a obra não fica pronta até resolver
+    if (falta) return { st: 'late', ok: false, t: falta === 1 ? '1 item faltando' : falta + ' itens faltando', falta };
     if (s === 'separada') return { st: 'ok', ok: true, t: 'Separada', falta };
     if (s === 'comprada') return { st: 'ok', ok: true, t: 'Comprada', falta };
     return { st: 'wa', ok: false, t: 'A comprar', falta };
@@ -166,7 +167,7 @@
       posPend: etapa === 'concluida' ? [pos.medidor_status !== 'trocado' ? 'medidor' : '', pos.mon_status !== 'ativo' ? 'mon' : ''].filter(Boolean) : [],
     };
   }
-  const faltaTexto = (o, I) => [I.k.st !== 'ok' ? 'kit ' + (I.k.late ? 'atrasado' : I.k.t.toLowerCase()) : '', !I.e.ok ? 'elétrica a comprar' : '', !o.os ? 'OS da engenharia' : ''].filter(Boolean);
+  const faltaTexto = (o, I) => [I.k.st !== 'ok' ? 'kit ' + (I.k.late ? 'atrasado' : I.k.t.toLowerCase()) : '', !I.e.ok ? (I.e.falta ? 'elétrica com ' + I.e.t : 'elétrica a comprar') : '', !o.os ? 'OS da engenharia' : ''].filter(Boolean);
   const dataObra = (I) => (I.ini ? diaCurto(I.ini) + (I.dur > 1 ? ' a ' + dm(I.fim) : '') : '');
   const equipeNome = (o) => (o.equipe && o.equipe.nome) || (o.pos && o.pos.obra_equipe) || 'Sem equipe';
 
@@ -186,7 +187,6 @@
   }
   function alertaDe(o, I) {
     if (I.k.late) return 'Entrega do kit atrasada (' + I.k.d + ')';
-    if (I.e.falta) return 'Conferência da elétrica: ' + I.e.t;
     if (I.atrasada) return 'Passou da data da instalação (até ' + dm(I.fim) + ')';
     if (I.prio && I.prio.status === 'recusada' && !o.os) return 'Engenharia recusou passar na frente';
     if (I.etapa === 'concluida' && (o.pos || {}).mon_status === 'alerta') return 'Inversor sem comunicar';
@@ -245,7 +245,7 @@
   function toolbarHTML() {
     const eqs = equipesAtivas();
     const seg = [['agenda', 'calendar-days', 'Agenda'], ['quadro', 'kanban', 'Quadro'], ['lista', 'list', 'Lista']];
-    return `<div class="v2-toolbar">
+    return `<div class="v2-toolbar ob-tb">
       <label class="v2-sbox">${ic('search')}<input id="ob-busca" type="text" value="${esc(O.q)}" oninput="obras.buscar(this.value)" placeholder="Cliente, cidade ou vendedor" autocomplete="off"></label>
       ${eqs.length ? `<select class="v2-select ${O.eq ? 'on' : ''}" onchange="obras.equipe(this.value)"><option value="">Todas as equipes</option>${eqs.map((e) => `<option value="${e.id}" ${O.eq === e.id ? 'selected' : ''}>${esc(e.nome)}</option>`).join('')}</select>` : ''}
       <button type="button" class="v2-btn2" onclick="obras.equipesModal()">${ic('users')}Equipes</button>

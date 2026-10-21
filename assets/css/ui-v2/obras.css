@@ -221,6 +221,8 @@ html[data-theme="dark"] .ob-el .falta-tag { color: #F59A9A; }
 /* modais */
 .ob-modal .rd-fld textarea { min-height: 72px; border: 1px solid var(--v2-line-strong); border-radius: var(--v2-r-ctl); padding: 10px 12px; background: var(--v2-card); color: var(--v2-ink); outline: 0; width: 100%; font: inherit; resize: vertical; }
 .ob-modal .rd-fld textarea:focus { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
+.ob-modal h3 { display: flex; align-items: center; gap: 8px; }
+.ob-modal h3 svg.lucide { width: 20px; height: 20px; }
 .ob-modal p.sub { margin: 4px 0 0; color: var(--v2-ink-2); font-size: 13px; line-height: 1.5; }
 .ob-modal .eg-aviso { margin-top: 14px; }
 .ob-opts { display: flex; flex-direction: column; gap: 6px; }
@@ -277,6 +279,15 @@ html[data-theme="dark"] .ob-conf-it.falta .t { color: #F59A9A; }
   .v2s .ob-att b { font-size: 18px; }
   .v2s .ob-att small { font-size: 11.5px; max-width: 108px; }
   .ob-board-wrap, .ob-ag-scroll, .ob-tabwrap { display: none; }
+  /* filtros: busca numa linha, equipe + botão na outra, vistas ocupando a largura */
+  .v2s .ob-tb { gap: 8px; }
+  .v2s .ob-tb > .v2-grow { display: none; }
+  .v2s .ob-tb > .v2-select { flex: 1 1 0; min-width: 0; }
+  .v2s .ob-tb > .v2-seg { flex: 1 1 100%; }
+  .v2s .ob-tb > .v2-seg button { flex: 1; justify-content: center; }
+  .ob-ag-top > div:first-child { flex: 1 1 100%; }
+  .ob-ag-top > .v2-grow { display: none; }
+  .ob-ag-top .v2-btn2 { height: 34px; padding: 0 10px; }
   .ob-agm { display: flex; }
   .ob-mstrip { display: flex; gap: 6px; overflow-x: auto; margin: 0 -14px; padding: 0 14px; scrollbar-width: none; }
   .ob-mstrip::-webkit-scrollbar { display: none; }
@@ -290,6 +301,17 @@ html[data-theme="dark"] .ob-conf-it.falta .t { color: #F59A9A; }
   .ob-panel .rd-kv { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .ob-el .c-u, .ob-el .c-v { display: none; }
   .ob-el thead { display: none; }
+  /* no celular cada item é uma linha flexível: o nome fica com o espaço que sobrar */
+  .ob-el, .ob-el tbody, .ob-el tfoot { display: block; }
+  .ob-el tr { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--v2-line); }
+  .ob-el td { border-bottom: 0; }
+  .ob-el td:nth-child(2) { flex: 1; min-width: 0; }
+  .ob-el .c-k { width: 32px; flex: none; } .ob-el .c-q { width: 62px; flex: none; } .ob-el .c-x { width: 36px; flex: none; }
+  .ob-el .ft { border-bottom: 0; }
+  .ob-el .ft td:empty, .ob-el .ft td[colspan] { display: none; }
+  .ob-el .ft td.r { margin-left: auto; }
+  .ob-panel .rd-card h3 { flex-wrap: wrap; }
+  .ob-panel .rd-card h3 .r { margin-left: 0; flex-basis: 100%; }
   .ob-el td { padding: 4px 2px; }
   .ob-el input.tx, .ob-el input.nu { height: 42px; font-size: 14px; }
   .ob-el input[type="checkbox"] { width: 22px; height: 22px; }

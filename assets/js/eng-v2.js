@@ -1321,7 +1321,7 @@
   function prioRecusar(id) {
     const p = (E.projetos || []).find((x) => x.id === id);
     if (!p || !prioPedida(p)) return;
-    modal(`<h3>${ic('x')} Recusar prioridade</h3>
+    modal(`<h3>Recusar prioridade</h3>
       <p class="rd-sub">${esc(p.cliente_nome || 'Cliente')} · pedido: ${esc(p.prioridade.motivo || '')}${p.prioridade.texto ? ' · ' + esc(p.prioridade.texto) : ''}</p>
       <div class="rd-fgrid"><div class="rd-fld full"><label for="eg-prio-tx">Motivo para a unidade</label><input id="eg-prio-tx" maxlength="300" placeholder="Ex.: o projeto ainda está com documento pendente"></div></div>
       <div class="rd-err" id="eg-err"></div>
