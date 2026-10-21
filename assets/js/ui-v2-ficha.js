@@ -45,6 +45,12 @@
     let comp = f.classList.contains('compacto');
     if (y > 60 && rolavel) { comp = true; expandido = false; } else if (y < 8) comp = telaBaixa() && !expandido;
     f.classList.toggle('compacto', comp);
+    // celular: rolando, o cabeçalho vira uma linha só (nome, status, WhatsApp, fechar — mobile.css)
+    let min = f.classList.contains('minimo');
+    if (window.innerWidth > 760) min = false;
+    else if (y > 60 && rolavel) min = true;
+    else if (y < 8) min = false;
+    f.classList.toggle('minimo', min);
   }
   window.addEventListener('resize', ajustarCabecalho);
   window.uiV2Ficha = {
@@ -69,7 +75,7 @@
       const sc = document.getElementById('crm360-scroll');
       if (sc && sc.scrollTop > 0) sc.scrollTo({ top: 0, behavior: 'smooth' });
       const f = document.querySelector('#crm360-overlay .v2f');
-      if (f) f.classList.remove('compacto');
+      if (f) f.classList.remove('compacto', 'minimo');
     },
   };
 
@@ -398,6 +404,8 @@
     tabs.push(['financiamento', 'landmark', 'Financ.']);
     // cliente fechado com venda: o topo troca o funil pelas etapas do pós-venda
     const vendaTopo = VA && status === 'FECHADO' && vendas.length ? VA.vendaDaFicha(vendas) : null;
+    // venda parada no Projeto: a linha resumida já diz o status da engenharia, o selo "Eng:" sai no celular
+    const engNaLinha = Boolean(vendaTopo && VA.info(vendaTopo).fase === 1);
     if (has('renderCrmArquivosTab')) tabs.push(['arquivos', 'paperclip', 'Arquivos', `<span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`]);
     if (has('renderEngFichaTab')) tabs.push(['engenharia', 'ruler', 'Engenharia']);
     if (omFlag) tabs.push(['om', 'wrench', 'O&M']);
@@ -431,14 +439,16 @@
     overlay.classList.toggle('v2f-cheia', full);
 
     // linha que substitui etapas + resumo quando o cabeçalho encolhe
+    // (div e não <button>: no celular ela rola de lado, e rolar dentro de botão falha no iPhone)
     const visTx = vistoriaTexto(VIS().info(client));
+    const miniAbre = `role="button" tabindex="0" class="v2f-mini" onclick="uiV2Ficha.expandir()" onkeydown="if(event.key==='Enter')uiV2Ficha.expandir()" title="Mostrar etapas e resumo"`;
     const mini = vendaTopo
-      ? `<button type="button" class="v2f-mini" onclick="uiV2Ficha.expandir()" title="Mostrar etapas e resumo">${VA.topoMiniHTML(vendaTopo, String(vend).split(' ')[0])}${ic('chevron-down')}</button>`
-      : `<button type="button" class="v2f-mini" onclick="uiV2Ficha.expandir()" title="Mostrar etapas e resumo">
+      ? `<div ${miniAbre}>${VA.topoMiniHTML(vendaTopo, String(vend).split(' ')[0])}${ic('chevron-down')}</div>`
+      : `<div ${miniAbre}>
             <span>${lost ? '<b>Perdido</b>' : `Etapa <b>${cur + 1} de ${seq.length}</b>`}</span>
             <span>Resp. <b>${esc(String(vend).split(' ')[0])}</b></span>
             <span class="${proxAtrasada ? 'late' : ''}">Próx. ação <b>${prox ? esc(prox.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })) : 'nenhuma'}</b></span>
-            <span>Vistoria <b>${esc(visTx)}</b></span>${ic('chevron-down')}</button>`;
+            <span>Vistoria <b>${esc(visTx)}</b></span>${ic('chevron-down')}</div>`;
 
     // campos do cliente (mesmos IDs de crm.js: salvar, máscaras e cidade seguem iguais)
     const camposDados = `
@@ -476,7 +486,7 @@
       : `<div class="v2f-grid larga"><div class="v2f-card v2f-tabbody"><div id="crm360-tab-content">${renderCrm360TabContent(client, propostas, vendas)}</div></div></div>`;
 
     overlay.innerHTML = `
-      <div class="v2f">
+      <div class="v2f ${engNaLinha ? 'v2f-engnalinha' : ''}">
         <div class="v2f-head">
           <div class="v2f-top">
             ${(() => { const pj = window.uiV2TipoCliente && window.uiV2TipoCliente(client) === 'PJ'; return `<i class="v2f-av ${pj ? 'pj' : ''}" title="${pj ? 'Empresa' : 'Pessoa física'}">${ic(pj ? 'building-2' : 'user')}</i>`; })()}
@@ -494,7 +504,7 @@
             </div>
             <button class="v2-sq v2f-mob" onclick="closeCrm360()" title="Fechar">${ic('x')}</button>
             <div class="v2f-acts">
-              ${podeProposta ? `<button class="btn btn-primary btn-sm" onclick="openProposalBuilder('${esc(client.id)}')">${ic('file-plus-2')}Nova proposta</button>` : ''}
+              ${podeProposta ? `<button class="btn btn-primary btn-sm" onclick="openProposalBuilder('${esc(client.id)}')">${ic('file-plus-2')}<span class="v2f-dsk">Nova </span>proposta</button>` : ''}
               ${waLink ? `<a class="v2f-wa" href="${esc(waLink)}" target="_blank" rel="noopener noreferrer">${ic('message-circle')}WhatsApp</a>` : ''}
               ${tel ? `<a class="v2-sq" href="tel:+55${tel}" title="Ligar">${ic('phone')}</a>` : ''}
               ${docs ? `<button class="v2-sq v2f-dsk" onclick="abrirDocumentosCliente('${esc(client.id)}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}

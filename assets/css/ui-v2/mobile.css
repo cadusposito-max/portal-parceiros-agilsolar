@@ -102,8 +102,41 @@ html[data-ui="v2"] .v2s .v2-mvend { display: none; } /* vendedor na linha do tel
   /* ---- Financeiro: o selo de status do título não quebra linha ---- */
   html[data-ui="v2"] #rec-cards .metric-card > div:first-child > span:last-child { flex: none; white-space: nowrap; }
 
-  /* ---- ficha do cliente: nome em até 2 linhas ---- */
+  /* ---- ficha do cliente: cabeçalho enxuto ao abrir ----
+     sem o ícone de pessoa; nome em até 2 linhas com o X; status e cidade na mesma
+     linha (o telefone já está nos botões WhatsApp e Ligar); botões mais baixos;
+     a linha resumida (etapa · resp. · recebido) rola de lado em vez de quebrar */
+  html[data-ui="v2"] .v2f .v2f-av { display: none !important; }
+  html[data-ui="v2"] .v2f-top { gap: 8px; }
   html[data-ui="v2"] .v2f-nome { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+  html[data-ui="v2"] :is(.v2f, .v2f.compacto) .v2f-top .sub { order: 0; flex: 0 1 auto; margin-top: 0; font-size: 12px; }
+  html[data-ui="v2"] .v2f-top .sub .v2f-tel { display: none; }
+  html[data-ui="v2"] .v2f.v2f-engnalinha .v2f-top h2 > .v2-chip[onclick*="'engenharia'"] { display: none; }
+  html[data-ui="v2"] .v2f-acts { margin-top: 4px; }
+  html[data-ui="v2"] .v2f-acts > .btn-primary { flex: none !important; height: 36px !important; padding: 0 12px !important; }
+  html[data-ui="v2"] .v2f-acts > .v2f-wa { height: 36px !important; }
+  html[data-ui="v2"] .v2f .v2-sq { width: 36px; height: 36px; }
+  html[data-ui="v2"] body .v2f-mini { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 8px -16px 0; padding: 0 16px; }
+  html[data-ui="v2"] body .v2f-mini::-webkit-scrollbar { display: none; }
+  html[data-ui="v2"] .v2f-mini span { flex: none; }
+  html[data-ui="v2"] .v2f-mini span.late { background: rgba(209,67,67,.12); color: var(--v2-red); }
+  html[data-ui="v2"] .v2f-mini > svg { flex: none; }
+
+  /* ---- ficha do cliente: rolando, o cabeçalho vira uma linha (classe .minimo, ui-v2-ficha.js) ---- */
+  html[data-ui="v2"] .v2f.minimo .v2f-head { padding-top: 8px; }
+  html[data-ui="v2"] .v2f.minimo .v2f-top { flex-wrap: nowrap; align-items: center !important; }
+  html[data-ui="v2"] .v2f.minimo .v2f-top .tx { flex-wrap: nowrap; overflow: hidden; }
+  html[data-ui="v2"] .v2f.minimo .v2f-nome { flex: 1 1 auto; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; margin: 0; }
+  html[data-ui="v2"] .v2f.minimo .v2f-top h2 > :not(.v2f-nome, .v2f-stchip),
+  html[data-ui="v2"] .v2f.minimo .v2f-top .tx > :not(h2) { display: none !important; }
+  html[data-ui="v2"] .v2f.minimo .v2f-stchip { flex: none; }
+  html[data-ui="v2"] .v2f.minimo .v2f-acts { order: 2; width: auto; margin: 0; flex: none; }
+  html[data-ui="v2"] .v2f.minimo .v2f-acts > :not(.v2f-wa) { display: none !important; }
+  html[data-ui="v2"] .v2f.minimo .v2f-acts > .v2f-wa { width: 36px; padding: 0; font-size: 0; gap: 0; flex: none; justify-content: center; }
+  html[data-ui="v2"] .v2f.minimo .v2f-acts > .v2f-wa svg { width: 18px; height: 18px; }
+  html[data-ui="v2"] .v2f.minimo .v2f-top > .v2-sq.v2f-mob { order: 3; }
+  html[data-ui="v2"] .v2f.minimo :is(.v2f-mini, .v2f-steps, .v2f-sum) { display: none !important; }
+  html[data-ui="v2"] .v2f.minimo .v2f-tabs { margin-top: 8px; }
 
   /* ---- números do topo ---- */
   html[data-ui="v2"] .v2s .v2-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
