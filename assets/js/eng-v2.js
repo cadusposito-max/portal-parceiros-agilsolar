@@ -2157,20 +2157,20 @@
 :root{--blue:#008FD4;--orange:#FAA519;--ink:#0F1B26;--ink2:#4A5561;--gray:#808284;--line:#D9E0E6;--soft:#F4F7FA}
 *{box-sizing:border-box}body{margin:0;background:#DDE3E9;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-size:10.5px;line-height:1.45}
 .bar{position:sticky;top:0;z-index:5;background:#0F1B26;color:#fff;padding:10px 18px;display:flex;gap:12px;align-items:center;font-size:13px}.bar button{margin-left:auto;background:var(--orange);color:#3D2600;border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:800;cursor:pointer}
-.page{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:13mm 14mm 12mm;box-shadow:0 8px 30px rgba(15,27,38,.15);display:flex;flex-direction:column}
+.page{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:11mm 14mm 9mm;box-shadow:0 8px 30px rgba(15,27,38,.15);display:flex;flex-direction:column}
 .hd{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:3px solid var(--blue)}
 .logo{display:flex;align-items:center;gap:8px}.logo svg{height:34px;width:auto}.logo span{font-size:21px;letter-spacing:-.02em;display:flex;gap:4px}.logo b{font-weight:800}
 .ttl{flex:1;text-align:center}.ttl h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.02em;text-transform:uppercase}.ttl p{margin:2px 0 0;color:var(--ink2);font-size:10px}
 .num{text-align:right}.num b{display:block;font-size:17px;font-weight:800;color:var(--blue)}.num span{display:block;color:var(--ink2);font-size:9.5px}
 .meta{display:flex;gap:8px;margin:9px 0 2px;flex-wrap:wrap}.tag{display:inline-flex;font-weight:700;font-size:9.5px;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--ink2);border:1px solid var(--line)}
 .tag.ok{background:rgba(31,169,113,.12);color:var(--eg-verde);border-color:rgba(31,169,113,.3)}.tag.bad{background:rgba(209,67,67,.1);color:#9B2C2C;border-color:rgba(209,67,67,.3)}
-h2{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:13px 0 6px;display:flex;align-items:center;gap:8px}h2::after{content:"";flex:1;height:1px;background:var(--line)}
+h2{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:11px 0 5px;display:flex;align-items:center;gap:8px}h2::after{content:"";flex:1;height:1px;background:var(--line)}
 h2 em{font-style:normal;background:var(--blue);color:#fff;border-radius:4px;padding:1px 6px;font-size:9px;letter-spacing:.04em}
 .gr{display:grid;gap:5px 14px}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1fr 1fr}
 .f span{display:block;font-size:8.5px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em}.f b{font-weight:700;font-size:10.5px}
 .box{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 table{width:100%;border-collapse:collapse}th{text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);font-weight:700;padding:5px 7px;border-bottom:1.5px solid var(--ink)}
-td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{text-align:right;white-space:nowrap;font-weight:700}.ok{color:var(--eg-verde);font-weight:800}.bad{color:#B42318;font-weight:800}
+td{padding:4px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{text-align:right;white-space:nowrap;font-weight:700}.ok{color:var(--eg-verde);font-weight:800}.bad{color:#B42318;font-weight:800}
 .src{font-size:8.5px;color:var(--gray);font-weight:600;margin-top:3px}
 .mppt{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mp{border:1px dashed #9FB0BF;border-radius:8px;padding:7px 9px}.mp .t{font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--gray);display:flex;justify-content:space-between}
 .mods{display:flex;gap:3px;margin:6px 0 5px;flex-wrap:wrap}.mods i{width:15px;height:22px;border-radius:2px;background:#0B7FC0}
@@ -2180,8 +2180,15 @@ td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
 .sig{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}.sig div{border-top:1px solid var(--ink);padding-top:4px;text-align:center;font-size:9px;color:var(--ink2)}.sig b{display:block;color:var(--ink);font-size:9.5px}
 .line{border-bottom:1px solid #9FB0BF;height:17px}.note{background:#FEF4E3;border:1px solid #F6D9A5;border-radius:8px;padding:7px 10px;color:#6B4300;font-size:9.5px;margin-top:6px}
 .ft{margin-top:auto;padding-top:8px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:8.5px;color:var(--gray)}
-@media print{body{background:#fff}.bar{display:none}.page{margin:0;box-shadow:none;page-break-after:always}@page{size:A4;margin:0}}
-</style></head><body>
+@media print{body{background:#fff}.bar{display:none}.page{margin:0;box-shadow:none;height:296mm;min-height:0;overflow:hidden}.page+.page{break-before:page}@page{size:A4;margin:0}}
+</style>
+<script>
+// cada folha cabe numa A4: se o conteúdo passar, reduz a folha (senão o excesso vira uma página quase em branco)
+function caber(){var r=document.createElement('div');r.style.height='296mm';document.body.appendChild(r);var a4=r.getBoundingClientRect().height;r.remove();
+document.querySelectorAll('.page').forEach(function(p){var k=[].slice.call(p.children),z=1;k.forEach(function(x){x.style.zoom=''});p.style.minHeight='0';p.style.height='auto';
+while(p.scrollHeight>a4&&z>.7){z-=.02;k.forEach(function(x){x.style.zoom=z})}p.style.minHeight='';p.style.height=''})}
+addEventListener('load',function(){caber();if(document.fonts)document.fonts.ready.then(caber)});addEventListener('beforeprint',caber);
+</script></head><body>
 <div class="bar"><b>${esc(os.numero)}${rev}</b> · ${esc(c.nome || '')}<button onclick="print()">Imprimir / salvar PDF</button></div>
 <section class="page">
  <div class="hd">${logo}<div class="ttl"><h1>Ordem de serviço · instalação fotovoltaica</h1><p>Documento gerado pela Plataforma Ágil Solar</p></div>
