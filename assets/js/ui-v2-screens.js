@@ -335,7 +335,7 @@
         <div class="v2-track ${cls}"><div style="width:0" data-w="${Math.max(Math.round((funil[k] / maxF) * 100), funil[k] ? 3 : 0)}"></div></div></div>`;
     const funilCard = `
       <div class="v2-card">
-        <div class="v2-ch"><div><h3>Funil do período</h3><small>Clientes que entraram, pelo status atual</small></div><button class="v2-ghost" onclick="setTab('funil')" title="Abrir funil">${ic('arrow-up-right')}</button></div>
+        <div class="v2-ch"><div><h3>Funil do período</h3><small>Clientes que entraram, pelo status atual</small></div><button class="v2-ghost" onclick="setTab('clientes')" title="Abrir clientes">${ic('arrow-up-right')}</button></div>
         <div class="v2-funnel">
           ${fs('NOVO', 'Novos', '', passou('NOVO', 'PROPOSTA ENVIADA'))}
           ${fs('PROPOSTA ENVIADA', 'Enviada', '', passou('PROPOSTA ENVIADA', 'EM NEGOCIAÇÃO'))}

@@ -1841,6 +1841,19 @@ function _renderContentImpl() {
     toggleContainer.classList.add('hidden');
     if (adminBar) adminBar.classList.add('hidden');
     renderVendas(container);
+  } else if (state.activeTab === 'obras') {
+    stopDashboardClock();
+    mainToolbar.classList.add('hidden');
+    toggleContainer.classList.add('hidden');
+    if (adminBar) adminBar.classList.add('hidden');
+    // Guard de rota: a aba só aparece para admin/gestor/franqueado; o hash não pode furar.
+    if (!(state.isAdmin || state.isGestor)) {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8 text-sm">Esta área é restrita a gestores.</div>';
+    } else if (typeof renderObras === 'function') {
+      renderObras(container);
+    } else {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Obras não carregado.</div>';
+    }
   } else if (state.activeTab === 'analise') {
     stopDashboardClock();
     mainToolbar.classList.add('hidden');

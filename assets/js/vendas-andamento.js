@@ -246,6 +246,8 @@
     if (f.id === 'ent') return state.canFin ? bt(`vendasAndamento.irFinanceiro('ordemcompra', '${cid}', '${esc(v.id)}')`, 'arrow-up-right', 'Ver ordem de compra') : '';
     if (f.id === 'proj') return v.cliente_id ? bt(`crmSet360Tab('engenharia')`, 'arrow-up-right', inf.s[1] ? 'Abrir na aba Engenharia' : 'Enviar à engenharia') : '';
     if (!podeEditar(v) || A.semRpc) return '';
+    // a obra (agenda, equipe, conclusão) é gerenciada na aba Obras do Comercial
+    if (f.id === 'obra' && window.obras) return bt(`vendasAndamento.irObras('${esc(v.id)}')`, 'arrow-up-right', 'Abrir na aba Obras');
     return bt(`vendasAndamento.editar('${esc(v.id)}', '${f.id}')`, 'pencil', f.id === 'obra' ? 'Atualizar obra' : 'Atualizar monitoramento', 'edit');
   }
 
@@ -439,6 +441,13 @@
     FASES, carregar, garantir, info, trilho, agora, painel, painelCard, fasesHTML, filtrarLista,
     vendaDaFicha, topoEtapasHTML, topoResumoHTML, topoMiniHTML, abaHTML, irEtapa,
     editar, salvar, irFinanceiro, abrir, filtrar,
+    // da ficha (aba Pós-venda) para o card da obra na aba Obras
+    irObras: (vendaId) => {
+      if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId && typeof closeCrm360 === 'function') closeCrm360();
+      if (state.environment !== 'comercial' && typeof setEnvironment === 'function') setEnvironment('comercial');
+      setTab('obras');
+      if (window.obras) obras.abrir(vendaId);
+    },
     get aberta() { return A.aberta; },
   };
 })();

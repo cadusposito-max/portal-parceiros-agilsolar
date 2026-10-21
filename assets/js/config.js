@@ -248,17 +248,18 @@ const GRONER_ORIGEM_ID = 39; // "Portal Parceiros" — ID da origem (Groner → 
 
 const TABS = [
   { id: 'dashboard', label: 'VISÃO GERAL', icon: 'layout-dashboard' },
-  { id: 'funil',     label: 'FUNIL',       icon: 'git-merge' },
   { id: 'clientes',  label: 'CLIENTES',    icon: 'users' },
   { id: 'propostas', label: 'PROPOSTAS',   icon: 'file-signature' },
   { id: 'vendas',    label: 'VENDAS',      icon: 'trophy' },
+  { id: 'obras',     label: 'OBRAS',       icon: 'hard-hat' },
   { id: 'analise',   label: 'ANÁLISE',     icon: 'bar-chart-3' },
   { id: 'produtos',  label: 'PRODUTOS',    icon: 'package' }
 ];
 
-// Abas do Comercial restritas a admin/gestor (vendedor nem vê o botão).
-// PRODUTOS = gestão de catálogo; ANÁLISE = leitura do time inteiro.
-const TABS_GESTAO = ['produtos', 'analise'];
+// Abas do Comercial restritas a admin/gestor/franqueado (vendedor nem vê o botão).
+// PRODUTOS = gestão de catálogo; ANÁLISE = leitura do time inteiro;
+// OBRAS = agenda das instalações, material e OS (obras.js).
+const TABS_GESTAO = ['produtos', 'analise', 'obras'];
 
 // --- CRM: origem do lead -------------------------------------------------
 // Lista única para o cadastro (index.html) e a ficha 360 (crm.js), que antes

@@ -405,6 +405,9 @@
   const docsFaltando = (p) => ((p.snapshot && p.snapshot.docs_faltando) || []);
   const docsPill = (p) => (docsFaltando(p).length && NIVEL[p.status] <= 1 ? `<span class="rd-pill rd-at" title="Faltou: ${esc(docsFaltando(p).join(', '))}">Docs incompletos</span>` : '');
   const compPill = (p) => (p.compensacao ? (p.compensacao.status === 'feita' ? pill('Compensação feita', 'ok') : pill('Compensação pendente', 'at')) : '');
+  // pedido da unidade para passar na frente (aba Obras); some quando a OS sai ou é recusado
+  const prioPedida = (p) => !!(p.prioridade && p.prioridade.status === 'pedida');
+  const prioPill = (p) => (prioPedida(p) ? `<span class="rd-pill rd-at" title="${esc([p.prioridade.motivo, p.prioridade.texto].filter(Boolean).join(' · '))}">Prioridade pedida</span>` : '');
   const alertaPill = (p) => (p.alerta && central() ? `<span class="eg-alerta" title="Algo mudou depois do envio">${ic('triangle-alert')}</span>` : '');
   const kitCurto = (p) => String((p.snapshot && p.snapshot.venda && p.snapshot.venda.kit_nome) || '').replace(/^KIT\s+/i, '');
 
@@ -572,7 +575,7 @@
       const tot = base.filter((p) => cols.some(([id]) => id === p.status)).length;
       return `<div class="eg-kf"><div class="eg-kfh"><span>${esc(fase)}</span><i></i><b>${tot}</b></div><div class="eg-kcols">${cols.map(([id, nome]) => {
         const s = ST[id];
-        const its = base.filter((p) => p.status === id).sort((a, b) => new Date(a.status_desde) - new Date(b.status_desde));
+        const its = base.filter((p) => p.status === id).sort((a, b) => (prioPedida(b) - prioPedida(a)) || (new Date(a.status_desde) - new Date(b.status_desde)));
         const trilho = !its.length && !E.trilhoAberto[id];
         const vis = id === 'projeto_concluido' ? its.slice().reverse().slice(0, E.concTodos ? its.length : CONCLUIDOS_MAX) : its;
         return `<div class="eg-kc ${trilho ? 'rail' : ''}" style="--c:${COR[s.tone]}" ${trilho ? `onclick="EV.trilho('${id}')" title="${esc(s.n)} · nenhum projeto"` : ''}>
@@ -602,8 +605,8 @@
     const late = atrasado(p);
     const pct = s.sla ? Math.min(100, (d / s.sla) * 100) : 0;
     const cor = late ? 'var(--v2-red)' : pct >= 70 ? 'var(--v2-orange)' : 'var(--v2-green)';
-    const tags = `${dimPill(p)}${docsPill(p)}${compPill(p)}`;
-    const borda = late ? 'var(--v2-red)' : (p.alerta && central()) ? 'var(--v2-orange)' : 'transparent';
+    const tags = `${prioPill(p)}${dimPill(p)}${docsPill(p)}${compPill(p)}`;
+    const borda = late ? 'var(--v2-red)' : ((p.alerta || prioPedida(p)) && central()) ? 'var(--v2-orange)' : 'transparent';
     return `<button class="eg-kcard" style="--edge:${borda}" onclick="EV.abrir('${p.id}')">
       <div class="top"><div class="nm">${esc(p.cliente_nome || 'Cliente')}${alertaPill(p)}</div><span class="eg-kav ${p.responsavel_nome ? '' : 'no'}" title="${esc(p.responsavel_nome || 'Sem responsável')}">${esc(p.responsavel_nome ? ini(p.responsavel_nome) : '—')}</span></div>
       <div class="sys"><b>${nf(p.kwp, 2)} kWp</b><i></i><span>${ic('store')}${esc(nomeFranquia(p))}</span><i></i>${pnum(p)}</div>
@@ -616,11 +619,11 @@
 
   function lista(base) {
     const fst = E.fst;
-    const rows = base.filter((p) => !fst || p.status === fst).sort((a, b) => (atrasado(b) - atrasado(a)) || (new Date(a.status_desde) - new Date(b.status_desde)));
+    const rows = base.filter((p) => !fst || p.status === fst).sort((a, b) => (prioPedida(b) - prioPedida(a)) || (atrasado(b) - atrasado(a)) || (new Date(a.status_desde) - new Date(b.status_desde)));
     const chips = `<div class="rd-chips rd-mb"><button class="rd-chip ${!fst ? 'on' : ''}" onclick="EV.verStatus('')">Todos ${base.length}</button>${STATUS.map((s) => { const n = base.filter((p) => p.status === s.id).length; return `<button class="rd-chip ${fst === s.id ? 'on' : ''}" ${n ? '' : 'style="opacity:.55"'} onclick="EV.verStatus('${s.id}')">${esc(s.n)} ${n}</button>`; }).join('')}</div>`;
     return `${chips}<div class="rd-card" style="padding:6px 12px"><table class="rd-t cards"><thead><tr><th>Cliente</th><th>Franquia</th><th>Sistema</th><th>Status</th><th class="r">No status</th><th>Resp.</th></tr></thead><tbody>
       ${rows.map((p) => `<tr class="click" onclick="EV.abrir('${p.id}')">
-        <td class="first"><div class="rd-name">${esc(p.cliente_nome || 'Cliente')} ${alertaPill(p)}</div><div class="rd-muted">${pnum(p)} · ${esc(p.cidade || '')}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${dimPill(p)}${docsPill(p)}${compPill(p)}</div></td>
+        <td class="first"><div class="rd-name">${esc(p.cliente_nome || 'Cliente')} ${alertaPill(p)}</div><div class="rd-muted">${pnum(p)} · ${esc(p.cidade || '')}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${prioPill(p)}${dimPill(p)}${docsPill(p)}${compPill(p)}</div></td>
         <td data-l="Franquia">${esc(nomeFranquia(p))}</td>
         <td data-l="Sistema"><b>${nf(p.kwp, 2)} kWp</b><div class="rd-muted">${esc(kitCurto(p).slice(0, 38))}</div></td>
         <td data-l="Status">${stPill(p)}</td>
@@ -1299,6 +1302,10 @@
   }
 
   function avisoTopoHTML(p, eng, pd) {
+    if (prioPedida(p)) {
+      const pr = p.prioridade;
+      return `<div class="eg-aviso" style="flex-wrap:wrap">${ic('fast-forward')}<span style="flex:1;min-width:220px">Prioridade pedida pela unidade em ${dataBR(pr.em)}${pr.por ? ' por ' + esc(pr.por) : ''}: <b>${esc(pr.motivo || '')}</b>${pr.texto ? ' · ' + esc(pr.texto) : ''}</span>${eng ? `<button class="eg-btn pri" onclick="EV.aba('os')">${ic('clipboard-list')}Gerar OS</button><button class="eg-btn bad" onclick="EV.prioRecusar('${p.id}')">${ic('x')}Recusar</button>` : ''}</div>`;
+    }
     if (p.status === 'validacao_reprovada' && eng) {
       const n = pd ? pd.docs.length : 0, ok = pd ? pd.docs.length - pd.aguardando : 0;
       return `<div class="eg-aviso">${ic('hourglass')}<span>Com a franquia para correção${n ? ' · ' + ok + ' de ' + n + ' arquivo(s) já trocado(s)' : ''}</span></div>`;
@@ -1308,6 +1315,31 @@
       return m ? `<div class="eg-aviso ${p.status === 'cancelado' ? 'g' : 'r'}">${ic(p.status === 'cancelado' ? 'ban' : 'circle-x')}<span>${p.status === 'cancelado' ? 'Cancelado' : 'Reprovado pela concessionária'}: ${esc(m)}</span></div>` : '';
     }
     return '';
+  }
+
+  // recusar o pedido de prioridade (aceitar = gerar a OS); o motivo aparece na obra da unidade
+  function prioRecusar(id) {
+    const p = (E.projetos || []).find((x) => x.id === id);
+    if (!p || !prioPedida(p)) return;
+    modal(`<h3>${ic('x')} Recusar prioridade</h3>
+      <p class="rd-sub">${esc(p.cliente_nome || 'Cliente')} · pedido: ${esc(p.prioridade.motivo || '')}${p.prioridade.texto ? ' · ' + esc(p.prioridade.texto) : ''}</p>
+      <div class="rd-fgrid"><div class="rd-fld full"><label for="eg-prio-tx">Motivo para a unidade</label><input id="eg-prio-tx" maxlength="300" placeholder="Ex.: o projeto ainda está com documento pendente"></div></div>
+      <div class="rd-err" id="eg-err"></div>
+      <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Cancelar</button><button class="rd-btn pri" id="eg-prio-ok" onclick="EV.prioRecusarOk('${id}')">${ic('check')}Recusar pedido</button></div>`);
+  }
+  async function prioRecusarOk(id) {
+    const tx = val('eg-prio-tx');
+    if (!tx) { erro('Explique o motivo para a unidade.'); return; }
+    await ocupado('eg-prio-ok', async () => {
+      try {
+        await rpc('eng_prioridade_recusar', { p_id: id, p_texto: tx });
+        fecharModal();
+        await recarregarProjeto(id);
+        toast('Pedido de prioridade recusado');
+        pintarDrawer();
+        pintar();
+      } catch (e) { erro(e.message); }
+    });
   }
 
   // próximo passo da engenharia (aprovar = verde; reprovar = vermelho claro; demais = laranja)
@@ -1940,7 +1972,7 @@
     const lista = E.os[p.id] || [];
     const at = lista.find((o) => o.ativa) || lista[0];
     const eng = central();
-    if (!at) return `<div class="rd-card rd-empty"><div class="ic">${ic('clipboard-list')}</div><b>A OS ainda não foi gerada</b>Ela sai automaticamente quando a validação é aprovada.${eng && NIVEL[p.status] >= 1 ? `<br><br><button class="rd-btn pri" onclick="EV.gerarOS('${p.id}')">${ic('file-plus')}Gerar OS agora</button>` : ''}</div>`;
+    if (!at) return `<div class="rd-card rd-empty"><div class="ic">${ic('clipboard-list')}</div><b>A OS ainda não foi gerada</b>Ela sai automaticamente quando a validação é aprovada.${eng && (NIVEL[p.status] >= 1 || prioPedida(p)) ? `<br><br><button class="rd-btn pri" onclick="EV.gerarOS('${p.id}')">${ic('file-plus')}Gerar OS agora</button>` : ''}</div>`;
     return `<div class="rd-card rd-mb"><div class="rd-ch"><div><h3>${ic('clipboard-list')}${esc(at.numero)}${at.revisao > 1 ? ` · revisão ${at.revisao}` : ''}</h3><p class="rd-sub">Emitida em ${dataHora(at.created_at)} por ${esc(at.created_by_nome || '—')}</p></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         ${eng ? `<label class="rd-sel" style="height:34px">${ic('users')}<input id="eg-os-eq" placeholder="Equipe" value="${esc(at.equipe || '')}" style="width:150px"></label><button class="rd-btn sm" onclick="EV.gerarOS('${p.id}', true)" title="Gera uma nova revisão com os dados atuais do projeto">${ic('refresh-cw')}Nova revisão</button>` : ''}
@@ -2374,7 +2406,7 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
     cheia: () => { E.cheia = !E.cheia; lsSet('eng_cheia', E.cheia ? '1' : '0'); pintarDrawer(); },
     copiar, confirmarMudar, assumir, reenviar, comentar, salvarConc,
     compModal, salvarComp, compFeita: (id) => salvarComp(id, 'feita'), compRemover: (id) => { if (confirm('Remover a compensação deste projeto?')) salvarComp(id, 'remover'); },
-    gerarOS, imprimirOS, recalcular, calculadora,
+    gerarOS, imprimirOS, recalcular, calculadora, prioRecusar, prioRecusarOk,
     // calculadora
     cSet: (k, v) => {
       const c = C();
