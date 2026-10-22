@@ -1487,6 +1487,24 @@ function closeProposalSharePanel() {
 // FECHAR VENDA
 // ==========================================
 let _fechaVendaClientId = null;
+// Escolha do kit no modal: aba (propostas | catalogo), filtro do catálogo,
+// listas montadas na abertura e o item marcado ({ nome, preco, power, brand, proposta_id }).
+const _fv = { aba: 'propostas', filtro: 'todos', propostas: [], catalogo: [], sel: null };
+
+// "KIT 5 MOD. 620W + INV. GOODWE 3KW" → "5 × 620W · Inv. Goodwe 3kW".
+// Nome fora desse padrão fica como veio.
+function _fvNomeCurto(nome) {
+  const s = String(nome || '').trim();
+  const m = s.match(/^KIT\s+(\d+)\s*MOD\.?\s*(\d+)\s*W\s*\+\s*(.+)$/i);
+  if (!m) return s;
+  const resto = m[3].toLowerCase()
+    .replace(/(^|[\s(])([a-zà-ú])/g, (_, a, b) => a + b.toUpperCase())
+    .replace(/(\d)\s*kw\b/gi, '$1kW');
+  return `${m[1]} × ${m[2]}W · ${resto}`;
+}
+const _fvKwp = (k) => (Number(k) ? `${String(Math.round(Number(k) * 100) / 100).replace('.', ',')} kWp` : '—');
+// texto em que a busca procura: nome original, nome curto, kWp e linha
+const _fvNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/,/g, '.');
 
 function openFechaVenda(clientId) {
   // Pode ser chamado dos cards (clientId presente) ou do botão dentro do modal de proposta
@@ -1500,58 +1518,111 @@ function openFechaVenda(clientId) {
   }
 
   _fechaVendaClientId = client.id;
-  document.getElementById('fv-client-name').innerText = client.nome;
+  document.getElementById('fv-client-name').innerText = [client.nome, client.cidade].filter(Boolean).join(' · ');
   document.getElementById('fv-error').classList.add('hidden');
-  document.getElementById('fv-kit-info').classList.add('hidden');
-
-  // Popula o select com os kits do catálogo
-  const select = document.getElementById('fv-kit-select');
-  select.innerHTML = '<option value="">» SELECIONE O KIT «</option>';
 
   // Propostas do cliente: match por cliente_id (confiável); fallback por nome
   // só para o legado sem vínculo. Match por nome puro misturava homônimos.
-  const clientPropostas = state.propostas.filter((p) => {
+  // state.propostas já vem em ordem desc: a 1ª é a mais recente.
+  _fv.propostas = (state.propostas || []).filter((p) => {
     if (p.cliente_id) return String(p.cliente_id) === String(client.id);
     return p.cliente_nome && p.cliente_nome.toUpperCase() === client.nome.toUpperCase();
+  }).map((p) => {
+    const personalizada = p.proposal_mode === 'PERSONALIZADA' || p.proposal_mode === 'EQUIPAMENTOS';
+    const nome = typeof vendaKitResumo === 'function' ? vendaKitResumo({ kit_nome: p.kit_nome, proposta_id: p.id }).nome : (p.kit_nome || 'Proposta');
+    const st = typeof propostaStatus === 'function' ? propostaStatus(p) : '';
+    return {
+      id: 'p:' + p.id, curto: _fvNomeCurto(nome),
+      kit: { nome: p.kit_nome, preco: personalizada ? (p.custom_total_price || p.kit_price) : p.kit_price, power: p.kit_power || p.custom_system_power_kwp, brand: p.kit_brand, proposta_id: p.id },
+      data: p.created_at, st, vistas: Number(p.vista_count) || 0,
+    };
   });
 
-  // Se tem propostas, exibe só elas; caso contrário exibe todos os kits
-  if (clientPropostas.length > 0) {
-    const group = document.createElement('optgroup');
-    group.label = 'Propostas deste Cliente';
-    clientPropostas.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = JSON.stringify({ nome: p.kit_nome, preco: p.kit_price, power: p.kit_power, brand: p.kit_brand, proposta_id: p.id });
-      opt.textContent = `${p.kit_nome} → ${formatCurrency(p.kit_price)}`;
-      group.appendChild(opt);
-    });
-    select.appendChild(group);
-  }
+  // Catálogo: kits ativos, do menor para o maior
+  _fv.catalogo = (state.data || []).filter((k) => k.ativo !== false)
+    .map((k, i) => {
+      const curto = _fvNomeCurto(k.name);
+      return {
+        id: 'c:' + (k.id || i), curto, promo: k.linha === 'promocional', micro: /micro/i.test(k.name || ''),
+        kit: { nome: k.name, preco: k.price, power: k.power, brand: k.brand },
+        busca: _fvNorm(`${k.name} ${curto} ${k.brand || ''} ${k.power || ''} kwp ${k.linha === 'promocional' ? 'promocional' : ''}`),
+      };
+    })
+    .sort((a, b) => (Number(a.kit.power) || 0) - (Number(b.kit.power) || 0) || (Number(a.kit.preco) || 0) - (Number(b.kit.preco) || 0));
 
-  const groupAll = document.createElement('optgroup');
-  groupAll.label = clientPropostas.length > 0 ? 'Todos os Kits do Catálogo' : 'Kits do Catálogo';
-  state.data.filter(k => k.ativo !== false).forEach(k => {
-    const opt = document.createElement('option');
-    opt.value = JSON.stringify({ nome: k.name, preco: k.price, power: k.power, brand: k.brand });
-    opt.textContent = `${k.name}${k.linha === 'promocional' ? ' (promocional)' : ''} → ${formatCurrency(k.price)}`;
-    groupAll.appendChild(opt);
-  });
-  select.appendChild(groupAll);
+  // Pré-seleciona a proposta mais recente: na maioria dos casos o kit vendido é o da última proposta.
+  _fv.filtro = 'todos';
+  _fv.sel = _fv.propostas[0] || null;
+  document.getElementById('fv-busca').value = '';
+  document.getElementById('fv-n-prop').textContent = String(_fv.propostas.length);
+  fvAba(_fv.propostas.length ? 'propostas' : 'catalogo', true);
 
-  // Pré-seleciona a proposta mais recente (state.propostas já vem em ordem
-  // desc): na maioria dos casos o kit vendido é o da última proposta.
-  if (clientPropostas.length > 0) {
-    select.selectedIndex = 1; // índice 0 é o placeholder "» SELECIONE O KIT «"
-    onFvKitChange();
-  }
+  // vendedor que vai na venda (mesma regra de resolveEffectiveSellerForClient)
+  const vendEl = document.getElementById('fv-vendedor');
+  const email = (state.isAdmin || state.isGestor) ? (client.vendedor_email || state.currentUser?.email) : state.currentUser?.email;
+  vendEl.textContent = email ? _pbEmailPrefix(email) : '—';
+  if (email) _pbResolveSellerNameByEmail(email).then((nome) => { if (nome && _fechaVendaClientId === client.id) vendEl.textContent = nome; }).catch(() => {});
 
   document.getElementById('fecha-venda-modal').classList.remove('hidden');
   lucide.createIcons();
 }
 
+function fvAba(aba, manterSel) {
+  _fv.aba = aba;
+  document.querySelectorAll('#fv-seg [data-fv-aba]').forEach((b) => b.classList.toggle('on', b.dataset.fvAba === aba));
+  document.getElementById('fv-busca-box').classList.toggle('hidden', aba !== 'catalogo');
+  // trocar de aba volta para o padrão dela: a proposta mais recente, ou nada no catálogo
+  if (!manterSel) _fv.sel = aba === 'propostas' ? (_fv.propostas[0] || null) : null;
+  fvPintar();
+  if (aba === 'catalogo' && !manterSel && window.matchMedia('(min-width: 601px)').matches) document.getElementById('fv-busca').focus();
+}
+
+function fvFiltro(f) {
+  _fv.filtro = f;
+  fvPintar();
+}
+
+function fvSel(id) {
+  _fv.sel = [..._fv.propostas, ..._fv.catalogo].find((x) => x.id === id) || null;
+  document.getElementById('fv-error').classList.add('hidden');
+  fvPintar();
+}
+
+function fvPintar() {
+  document.querySelectorAll('#fv-chips [data-fv-f]').forEach((b) => b.classList.toggle('on', b.dataset.fvF === _fv.filtro));
+  const esc = escapeHTML;
+  let lista;
+  if (_fv.aba === 'propostas') {
+    lista = _fv.propostas;
+  } else {
+    const termos = _fvNorm(document.getElementById('fv-busca').value).split(/\s+/).filter(Boolean);
+    lista = _fv.catalogo.filter((k) => (_fv.filtro === 'todos' || (_fv.filtro === 'promo' ? k.promo : _fv.filtro === 'micro' ? k.micro : !k.micro))
+      && termos.every((t) => k.busca.includes(t)));
+  }
+  const tagSt = { VISTA: 'lar', ACEITA: 'verde' };
+  const html = lista.map((x) => {
+    const on = _fv.sel && _fv.sel.id === x.id;
+    const linha2 = _fv.aba === 'propostas'
+      ? `Proposta de ${esc(formatDate(x.data))}${x.st ? `<span class="fv-tag ${tagSt[x.st] || ''}">${esc(x.st.charAt(0) + x.st.slice(1).toLowerCase())}${x.st === 'VISTA' && x.vistas > 1 ? ` ${x.vistas}×` : ''}</span>` : ''}`
+      : `${esc(_fvKwp(x.kit.power))}${x.promo ? '<span class="fv-tag lar">Promocional</span>' : ''}`;
+    return `<button type="button" role="radio" aria-checked="${on}" class="fv-it ${on ? 'on' : ''}" onclick="fvSel('${esc(x.id)}')" title="${esc(x.kit.nome || '')}">
+      <span class="fv-rd"></span><span class="fv-tx"><b>${esc(x.curto || x.kit.nome || 'Kit')}</b><small>${linha2}</small></span>
+      <span class="fv-pr"><b>${esc(formatCurrency(Number(x.kit.preco) || 0))}</b>${_fv.aba === 'propostas' ? `<small>${esc(_fvKwp(x.kit.power))}</small>` : ''}</span></button>`;
+  }).join('');
+  const vazio = _fv.aba === 'propostas'
+    ? `<div class="fv-nada">Este cliente ainda não tem proposta.<button type="button" onclick="fvAba('catalogo')">Escolher no catálogo</button></div>`
+    : '<div class="fv-nada">Nenhum kit com essa busca</div>';
+  document.getElementById('fv-lista').innerHTML = html || vazio;
+
+  const s = _fv.sel;
+  document.getElementById('fv-kit-price').textContent = s ? formatCurrency(Number(s.kit.preco) || 0) : '—';
+  document.getElementById('fv-kit-power').textContent = s ? _fvKwp(s.kit.power) : '—';
+}
+
 function closeFechaVenda() {
   document.getElementById('fecha-venda-modal').classList.add('hidden');
   _fechaVendaClientId = null;
+  _fv.sel = null;
 }
 
 // Escape do interceptor: marca FECHADO sem criar venda. Existe para o caso
@@ -1577,38 +1648,19 @@ function fecharSemRegistrarVenda() {
   );
 }
 
-function onFvKitChange() {
-  const select  = document.getElementById('fv-kit-select');
-  const infoDiv = document.getElementById('fv-kit-info');
-  if (!select.value) { infoDiv.classList.add('hidden'); return; }
-  try {
-    const kit = JSON.parse(select.value);
-    document.getElementById('fv-kit-price').innerText = formatCurrency(kit.preco);
-    document.getElementById('fv-kit-power').innerText = kit.power ? `${kit.power} kWp` : 'N/A';
-    infoDiv.classList.remove('hidden');
-  } catch (_) { infoDiv.classList.add('hidden'); }
-}
-
 async function confirmarFechaVenda() {
-  const select = document.getElementById('fv-kit-select');
   const errEl  = document.getElementById('fv-error');
   const btn    = document.getElementById('btn-confirmar-venda');
 
   errEl.classList.add('hidden');
 
-  if (!select.value) {
-    errEl.innerText = 'Selecione o kit que foi vendido.';
+  if (btn.disabled) return;
+  if (!_fv.sel) {
+    errEl.innerText = _fv.aba === 'catalogo' ? 'Escolha na lista o kit que foi vendido.' : 'Escolha a proposta que foi vendida.';
     errEl.classList.remove('hidden');
     return;
   }
-
-  let kit;
-  try { kit = JSON.parse(select.value); }
-  catch (_) {
-    errEl.innerText = 'Erro ao ler os dados do kit. Tente novamente.';
-    errEl.classList.remove('hidden');
-    return;
-  }
+  const kit = _fv.sel.kit;
 
   const client = state.clientes.find(c => c.id === _fechaVendaClientId);
   if (!client || !state.currentUser) {
@@ -1623,7 +1675,7 @@ async function confirmarFechaVenda() {
   }
 
   const originalHTML = btn.innerHTML;
-  btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin inline mr-2"></i>REGISTRANDO...';
+  btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i>Registrando...';
   btn.disabled  = true;
   lucide.createIcons();
 

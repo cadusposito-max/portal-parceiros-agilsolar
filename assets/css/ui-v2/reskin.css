@@ -207,7 +207,7 @@ html[data-ui="v2"] body :is(.metric-card, .dash-kpi-strip, .dash-panel, .dash-he
   border-radius: var(--v2-r-panel) !important;
 }
 html[data-ui="v2"] body .dash-kpi-strip > article { border-radius: 18px !important; }
-html[data-ui="v2"] body :is([id$="modal-overlay"], #fecha-venda-modal, #confirm-modal-overlay) > div {
+html[data-ui="v2"] body :is([id$="modal-overlay"], #confirm-modal-overlay) > div {
   border-radius: 26px !important;
   overflow: hidden;
   border-color: var(--v2-line) !important;
@@ -215,7 +215,7 @@ html[data-ui="v2"] body :is([id$="modal-overlay"], #fecha-venda-modal, #confirm-
 }
 /* caixas que rolam por dentro (overflow-y-auto): o hidden acima travava a rolagem
    (ex.: "Novo usuário" no admin não deixava chegar no botão Salvar) */
-html[data-ui="v2"] body :is([id$="modal-overlay"], #fecha-venda-modal, #confirm-modal-overlay) > div[class*="overflow-y-auto"] {
+html[data-ui="v2"] body :is([id$="modal-overlay"], #confirm-modal-overlay) > div[class*="overflow-y-auto"] {
   overflow-x: hidden !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;

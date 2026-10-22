@@ -50,11 +50,11 @@
   <!-- Visual novo (v2) — BETA só para admins. Desligado por padrão (media="not all"); tudo nele é
        escopado em html[data-ui="v2"] e quem liga/desliga é assets/js/ui-v2.js. -->
   <link rel="stylesheet" href="assets/css/ui-v2/tokens.css?v=20260928-f2" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/reskin.css?v=20260929-rel4" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/reskin.css?v=20261022-registrar-venda" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/shell.css?v=20261020-busca" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/screens.css?v=20261022-vendas-clique" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/ficha.css?v=20261019-mencao" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/modais.css?v=20261013-share" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/modais.css?v=20261022-registrar-venda" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/chat.css?v=20260928-f8" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/admin.css?v=20261008-leads" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
@@ -1112,58 +1112,44 @@
 
 <!-- MODAL: FECHAR VENDA -->
 <!-- z-[93]: acima da ficha CRM 360 (z-90) — abre por cima sem fechá-la -->
-<div id="fecha-venda-modal" class="fixed inset-0 z-[93] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 hidden">
-  <div class="bg-[#080808] border-2 border-green-600/40 w-full max-w-lg shadow-[0_0_60px_rgba(34,197,94,0.2)] max-h-[calc(100dvh-2rem)] overflow-y-auto custom-scrollbar animate-fade-in-up">
-    <div class="animated-stripe h-[2px] w-full"></div>
-    <div class="p-4 border-b border-neutral-800 flex items-center justify-between bg-black/50">
-      <div class="flex items-center gap-3">
-        <div class="bg-green-600/20 p-2 border border-green-600/30"><i data-lucide="trophy" class="w-5 h-5 text-green-400"></i></div>
-        <div>
-          <p class="text-[9px] text-green-500 font-black uppercase tracking-widest">Registrar Fechamento</p>
-          <h3 class="text-white font-black text-sm uppercase">FECHAR VENDA</h3>
-        </div>
-      </div>
-      <button onclick="closeFechaVenda()" class="p-2 text-neutral-500 hover:text-red-500 transition-colors border border-neutral-800 bg-neutral-900">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
+<div id="fecha-venda-modal" class="fixed inset-0 z-[93] flex items-center justify-center p-4 hidden" onclick="if (event.target === this) closeFechaVenda()">
+  <div class="fv-md" role="dialog" aria-modal="true" aria-labelledby="fv-titulo">
+    <div class="fv-hd">
+      <div class="fv-ib"><i data-lucide="trophy"></i></div>
+      <div class="fv-hd-tx"><h3 id="fv-titulo">Registrar venda</h3><p id="fv-client-name">...</p></div>
+      <button type="button" class="fv-x" onclick="closeFechaVenda()" title="Fechar"><i data-lucide="x"></i></button>
     </div>
-    <div class="p-5 space-y-4">
-      <div>
-        <p class="text-[10px] text-neutral-500 font-black uppercase tracking-widest mb-1.5">Cliente</p>
-        <div class="bg-neutral-900 border border-neutral-800 px-4 py-2.5 flex items-center gap-2">
-          <i data-lucide="user" class="w-4 h-4 text-orange-500"></i>
-          <p id="fv-client-name" class="text-white font-black uppercase text-sm">...</p>
+    <div class="fv-corpo">
+      <p class="fv-rot">O que foi vendido?</p>
+      <!-- Propostas do cliente primeiro; o catálogo é para quando o kit vendido não está em proposta -->
+      <div class="fv-seg" id="fv-seg">
+        <button type="button" data-fv-aba="propostas" onclick="fvAba('propostas')">Propostas do cliente <em id="fv-n-prop">0</em></button>
+        <button type="button" data-fv-aba="catalogo" onclick="fvAba('catalogo')">Outro kit do catálogo</button>
+      </div>
+      <div id="fv-busca-box" class="hidden">
+        <label class="fv-busca"><i data-lucide="search"></i><input id="fv-busca" type="search" autocomplete="off" placeholder="Buscar: 620W, Sofar, 3 kWp" oninput="fvPintar()"></label>
+        <div class="fv-chips" id="fv-chips">
+          <button type="button" data-fv-f="todos" onclick="fvFiltro('todos')">Todos</button>
+          <button type="button" data-fv-f="inv" onclick="fvFiltro('inv')">Inversor</button>
+          <button type="button" data-fv-f="micro" onclick="fvFiltro('micro')">Microinversor</button>
+          <button type="button" data-fv-f="promo" onclick="fvFiltro('promo')">Promocional</button>
         </div>
       </div>
-      <div>
-        <p class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest mb-1.5">Kit Vendido *</p>
-        <select id="fv-kit-select" onchange="onFvKitChange()"
-          class="w-full bg-black border border-neutral-700 focus:border-orange-500 px-4 py-3 text-white font-bold uppercase text-xs transition-all">
-          <option value="">— SELECIONE O KIT —</option>
-        </select>
+      <div class="fv-lista" id="fv-lista" role="radiogroup" aria-label="Kit vendido"></div>
+      <div class="fv-res">
+        <div class="val"><small>Valor da venda</small><b id="fv-kit-price">—</b></div>
+        <div><small>Potência</small><b id="fv-kit-power">—</b></div>
+        <div class="vend"><small>Vendedor</small><b id="fv-vendedor">—</b></div>
       </div>
-      <div id="fv-kit-info" class="hidden bg-green-950/20 border border-green-900/40 p-4">
-        <div class="flex justify-between items-center mb-1">
-          <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Valor</span>
-          <span id="fv-kit-price" class="text-green-400 font-black text-xl"></span>
-        </div>
-        <div class="flex justify-between items-center">
-          <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Potência</span>
-          <span id="fv-kit-power" class="text-orange-400 font-bold text-sm"></span>
-        </div>
-      </div>
-      <p id="fv-error" class="hidden text-red-500 text-xs font-bold bg-red-500/10 border border-red-500/20 p-3"></p>
-      <button onclick="confirmarFechaVenda()" id="btn-confirmar-venda"
-        class="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-white font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(34,197,94,0.4)] flex items-center justify-center gap-2 text-sm active:scale-[0.98]">
-        <i data-lucide="trophy" class="w-5 h-5 stroke-[3px]"></i> CONFIRMAR VENDA FECHADA
-      </button>
-      <!-- Escape do interceptor de FECHADO: casos legados em que o status muda
-           sem venda a registrar. Deliberadamente discreto. -->
-      <button onclick="fecharSemRegistrarVenda()" id="fv-skip-venda"
-        class="w-full text-center text-[10px] text-neutral-600 hover:text-neutral-400 font-bold uppercase tracking-widest underline underline-offset-2 transition-colors">
-        Fechar sem registrar venda
-      </button>
+      <p id="fv-error" class="fv-erro hidden"></p>
     </div>
+    <div class="fv-ft">
+      <button type="button" class="fv-b2" onclick="closeFechaVenda()">Cancelar</button>
+      <button type="button" class="fv-ok" onclick="confirmarFechaVenda()" id="btn-confirmar-venda"><i data-lucide="trophy"></i>Confirmar venda</button>
+    </div>
+    <!-- Escape do interceptor de FECHADO: casos legados em que o status muda
+         sem venda a registrar. Deliberadamente discreto. -->
+    <p class="fv-sem" id="fv-skip-venda">Venda feita fora da plataforma? <button type="button" onclick="fecharSemRegistrarVenda()">Marcar fechado sem registrar</button></p>
   </div>
 </div>
 
@@ -1263,7 +1249,7 @@
   local('kit-montado.js',     '20261016-telhados-belenus');
   local('produtos.js',         '20261009-cc');
   local('pb-dimensionar.js',   '20261015-montado');
-  local('proposta-builder.js', '20261019-lista-mobile');
+  local('proposta-builder.js', '20261022-registrar-venda');
   local('centro-custo-calc.js', '20261010-kwinv');
   local('centro-custo-tela.js', '20261010-kwinv');
   local('orcamento-dre.js',    '20261013-franq');

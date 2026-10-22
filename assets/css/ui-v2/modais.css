@@ -644,3 +644,89 @@ html[data-ui="v2"] body #pb-share-overlay .pb-share-next .btn svg { width: 16px;
   html[data-ui="v2"] body #pb-share-overlay .pbs-card { max-width: none !important; border-radius: 28px 28px 0 0 !important; padding-bottom: env(safe-area-inset-bottom); }
   html[data-ui="v2"] body #pb-share-overlay .pbs-hd { padding-top: 26px !important; }
 }
+
+/* ==========================================
+   REGISTRAR VENDA (#fecha-venda-modal · proposta-builder.js, openFechaVenda)
+   Propostas do cliente em cartões; "Outro kit do catálogo" com busca e filtros.
+   No celular sobe de baixo.
+   ========================================== */
+html[data-ui="v2"] #fecha-venda-modal { background: var(--v2-scrim); }
+html[data-ui="v2"] #fecha-venda-modal .fv-md { background: var(--v2-card); color: var(--v2-ink); width: 100%; max-width: 560px; max-height: calc(100dvh - 32px); display: flex; flex-direction: column; border-radius: 24px; box-shadow: var(--v2-shadow-pop); overflow: hidden; animation: fv-surge .22s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes fv-surge { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes fv-sobe { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+html[data-ui="v2"] #fecha-venda-modal svg { width: 18px; height: 18px; flex: none; }
+html[data-ui="v2"] #fecha-venda-modal button { font: inherit; }
+html[data-ui="v2"] #fecha-venda-modal .fv-hd { display: flex; align-items: center; gap: 12px; padding: 20px 22px 16px; border-bottom: 1px solid var(--v2-line); }
+html[data-ui="v2"] #fecha-venda-modal .fv-ib { width: 42px; height: 42px; border-radius: 13px; background: rgba(31, 169, 113, .13); color: var(--v2-green); display: grid; place-items: center; flex: none; }
+html[data-ui="v2"] #fecha-venda-modal .fv-ib svg { width: 22px; height: 22px; }
+html[data-ui="v2"] #fecha-venda-modal .fv-hd-tx { flex: 1; min-width: 0; }
+html[data-ui="v2"] #fecha-venda-modal .fv-hd h3 { margin: 0; font-size: 18px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui="v2"] #fecha-venda-modal .fv-hd p { margin: 2px 0 0; font-size: 13px; font-weight: 600; color: var(--v2-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] #fecha-venda-modal .fv-x { width: 38px; height: 38px; border-radius: 11px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink-2); display: grid; place-items: center; cursor: pointer; flex: none; }
+html[data-ui="v2"] #fecha-venda-modal .fv-x:hover { background: var(--v2-hover); }
+
+html[data-ui="v2"] #fecha-venda-modal .fv-corpo { padding: 16px 22px 6px; overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; overscroll-behavior: contain; }
+html[data-ui="v2"] #fecha-venda-modal .fv-rot { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--v2-gray); }
+
+html[data-ui="v2"] #fecha-venda-modal .fv-seg { display: flex; gap: 4px; padding: 4px; border-radius: 13px; background: var(--v2-bg2); border: 1px solid var(--v2-line); }
+html[data-ui="v2"] #fecha-venda-modal .fv-seg button { flex: 1; height: 38px; border: 0; border-radius: 10px; background: transparent; color: var(--v2-ink-2); font-size: 13.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+html[data-ui="v2"] #fecha-venda-modal .fv-seg button.on { background: var(--v2-card); color: var(--v2-blue-text); box-shadow: 0 1px 3px rgba(15, 27, 38, .14); }
+html[data-ui="v2"] #fecha-venda-modal .fv-seg em { font-style: normal; font-size: 12px; border-radius: 7px; padding: 1px 7px; margin-left: 4px; background: var(--v2-line-strong); color: var(--v2-ink-2); }
+html[data-ui="v2"] #fecha-venda-modal .fv-seg button.on em { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+
+html[data-ui="v2"] #fecha-venda-modal .fv-busca { display: flex; align-items: center; gap: 8px; margin-top: 12px; height: 44px; padding: 0 12px; border: 1.5px solid var(--v2-line-strong); border-radius: 12px; background: var(--v2-card); color: var(--v2-gray); }
+html[data-ui="v2"] #fecha-venda-modal .fv-busca:focus-within { border-color: var(--v2-blue); }
+html[data-ui="v2"] #fecha-venda-modal .fv-busca input { flex: 1; min-width: 0; height: 40px; border: 0 !important; outline: 0; box-shadow: none !important; background: transparent !important; padding: 0 !important; font: inherit; font-size: 14px; font-weight: 600; color: var(--v2-ink); text-transform: none; }
+html[data-ui="v2"] #fecha-venda-modal .fv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+html[data-ui="v2"] #fecha-venda-modal .fv-chips button { height: 32px; padding: 0 13px; border-radius: 999px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink-2); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+html[data-ui="v2"] #fecha-venda-modal .fv-chips button.on { background: var(--v2-blue); border-color: var(--v2-blue); color: #fff; }
+
+html[data-ui="v2"] #fecha-venda-modal .fv-lista { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 300px; overflow-y: auto; overflow-x: hidden; padding: 2px; scrollbar-width: thin; }
+html[data-ui="v2"] #fecha-venda-modal .fv-it { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 1.5px solid var(--v2-line-strong); border-radius: 15px; background: var(--v2-card); color: var(--v2-ink); text-align: left; cursor: pointer; }
+html[data-ui="v2"] #fecha-venda-modal .fv-it:hover { border-color: rgba(0, 143, 212, .45); }
+html[data-ui="v2"] #fecha-venda-modal .fv-it.on { border-color: var(--v2-blue); background: var(--v2-blue-50); box-shadow: inset 0 0 0 1px var(--v2-blue); }
+html[data-ui="v2"] #fecha-venda-modal .fv-it:focus-visible { outline: 2px solid var(--v2-blue); outline-offset: 2px; }
+html[data-ui="v2"] #fecha-venda-modal .fv-rd { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--v2-line-strong); background: var(--v2-card); flex: none; }
+html[data-ui="v2"] #fecha-venda-modal .fv-it.on .fv-rd { border: 6px solid var(--v2-blue); }
+html[data-ui="v2"] #fecha-venda-modal .fv-tx { flex: 1; min-width: 0; }
+html[data-ui="v2"] #fecha-venda-modal .fv-tx b { display: block; font-size: 14px; font-weight: 700; line-height: 1.3; }
+html[data-ui="v2"] #fecha-venda-modal .fv-tx small { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 3px; font-size: 12.5px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] #fecha-venda-modal .fv-tag { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 1px 7px; background: var(--v2-bg2); color: var(--v2-ink-2); }
+html[data-ui="v2"] #fecha-venda-modal .fv-tag.lar { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] #fecha-venda-modal .fv-tag.verde { background: rgba(31, 169, 113, .13); color: #178A5C; }
+html[data-ui="v2"][data-theme="dark"] #fecha-venda-modal .fv-tag.verde { color: #4FD19B; }
+html[data-ui="v2"] #fecha-venda-modal .fv-pr { text-align: right; white-space: nowrap; }
+html[data-ui="v2"] #fecha-venda-modal .fv-pr b { font-size: 15px; font-weight: 800; }
+html[data-ui="v2"] #fecha-venda-modal .fv-pr small { display: block; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] #fecha-venda-modal .fv-nada { padding: 22px; text-align: center; font-size: 13px; font-weight: 600; color: var(--v2-gray); border: 1.5px dashed var(--v2-line-strong); border-radius: 15px; }
+html[data-ui="v2"] #fecha-venda-modal .fv-nada button { display: block; margin: 10px auto 0; height: 34px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-blue-text); font-weight: 700; cursor: pointer; }
+
+html[data-ui="v2"] #fecha-venda-modal .fv-res { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0 4px; padding: 12px 14px; border-radius: 15px; background: var(--v2-soft); border: 1px solid var(--v2-line); }
+html[data-ui="v2"] #fecha-venda-modal .fv-res small { display: block; font-size: 11.5px; font-weight: 700; color: var(--v2-gray); }
+html[data-ui="v2"] #fecha-venda-modal .fv-res b { display: block; font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] #fecha-venda-modal .fv-res .val b { color: #178A5C; }
+html[data-ui="v2"][data-theme="dark"] #fecha-venda-modal .fv-res .val b { color: #4FD19B; }
+html[data-ui="v2"] #fecha-venda-modal .fv-erro { margin: 10px 0 2px; padding: 10px 12px; border-radius: 12px; background: rgba(209, 67, 67, .1); color: var(--v2-red); font-size: 13px; font-weight: 700; }
+
+html[data-ui="v2"] #fecha-venda-modal .fv-ft { display: flex; align-items: center; gap: 10px; padding: 14px 22px 12px; border-top: 1px solid var(--v2-line); }
+html[data-ui="v2"] #fecha-venda-modal .fv-b2 { height: 44px; padding: 0 16px; border-radius: 12px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink-2); font-size: 13.5px; font-weight: 700; cursor: pointer; }
+html[data-ui="v2"] #fecha-venda-modal .fv-b2:hover { background: var(--v2-hover); }
+html[data-ui="v2"] #fecha-venda-modal .fv-ok { margin-left: auto; height: 44px; padding: 0 20px; border-radius: 12px; border: 0; background: var(--v2-green); color: #fff; font-size: 14.5px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+html[data-ui="v2"] #fecha-venda-modal .fv-ok:hover { background: #178A5C; }
+html[data-ui="v2"] #fecha-venda-modal .fv-ok:disabled { opacity: .55; cursor: not-allowed; }
+html[data-ui="v2"] #fecha-venda-modal .fv-sem { margin: 0; padding: 0 22px 16px; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] #fecha-venda-modal .fv-sem button { border: 0; background: none; padding: 0; color: var(--v2-gray); text-decoration: underline; text-underline-offset: 2px; font-weight: 600; cursor: pointer; }
+html[data-ui="v2"] #fecha-venda-modal .fv-sem button:hover { color: var(--v2-ink); }
+
+@media (max-width: 600px) {
+  html[data-ui="v2"] #fecha-venda-modal { align-items: flex-end !important; padding: 0 !important; }
+  html[data-ui="v2"] #fecha-venda-modal .fv-md { max-width: none; max-height: 92dvh; border-radius: 24px 24px 0 0; padding-bottom: env(safe-area-inset-bottom); animation-name: fv-sobe; }
+  html[data-ui="v2"] #fecha-venda-modal :is(.fv-hd, .fv-corpo, .fv-ft) { padding-left: 16px; padding-right: 16px; }
+  html[data-ui="v2"] #fecha-venda-modal .fv-seg button { font-size: 12.5px; }
+  html[data-ui="v2"] #fecha-venda-modal .fv-res { grid-template-columns: 1fr 1fr; }
+  html[data-ui="v2"] #fecha-venda-modal .fv-res .vend { display: none; }
+  html[data-ui="v2"] #fecha-venda-modal .fv-lista { max-height: none; overflow: visible; }
+  html[data-ui="v2"] #fecha-venda-modal .fv-b2 { flex: 1; }
+  html[data-ui="v2"] #fecha-venda-modal .fv-ok { flex: 2; margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { html[data-ui="v2"] #fecha-venda-modal .fv-md { animation: none; } }
