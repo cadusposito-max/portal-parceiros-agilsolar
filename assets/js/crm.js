@@ -806,14 +806,14 @@ function renderCrm360TabContent(client, propostas, vendas) {
   if (_crm360Tab === 'vendas') {
     const podeVenda = typeof canOperateClientProposalFlow !== 'function' || canOperateClientProposalFlow(client);
     const novaBtn = podeVenda
-      ? `<button onclick="openFechaVenda('${client.id}')" class="btn btn-success btn-sm"><i data-lucide="trophy"></i> Registrar venda</button>`
+      ? `<button onclick="openFechaVenda('${client.id}')" class="btn btn-primary btn-sm"><i data-lucide="trophy"></i> Registrar venda</button>`
       : '';
 
     if (vendas.length === 0) {
       return `
         <div class="py-14 text-center border border-dashed border-neutral-800/60 bg-neutral-950/40">
-          <i data-lucide="trophy" class="w-10 h-10 mx-auto mb-3 text-neutral-700"></i>
-          <p class="text-neutral-600 font-bold uppercase tracking-widest text-[10px] ${novaBtn ? 'mb-4' : ''}">Nenhuma venda fechada ainda</p>
+          <i data-lucide="trophy" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
+          <p class="text-neutral-600 font-bold uppercase tracking-widest text-xs ${novaBtn ? 'mb-4' : ''}">Nenhuma venda fechada ainda</p>
           ${novaBtn}
         </div>`;
     }
