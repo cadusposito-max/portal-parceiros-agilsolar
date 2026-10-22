@@ -801,9 +801,25 @@ function renderCrm360TabContent(client, propostas, vendas) {
     return window.vendasAndamento.abaHTML(vendas);
   }
 
+  // Registrar venda direto na aba, como o "Nova proposta" na aba Propostas
+  // (abre o mesmo modal do troféu do topo da ficha).
   if (_crm360Tab === 'vendas') {
-    if (vendas.length === 0) return crm360Empty('trophy', 'Nenhuma venda fechada ainda');
-    return `<div class="space-y-2">${vendas.map(crmVendaCardHTML).join('')}</div>`;
+    const podeVenda = typeof canOperateClientProposalFlow !== 'function' || canOperateClientProposalFlow(client);
+    const novaBtn = podeVenda
+      ? `<button onclick="openFechaVenda('${client.id}')" class="btn btn-success btn-sm"><i data-lucide="trophy"></i> Registrar venda</button>`
+      : '';
+
+    if (vendas.length === 0) {
+      return `
+        <div class="py-14 text-center border border-dashed border-neutral-800/60 bg-neutral-950/40">
+          <i data-lucide="trophy" class="w-10 h-10 mx-auto mb-3 text-neutral-700"></i>
+          <p class="text-neutral-600 font-bold uppercase tracking-widest text-[10px] ${novaBtn ? 'mb-4' : ''}">Nenhuma venda fechada ainda</p>
+          ${novaBtn}
+        </div>`;
+    }
+    return `
+      ${novaBtn ? `<div class="flex justify-end mb-2">${novaBtn}</div>` : ''}
+      <div class="space-y-2">${vendas.map(crmVendaCardHTML).join('')}</div>`;
   }
 
   if (_crm360Tab === 'arquivos' && typeof renderCrmArquivosTab === 'function') {
