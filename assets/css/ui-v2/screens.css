@@ -679,8 +679,12 @@ html[data-ui="v2"] :is(.v2s, .v2f) .pv-bar i { transform-origin: left center; }
 
 /* faixa curta (lista) e linhas curtas (cards): só etapa + situação; detalhes na ficha */
 html[data-ui="v2"] .v2s .pv-faixa { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-html[data-ui="v2"] .v2s .pv-mini { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; background: var(--v2-soft); border: 1px solid var(--v2-line); border-radius: 12px; }
-html[data-ui="v2"] .v2s .pv-mini .tx { min-width: 0; line-height: 1.25; }
+html[data-ui="v2"] .v2s .pv-mini { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; padding: 8px 10px; background: var(--v2-soft); border: 1px solid var(--v2-line); border-radius: 12px; font: inherit; color: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background-color .15s; }
+html[data-ui="v2"] .v2s .pv-mini:hover { border-color: var(--v2-blue); background: var(--v2-card); }
+html[data-ui="v2"] .v2s .pv-mini:focus-visible { outline: 2px solid var(--v2-blue); outline-offset: 1px; }
+html[data-ui="v2"] .v2s .pv-mini .tx { flex: 1; min-width: 0; line-height: 1.25; }
+html[data-ui="v2"] .v2s .pv-mini .pv-mini-ir { flex: none; width: 14px; height: 14px; color: var(--v2-gray); opacity: .5; transition: opacity .15s, color .15s; }
+html[data-ui="v2"] .v2s .pv-mini:hover .pv-mini-ir { opacity: 1; color: var(--v2-blue-text); }
 html[data-ui="v2"] .v2s .pv-mini small { display: block; font-size: 11px; font-weight: 600; color: var(--v2-gray); }
 html[data-ui="v2"] .v2s .pv-mini b { display: block; font-size: 13px; font-weight: 700; color: var(--v2-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html[data-ui="v2"] .v2s .pv-mini b.late { color: var(--v2-red); }
@@ -690,9 +694,11 @@ html[data-ui="v2"] .v2s .pv-faixa-rod { display: flex; align-items: center; gap:
 html[data-ui="v2"] .v2s .pv-faixa-rod span { display: inline-flex; align-items: center; gap: 6px; flex: 1; }
 html[data-ui="v2"] .v2s .pv-faixa-rod svg { width: 14px; height: 14px; color: var(--v2-gray); }
 html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { height: 32px; font-size: 12px; }
-html[data-ui="v2"] .v2s .pv-lista .pv-mini { background: transparent; border: 0; padding: 5px 4px; }
+html[data-ui="v2"] .v2s .pv-faixa-rod em { font-style: normal; font-weight: 500; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .pv-lista .pv-mini { background: transparent; border: 0; padding: 5px 4px; border-radius: 10px; }
+html[data-ui="v2"] .v2s .pv-lista .pv-mini:hover { background: var(--v2-soft); }
 @media (max-width: 1100px) { html[data-ui="v2"] .v2s .pv-faixa { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 760px) { html[data-ui="v2"] .v2s .pv-faixa { grid-template-columns: 1fr 1fr; } html[data-ui="v2"] .v2s .pv-faixa-rod { flex-wrap: wrap; } html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { width: 100%; justify-content: center; } }
+@media (max-width: 760px) { html[data-ui="v2"] .v2s .pv-faixa { grid-template-columns: 1fr 1fr; } html[data-ui="v2"] .v2s .pv-faixa-rod { flex-wrap: wrap; } html[data-ui="v2"] .v2s .pv-faixa-rod em { display: none; } html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { width: 100%; justify-content: center; } }
 /* ficha: formulário de obra/monitoramento (aba Pós-venda) */
 html[data-ui="v2"] .v2f .pv-form :is(input, select) { height: 36px; border: 1.5px solid var(--v2-line-strong); border-radius: 10px; background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 13px; font-weight: 600; padding: 0 9px; width: 100%; }
 html[data-ui="v2"] .v2f .pv-form { display: flex; flex-direction: column; gap: 8px; margin: 4px 0; padding: 12px; border: 1.5px solid var(--v2-blue); border-radius: 14px; background: var(--v2-card); }

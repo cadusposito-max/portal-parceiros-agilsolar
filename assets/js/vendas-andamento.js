@@ -213,29 +213,49 @@
     return `<div class="pv-abre ${anim ? 'pv-anim' : ''}" data-pv-venda="${esc(v.id)}"><div class="pv-abre-in">${html}</div></div>`;
   }
 
-  // Linhas curtas (etapa + situação), sem detalhe nem botão: é só para bater o olho.
-  // Os detalhes, os atalhos e a edição ficam no card da venda, na ficha do cliente.
-  function etapasCurtas(inf) {
+  // Para onde leva o clique numa etapa da faixa de Vendas: o lugar onde aquilo se
+  // resolve (Financeiro, aba Obras, Engenharia) ou a aba Pós-venda já na etapa.
+  function destino(v, faseId) {
+    const fin = (sub, txt) => ({ txt, ir: () => irFinanceiro(sub, v.cliente_id, v.id) });
+    const ficha = (aba, txt) => ({ txt, ir: () => irEtapa(faseId, () => openVendaClienteFicha(v.id, aba)) });
+    if (faseId === 'pag' && state.canFin) return fin('titulos', 'Ver títulos no Financeiro');
+    if (faseId === 'ent' && state.canFin) return fin('ordemcompra', 'Ver ordem de compra no Financeiro');
+    if (faseId === 'proj') return { txt: 'Abrir na aba Engenharia da ficha', ir: () => openVendaClienteFicha(v.id, 'engenharia') };
+    if (faseId === 'obra' && podeEditar(v) && !A.semRpc && window.obras) return { txt: 'Abrir na aba Obras', ir: () => window.vendasAndamento.irObras(v.id) };
+    if (faseId === 'mon' && podeEditar(v) && !A.semRpc) {
+      return { txt: 'Atualizar monitoramento', ir: () => { A.editando = { venda: v.id, fase: 'mon' }; ficha('posvenda').ir(); } };
+    }
+    return ficha('posvenda', 'Ver na aba Pós-venda da ficha');
+  }
+  function irDaLista(vendaId, faseId) {
+    const v = (state.vendas || []).find((x) => x.id === vendaId);
+    if (!v) return;
+    A.editando = null; // edição esquecida aberta na ficha não volta junto
+    destino(v, faseId).ir();
+  }
+
+  // Linhas curtas (etapa + situação): cada uma leva para onde a etapa se resolve.
+  function etapasCurtas(v, inf) {
     return FASES.map((f, i) => {
       const st = inf.s[i];
-      return `<div class="pv-mini"><span class="pv-d ${st}">${st === 'ok' ? ic('check') : st === 'late' ? '<b class="pv-ex">!</b>' : ''}</span>
-        <div class="tx"><small>${f.n}</small><b class="${st}" title="${esc(inf.t[f.id][1])}">${esc(inf.t[f.id][0])}</b></div></div>`;
+      const d = destino(v, f.id);
+      return `<button type="button" class="pv-mini" onclick="event.stopPropagation(); vendasAndamento.irDaLista('${esc(v.id)}', '${f.id}')" title="${esc(inf.t[f.id][1] + ' · ' + d.txt)}"><span class="pv-d ${st}">${st === 'ok' ? ic('check') : st === 'late' ? '<b class="pv-ex">!</b>' : ''}</span>
+        <div class="tx"><small>${f.n}</small><b class="${st}">${esc(inf.t[f.id][0])}</b></div>${ic('arrow-up-right', 'class="pv-mini-ir"')}</button>`;
     }).join('');
   }
-  const botaoFicha = (v, texto) => (v.cliente_id
-    ? `<button class="v2-btn2" onclick="event.stopPropagation(); openVendaClienteFicha('${esc(v.id)}', 'posvenda')">${ic('user-round')}${texto}</button>` : '');
 
   // Vista em cards: lista curta dentro do próprio card.
   function painelCard(v, inf = info(v)) {
-    return abre(v, `<div class="pv-lista" onclick="event.stopPropagation()">${etapasCurtas(inf)}
-      <div class="pv-lfoot">${botaoFicha(v, 'Detalhes na ficha')}
-        <button class="v2-btn2" onclick="vendasAndamento.abrir('${esc(v.id)}')">${ic('chevron-up')}Fechar</button></div></div>`);
+    return abre(v, `<div class="pv-lista" onclick="event.stopPropagation()">${etapasCurtas(v, inf)}
+      <div class="pv-lfoot"><button class="v2-btn2" onclick="vendasAndamento.fechar('${esc(v.id)}')">${ic('chevron-up')}Fechar</button></div></div>`);
   }
 
   // Vista em lista: uma faixa com as 5 etapas embaixo da linha da venda.
+  // Clicar de novo na linha abre a ficha (abrir).
   function painel(v, inf = info(v)) {
-    return abre(v, `<div class="pv-panwrap"><div class="pv-faixa">${etapasCurtas(inf)}</div>
-      <div class="pv-faixa-rod">${inf.forma ? `<span>${ic('landmark')}${esc(inf.forma)}</span>` : '<span></span>'}${botaoFicha(v, 'Detalhes e atualizações na ficha')}</div></div>`);
+    return abre(v, `<div class="pv-panwrap"><div class="pv-faixa">${etapasCurtas(v, inf)}</div>
+      <div class="pv-faixa-rod">${inf.forma ? `<span>${ic('landmark')}${esc(inf.forma)}</span>` : '<span></span>'}<em>Clique de novo na venda para abrir a ficha</em>
+        <button class="v2-btn2" onclick="event.stopPropagation(); vendasAndamento.fechar('${esc(v.id)}')">${ic('chevron-up')}Recolher</button></div></div>`);
   }
 
   // Atalho de cada etapa na aba Pós-venda da ficha: para onde se resolve aquilo.
@@ -332,11 +352,16 @@
   }
 
   // clique numa etapa do topo: abre a aba Pós-venda com a linha em destaque
-  function irEtapa(faseId) {
+  // (de Vendas, abrirAba abre a ficha já nessa aba)
+  function irEtapa(faseId, abrirAba) {
     A.foco = faseId;
-    if (typeof crmSet360Tab === 'function') crmSet360Tab('posvenda');
+    if (abrirAba) {
+      abrirAba();
+      // cliente não achado: a ficha não abriu, então nada fica em edição
+      if (typeof _crm360ClientId === 'undefined' || !_crm360ClientId) { A.editando = null; A.foco = null; return; }
+    } else if (typeof crmSet360Tab === 'function') crmSet360Tab('posvenda');
     requestAnimationFrame(() => {
-      const el = document.querySelector(`.pva-row[data-pv-etapa="${faseId}"]`);
+      const el = document.querySelector(`.pva-row[data-pv-etapa="${faseId}"]`) || document.querySelector('.pva .pv-form');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(() => { A.foco = null; document.querySelectorAll('.pva-row.foco').forEach((x) => x.classList.remove('foco')); }, 1800);
     });
@@ -411,23 +436,27 @@
     else setTab(grupo);
   }
 
+  const pintarLista = () => { if (typeof renderContent === 'function') renderContent(); };
+
+  // 1º clique na venda abre o panorama; o 2º (com ele aberto) abre a ficha na aba Pós-venda
   function abrir(vendaId) {
-    const pintar = () => { if (typeof renderContent === 'function') renderContent(); };
-    // fechar: dobra o painel e só depois repinta
-    if (A.aberta === vendaId) {
-      A.aberta = null; A.editando = null;
-      const el = document.querySelector(`.pv-abre[data-pv-venda="${vendaId}"]`);
-      const semMovimento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (!el || semMovimento) { pintar(); return; }
-      el.classList.add('pv-fecha');
-      setTimeout(() => { if (A.aberta === null) pintar(); }, FECHA_MS);
-      return;
-    }
+    if (A.aberta === vendaId) { A.editando = null; openVendaClienteFicha(vendaId, 'posvenda'); return; }
     A.aberta = vendaId;
     A.animar = vendaId;
     if (A.editando && A.editando.venda !== vendaId) A.editando = null;
-    pintar();
+    pintarLista();
     A.animar = null;
+  }
+
+  // dobra o painel e só depois repinta
+  function fechar(vendaId) {
+    if (A.aberta !== vendaId) return;
+    A.aberta = null; A.editando = null;
+    const el = document.querySelector(`.pv-abre[data-pv-venda="${vendaId}"]`);
+    const semMovimento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!el || semMovimento) { pintarLista(); return; }
+    el.classList.add('pv-fecha');
+    setTimeout(() => { if (A.aberta === null) pintarLista(); }, FECHA_MS);
   }
 
   function filtrar(f) {
@@ -440,7 +469,7 @@
   window.vendasAndamento = {
     FASES, carregar, garantir, info, trilho, agora, painel, painelCard, fasesHTML, filtrarLista,
     vendaDaFicha, topoEtapasHTML, topoResumoHTML, topoMiniHTML, abaHTML, irEtapa,
-    editar, salvar, irFinanceiro, abrir, filtrar,
+    editar, salvar, irFinanceiro, irDaLista, abrir, fechar, filtrar,
     // da ficha (aba Pós-venda) para o card da obra na aba Obras
     irObras: (vendaId) => {
       if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId && typeof closeCrm360 === 'function') closeCrm360();

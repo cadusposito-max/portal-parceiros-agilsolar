@@ -841,7 +841,7 @@
         </div>`;
     const kwpVenda = (v) => (v.kit_power ? esc(String(v.kit_power).replace('.', ',')) + ' kWp' : '—');
     const kitVenda = (v) => (has('vendaKitResumo') ? vendaKitResumo(v) : { nome: v.kit_nome || '—', marca: v.kit_brand || '' });
-    // com o andamento, clicar na venda abre o panorama dela; sem ele, a ficha (como antes)
+    // com o andamento, clicar na venda abre o panorama dela e clicar de novo abre a ficha; sem ele, a ficha direto
     const clique = (v) => (VA ? `vendasAndamento.abrir('${esc(v.id)}')` : `openVendaClienteFicha('${esc(v.id)}')`);
     const aberta = VA ? VA.aberta : null;
     const nCols = 5 + (showSeller ? 1 : 0) + (VA ? 1 : 0);
@@ -863,7 +863,7 @@
       </div>`; }).join('');
     // Celular: um cartão por venda — nome e valor em cima, kit, barra das 5 etapas
     // e uma faixa colorida embaixo com a etapa atual (vermelha se precisa de atenção).
-    // Tocar abre a lista curta das etapas no próprio cartão (painelCard).
+    // Tocar abre a lista curta das etapas no próprio cartão (painelCard); tocar de novo abre a ficha.
     const valorM = (v) => `<small>R$</small>${esc(money(getSaleValue(v)).replace(/^R\$\s*/, '').replace(/,00$/, ''))}`;
     const faixaM = (inf) => {
       if (inf.fase === 5) return `<div class="v2-vm-ft ok">${ic('circle-check')}<b>Tudo pronto</b><span>monitorando</span>${ic('chevron-down')}</div>`;
@@ -886,7 +886,7 @@
     };
     const mais = rodapeLista(Math.min(limite, lista.length), lista.length, 'uiV2Screens.maisVendas()', 'venda|vendas');
     const filtrando = VA && String(faseSel) !== 'todas';
-    const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas${filtrando ? ` · ${lista.length} nesta etapa` : ''}</h3><small>${VA ? 'Clique numa venda para ver o panorama dela' : 'Clique para abrir a ficha do cliente'}</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
+    const cab = `<div class="v2-ch" style="margin:4px 4px 8px"><div><h3>Vendas${filtrando ? ` · ${lista.length} nesta etapa` : ''}</h3><small>${VA ? 'Clique numa venda para ver o andamento; clique de novo para abrir a ficha' : 'Clique para abrir a ficha do cliente'}</small></div>${viewSeg('vendas', vista, ['lista', 'cards'])}</div>`;
 
     container.dataset.v2total = String(lista.length); container.dataset.v2nome = 'venda|vendas';
     container.innerHTML = `
