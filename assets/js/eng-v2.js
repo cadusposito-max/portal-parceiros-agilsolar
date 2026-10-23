@@ -1955,10 +1955,10 @@
       <div class="rd-fgrid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
         <div class="rd-fld"><label>Concessionária</label><input id="eg-c-conc" ${dis} value="${esc(p.concessionaria || '')}"></div>
         <div class="rd-fld"><label>UC (nº da instalação)</label><input id="eg-c-uc" ${dis} value="${esc(p.uc || '')}"></div>
-        <div class="rd-fld"><label>Nº do protocolo</label><input id="eg-c-prot" ${dis} value="${esc(p.protocolo || '')}"></div>
         <div class="rd-fld"><label>Data do protocolo</label><input id="eg-c-protem" type="date" ${dis} value="${esc(p.protocolo_em || '')}"></div>
         <div class="rd-fld"><label>Data do parecer</label><input id="eg-c-par" type="date" ${dis} value="${esc(p.parecer_em || '')}"></div>
         <div class="rd-fld"><label>Vistoria / troca do medidor</label><input id="eg-c-vis" type="date" ${dis} value="${esc(p.vistoria_em || '')}"></div>
+        <div class="rd-fld full"><label>Nº do protocolo</label><input id="eg-c-prot" ${dis} value="${esc(p.protocolo || '')}"></div>
       </div>
       ${eng ? `<div class="rd-err" id="eg-err"></div><div class="rd-mfoot"><button class="rd-btn pri" id="eg-c-salvar" onclick="EV.salvarConc('${p.id}')">${ic('check')}Salvar</button></div>` : ''}</div>
     ${anexosHTML(p)}
@@ -2018,7 +2018,7 @@
       ${status === 'validacao_aprovada' ? `<div class="rd-note">${ic('clipboard-list')}<span>A OS é gerada automaticamente.${p.dim_status !== 'ok' ? ' <b>O dimensionamento automático não passou</b>: aprove só se conferiu na calculadora.' : ''}</span></div>` : ''}
       ${status === 'validacao_reprovada' ? `<div class="rd-note">${ic('info')}<span>Volta para a franquia corrigir. O motivo aparece para o gestor.</span></div>` : ''}
       <div class="rd-fld"><label>${exige ? 'Motivo (obrigatório)' : 'Observação (opcional)'}</label><input id="eg-mot" placeholder="${exige ? 'Ex.: conta de luz ilegível' : ''}" value="${esc(motivo || '')}"></div>
-      ${status === 'projeto_enviado' ? `<div class="rd-fgrid"><div class="rd-fld"><label>Nº do protocolo</label><input id="eg-mot-prot" value="${esc(p.protocolo || '')}"></div><div class="rd-fld"><label>Data do protocolo</label><input id="eg-mot-dt" type="date" value="${esc(p.protocolo_em || new Date().toISOString().slice(0, 10))}"></div></div>` : ''}
+      ${status === 'projeto_enviado' ? `<div class="rd-fgrid"><div class="rd-fld full"><label>Nº do protocolo</label><input id="eg-mot-prot" value="${esc(p.protocolo || '')}"></div><div class="rd-fld"><label>Data do protocolo</label><input id="eg-mot-dt" type="date" value="${esc(p.protocolo_em || new Date().toISOString().slice(0, 10))}"></div></div>` : ''}
       <div class="rd-err" id="eg-err"></div>
       <div class="rd-mfoot"><button class="rd-btn" onclick="EV.fecharModal()">Voltar</button><button class="rd-btn ${exige ? 'danger' : 'pri'}" id="eg-mot-ok" onclick="EV.confirmarMudar('${id}','${status}')">${ic('check')}Confirmar</button></div>`);
     setTimeout(() => { const i = document.getElementById('eg-mot'); if (i) i.focus(); }, 30);
