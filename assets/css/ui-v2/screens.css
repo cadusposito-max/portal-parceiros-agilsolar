@@ -591,7 +591,6 @@ html[data-ui="v2"] .v2s .v2-pills .v2-pmeta.on svg { color: var(--v2-orange-ink)
 html[data-ui="v2"] .v2s .v2-pills .v2-pmeta.on em { background: rgba(61,38,0,.12); color: var(--v2-orange-ink); }
 
 /* ─── Andamento das vendas (vendas-andamento.js) ─── */
-html[data-ui="v2"] :is(.v2s, .v2f) .pv-trk { display: flex; align-items: center; min-width: 132px; max-width: 170px; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-d { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; flex: none; border: 2px solid var(--v2-line-strong); background: var(--v2-card); color: #fff; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-d svg { width: 11px !important; height: 11px !important; stroke-width: 3; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-d.ok { background: var(--v2-green); border-color: var(--v2-green); }
@@ -606,7 +605,7 @@ html[data-ui="v2"] :is(.v2s, .v2f) .pv-now.ok { color: var(--v2-green); }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-m { display: none; margin-top: 8px; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-col .pv-now { white-space: normal; max-width: 180px; }
 @media (max-width: 1359px) { html[data-ui="v2"] :is(.v2s, .v2f) .pv-m { display: block; } html[data-ui="v2"] :is(.v2s, .v2f) .pv-col { display: none; } }
-html[data-ui="v2"] :is(.v2s, .v2f) .pv-m .pv-trk { width: 150px; min-width: 0; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-m .pv-mj { width: 150px; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-m .pv-now { white-space: normal; margin-top: 4px; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-fases { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-fase { background: var(--v2-card); border: 1.5px solid var(--v2-line); border-radius: 16px; padding: 12px 14px; cursor: pointer; text-align: left; color: var(--v2-ink); box-shadow: var(--v2-shadow); }
@@ -631,7 +630,7 @@ html[data-ui="v2"] body :is(#main-container, #crm360-overlay) .pv-form :is(input
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-formbt { display: flex; gap: 6px; margin-top: 4px; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-formbt button { flex: 1; height: 36px; padding: 0 8px; justify-content: center; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-cardtrk { margin: 2px 0 4px; }
-html[data-ui="v2"] :is(.v2s, .v2f) .pv-cardtrk .pv-trk { max-width: none; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-cardtrk .pv-mj { width: 100%; }
 html[data-ui="v2"] :is(.v2s, .v2f) .pv-cardtrk .pv-now { white-space: normal; }
 /* cards: o panorama abre dentro do próprio card (cresce só para baixo) */
 html[data-ui="v2"] .v2s .v2-pgrid.pv-aberto { align-items: start; }
@@ -677,28 +676,95 @@ html[data-ui="v2"] :is(.v2s, .v2f) .pv-bar i { transform-origin: left center; }
   html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-anim, html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-anim *, html[data-ui="v2"] :is(.v2s, .v2f) .pv-abre.pv-fecha { animation: none !important; }
 }
 
-/* faixa curta (lista) e linhas curtas (cards): só etapa + situação; detalhes na ficha */
-html[data-ui="v2"] .v2s .pv-faixa { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-html[data-ui="v2"] .v2s .pv-mini { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; padding: 8px 10px; background: var(--v2-soft); border: 1px solid var(--v2-line); border-radius: 12px; font: inherit; color: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background-color .15s; }
-html[data-ui="v2"] .v2s .pv-mini:hover { border-color: var(--v2-blue); background: var(--v2-card); }
-html[data-ui="v2"] .v2s .pv-mini:focus-visible { outline: 2px solid var(--v2-blue); outline-offset: 1px; }
-html[data-ui="v2"] .v2s .pv-mini .tx { flex: 1; min-width: 0; line-height: 1.25; }
-html[data-ui="v2"] .v2s .pv-mini .pv-mini-ir { flex: none; width: 14px; height: 14px; color: var(--v2-gray); opacity: .5; transition: opacity .15s, color .15s; }
-html[data-ui="v2"] .v2s .pv-mini:hover .pv-mini-ir { opacity: 1; color: var(--v2-blue-text); }
-html[data-ui="v2"] .v2s .pv-mini small { display: block; font-size: 11px; font-weight: 600; color: var(--v2-gray); }
-html[data-ui="v2"] .v2s .pv-mini b { display: block; font-size: 13px; font-weight: 700; color: var(--v2-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-html[data-ui="v2"] .v2s .pv-mini b.late { color: var(--v2-red); }
-html[data-ui="v2"] .v2s .pv-mini b.ok { color: var(--v2-green); }
-html[data-ui="v2"] .v2s .pv-mini b:not(.ok):not(.late):not(.at) { color: var(--v2-gray); font-weight: 600; }
-html[data-ui="v2"] .v2s .pv-faixa-rod { display: flex; align-items: center; gap: 10px; padding: 8px 2px 2px; font-size: 12px; font-weight: 600; color: var(--v2-ink-2); }
+/* ─── Jornada do cliente (trilho/painel/painelCard em vendas-andamento.js) ─── */
+html[data-ui="v2"] :is(.v2s, .v2f) :is(.pv-jr, .pv-mj) { --jr-gt: #12764E; --jr-rt: var(--v2-red); }
+html[data-ui="v2"][data-theme="dark"] :is(.v2s, .v2f) :is(.pv-jr, .pv-mj) { --jr-gt: #4FD49A; --jr-rt: #F07B7B; }
+/* mini jornada (linha e card fechados) */
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj { display: flex; align-items: center; width: 150px; max-width: 100%; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; border: 2px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-gray); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj i svg { width: 11px !important; height: 11px !important; stroke-width: 2.4; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj i.wait { border-style: dashed; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj i.ok { background: var(--v2-green); border-color: var(--v2-green); color: #fff; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj i.ok svg { stroke-width: 3.2; }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj i.cur { border-color: var(--v2-blue); background: var(--v2-blue-50); color: var(--v2-blue); box-shadow: 0 0 0 3px rgba(0,143,212,.14); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj i.at { border-color: var(--v2-orange); background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj i.late { border-color: var(--v2-red); background: rgba(209,67,67,.12); color: var(--jr-rt); box-shadow: 0 0 0 3px rgba(209,67,67,.14); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj s { flex: 1; min-width: 5px; height: 2px; background: var(--v2-line-strong); }
+html[data-ui="v2"] :is(.v2s, .v2f) .pv-mj s.ok { background: var(--v2-green); }
+
+/* jornada aberta (lista) */
+html[data-ui="v2"] .v2s .pv-jr { background: var(--v2-card); border: 1.5px solid var(--v2-line); border-radius: 18px; padding: 12px 14px 8px; cursor: default; }
+html[data-ui="v2"] .v2s .pv-jr-h { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; }
+html[data-ui="v2"] .v2s .pv-jr-t { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui="v2"] .v2s .pv-jr-t svg { width: 17px !important; height: 17px !important; color: var(--v2-blue); }
+html[data-ui="v2"] .v2s .pv-jr-f { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .pv-jr-f b { font-weight: 800; color: var(--v2-blue-text); }
+html[data-ui="v2"] .v2s .pv-jr-f.late b { color: var(--jr-rt); }
+html[data-ui="v2"] .v2s .pv-jr-f.ok b { color: var(--jr-gt); }
+html[data-ui="v2"] .v2s .pv-jr-trk { display: grid; grid-template-columns: repeat(5, minmax(116px, 1fr)); margin-top: 10px; overflow-x: auto; scrollbar-width: thin; }
+html[data-ui="v2"] .v2s .pv-jr-s { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 4px 6px 6px; border: 0; border-radius: 14px; background: transparent; font: inherit; color: inherit; text-align: center; cursor: pointer; transition: background-color .15s; }
+html[data-ui="v2"] .v2s .pv-jr-s:hover { background: var(--v2-soft); }
+html[data-ui="v2"] .v2s .pv-jr-s:focus-visible { outline: 2px solid var(--v2-blue); outline-offset: -2px; }
+/* linha até a próxima etapa (verde quando esta está feita) */
+html[data-ui="v2"] .v2s .pv-jr-s:not(:last-child)::after { content: ''; position: absolute; top: 25px; left: calc(50% + 27px); right: calc(-50% + 27px); height: 3px; border-radius: 3px; background: var(--v2-line-strong); transform-origin: left center; }
+html[data-ui="v2"] .v2s .pv-jr-s.ok:not(:last-child)::after { background: var(--v2-green); }
+html[data-ui="v2"] .v2s .pv-jr-c { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; border: 2px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-gray); transition: transform .15s; }
+html[data-ui="v2"] .v2s .pv-jr-s:hover .pv-jr-c { transform: translateY(-2px); }
+html[data-ui="v2"] .v2s .pv-jr-c svg { width: 20px !important; height: 20px !important; }
+html[data-ui="v2"] .v2s .pv-jr-s.wait .pv-jr-c { border-style: dashed; }
+html[data-ui="v2"] .v2s .pv-jr-s.ok .pv-jr-c { background: var(--v2-green); border-color: var(--v2-green); color: #fff; }
+html[data-ui="v2"] .v2s .pv-jr-s.ok .pv-jr-c svg { stroke-width: 3; }
+html[data-ui="v2"] .v2s .pv-jr-s.cur .pv-jr-c { border-color: var(--v2-blue); background: var(--v2-blue-50); color: var(--v2-blue); box-shadow: 0 0 0 5px rgba(0,143,212,.12); }
+html[data-ui="v2"] .v2s .pv-jr-s.at .pv-jr-c { border-color: var(--v2-orange); background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] .v2s .pv-jr-s.late .pv-jr-c { border-color: var(--v2-red); background: rgba(209,67,67,.12); color: var(--jr-rt); box-shadow: 0 0 0 5px rgba(209,67,67,.12); }
+html[data-ui="v2"] .v2s .pv-jr-s.late .pv-jr-c::after { content: '!'; position: absolute; top: -4px; right: -4px; width: 17px; height: 17px; border-radius: 50%; border: 2px solid var(--v2-card); background: var(--v2-red); color: #fff; font-size: 10px; font-weight: 800; line-height: 1; display: grid; place-items: center; }
+/* fase atual pulsa de leve */
+html[data-ui="v2"] .v2s .pv-jr-s.cur .pv-jr-c::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 2px solid var(--v2-blue); opacity: 0; animation: pv-pulso 2.4s ease-out infinite; }
+@keyframes pv-pulso { 0% { transform: scale(.85); opacity: .45; } 100% { transform: scale(1.25); opacity: 0; } }
+html[data-ui="v2"] .v2s .pv-jr-n { margin-top: 8px; max-width: 100%; font-size: 13.5px; font-weight: 800; line-height: 1.2; color: var(--v2-ink); }
+html[data-ui="v2"] .v2s .pv-jr-s.cur .pv-jr-n { color: var(--v2-blue-text); }
+html[data-ui="v2"] .v2s .pv-jr-s.late .pv-jr-n { color: var(--jr-rt); }
+html[data-ui="v2"] .v2s .pv-jr-s.wait .pv-jr-n { color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .pv-jr-a { margin-top: 2px; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .pv-jr-chip { margin-top: 6px; max-width: 100%; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--v2-bg2); color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .pv-jr-s.ok .pv-jr-chip { background: rgba(31,169,113,.13); color: var(--jr-gt); }
+html[data-ui="v2"] .v2s .pv-jr-s.cur .pv-jr-chip { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+html[data-ui="v2"] .v2s .pv-jr-s.at .pv-jr-chip { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] .v2s .pv-jr-s.late .pv-jr-chip { background: rgba(209,67,67,.12); color: var(--jr-rt); }
+html[data-ui="v2"] .v2s .pv-faixa-rod { display: flex; align-items: center; gap: 10px; margin-top: 6px; padding: 8px 2px 0; border-top: 1px solid var(--v2-line); font-size: 12px; font-weight: 600; color: var(--v2-ink-2); }
 html[data-ui="v2"] .v2s .pv-faixa-rod span { display: inline-flex; align-items: center; gap: 6px; flex: 1; }
 html[data-ui="v2"] .v2s .pv-faixa-rod svg { width: 14px; height: 14px; color: var(--v2-gray); }
 html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { height: 32px; font-size: 12px; }
 html[data-ui="v2"] .v2s .pv-faixa-rod em { font-style: normal; font-weight: 500; color: var(--v2-gray); }
-html[data-ui="v2"] .v2s .pv-lista .pv-mini { background: transparent; border: 0; padding: 5px 4px; border-radius: 10px; }
-html[data-ui="v2"] .v2s .pv-lista .pv-mini:hover { background: var(--v2-soft); }
-@media (max-width: 1100px) { html[data-ui="v2"] .v2s .pv-faixa { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 760px) { html[data-ui="v2"] .v2s .pv-faixa { grid-template-columns: 1fr 1fr; } html[data-ui="v2"] .v2s .pv-faixa-rod { flex-wrap: wrap; } html[data-ui="v2"] .v2s .pv-faixa-rod em { display: none; } html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { width: 100%; justify-content: center; } }
+
+/* versão estreita (cards e celular): dentro do card, rola de lado e abre parada na fase atual */
+html[data-ui="v2"] .v2s .pv-jr-cp { border: 0; border-top: 1px solid var(--v2-line); border-radius: 0; padding: 10px 0 0; margin-top: 4px; background: transparent; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-f { margin-left: 0; width: 100%; }
+html[data-ui="v2"] .v2s .pv-jr-sc { position: relative; }
+html[data-ui="v2"] .v2s .pv-jr-sc::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 22px; background: linear-gradient(to right, transparent, var(--v2-card)); pointer-events: none; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-trk { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-trk::-webkit-scrollbar { display: none; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-s { flex: 0 0 122px; scroll-snap-align: center; padding: 4px 3px; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-chip { padding: 3px 8px; font-size: 11px; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-s:not(:last-child)::after { top: 23px; left: calc(50% + 25px); right: calc(-50% + 25px); }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-c { width: 40px; height: 40px; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-c svg { width: 18px !important; height: 18px !important; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-n { font-size: 13px; }
+html[data-ui="v2"] .v2s .pv-jr-pts { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
+html[data-ui="v2"] .v2s .pv-jr-pts i { width: 6px; height: 6px; border-radius: 6px; background: var(--v2-line-strong); transition: width .2s, background-color .2s; }
+html[data-ui="v2"] .v2s .pv-jr-pts i.on { width: 16px; background: var(--v2-blue); }
+html[data-ui="v2"] .v2s .pv-jr-agora { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: var(--v2-soft); font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .pv-jr-agora b { color: var(--v2-ink); font-weight: 800; }
+
+/* ao abrir: etapas surgem em sequência e as linhas verdes enchem */
+html[data-ui="v2"] .v2s .pv-abre.pv-anim .pv-jr-s { animation: pv-surge .35s cubic-bezier(.2, .8, .2, 1) both; }
+html[data-ui="v2"] .v2s .pv-abre.pv-anim .pv-jr-s:nth-child(2) { animation-delay: .05s; }
+html[data-ui="v2"] .v2s .pv-abre.pv-anim .pv-jr-s:nth-child(3) { animation-delay: .1s; }
+html[data-ui="v2"] .v2s .pv-abre.pv-anim .pv-jr-s:nth-child(4) { animation-delay: .15s; }
+html[data-ui="v2"] .v2s .pv-abre.pv-anim .pv-jr-s:nth-child(5) { animation-delay: .2s; }
+html[data-ui="v2"] .v2s .pv-abre.pv-anim .pv-jr-s.ok::after { animation: pv-enche .45s .2s cubic-bezier(.2, .8, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) { html[data-ui="v2"] .v2s .pv-jr-s.cur .pv-jr-c::before { animation: none; } }
+@media (max-width: 760px) { html[data-ui="v2"] .v2s .pv-faixa-rod { flex-wrap: wrap; } html[data-ui="v2"] .v2s .pv-faixa-rod em { display: none; } html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { width: 100%; justify-content: center; } }
 /* ficha: formulário de obra/monitoramento (aba Pós-venda) */
 html[data-ui="v2"] .v2f .pv-form :is(input, select) { height: 36px; border: 1.5px solid var(--v2-line-strong); border-radius: 10px; background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 13px; font-weight: 600; padding: 0 9px; width: 100%; }
 html[data-ui="v2"] .v2f .pv-form { display: flex; flex-direction: column; gap: 8px; margin: 4px 0; padding: 12px; border: 1.5px solid var(--v2-blue); border-radius: 14px; background: var(--v2-card); }

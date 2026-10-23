@@ -22,11 +22,11 @@
   'use strict';
 
   const FASES = [
-    { id: 'pag', n: 'Pagamento', i: 'wallet' },
-    { id: 'proj', n: 'Projeto', i: 'ruler' },
-    { id: 'ent', n: 'Compra e entrega', i: 'truck' },
-    { id: 'obra', n: 'Obra', i: 'hard-hat' },
-    { id: 'mon', n: 'Monitoramento', i: 'activity' },
+    { id: 'pag', n: 'Pagamento', a: 'Financeiro', i: 'wallet' },
+    { id: 'proj', n: 'Projeto', a: 'Engenharia', i: 'ruler' },
+    { id: 'ent', n: 'Compra e entrega', a: 'Compras', i: 'truck' },
+    { id: 'obra', n: 'Obra', a: 'Obras', i: 'hard-hat' },
+    { id: 'mon', n: 'Monitoramento', a: 'Pós-venda', i: 'activity' },
   ];
   const ST_TXT = { ok: 'Feito', at: 'Em andamento', late: 'Atenção', '': 'Aguardando' };
   const CHIP = { ok: 't-green', at: 't-blue', late: 't-red', '': 't-gray' };
@@ -167,10 +167,22 @@
   }
 
   // ------------------------------------------------------------ peças
+  // Visual de cada etapa na jornada: feito (verde), atenção (vermelho), a fase
+  // atual (azul), outra andando junto (laranja) ou aguardando (cinza tracejado).
+  function jrCls(inf, i) {
+    const st = inf.s[i];
+    if (st === 'ok') return 'ok';
+    if (st === 'late') return 'late';
+    if (i === inf.fase) return 'cur';
+    return st === 'at' ? 'at' : 'wait';
+  }
+  const jrIcone = (inf, i) => ic(inf.s[i] === 'ok' ? 'check' : FASES[i].i);
+
+  // mini jornada da linha/card fechado: as 5 etapas em bolinhas com ícone
   function trilho(v, inf = info(v)) {
     const dica = FASES.map((f) => `${f.n}: ${inf.t[f.id][0]}`).join('\n');
-    return `<div class="pv-trk" title="${esc(dica)}">${inf.s.map((x, i) => (i ? `<span class="pv-l ${inf.s[i - 1] === 'ok' && x ? 'ok' : ''}"></span>` : '')
-      + `<span class="pv-d ${x}">${x === 'ok' ? ic('check') : x === 'late' ? '<b class="pv-ex">!</b>' : ''}</span>`).join('')}</div>`;
+    return `<div class="pv-mj" title="${esc(dica)}">${FASES.map((_, i) => (i ? `<s class="${inf.s[i - 1] === 'ok' ? 'ok' : ''}"></s>` : '')
+      + `<i class="${jrCls(inf, i)}">${jrIcone(inf, i)}</i>`).join('')}</div>`;
   }
   function agora(v, inf = info(v)) {
     if (inf.fase === 5) return '<span class="pv-now ok">Tudo pronto · monitorando</span>';
@@ -234,28 +246,59 @@
     destino(v, faseId).ir();
   }
 
-  // Linhas curtas (etapa + situação): cada uma leva para onde a etapa se resolve.
-  function etapasCurtas(v, inf) {
+  // ------------------------------------------------------------ jornada do cliente
+  // As 5 etapas em círculos ligados por uma linha: nome, área, chip com a situação.
+  // Cada etapa leva para onde aquilo se resolve (destino).
+  function jrCabecalho(inf) {
+    const late = inf.s[inf.fase] === 'late';
+    const fase = inf.fase === 5 ? '<span class="pv-jr-f ok">Fase atual: <b>Tudo pronto</b></span>'
+      : `<span class="pv-jr-f ${late ? 'late' : ''}">${late ? 'Precisa de atenção' : 'Fase atual'}: <b>${esc(FASES[inf.fase].n)}</b></span>`;
+    return `<div class="pv-jr-h"><span class="pv-jr-t">${ic('route')}Jornada do cliente</span>${fase}</div>`;
+  }
+  function jrPassos(v, inf) {
     return FASES.map((f, i) => {
-      const st = inf.s[i];
       const d = destino(v, f.id);
-      return `<button type="button" class="pv-mini" onclick="event.stopPropagation(); vendasAndamento.irDaLista('${esc(v.id)}', '${f.id}')" title="${esc(inf.t[f.id][1] + ' · ' + d.txt)}"><span class="pv-d ${st}">${st === 'ok' ? ic('check') : st === 'late' ? '<b class="pv-ex">!</b>' : ''}</span>
-        <div class="tx"><small>${f.n}</small><b class="${st}">${esc(inf.t[f.id][0])}</b></div>${ic('arrow-up-right', 'class="pv-mini-ir"')}</button>`;
+      return `<button type="button" class="pv-jr-s ${jrCls(inf, i)}" onclick="event.stopPropagation(); vendasAndamento.irDaLista('${esc(v.id)}', '${f.id}')" title="${esc(inf.t[f.id][1] + ' · ' + d.txt)}">
+        <span class="pv-jr-c">${jrIcone(inf, i)}</span><span class="pv-jr-n">${f.n}</span><span class="pv-jr-a">${f.a}</span>
+        <span class="pv-jr-chip">${esc(inf.t[f.id][0])}</span></button>`;
     }).join('');
   }
 
-  // Vista em cards: lista curta dentro do próprio card.
+  // Cards e celular (espaço estreito): a faixa rola de lado e já abre parada na fase atual.
   function painelCard(v, inf = info(v)) {
-    return abre(v, `<div class="pv-lista" onclick="event.stopPropagation()">${etapasCurtas(v, inf)}
-      <div class="pv-lfoot"><button class="v2-btn2" onclick="vendasAndamento.fechar('${esc(v.id)}')">${ic('chevron-up')}Fechar</button></div></div>`);
+    const foco = Math.min(inf.fase, 4);
+    const f = FASES[inf.fase];
+    const agoraTx = f ? `<b>${esc(f.n)}:</b> ${esc(inf.t[f.id][0])} · ${esc(inf.t[f.id][1])}` : '<b>Tudo pronto.</b> Sistema monitorando.';
+    requestAnimationFrame(centrar);
+    return abre(v, `<div class="pv-jr pv-jr-cp" onclick="event.stopPropagation()">${jrCabecalho(inf)}
+      <div class="pv-jr-sc"><div class="pv-jr-trk" data-foco="${foco}">${jrPassos(v, inf)}</div></div>
+      <div class="pv-jr-pts">${FASES.map((_, i) => `<i class="${i === foco ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="pv-jr-agora">${agoraTx}</div>
+      <div class="pv-lfoot"><button class="v2-btn2" onclick="vendasAndamento.fechar('${esc(v.id)}')">${ic('chevron-up')}Fechar</button>
+        <button class="v2-btn2" onclick="vendasAndamento.abrir('${esc(v.id)}')">${ic('user-round')}Abrir ficha</button></div></div>`);
+  }
+  // centraliza a fase atual na faixa que rola e acende a bolinha da etapa visível
+  function centrar() {
+    document.querySelectorAll('.pv-jr-cp .pv-jr-trk:not([data-ok])').forEach((t) => {
+      t.dataset.ok = '1';
+      const el = t.children[Number(t.dataset.foco) || 0];
+      if (el) t.scrollLeft = el.offsetLeft - t.offsetLeft - (t.clientWidth - el.clientWidth) / 2;
+      const pts = t.closest('.pv-jr').querySelectorAll('.pv-jr-pts i');
+      t.addEventListener('scroll', () => {
+        const meio = t.scrollLeft + t.clientWidth / 2;
+        let k = 0;
+        [...t.children].forEach((c, i) => { if (c.offsetLeft - t.offsetLeft <= meio) k = i; });
+        pts.forEach((p, i) => p.classList.toggle('on', i === k));
+      }, { passive: true });
+    });
   }
 
-  // Vista em lista: uma faixa com as 5 etapas embaixo da linha da venda.
+  // Vista em lista: a jornada inteira embaixo da linha da venda.
   // Clicar de novo na linha abre a ficha (abrir).
   function painel(v, inf = info(v)) {
-    return abre(v, `<div class="pv-panwrap"><div class="pv-faixa">${etapasCurtas(v, inf)}</div>
+    return abre(v, `<div class="pv-panwrap"><div class="pv-jr">${jrCabecalho(inf)}<div class="pv-jr-trk">${jrPassos(v, inf)}</div>
       <div class="pv-faixa-rod">${inf.forma ? `<span>${ic('landmark')}${esc(inf.forma)}</span>` : '<span></span>'}<em>Clique de novo na venda para abrir a ficha</em>
-        <button class="v2-btn2" onclick="event.stopPropagation(); vendasAndamento.fechar('${esc(v.id)}')">${ic('chevron-up')}Recolher</button></div></div>`);
+        <button class="v2-btn2" onclick="event.stopPropagation(); vendasAndamento.fechar('${esc(v.id)}')">${ic('chevron-up')}Recolher</button></div></div></div>`);
   }
 
   // Atalho de cada etapa na aba Pós-venda da ficha: para onde se resolve aquilo.
