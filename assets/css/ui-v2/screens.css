@@ -702,14 +702,17 @@ html[data-ui="v2"] .v2s .pv-jr-f b { font-weight: 800; color: var(--v2-blue-text
 html[data-ui="v2"] .v2s .pv-jr-f.late b { color: var(--jr-rt); }
 html[data-ui="v2"] .v2s .pv-jr-f.ok b { color: var(--jr-gt); }
 html[data-ui="v2"] .v2s .pv-jr-trk { display: grid; grid-template-columns: repeat(5, minmax(116px, 1fr)); margin-top: 10px; overflow-x: auto; scrollbar-width: thin; }
-html[data-ui="v2"] .v2s .pv-jr-s { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 4px 6px 6px; border: 0; border-radius: 14px; background: transparent; font: inherit; color: inherit; text-align: center; cursor: pointer; transition: background-color .15s; }
-html[data-ui="v2"] .v2s .pv-jr-s:hover { background: var(--v2-soft); }
-html[data-ui="v2"] .v2s .pv-jr-s:focus-visible { outline: 2px solid var(--v2-blue); outline-offset: -2px; }
+html[data-ui="v2"] .v2s .pv-jr-s { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 4px 6px 6px; border: 0; border-radius: 14px; background: transparent; font: inherit; color: inherit; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+/* hover sem fundo na etapa (o fundo cobria a linha da etapa anterior): o círculo cresce no lugar e o nome fica azul */
+html[data-ui="v2"] .v2s .pv-jr-s:hover .pv-jr-n { color: var(--v2-blue-text); }
+html[data-ui="v2"] .v2s .pv-jr-s.late:hover .pv-jr-n { color: var(--jr-rt); }
+html[data-ui="v2"] .v2s .pv-jr-s:focus-visible { outline: none; }
+html[data-ui="v2"] .v2s .pv-jr-s:focus-visible .pv-jr-c { outline: 2px solid var(--v2-blue); outline-offset: 3px; }
 /* linha até a próxima etapa (verde quando esta está feita) */
 html[data-ui="v2"] .v2s .pv-jr-s:not(:last-child)::after { content: ''; position: absolute; top: 25px; left: calc(50% + 27px); right: calc(-50% + 27px); height: 3px; border-radius: 3px; background: var(--v2-line-strong); transform-origin: left center; }
 html[data-ui="v2"] .v2s .pv-jr-s.ok:not(:last-child)::after { background: var(--v2-green); }
 html[data-ui="v2"] .v2s .pv-jr-c { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; border: 2px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-gray); transition: transform .15s; }
-html[data-ui="v2"] .v2s .pv-jr-s:hover .pv-jr-c { transform: translateY(-2px); }
+html[data-ui="v2"] .v2s .pv-jr-s:hover .pv-jr-c { transform: scale(1.08); }
 html[data-ui="v2"] .v2s .pv-jr-c svg { width: 20px !important; height: 20px !important; }
 html[data-ui="v2"] .v2s .pv-jr-s.wait .pv-jr-c { border-style: dashed; }
 html[data-ui="v2"] .v2s .pv-jr-s.ok .pv-jr-c { background: var(--v2-green); border-color: var(--v2-green); color: #fff; }
@@ -736,6 +739,8 @@ html[data-ui="v2"] .v2s .pv-faixa-rod span { display: inline-flex; align-items: 
 html[data-ui="v2"] .v2s .pv-faixa-rod svg { width: 14px; height: 14px; color: var(--v2-gray); }
 html[data-ui="v2"] .v2s .pv-faixa-rod .v2-btn2 { height: 32px; font-size: 12px; }
 html[data-ui="v2"] .v2s .pv-faixa-rod em { font-style: normal; font-weight: 500; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .pv-faixa-rod em.dica { color: var(--v2-ink-2); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2s .pv-faixa-rod em b { color: var(--v2-ink); font-weight: 800; }
 
 /* versão estreita (cards e celular): dentro do card, rola de lado e abre parada na fase atual */
 html[data-ui="v2"] .v2s .pv-jr-cp { border: 0; border-top: 1px solid var(--v2-line); border-radius: 0; padding: 10px 0 0; margin-top: 4px; background: transparent; }
@@ -745,7 +750,7 @@ html[data-ui="v2"] .v2s .pv-jr-sc::after { content: ''; position: absolute; top:
 html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-trk { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
 html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-trk::-webkit-scrollbar { display: none; }
 html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-s { flex: 0 0 122px; scroll-snap-align: center; padding: 4px 3px; }
-html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-chip { padding: 3px 8px; font-size: 11px; }
+html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-chip { padding: 3px 8px; font-size: 11px; line-height: 1.25; border-radius: 10px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-s:not(:last-child)::after { top: 23px; left: calc(50% + 25px); right: calc(-50% + 25px); }
 html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-c { width: 40px; height: 40px; }
 html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-c svg { width: 18px !important; height: 18px !important; }
@@ -753,7 +758,7 @@ html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-n { font-size: 13px; }
 html[data-ui="v2"] .v2s .pv-jr-pts { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
 html[data-ui="v2"] .v2s .pv-jr-pts i { width: 6px; height: 6px; border-radius: 6px; background: var(--v2-line-strong); transition: width .2s, background-color .2s; }
 html[data-ui="v2"] .v2s .pv-jr-pts i.on { width: 16px; background: var(--v2-blue); }
-html[data-ui="v2"] .v2s .pv-jr-agora { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: var(--v2-soft); font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .pv-jr-agora { min-height: 50px; margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: var(--v2-soft); font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--v2-ink-2); }
 html[data-ui="v2"] .v2s .pv-jr-agora b { color: var(--v2-ink); font-weight: 800; }
 
 /* ao abrir: etapas surgem em sequência e as linhas verdes enchem */

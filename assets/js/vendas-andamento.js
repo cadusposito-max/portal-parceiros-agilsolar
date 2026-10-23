@@ -255,10 +255,14 @@
       : `<span class="pv-jr-f ${late ? 'late' : ''}">${late ? 'Precisa de atenção' : 'Fase atual'}: <b>${esc(FASES[inf.fase].n)}</b></span>`;
     return `<div class="pv-jr-h"><span class="pv-jr-t">${ic('route')}Jornada do cliente</span>${fase}</div>`;
   }
+  // Sem title nativo (a caixa do navegador cobria o chip): o detalhe da etapa
+  // aparece no rodapé (lista) ou no resumo (cards/celular) enquanto o mouse está nela.
   function jrPassos(v, inf) {
     return FASES.map((f, i) => {
       const d = destino(v, f.id);
-      return `<button type="button" class="pv-jr-s ${jrCls(inf, i)}" onclick="event.stopPropagation(); vendasAndamento.irDaLista('${esc(v.id)}', '${f.id}')" title="${esc(inf.t[f.id][1] + ' · ' + d.txt)}">
+      const dica = `<b>${esc(f.n)}:</b> ${esc(inf.t[f.id][1])} · ${esc(d.txt)}`;
+      return `<button type="button" class="pv-jr-s ${jrCls(inf, i)}" onclick="event.stopPropagation(); vendasAndamento.irDaLista('${esc(v.id)}', '${f.id}')" aria-label="${esc(`${f.n}: ${inf.t[f.id][0]}. ${inf.t[f.id][1]}. ${d.txt}`)}"
+        data-dica="${esc(dica)}" onmouseenter="vendasAndamento.dica(this, true)" onmouseleave="vendasAndamento.dica(this, false)" onfocus="vendasAndamento.dica(this, true)" onblur="vendasAndamento.dica(this, false)">
         <span class="pv-jr-c">${jrIcone(inf, i)}</span><span class="pv-jr-n">${f.n}</span><span class="pv-jr-a">${f.a}</span>
         <span class="pv-jr-chip">${esc(inf.t[f.id][0])}</span></button>`;
     }).join('');
@@ -273,9 +277,17 @@
     return abre(v, `<div class="pv-jr pv-jr-cp" onclick="event.stopPropagation()">${jrCabecalho(inf)}
       <div class="pv-jr-sc"><div class="pv-jr-trk" data-foco="${foco}">${jrPassos(v, inf)}</div></div>
       <div class="pv-jr-pts">${FASES.map((_, i) => `<i class="${i === foco ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="pv-jr-agora">${agoraTx}</div>
+      <div class="pv-jr-agora" data-pv-dica>${agoraTx}</div>
       <div class="pv-lfoot"><button class="v2-btn2" onclick="vendasAndamento.fechar('${esc(v.id)}')">${ic('chevron-up')}Fechar</button>
         <button class="v2-btn2" onclick="vendasAndamento.abrir('${esc(v.id)}')">${ic('user-round')}Abrir ficha</button></div></div>`);
+  }
+  // troca o texto do rodapé/resumo pelo detalhe da etapa (e volta ao sair)
+  function dica(el, mostrar) {
+    const alvo = el.closest('.pv-jr')?.querySelector('[data-pv-dica]');
+    if (!alvo) return;
+    if (alvo.dataset.pvOrig === undefined) alvo.dataset.pvOrig = alvo.innerHTML;
+    alvo.innerHTML = mostrar ? el.dataset.dica : alvo.dataset.pvOrig;
+    alvo.classList.toggle('dica', !!mostrar);
   }
   // centraliza a fase atual na faixa que rola e acende a bolinha da etapa visível
   function centrar() {
@@ -297,7 +309,7 @@
   // Clicar de novo na linha abre a ficha (abrir).
   function painel(v, inf = info(v)) {
     return abre(v, `<div class="pv-panwrap"><div class="pv-jr">${jrCabecalho(inf)}<div class="pv-jr-trk">${jrPassos(v, inf)}</div>
-      <div class="pv-faixa-rod">${inf.forma ? `<span>${ic('landmark')}${esc(inf.forma)}</span>` : '<span></span>'}<em>Clique de novo na venda para abrir a ficha</em>
+      <div class="pv-faixa-rod">${inf.forma ? `<span>${ic('landmark')}${esc(inf.forma)}</span>` : '<span></span>'}<em data-pv-dica>Clique de novo na venda para abrir a ficha</em>
         <button class="v2-btn2" onclick="event.stopPropagation(); vendasAndamento.fechar('${esc(v.id)}')">${ic('chevron-up')}Recolher</button></div></div></div>`);
   }
 
@@ -512,7 +524,7 @@
   window.vendasAndamento = {
     FASES, carregar, garantir, info, trilho, agora, painel, painelCard, fasesHTML, filtrarLista,
     vendaDaFicha, topoEtapasHTML, topoResumoHTML, topoMiniHTML, abaHTML, irEtapa,
-    editar, salvar, irFinanceiro, irDaLista, abrir, fechar, filtrar,
+    editar, salvar, irFinanceiro, irDaLista, abrir, fechar, filtrar, dica,
     // da ficha (aba Pós-venda) para o card da obra na aba Obras
     irObras: (vendaId) => {
       if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId && typeof closeCrm360 === 'function') closeCrm360();
