@@ -206,6 +206,7 @@ function _orcamentoResumoDim() {
 
 // Kit da vez: o que o vendedor escolheu ou, sem escolha, o recomendado pelo consumo.
 function _orcamentoKitAtual(r = _orcamentoResumoDim()) {
+  if (typeof hibridoAtivo === 'function' && hibridoAtivo()) return hibridoKit();
   if (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()) return kitMontadoKit();
   return _orcamentoAcharKit(_orcamentoKitId) || (r?.recomendado ? _orcamentoAcharKit(r.recomendado.id) : null);
 }
@@ -336,6 +337,7 @@ function _orcamentoKitCardHTML(kit, r, nota) {
 }
 
 function _orcamentoLadoHTML(r, kit) {
+  if (typeof hibridoAtivo === 'function' && hibridoAtivo()) return hibridoLadoHTML(kit);
   const dim = state.pbPorta === 'dim';
   let html = '';
   if (r) {

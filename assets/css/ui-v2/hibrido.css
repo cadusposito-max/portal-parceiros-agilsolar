@@ -1,0 +1,135 @@
+/* ---------- Orçamento · kit híbrido (hibrido.js) ---------- */
+
+/* Chave On-grid / Híbrido no topo da coluna, antes de "Pelo consumo / Lista de kits". */
+html[data-ui="v2"] body #orcamento-builder-slot #pb-linha.tem-sistema { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+html[data-ui="v2"] .pbd-sistema { display: inline-flex; gap: 2px; padding: 4px; border-radius: 14px; background: var(--v2-bg2); flex-shrink: 0; }
+html[data-ui="v2"] .pbd-sistema.hidden { display: none; }
+html[data-ui="v2"] body .pbd-sistema button {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 8px 14px; border-radius: 11px;
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--v2-ink-2); cursor: pointer; text-transform: none; min-height: 0; box-shadow: none;
+}
+html[data-ui="v2"] .pbd-sistema button svg { width: 15px; height: 15px; flex-shrink: 0; }
+html[data-ui="v2"] body .pbd-sistema button:not(.is-on):hover { color: var(--v2-ink); }
+html[data-ui="v2"] body .pbd-sistema button.is-on { background: var(--v2-blue); color: #fff; }
+/* Híbrido ligado: laranja da marca, com o texto escuro (branco no laranja fica ilegível). */
+html[data-ui="v2"] body .pbd-sistema button[data-sis="hibrido"].is-on { background: var(--v2-orange); color: var(--v2-orange-ink); }
+html[data-ui="v2"] body .pbd-sistema button:disabled { cursor: default; opacity: .6; }
+html[data-ui="v2"] #orcamento-builder-slot #pb-linha.tem-sistema .pbd-hint { flex: 1; min-width: 200px; }
+
+/* Cartões do painel: telhado e distribuidora lado a lado, módulo na linha toda. */
+html[data-ui="v2"] #pb-fornecimento-panel #pb-forn-hibrido { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html[data-ui="v2"] #pb-forn-hibrido.hidden { display: none; }
+html[data-ui="v2"] #pb-forn-hibrido .hb-largo { grid-column: 1 / -1; }
+
+/* Corpo (no lugar da lista de kits). */
+html[data-ui="v2"] .hb-corpo { display: flex; flex-direction: column; gap: 12px; }
+html[data-ui="v2"] .hb-corpo .km-box { margin: 0; }
+html[data-ui="v2"] .pbl p.hb-ref, html[data-ui="v2"] .hb-ref {
+  display: flex; align-items: flex-start; gap: 7px; margin: 10px 0 0; padding: 9px 12px; border-radius: 12px;
+  background: var(--v2-soft); border: 1px solid var(--v2-line); font-size: 12.5px; line-height: 1.45; color: var(--v2-ink-2);
+}
+html[data-ui="v2"] .km-head + .hb-ref { margin-top: 0; margin-bottom: 8px; }
+html[data-ui="v2"] .hb-ref > svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; color: var(--v2-blue); }
+html[data-ui="v2"] .hb-ref i { font-style: italic; }
+
+/* Chips (com/sem bateria e horas de autonomia). */
+html[data-ui="v2"] .hb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-ui="v2"] body .hb-chips button {
+  border: 1px solid var(--v2-line-strong); background: var(--v2-card); border-radius: 999px; padding: 7px 15px;
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--v2-ink); cursor: pointer; text-transform: none; min-height: 0; box-shadow: none;
+  transition: border-color .12s, background-color .12s, color .12s;
+}
+html[data-ui="v2"] body .hb-chips button:hover { border-color: var(--v2-blue); }
+html[data-ui="v2"] body .hb-chips button.is-on { border-color: var(--v2-blue); background: var(--v2-blue-50); color: var(--v2-blue-text); }
+
+/* Lista de aparelhos. */
+html[data-ui="v2"] .hb-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 56px 76px 62px 62px 36px; gap: 8px; align-items: center;
+  padding: 7px 0; border-top: 1px solid var(--v2-line); font-size: 13px;
+}
+html[data-ui="v2"] .hb-row.hb-hd { border-top: 0; padding: 4px 0 6px; font-size: 11px; font-weight: 800; color: var(--v2-ink-2); }
+html[data-ui="v2"] .hb-nm { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; color: var(--v2-ink); }
+html[data-ui="v2"] .hb-nm span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; overflow-wrap: anywhere; }
+html[data-ui="v2"] .hb-nm svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--v2-ink-2); }
+html[data-ui="v2"] body .hb-row input {
+  width: 100%; height: 36px; box-sizing: border-box; padding: 0 9px; border: 1px solid var(--v2-line-strong); border-radius: 10px;
+  background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 13px; font-weight: 700; text-transform: none;
+  -moz-appearance: textfield;
+}
+html[data-ui="v2"] body .hb-row input::-webkit-outer-spin-button,
+html[data-ui="v2"] body .hb-row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+html[data-ui="v2"] body .hb-row input:focus { outline: none; border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
+html[data-ui="v2"] body .hb-row input.hb-sug { color: var(--v2-gray); font-style: italic; font-weight: 600; }
+/* tema escuro: o reskin pinta todo input com !important e seletor forte; o sugerido continua cinza */
+html[data-ui="v2"][data-theme="dark"] body .hb-row input.hb-sug.hb-sug.hb-sug.hb-sug.hb-sug { color: #8E99A4 !important; }
+html[data-ui="v2"] .hb-kd { text-align: right; font-weight: 700; color: var(--v2-ink-2); font-variant-numeric: tabular-nums; }
+html[data-ui="v2"] body .hb-rem { width: 36px; height: 36px; border-radius: 10px; }
+html[data-ui="v2"] .pbl p.hb-vazio { margin: 6px 0; padding: 12px; border: 1px dashed var(--v2-line-strong); border-radius: 12px; text-align: center; font-size: 13px; color: var(--v2-ink-2); }
+html[data-ui="v2"] .hb-add { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; margin-top: 10px; }
+html[data-ui="v2"] .hb-add select { flex: 1; min-width: 220px; }
+html[data-ui="v2"] body .hb-add .v2-dd { flex: 1; min-width: 220px; max-width: none; justify-content: space-between; border: 1px solid var(--v2-line-strong); border-radius: 12px !important; box-shadow: none; font-weight: 700; }
+html[data-ui="v2"] body .hb-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; min-height: 40px;
+  border: 1px solid var(--v2-line-strong); border-radius: 12px; background: var(--v2-card); color: var(--v2-ink);
+  font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-transform: none; box-shadow: none;
+}
+html[data-ui="v2"] body .hb-btn:hover { border-color: var(--v2-blue); color: var(--v2-blue-text); }
+html[data-ui="v2"] .hb-btn svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .hb-corpo .orc-aviso { margin-top: 10px; }
+
+/* Consumo e placas. */
+html[data-ui="v2"] .hb-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+html[data-ui="v2"] .km-head + .hb-grid2 { margin-top: 0; }
+html[data-ui="v2"] .hb-lbl { margin-bottom: 6px; font-size: 12px; font-weight: 800; color: var(--v2-ink-2); }
+html[data-ui="v2"] .hb-lbl small { font-weight: 600; }
+html[data-ui="v2"] .hb-campo, html[data-ui="v2"] .hb-placas {
+  display: flex; align-items: center; gap: 6px; height: 42px; box-sizing: border-box; padding: 0 10px;
+  border: 1px solid var(--v2-line-strong); border-radius: 12px; background: var(--v2-card);
+}
+html[data-ui="v2"] .hb-campo:focus-within, html[data-ui="v2"] .hb-placas:focus-within { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
+html[data-ui="v2"] body .hb-campo input {
+  width: 90px; min-width: 0; flex: 1; border: 0; background: transparent; font: inherit; font-size: 15px; font-weight: 700;
+  color: var(--v2-ink); outline: none; text-transform: none; -moz-appearance: textfield;
+}
+html[data-ui="v2"] body .hb-campo input::-webkit-outer-spin-button,
+html[data-ui="v2"] body .hb-campo input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+html[data-ui="v2"] .hb-campo span { font-size: 13px; font-weight: 600; color: var(--v2-ink-2); white-space: nowrap; }
+html[data-ui="v2"] .hb-placas { padding: 0 8px; }
+
+/* Coluna da direita: opções cotadas. */
+html[data-ui="v2"] body .hb-op {
+  display: block; width: 100%; margin-top: 8px; padding: 11px 13px; border: 1px solid var(--v2-line-strong); border-radius: 14px;
+  background: var(--v2-card); text-align: left; font: inherit; color: var(--v2-ink); cursor: pointer; text-transform: none;
+  min-height: 0; box-shadow: none; transition: border-color .12s, background-color .12s;
+}
+html[data-ui="v2"] body .hb-op:hover { border-color: var(--v2-blue); }
+html[data-ui="v2"] body .hb-op.is-on { border-color: var(--v2-blue); box-shadow: inset 0 0 0 1px var(--v2-blue); background: var(--v2-blue-50); }
+html[data-ui="v2"] .hb-op > span { display: block; }
+html[data-ui="v2"] .hb-op-n { font-size: 13.5px; font-weight: 800; line-height: 1.3; }
+html[data-ui="v2"] .hb-tag {
+  display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; vertical-align: 1px;
+  font-style: normal; font-size: 10.5px; font-weight: 800; background: var(--v2-orange); color: var(--v2-orange-ink); white-space: nowrap;
+}
+html[data-ui="v2"] .hb-op-d { margin-top: 3px; font-size: 12px; line-height: 1.4; color: var(--v2-ink-2); }
+html[data-ui="v2"] .hb-op > .hb-op-p { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; margin-top: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+html[data-ui="v2"] .hb-op-p s { font-size: 12px; color: var(--v2-ink-2); }
+html[data-ui="v2"] .hb-op-p b { font-size: 18px; font-weight: 800; }
+html[data-ui="v2"] .orcamento-lado p.hb-op-fora { margin-top: 8px; font-size: 12px; color: var(--v2-ink-2); }
+html[data-ui="v2"] body .hb-cotar { margin-top: 12px; }
+html[data-ui="v2"] .orcamento-lado .pb-alerta { margin-top: 10px; }
+
+@media (max-width: 760px) {
+  html[data-ui="v2"] #pb-fornecimento-panel #pb-forn-hibrido { grid-template-columns: 1fr; }
+  html[data-ui="v2"] .hb-grid2 { grid-template-columns: 1fr; }
+  html[data-ui="v2"] .hb-row { grid-template-columns: minmax(0, 1fr) 56px 72px 58px 36px; }
+  html[data-ui="v2"] .hb-kd { display: none; }
+  html[data-ui="v2"] body .hb-row input, html[data-ui="v2"] body .hb-campo input { font-size: 16px; }
+}
+@media (max-width: 520px) {
+  /* Celular: o nome do aparelho em cima, quantidade, watts e horas embaixo. */
+  html[data-ui="v2"] .hb-row { grid-template-columns: repeat(3, minmax(0, 1fr)) 36px; row-gap: 6px; }
+  html[data-ui="v2"] .hb-nm, html[data-ui="v2"] .hb-nm-in { grid-column: 1 / -1; }
+  html[data-ui="v2"] .hb-hd .hb-hd-nm { display: none; }
+  html[data-ui="v2"] .pbd-sistema { width: 100%; }
+  html[data-ui="v2"] body .pbd-sistema button { flex: 1; justify-content: center; }
+}

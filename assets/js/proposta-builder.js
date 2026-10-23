@@ -1085,6 +1085,16 @@ function renderModalProducts() {
     return;
   }
 
+  // Kit híbrido (hibrido.js): bateria, cargas e autonomia no lugar da lista de kits.
+  if (typeof hibridoAtivo === 'function' && hibridoAtivo()) {
+    emptyEl.classList.add('hidden');
+    container.classList.remove('hidden');
+    container.className = 'pbl';
+    hibridoRenderCorpo(container);
+    if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
+    return;
+  }
+
   // Modo avançado (kit-montado.js): o vendedor monta o kit; no lugar da lista entram os inversores.
   if (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()) {
     emptyEl.classList.add('hidden');

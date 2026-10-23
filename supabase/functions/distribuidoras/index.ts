@@ -5,6 +5,8 @@
 //   { acao: "atualizar_catalogo", provedor }    -> só o pg_cron da madrugada (header x-internal-secret): renova o espelho
 //   { acao: "cotar", provedor, placas, tipo, modulo?, marca?, telhado? } -> qualquer usuário ativo: cota os kits,
 //        telhado = chave da tabela estruturas (ceramico, laje, solo...; ver TELHADOS). Sem telhado = cerâmico.
+//   { acao: "cotar", provedor, placas, modulo?, telhado?, hibrido: { bateria_kwh, inv_min_kw } } -> qualquer usuário ativo:
+//        kit com inversor híbrido (até 3 opções, uma por marca) e, se bateria_kwh > 0, a bateria compatível.
 //   { acao: "cotar", provedor, placas, modulo, inversores: [{ item, qtd }], telhado? } -> admin/gestor (modo avançado):
 //        cota exatamente os inversores escolhidos (vários modelos e quantidades) e grava UMA cotação.
 //        aplica a precificação e grava cada opção em cotacoes_distribuidora.
@@ -291,13 +293,14 @@ class Belenus {
     return { layout, itens: ((j?.data?.structure ?? []) as any[]).filter((x) => Number(x.qtde) > 0) };
   }
 
-  async outros(modulo: string, kwp: number, placas: number, inversor: any) {
+  // todos = true devolve também os itens com quantidade 0 (as baterias do híbrido vêm assim).
+  async outros(modulo: string, kwp: number, placas: number, inversor: any, todos = false) {
     const j = await this.req("catalogo/KitPersonalizado/Outros", {
       site: this.site, potenciaProjeto: kwp, modulo, sugestao: 1, moduloQtde: placas, listInversores: Array.isArray(inversor) ? inversor : [inversor],
     });
     const d = j?.data ?? {};
     const lista: any[] = Array.isArray(d) ? d : (Object.values(d).find((v) => Array.isArray(v)) as any[]) ?? [];
-    return lista.filter((x) => Number(x.qtde) > 0);
+    return todos ? lista : lista.filter((x) => Number(x.qtde) > 0);
   }
 
   async confirmar(body: unknown) {
@@ -665,6 +668,129 @@ async function cotarBelenusMontado(bel: Belenus, cat: Catalogo, placas: number, 
   };
 }
 
+// ---------------------------------------------------------------- kit híbrido
+// A Belenus só tem inversor híbrido monofásico 220 V (e o Growatt 127/220 V, que ela chama de
+// "Bifásico"). A bateria compatível com o inversor vem na etapa Outros (categoria "Baterias"),
+// com a quantidade em aberto. Sem bateria, o kit sai só com o inversor híbrido e as placas.
+// Até 3 opções, uma por marca: o menor inversor de cada marca que aguenta as placas e as cargas.
+const HIB_GRUPOS = [
+  { lig: "Monofásico", tensao: "220V", rotulo: "220 V" },
+  { lig: "Bifásico", tensao: "127/220V", rotulo: "127/220 V" },
+];
+const HIB_MARCAS = ["SAJ", "SUNGROW", "LUXPOWER TEK", "GROWATT", "FOX ESS"]; // ordem de preferência; as outras vêm depois
+const HIB_OPCOES = 3;
+
+// kWh de uma bateria pela descrição ("... 5.12KWH ...", "BATERIA 5.2KW PARA ...").
+function kwhDaBateria(x: any) {
+  const m = /(\d+(?:[.,]\d+)?)\s*KWH?\b/i.exec(`${x?.descricaoItem ?? ""} ${x?.item ?? ""}`);
+  const v = m ? Number(m[1].replace(",", ".")) : NaN;
+  return Number.isFinite(v) && v > 0 && v < 100 ? v : 0;
+}
+
+// Menos baterias primeiro; empatou, a de mais kWh. A quantidade mínima obrigatória da Belenus vale.
+function escolherBateria(lista: any[], alvo: number) {
+  let melhor: { b: any; kwh: number; qtd: number } | null = null;
+  for (const b of lista) {
+    const kwh = kwhDaBateria(b);
+    if (!kwh) continue;
+    let qtd = Math.max(1, Math.ceil(alvo / kwh - 1e-9));
+    if (b.qtdeMinObrigatoria && Number(b.qtde) > qtd) qtd = Number(b.qtde);
+    if (!melhor || qtd < melhor.qtd || (qtd === melhor.qtd && kwh > melhor.kwh)) melhor = { b, kwh, qtd };
+  }
+  return melhor;
+}
+
+async function cotarBelenusHibrido(bel: Belenus, cat: Catalogo, placas: number, opcoes: any) {
+  const pedido = String(opcoes?.modulo ?? "");
+  if (pedido && !cat.modulos.some((m) => m.item === pedido)) {
+    throw new Error("Esse kit não está disponível no momento: a Belenus está sem o módulo escolhido. Escolha outro módulo e cote de novo.");
+  }
+  const mod = cat.modulos.find((m) => m.item === pedido) ?? moduloPadrao(cat.modulos);
+  if (!mod) throw new Error("A Belenus não tem nenhum módulo de 600 W ou mais agora.");
+  const kwp = Math.round(placas * Number(mod.potencia)) / 1000;
+  const telhado = telhadoDe(opcoes?.telhado);
+  if (!telhado) throw new Error("A Belenus não tem estrutura para esse telhado. Troque o telhado e cote de novo.");
+  const bateriaKwh = Math.max(0, Math.min(200, Number(opcoes?.bateriaKwh) || 0));
+  const invMin = Math.max(0, Number(opcoes?.invMinKw) || 0);
+
+  // Inversores híbridos recomendados pra esse projeto (um pedido por tensão).
+  const cand: { inv: any; tensao: string }[] = [];
+  let falha: unknown = null;
+  for (const g of HIB_GRUPOS) {
+    let lista: any[] = [];
+    try { lista = await bel.inversores(mod.item, kwp, placas, "Inversor String Híbrido", g.lig, g.tensao, ""); }
+    catch (err) { if (tipoDoErro(err) === "bloqueio") throw err; falha = err; continue; }
+    for (const i of lista) {
+      const r = recomendacaoInversor(i, "hibrido");
+      if (!r || SEM_MARCA.test(marcaDe(r)) || Number(r.numInversores) !== 1) continue;
+      if (kwp > Number(r.maxPotenciaEntrada) || Number(r.potenciaNominalSaida) < invMin - 1e-6) continue;
+      cand.push({ inv: r, tensao: g.rotulo });
+    }
+  }
+  if (!cand.length) {
+    if (falha && tipoDoErro(falha) === "instavel") throw falha;
+    const cargas = invMin ? ` e ${String(Math.round(invMin * 10) / 10).replace(".", ",")} kW de cargas` : "";
+    throw new Error(`Esse kit não está disponível no momento: a Belenus não tem inversor híbrido que aguente ${placas} placas${cargas}. Diminua as placas ou as cargas e cote de novo.`);
+  }
+  // O menor inversor de cada marca, na ordem de preferência das marcas.
+  const ordemMarca = (m: string) => { const k = HIB_MARCAS.indexOf(m); return k < 0 ? 99 : k; };
+  const menorDaMarca = new Map<string, { inv: any; tensao: string }>();
+  for (const c of cand) {
+    const atual = menorDaMarca.get(marcaDe(c.inv));
+    if (!atual || Number(c.inv.potenciaNominalSaida) < Number(atual.inv.potenciaNominalSaida)) menorDaMarca.set(marcaDe(c.inv), c);
+  }
+  const escolhas = [...menorDaMarca.values()].sort((a, b) => ordemMarca(marcaDe(a.inv)) - ordemMarca(marcaDe(b.inv))).slice(0, HIB_OPCOES);
+
+  const resultados: any[] = [];
+  for (const e of escolhas) {
+    try {
+      const { _grupo, ...inv } = e.inv;
+      const invObj = { ...inv, numInversores: 1, qtde: 1, inversor: e.inv.item, inversorQtde: 1 };
+      const est = await bel.estrutura(mod.item, kwp, placas, invObj, telhado);
+      const todos = await bel.outros(mod.item, kwp, placas, invObj, true);
+      const bat = bateriaKwh > 0 ? escolherBateria(todos.filter((x) => x.categoria === "Baterias"), bateriaKwh) : null;
+      if (bateriaKwh > 0 && !bat) throw erroTipo(`Esse kit não está disponível no momento: a Belenus está sem bateria pro inversor ${nomeInv(e.inv)}.`, "recusado");
+      // Sem bateria, sai também o que só serve pra ela (ex.: caixa de junção da bateria FoxESS).
+      const outros = todos.filter((x) => x.categoria !== "Baterias" && Number(x.qtde) > 0 && (bat || !/BATERIA/i.test(String(x.descricaoItem ?? ""))));
+      const itens = [
+        itemConfirmar("modulo", mod, placas),
+        itemConfirmar("inversor", e.inv, 1),
+        ...est.itens.map((x) => itemConfirmar("estrutura", x, Number(x.qtde))),
+        ...outros.map((x) => itemConfirmar("outro", x, Number(x.qtde))),
+        ...(bat ? [itemConfirmar("outro", bat.b, bat.qtd)] : []),
+      ];
+      const conf = await bel.confirmar({
+        site: bel.site, potenciaProjeto: kwp, semEstrutura: false, mesesInatividade: 3, itens, layout: est.layout,
+        origemCarrinho: 1, potenciaSistema: kwp, qtdModulos: placas, qtdInversores: 1,
+        totalMaxPotenciaEntrada: Number(e.inv.maxPotenciaEntrada), totalMaxPotenciaSaida: Number(e.inv.maxPotenciaSaida),
+      });
+      const comps = (conf?.itens ?? []).flatMap((i: any) => i.componentes ?? []);
+      const fr = await bel.frete(conf, comps.map((c: any) => ({ sku: c.sku, qtde: c.quantidade })), opcoes?.unidade ?? null);
+      const produtos = Number(conf.totalProdutos);
+      const bateria = bat ? {
+        sku: bat.b.item, nome: bat.b.descricaoItem, marca: String(bat.b.fabricante || "").toUpperCase(), kwh: bat.kwh, qtd: bat.qtd,
+        kwh_total: Math.round(bat.kwh * bat.qtd * 100) / 100,
+      } : null;
+      resultados.push({
+        inv: e.inv, tensao: e.tensao, bateria, kwp, placas, mod,
+        itens: comps.map((c: any) => ({ sku: c.sku, descricao: c.descricaoProduto, qtd: c.quantidade, tipo: c.tipoKitMontado })),
+        custo: Math.round((produtos + fr.valor) * 100) / 100,
+        detalhe: {
+          produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, estrutura: { telhado: telhado.chave, nome: telhado.nome },
+          hibrido: { tensao: e.tensao, bateria_alvo_kwh: bateriaKwh, inversor_min_kw: invMin, bateria },
+          unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })),
+        },
+      });
+    } catch (err) {
+      if (tipoDoErro(err) === "bloqueio") throw err; // pausa: as outras opções também não vão sair
+      resultados.push({ erro: String((err as Error).message || err), tipo: tipoDoErro(err) ?? "instavel", ate: ateDoErro(err), inv: e.inv });
+    }
+  }
+  return resultados;
+}
+
+const fmtKwh = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
+
 // ---------------------------------------------------------------- modo de preço da unidade
 // Cada unidade escolhe no centro de custo (Financeiro → Config): 'markup' (REGRA acima)
 // ou 'custos' (kit + custos da unidade + imposto + comissão + margem alvo, via
@@ -764,6 +890,56 @@ Deno.serve(async (req) => {
     if (!telhadoDe(body?.telhado)) return json(200, { ok: false, error: "A Belenus não tem estrutura para esse telhado. Troque o telhado e cote de novo." });
     const modo = await modoDaUnidade(conta.franquia_id ?? null);
     const unidade = await cidadeDaUnidade(conta.franquia_id ?? null);
+    if (body?.hibrido && typeof body.hibrido === "object") {
+      try {
+        const cat = await catalogo(bel, provedor);
+        await bel.login();
+        const res = await cotarBelenusHibrido(bel, cat, placas, {
+          modulo: body?.modulo, telhado: body?.telhado, unidade,
+          bateriaKwh: body.hibrido.bateria_kwh, invMinKw: body.hibrido.inv_min_kw,
+        });
+        if (res.some((r) => r.tipo === "recusado")) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
+        if (res.some((r) => !r.erro)) await bel.zerarRecusas();
+        const saida: any[] = [];
+        for (const r of res) {
+          if (r.erro) { saida.push({ erro: r.erro, tipo: r.tipo, ate: r.ate, opcao: `${nomeInv(r.inv)} híbrido`, marca: marcaDe(r.inv), kw: Number(r.inv.potenciaNominalSaida) }); continue; }
+          const kwInv = Number(r.inv.potenciaNominalSaida);
+          let { preco, preco_de } = precificar(r.custo, false);
+          let precificacao: any = { modo: "markup", ...REGRA };
+          if (modo === "custos") {
+            precificacao = await rest("rpc/cc_preco_dimensionado", { method: "POST", body: JSON.stringify({ p_franquia_id: conta.franquia_id ?? null, p_kit: r.custo, p_modulos: placas, p_kwp: r.kwp, p_inversores: 1, p_kw_inversor: Math.round(kwInv * 1000) / 1000 }) });
+            preco = Number(precificacao.venda);
+            if (!Number.isFinite(preco) || preco <= 0) throw new Error("Preço por custos inválido. Revise o centro de custo da unidade.");
+            preco_de = precoDe(preco);
+          }
+          const invNome = `INV. HÍBRIDO ${nomeInv(r.inv)}`;
+          const batNome = r.bateria ? ` + ${r.bateria.qtd}× BATERIA ${fmtKwh(r.bateria.kwh)}KWH` : " (SEM BATERIA)";
+          const titulo = `KIT HÍBRIDO ${placas} MOD. ${r.mod.potencia}W + ${invNome}${batNome}`;
+          const [row] = await rest("cotacoes_distribuidora", {
+            method: "POST", headers: { Prefer: "return=representation" },
+            body: JSON.stringify({
+              provedor, distribuidora_id: cred.distribuidora_id, franquia_id: conta.franquia_id ?? null, criado_por: userId,
+              categoria: "kitsInversor", placas, kwp: r.kwp, titulo, marca: String(r.mod.fabricante || "").toUpperCase(),
+              modulo: { sku: r.mod.item, nome: r.mod.descricaoItem, marca: r.mod.fabricante, potencia_wp: r.mod.potencia, qtd: placas },
+              inversor: { sku: r.inv.item, nome: r.inv.descricaoItem, marca: r.inv.fabricante, potencia_wp: kwInv * 1000, qtd: 1, micro: false, hibrido: true, tensao: r.tensao },
+              itens: r.itens, custo: r.custo, detalhe_custo: r.detalhe, preco, preco_de, precificacao,
+            }),
+          });
+          saida.push({
+            cotacao_id: row.id, titulo, categoria: row.categoria, kwp: r.kwp, placas, marca: row.marca, preco, preco_de,
+            inversor: invNome, itens: r.itens, modo_precificacao: modo,
+            hibrido: { inversor: nomeInv(r.inv), marca: marcaDe(r.inv), kw: kwInv, tensao: r.tensao, bateria: r.bateria },
+            ...((admin || String(conta.role).toLowerCase() === "gestor") && modo === "custos" ? { margem_alvo: precificacao.margem_alvo } : {}),
+            ...(admin ? { custo: r.custo, detalhe_custo: r.detalhe } : {}),
+          });
+        }
+        saida.sort((a, b) => (a.erro ? 1 : 0) - (b.erro ? 1 : 0) || (a.preco ?? 0) - (b.preco ?? 0));
+        return json(200, { ok: true, kits: saida });
+      } catch (err) {
+        if (tipoDoErro(err) === "recusado") emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
+        return json(200, { ok: false, error: String((err as Error).message || err), tipo: tipoDoErro(err), ate: ateDoErro(err) });
+      }
+    }
     if (Array.isArray(body?.inversores) && body.inversores.length) {
       const papel = String(conta.role ?? "").toLowerCase();
       if (papel !== "admin" && papel !== "gestor") return json(403, { error: "Montar kit é só para administrador, gestor e franqueado." });

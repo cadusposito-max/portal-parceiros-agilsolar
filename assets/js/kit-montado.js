@@ -45,10 +45,10 @@ function kitMontadoModo(modo) {
   pbFornecimentoSync();
 }
 
-// Porta (Pelo consumo × Lista) e busca/tipo da lista não valem no avançado.
+// Porta (Pelo consumo × Lista) e busca/tipo da lista não valem no avançado nem no híbrido.
 function kitMontadoSyncTela() {
   if (state.pbProposalMode !== 'PROMOCIONAL') return;
-  const av = kitMontadoAtivo();
+  const av = kitMontadoAtivo() || (typeof hibridoAtivo === 'function' && hibridoAtivo());
   document.getElementById('pb-porta')?.classList.toggle('hidden', av);
   document.getElementById('pb-promocional-toolbar')?.classList.toggle('hidden', av || state.pbPorta === 'dim');
 }

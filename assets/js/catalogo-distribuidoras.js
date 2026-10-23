@@ -122,6 +122,7 @@ function pbLinhaRender() {
   });
   const hint = document.getElementById('pb-linha-hint');
   if (hint) hint.textContent = PB_LINHAS[pbLinhaAtual()];
+  if (typeof hibridoRenderChave === 'function') hibridoRenderChave(); // chave On-grid / Híbrido (hibrido.js)
   pbEstruturaRender();
 }
 
@@ -411,6 +412,7 @@ function pbFornecimentoRender() {
   const catalogo = state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo';
   document.getElementById('pb-forn-telhado')?.classList.toggle('hidden', !catalogo);
   document.getElementById('pb-forn-simples')?.classList.toggle('quatro', catalogo);
+  if (typeof hibridoRenderPainel === 'function' && hibridoRenderPainel(panel)) return;
   if (typeof kitMontadoRenderPainel === 'function' && kitMontadoRenderPainel(panel)) return;
   document.getElementById('pb-fornecimento-hint').textContent = state.pbPorta === 'dim'
     ? 'Escolha a distribuidora, o módulo, a marca do inversor e o telhado. O consumo define a potência do sistema e o kit recomendado.'
