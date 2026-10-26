@@ -97,6 +97,37 @@ const INTERVALO_MS = 400;
 const ESPERA_403_MS = 6_000;
 const RITMO = { livre: 0 };
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Cache das respostas (tabela distribuidora_cache, chave = sha-256 do pedido). Em 23/10 a mesma
+// cotação repetida (2 recusas no Confirmar + catálogo renovado junto) fez ~12 consultas em 35 s e
+// o firewall da Belenus barrou a plataforma. Agora repetir a cotação, ou voltar a uma opção já vista,
+// sai do banco sem consultar a Belenus, inclusive durante uma pausa por 403. Preço e frete valem 30 min;
+// recomendação, estrutura e acessórios (quantidades) 6 h; a recusa dela (ex.: 400 no Confirmar) 15 min.
+const CACHE_MS: Record<string, number> = {
+  "catalogo/KitPersonalizado/Inversor": 6 * 60 * 60_000,
+  "catalogo/KitPersonalizado/Estrutura": 6 * 60 * 60_000,
+  "catalogo/KitPersonalizado/Outros": 6 * 60 * 60_000,
+  "carrinho/KitPersonalizado/Confirmar": 30 * 60_000,
+  "fretes/TipoFrete/BuscarFretes": 30 * 60_000,
+};
+const CACHE_RECUSA_MS = 15 * 60_000;
+async function chaveCache(partes: unknown[]) {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(partes)));
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function cacheLer(chave: string): Promise<{ resposta: any; erro: string | null } | null> {
+  const agora = encodeURIComponent(new Date().toISOString());
+  const rows = await rest(`distribuidora_cache?chave=eq.${chave}&expira_em=gt.${agora}&select=resposta,erro`).catch(() => []);
+  return Array.isArray(rows) ? rows[0] ?? null : null;
+}
+async function cacheGravar(chave: string, provedor: string, etapa: string, dados: { resposta?: unknown; erro?: string }, ms: number) {
+  await rest("distribuidora_cache", {
+    method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ chave, provedor, etapa, resposta: dados.resposta ?? null, erro: dados.erro ?? null, expira_em: new Date(Date.now() + ms).toISOString() }),
+  }).catch((e) => console.error("[distribuidoras] gravar cache", e?.message));
+}
+// Recusa que pode ser catálogo velho (item saiu de linha): só essa renova o espelho. Recusa do kit
+// (estoque, combinação, overload) não tem a ver com o catálogo e não gasta as 4 consultas dele.
+const pedeCatalogo = (msg: unknown) => /n[aã]o (foi )?encontrad|n[aã]o existe|inativ|fora de linha|descontinuad/i.test(String(msg ?? ""));
 // Retry-After em segundos ou data HTTP. Respeita o prazo pedido (no mínimo 5 s, no máximo
 // 24 h contra valor absurdo); sem prazo válido devolve 0 e o 429 usa o padrão de 1 min.
 function prazoRetryAfter(valor: string | null) {
@@ -150,7 +181,7 @@ class Belenus {
       this.token = salva.token;
       return { nome: null, reaproveitada: true };
     }
-    const r = await this.req("autenticacao/Usuario/Login/PessoaJuridicaByEmail", { email: this.email, senha: this.senha }, false);
+    const r = await this.chamar("autenticacao/Usuario/Login/PessoaJuridicaByEmail", { email: this.email, senha: this.senha }, false);
     const s = r?.data ?? r;
     this.token = s?.token ?? s?.Token ?? "";
     if (!this.token) throw erroTipo("A Belenus não aceitou o login. Confira usuário e senha.", "instavel");
@@ -169,8 +200,34 @@ class Belenus {
     await sessaoGravar(this.provedor, { recusas_seguidas: 0 });
   }
 
-  async req(path: string, body: unknown, auth = true, timeoutMs = 30000, repetida = false): Promise<any> {
+  // Consulta com cache (ver CACHE_MS). fresco = ignora o guardado (renovação do catálogo).
+  // O login só acontece na primeira consulta que precisa ir à Belenus: cotação toda do cache não loga.
+  async req(path: string, body: unknown, auth = true, fresco = false): Promise<any> {
+    const etapa = path.split("?")[0];
+    const prazo = auth ? CACHE_MS[etapa] : 0;
+    if (!prazo) return this.chamar(path, body, auth);
+    const chave = await chaveCache([this.provedor, this.email, this.site, path, body]);
+    if (!fresco) {
+      const salvo = await cacheLer(chave);
+      if (salvo) {
+        console.info(JSON.stringify({ evento: "belenus_cache", diagnostico_id: this.diagnosticoId, etapa, resultado: salvo.erro ? "recusa_guardada" : "ok" }));
+        if (salvo.erro) throw erroTipo(salvo.erro, "recusado");
+        return salvo.resposta;
+      }
+    }
+    try {
+      const j = await this.chamar(path, body, auth);
+      await cacheGravar(chave, this.provedor, etapa, { resposta: j }, prazo);
+      return j;
+    } catch (err) {
+      if (tipoDoErro(err) === "recusado") await cacheGravar(chave, this.provedor, etapa, { erro: String((err as Error).message || err) }, CACHE_RECUSA_MS);
+      throw err;
+    }
+  }
+
+  private async chamar(path: string, body: unknown, auth = true, timeoutMs = 30000, repetida = false): Promise<any> {
     if (BLOQ.ate > Date.now()) throw erroBloqueio(BLOQ.ate, BLOQ.motivo); // não insiste no meio de uma cotação
+    if (auth && !this.token) await this.login();
     const vez = Math.max(Date.now(), RITMO.livre);
     RITMO.livre = vez + INTERVALO_MS;
     if (vez > Date.now()) await dormir(vez - Date.now());
@@ -179,6 +236,7 @@ class Belenus {
     let resposta: Response | undefined;
     let formato = "sem_resposta", indicio = "nenhum";
     let resultado = "erro_rede";
+    let motivo: string | null = null; // texto da recusa da Belenus (mensagem de negócio, sem dados do cliente)
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort(), timeoutMs);
     try {
@@ -201,20 +259,21 @@ class Belenus {
         : /captcha|cf-chl-|challenge-platform/i.test(txt) ? "desafio_antibot"
         : /access denied|forbidden|acesso negado/i.test(txt) ? "acesso_recusado" : "nenhum";
       resultado = r.ok ? (j?.isSucceed === false ? "erro_negocio" : "ok") : `http_${r.status}`;
+      if (resultado !== "ok" && j) motivo = String(j?.messages?.[0]?.description ?? j?.message ?? j?.title ?? "").slice(0, 200) || null;
       if (r.status === 401 && auth) {
         // Sessão venceu antes da hora: loga de novo uma vez e repete o pedido.
         SESSAO.token = "";
         if (!repetida) {
           clearTimeout(t);
           await this.login(true);
-          return this.req(path, body, auth, timeoutMs, true);
+          return this.chamar(path, body, auth, timeoutMs, true);
         }
       }
       if (r.status === 403 && auth && !this.repetiu403) {
         this.repetiu403 = true;
         clearTimeout(t);
         await dormir(ESPERA_403_MS);
-        return this.req(path, body, auth, timeoutMs, true);
+        return this.chamar(path, body, auth, timeoutMs, true);
       }
       if (r.status === 403) {
         const agora = Date.now();
@@ -255,7 +314,7 @@ class Belenus {
       const registro = JSON.stringify({
         evento: "belenus_consulta", diagnostico_id: this.diagnosticoId, regiao: Deno.env.get("SB_REGION") ?? null,
         etapa, duracao_ms: Date.now() - inicio, timeout_ms: timeoutMs,
-        status: resposta?.status ?? null, resultado, formato, indicio, repetida,
+        status: resposta?.status ?? null, resultado, motivo, formato, indicio, repetida,
         servidor: resposta?.headers.get("server")?.slice(0, 80) ?? null,
         cf_ray: resposta?.headers.get("cf-ray")?.slice(0, 100) ?? null,
         retry_after: resposta?.headers.get("retry-after")?.slice(0, 80) ?? null,
@@ -266,11 +325,11 @@ class Belenus {
   }
 
   // Modelos e quantidades recomendadas pela Belenus para o projeto informado.
-  async inversores(modulo: string, kwp: number, placas: number, tipo: string, lig: string, tensao: string, marca: string) {
+  async inversores(modulo: string, kwp: number, placas: number, tipo: string, lig: string, tensao: string, marca: string, fresco = false) {
     const j = await this.req("catalogo/KitPersonalizado/Inversor", {
       site: this.site, modulo, inversor: "", potenciaProjeto: kwp, tipoLigacao: lig, tipoInversor: tipo,
       tensaoNominal: tensao, qtdeModulo: placas, qtde: 0, fabricantes: [{ fabricante: marca }],
-    });
+    }, true, fresco);
     if (!Array.isArray(j?.data?.inversores)) throw new Error("A Belenus não devolveu a lista de inversores para esse projeto.");
     return j.data.inversores as any[];
   }
@@ -387,7 +446,7 @@ async function baixarCatalogoBelenus(bel: Belenus): Promise<Catalogo> {
   const kwpRef = Math.round(placasRef * Number(ref.potencia)) / 1000;
   const inversores: any[] = [];
   for (const g of INV_GRUPOS) {
-    const lista = await bel.inversores(ref.item, kwpRef, placasRef, g.tipo, g.lig, g.tensao, "");
+    const lista = await bel.inversores(ref.item, kwpRef, placasRef, g.tipo, g.lig, g.tensao, "", true);
     // A Belenus devolve maxPotenciaEntrada/Saida SOMADOS pela quantidade que ela sugere pra
     // potência consultada (ex.: Growatt 3K x2 = 10,8 kW de entrada): guarda o valor por unidade.
     inversores.push(...lista.map((i) => {
@@ -831,6 +890,8 @@ Deno.serve(async (req) => {
     if (!cred?.usuario || !cred?.senha || !cred.ativo) return json(200, { ok: false, error: "Integração desligada" });
     const bel = new Belenus(cred.usuario, cred.senha);
     if (cred.opcoes?.site) bel.site = String(cred.opcoes.site);
+    // Limpa o cache vencido uma vez por dia (o agendamento da madrugada passa aqui).
+    await rest(`distribuidora_cache?expira_em=lt.${encodeURIComponent(new Date().toISOString())}`, { method: "DELETE" }).catch(() => {});
     try {
       const cat = await catalogoAtualizar(bel, provedor);
       return json(200, { ok: !!cat, modulos: cat?.modulos.length ?? 0, inversores: cat?.inversores.length ?? 0 });
@@ -892,13 +953,12 @@ Deno.serve(async (req) => {
     const unidade = await cidadeDaUnidade(conta.franquia_id ?? null);
     if (body?.hibrido && typeof body.hibrido === "object") {
       try {
-        const cat = await catalogo(bel, provedor);
-        await bel.login();
+        const cat = await catalogo(bel, provedor); // o login fica pra primeira consulta fora do cache
         const res = await cotarBelenusHibrido(bel, cat, placas, {
           modulo: body?.modulo, telhado: body?.telhado, unidade,
           bateriaKwh: body.hibrido.bateria_kwh, invMinKw: body.hibrido.inv_min_kw,
         });
-        if (res.some((r) => r.tipo === "recusado")) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
+        if (res.some((r) => r.tipo === "recusado" && pedeCatalogo(r.erro))) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
         if (res.some((r) => !r.erro)) await bel.zerarRecusas();
         const saida: any[] = [];
         for (const r of res) {
@@ -936,7 +996,7 @@ Deno.serve(async (req) => {
         saida.sort((a, b) => (a.erro ? 1 : 0) - (b.erro ? 1 : 0) || (a.preco ?? 0) - (b.preco ?? 0));
         return json(200, { ok: true, kits: saida });
       } catch (err) {
-        if (tipoDoErro(err) === "recusado") emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
+        if (tipoDoErro(err) === "recusado" && pedeCatalogo((err as Error)?.message)) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
         return json(200, { ok: false, error: String((err as Error).message || err), tipo: tipoDoErro(err), ate: ateDoErro(err) });
       }
     }
@@ -944,8 +1004,7 @@ Deno.serve(async (req) => {
       const papel = String(conta.role ?? "").toLowerCase();
       if (papel !== "admin" && papel !== "gestor") return json(403, { error: "Montar kit é só para administrador, gestor e franqueado." });
       try {
-        const cat = await catalogo(bel, provedor);
-        await bel.login();
+        const cat = await catalogo(bel, provedor); // o login fica pra primeira consulta fora do cache
         const r = await cotarBelenusMontado(bel, cat, placas, { modulo: body?.modulo, telhado: body?.telhado, inversores: body.inversores, unidade });
         await bel.zerarRecusas();
         let { preco, preco_de } = precificar(r.custo, r.micro);
@@ -979,20 +1038,19 @@ Deno.serve(async (req) => {
           ...(admin ? { custo: r.custo, detalhe_custo: r.detalhe } : {}),
         }] });
       } catch (err) {
-        if (tipoDoErro(err) === "recusado") emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
+        if (tipoDoErro(err) === "recusado" && pedeCatalogo((err as Error)?.message)) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
         return json(200, { ok: false, error: String((err as Error).message || err), tipo: tipoDoErro(err), ate: ateDoErro(err) });
       }
     }
     try {
-      const cat = await catalogo(bel, provedor);
-      await bel.login();
+      const cat = await catalogo(bel, provedor); // o login fica pra primeira consulta fora do cache
       const res = await cotarBelenus(bel, cat, placas, {
         ...(cred.opcoes ?? {}), telhado: body?.telhado, tipo: body?.tipo, marca: body?.marca, unidade,
         ...(body?.modulo ? { modulo: String(body.modulo), modulo_escolhido: true } : {}),
       });
-      // A Belenus recusou algum equipamento (pode ter saído de linha): renova o espelho se tiver mais de 1 h.
-      // Timeout, rede ou pausa não têm a ver com o catálogo: aí não gasta as 4 consultas.
-      if (res.some((r) => r.tipo === "recusado")) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
+      // A Belenus disse que um equipamento não existe mais (saiu de linha): renova o espelho se tiver mais
+      // de 1 h. Recusa do kit (estoque, combinação), timeout, rede ou pausa não gastam as 4 consultas dele.
+      if (res.some((r) => r.tipo === "recusado" && pedeCatalogo(r.erro))) emSegundoPlano(catalogo(bel, provedor, 60 * 60_000));
       if (res.some((r) => !r.erro)) await bel.zerarRecusas();
       const saida: any[] = [];
       for (const r of res) {
