@@ -874,8 +874,9 @@ function renderCrm360TabContent(client, propostas, vendas) {
           return `<button onclick="crmSetComposerTipo('${tipo}')" class="px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest border flex items-center gap-1 transition-all ${active ? 'bg-orange-600 text-black border-orange-500' : 'bg-black text-neutral-500 border-neutral-800 hover:text-white'}"><i data-lucide="${meta.icon}" class="w-3 h-3"></i> ${meta.label}</button>`;
         }).join('')}
       </div>
+      ${window.crmContatos ? crmContatos.composerHTML(_crm360ComposerTipo) : ''}
       <div class="flex gap-2">
-        <input id="crm360-composer-text" placeholder="Registrar ${CRM_ATIVIDADE_META[_crm360ComposerTipo].label.toLowerCase()}..." class="crm360-input flex-1" onkeydown="if(event.key==='Enter'){event.preventDefault();crmSubmitAtividade();}">
+        <input id="crm360-composer-text" placeholder="${window.crmContatos && crmContatos.ehContato(_crm360ComposerTipo) ? 'Como foi? (opcional)' : `Registrar ${CRM_ATIVIDADE_META[_crm360ComposerTipo].label.toLowerCase()}...`}" class="crm360-input flex-1" onkeydown="if(event.key==='Enter'){event.preventDefault();crmSubmitAtividade();}">
         <button onclick="crmSubmitAtividade()" class="px-4 bg-orange-600 hover:bg-orange-500 text-black font-black uppercase tracking-widest text-[10px] transition-colors">OK</button>
       </div>
       ${typeof crmMencaoDicaHTML === 'function' ? crmMencaoDicaHTML() : ''}
@@ -900,6 +901,9 @@ function renderCrm360TabContent(client, propostas, vendas) {
           const origem = typeof clientOrigemLabel === 'function' ? clientOrigemLabel(ev.meta.origem) : '';
           texto = `Cliente cadastrado${origem && origem !== 'NÃO INFORMADO' ? ` · origem ${origem}` : ''}`;
         }
+        // contato (ligação/WhatsApp/visita): "3º contato · Ligação · Não atendeu — obs" (crm-contatos.js)
+        const textoContato = window.crmContatos ? crmContatos.textoTimeline(ev) : null;
+        if (textoContato) texto = textoContato;
         if (!texto) texto = meta.label;
         texto = crmTrocaEmailPorNome(texto);
         return `
@@ -1158,6 +1162,7 @@ function crm360Empty(icon, message) {
 
 function crmSetComposerTipo(tipo) {
   _crm360ComposerTipo = tipo;
+  if (window.crmContatos) crmContatos.resetComposer();
   renderCrm360();
   const input = document.getElementById('crm360-composer-text');
   if (input) input.focus();
@@ -1167,6 +1172,11 @@ async function crmSubmitAtividade() {
   const client = _crm360Client();
   const input = document.getElementById('crm360-composer-text');
   if (!client || !input) return;
+
+  // ligação/WhatsApp/visita contam como contato: pedem o resultado, texto é opcional
+  if (window.crmContatos && crmContatos.ehContato(_crm360ComposerTipo)) {
+    return crmContatos.submitComposer(client, input, _crm360ComposerTipo);
+  }
 
   const texto = input.value.trim();
   if (!texto) { showToast('Escreva algo para registrar.'); return; }

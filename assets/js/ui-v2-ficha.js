@@ -532,6 +532,7 @@
             <div class="v2f-mob"><small>Desde</small><b>${esc(formatDate(client.created_at))}</b></div>
           </div>`}
           ${mini}
+          ${!vendaTopo && has('crmContatosFaixaHTML') ? crmContatosFaixaHTML(client) : ''}
           <div class="v2f-tabs">${tabs.map((t) => `<button class="${t[4] || ''} ${_crm360Tab === t[0] ? 'on' : ''}" onclick="crmSet360Tab('${t[0]}')">${ic(t[1])}${t[2]}${t[3] != null ? `<em>${t[3]}</em>` : ''}</button>`).join('')}</div>
         </div>
 
