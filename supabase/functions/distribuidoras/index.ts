@@ -110,6 +110,10 @@ const CACHE_MS: Record<string, number> = {
   "fretes/TipoFrete/BuscarFretes": 30 * 60_000,
 };
 const CACHE_RECUSA_MS = 15 * 60_000;
+// Preço de tabela por peça (distribuidora_precos), aprendido de cada Confirmar. O firewall da Belenus
+// barra justamente o Confirmar, e às vezes na primeira consulta do dia (21/10, 23/10, 26/10): kit
+// com todas as peças vistas nas últimas 24 h sai pela tabela (Σ precoBruto × qtd × 0,88).
+const PRECO_TABELA_MS = 24 * 60 * 60_000;
 async function chaveCache(partes: unknown[]) {
   const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(partes)));
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -362,15 +366,76 @@ class Belenus {
     return todos ? lista : lista.filter((x) => Number(x.qtde) > 0);
   }
 
-  async confirmar(body: unknown) {
+  // tabela = pode montar o preço pelas peças já vistas (ver PRECO_TABELA_MS). O modo avançado manda
+  // false: lá o vendedor escolhe os inversores e só o Confirmar valida a combinação.
+  async confirmar(body: any, tabela = true) {
+    if (tabela) {
+      const pelaTabela = await this.precoPelaTabela(body).catch((e) => { console.error("[distribuidoras] preço pela tabela", e?.message); return null; });
+      if (pelaTabela) return pelaTabela;
+    }
     try {
       const j = await this.req("carrinho/KitPersonalizado/Confirmar", body);
+      await this.guardarPrecos(j?.data).catch((e) => console.error("[distribuidoras] guardar preços", e?.message));
       return j?.data;
     } catch (err) {
       // Ex.: "Estoque insuficiente para o item CONJFIXMFRANCSOLO" (peça da estrutura de solo, 16/10).
       const m = /Estoque insuficiente para o item\s+(\S+)/i.exec(String((err as Error)?.message ?? ""));
       if (m) throw erroTipo(`A Belenus está sem estoque de uma peça desse kit agora (${m[1]}). Troque o telhado ou o módulo, ou cote mais tarde.`, "recusado");
       throw err;
+    }
+  }
+
+  // Kit com todas as peças de preço conhecido: mesmo formato da resposta do Confirmar
+  // (totalProdutos, peso, itens[].componentes, CNPJ e cidade da conta pro frete), sem consultar.
+  async precoPelaTabela(body: any) {
+    const itens: any[] = Array.isArray(body?.itens) ? body.itens : [];
+    if (!itens.length) return null;
+    const skus = [...new Set(itens.map((i) => String(i.item ?? "")))];
+    if (skus.some((s) => !s)) return null;
+    const desde = encodeURIComponent(new Date(Date.now() - PRECO_TABELA_MS).toISOString());
+    const lista = skus.map((s) => `"${s.replace(/"/g, "")}"`).join(",");
+    const [rows, sess] = await Promise.all([
+      rest(`distribuidora_precos?provedor=eq.${this.provedor}&atualizado_em=gt.${desde}&sku=in.(${encodeURIComponent(lista)})&select=sku,preco_bruto,descricao,atualizado_em`),
+      rest(`distribuidora_sessoes?provedor=eq.${this.provedor}&select=conta`),
+    ]);
+    const conta = Array.isArray(sess) ? sess[0]?.conta : null;
+    const precos = new Map((Array.isArray(rows) ? rows : []).map((r: any) => [r.sku, r]));
+    if (!conta?.cnpj || !conta?.cidade || !conta?.estado || skus.some((s) => !precos.has(s))) return null;
+    const componentes = itens.map((i) => {
+      const p: any = precos.get(String(i.item));
+      return { sku: i.item, quantidade: Number(i.qtde), descricaoProduto: p.descricao, tipoKitMontado: i.tipoKitmontado, precoBruto: Number(p.preco_bruto) };
+    });
+    const bruto = componentes.reduce((s, c) => s + c.precoBruto * c.quantidade, 0);
+    const totalProdutos = Math.round(bruto * (Number(conta.fator) || 0.88) * 100) / 100;
+    const maisAntigo = [...precos.values()].map((p: any) => p.atualizado_em).sort()[0];
+    console.info(JSON.stringify({ evento: "belenus_preco_tabela", diagnostico_id: this.diagnosticoId, pecas: componentes.length, precos_de: maisAntigo }));
+    return {
+      totalProdutos, peso: Math.round(totalProdutos * (Number(conta.peso_por_real) || 0) * 1000) / 1000,
+      clienteCnpjCpf: conta.cnpj, frete: { enderecoCliente: { cidade: conta.cidade, estado: conta.estado } },
+      itens: [{ componentes }], _origem: "tabela", _precos_de: maisAntigo,
+    };
+  }
+
+  // Resposta do Confirmar: guarda o preço de cada peça e os dados da conta (fator do kit, peso por real).
+  async guardarPrecos(d: any) {
+    const comps: any[] = (d?.itens ?? []).flatMap((i: any) => i.componentes ?? []);
+    const validos = comps.filter((c) => c?.sku && Number(c.precoBruto) > 0 && Number(c.quantidade) > 0);
+    if (!validos.length) return;
+    const agora = new Date().toISOString();
+    await rest("distribuidora_precos", {
+      method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([...new Map(validos.map((c) => [c.sku, {
+        provedor: this.provedor, sku: c.sku, preco_bruto: Number(c.precoBruto), descricao: c.descricaoProduto ?? null, tipo: c.tipoKitMontado ?? null, atualizado_em: agora,
+      }])).values()]),
+    });
+    const bruto = validos.reduce((s, c) => s + Number(c.precoBruto) * Number(c.quantidade), 0);
+    const total = Number(d?.totalProdutos);
+    const end = d?.frete?.enderecoCliente ?? {};
+    if (bruto > 0 && total > 0 && d?.clienteCnpjCpf && end.cidade && end.estado) {
+      await sessaoGravar(this.provedor, { conta: {
+        cnpj: d.clienteCnpjCpf, cidade: end.cidade, estado: end.estado,
+        fator: Math.round(total / bruto * 1e6) / 1e6, peso_por_real: Number(d.peso) > 0 ? Number(d.peso) / total : 0, em: agora,
+      } });
     }
   }
 
@@ -669,7 +734,7 @@ async function cotarBelenus(bel: Belenus, cat: Catalogo, placas: number, opcoes:
         micro: e.micro, inv: e.inv, qtdInv: e.qtdInv, kwp, placas, mod,
         itens: comps.map((c: any) => ({ sku: c.sku, descricao: c.descricaoProduto, qtd: c.quantidade, tipo: c.tipoKitMontado })),
         custo: Math.round((produtos + fr.valor) * 100) / 100,
-        detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, estrutura: { telhado: telhado.chave, nome: telhado.nome }, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
+        detalhe: { produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, estrutura: { telhado: telhado.chave, nome: telhado.nome }, preco_origem: conf._origem ?? "confirmar", precos_de: conf._precos_de ?? null, unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })) },
       });
     } catch (err) {
       // Sem tipo = falha nossa ao montar/ler a resposta: trata como instabilidade, não como falta do kit.
@@ -715,7 +780,7 @@ async function cotarBelenusMontado(bel: Belenus, cat: Catalogo, placas: number, 
     origemCarrinho: 1, potenciaSistema: kwp, qtdModulos: placas, qtdInversores: qtdInv,
     totalMaxPotenciaEntrada: escolhidos.reduce((s, e) => s + Number(e.inv.maxPotenciaEntrada) * e.qtd, 0),
     totalMaxPotenciaSaida: escolhidos.reduce((s, e) => s + Number(e.inv.maxPotenciaSaida) * e.qtd, 0),
-  });
+  }, false); // combinação escolhida à mão: só o Confirmar valida
   const comps = (conf?.itens ?? []).flatMap((i: any) => i.componentes ?? []);
   const fr = await bel.frete(conf, comps.map((c: any) => ({ sku: c.sku, qtde: c.quantidade })), opcoes?.unidade ?? null);
   const produtos = Number(conf.totalProdutos);
@@ -836,6 +901,7 @@ async function cotarBelenusHibrido(bel: Belenus, cat: Catalogo, placas: number, 
         custo: Math.round((produtos + fr.valor) * 100) / 100,
         detalhe: {
           produtos, frete: fr.valor, cidade: fr.cidade, estado: fr.estado, frete_destino: fr.destino, estrutura: { telhado: telhado.chave, nome: telhado.nome },
+          preco_origem: conf._origem ?? "confirmar", precos_de: conf._precos_de ?? null,
           hibrido: { tensao: e.tensao, bateria_alvo_kwh: bateriaKwh, inversor_min_kw: invMin, bateria },
           unitarios: comps.map((c: any) => ({ sku: c.sku, qtd: c.quantidade, preco: c.precoBruto })),
         },
