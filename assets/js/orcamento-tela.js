@@ -208,7 +208,13 @@ function _orcamentoResumoDim() {
 function _orcamentoKitAtual(r = _orcamentoResumoDim()) {
   if (typeof hibridoAtivo === 'function' && hibridoAtivo()) return hibridoKit();
   if (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()) return kitMontadoKit();
+  // Distribuidora integrada: sem escolha, vale a opção de menor preço da cotação (como no híbrido).
+  if (_orcamentoIntegrada()) return _orcamentoAcharKit(_orcamentoKitId) || pbIntegracaoKitsDaVez()[0] || null;
   return _orcamentoAcharKit(_orcamentoKitId) || (r?.recomendado ? _orcamentoAcharKit(r.recomendado.id) : null);
+}
+
+function _orcamentoIntegrada() {
+  return typeof pbIntegracaoAtual === 'function' && Boolean(pbIntegracaoAtual()) && state.pbProposalMode === PB_PROPOSAL_MODES.PROMOCIONAL;
 }
 
 function orcamentoLimparKit() {
@@ -355,9 +361,11 @@ function _orcamentoLadoHTML(r, kit) {
     html += kitMontadoLadoVazioHTML();
   } else if (montado) {
     html += `<div class="orc-sec"><i data-lucide="package"></i> Kit montado</div>${_orcamentoKitCardHTML(kit, r, '')}`;
+  } else if (_orcamentoIntegrada()) {
+    html += pbIntegracaoLadoHTML(kit);
   } else if (!kit) {
     const vazio = dim
-      ? (r?.integrada ? 'Cote na distribuidora (ao lado) e escolha um dos kits.' : r ? 'Nenhum kit para mostrar com essa seleção.' : 'Preencha o consumo e o kit recomendado aparece aqui.')
+      ? (r ? 'Nenhum kit para mostrar com essa seleção.' : 'Preencha o consumo e o kit recomendado aparece aqui.')
       : 'Clique num kit da lista para escolher.';
     html += `<div class="orc-sec"><i data-lucide="sparkles"></i> Kit</div><div class="orc-vazio">${vazio}</div>`;
   } else {
@@ -371,7 +379,7 @@ function _orcamentoLadoHTML(r, kit) {
   html += `<button type="button" id="orcamento-lado-gerar" class="btn btn-primary orc-gerar" onclick="orcamentoGerar(event)" ${kit && !_orcamentoGerando ? '' : 'disabled'}>
     ${_orcamentoGerando ? '<i data-lucide="loader-2" class="animate-spin"></i> Gerando...' : `<i data-lucide="file-text"></i> Gerar proposta${kit ? ' · ' + formatCurrency(kit.price) : ''}`}</button>`;
   if (kit) html += _orcamentoAjusteHTML(kit, r);
-  if (dim && !r?.integrada) {
+  if (dim && !r?.integrada && !_orcamentoIntegrada()) {
     const total = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter((k) => k.categoria === state.pbCategory && k.ativo !== false
       && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k))).length;
     if (total) html += `<button type="button" class="orc-link orc-ver-todos" onclick="orcamentoVerLista()">Ver todos os ${total} kits →</button>`;

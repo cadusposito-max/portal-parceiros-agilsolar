@@ -249,7 +249,13 @@ function pbAcharKit(id) {
   return (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).find((k) => String(k.id) === sid) || null;
 }
 
-function pbIntegracaoPainelHTML(placasSugeridas) {
+// Kits da cotação do tipo escolhido (inversor ou micro), do menor preço pro maior.
+function pbIntegracaoKitsDaVez() {
+  return pbCotacaoKits().filter((k) => k.categoria === state.pbCategory);
+}
+
+// Estado da cotação pras duas colunas do orçamento: zera ao trocar distribuidora/cliente/telhado.
+function _pbCotEstado() {
   const provedor = pbIntegracaoAtual();
   const info = INTEGRACOES_INFO[provedor] || { nome: provedor };
   const chave = `${_pbFornecimento.distribuidora}|${state.pbActiveClient?.id || ''}`;
@@ -258,48 +264,19 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
   const telhadoAtual = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.telhado) || 'ceramico';
   if (!_pbCot.carregando && _pbCot.telhado && _pbCot.telhado !== telhadoAtual) Object.assign(_pbCot, { kits: [], erro: '', cotadoEm: 0, telhado: '' });
   const telhadoFora = !pbIntegracaoTelhadoOk(provedor, telhadoAtual);
-  const placas = _pbCot.placas || (placasSugeridas ? String(placasSugeridas) : '');
-  const kits = pbCotacaoKits().filter((k) => k.categoria === state.pbCategory);
+  const kits = pbIntegracaoKitsDaVez();
   const erros = (_pbCot.kits || []).filter((k) => k.erro);
   const outrosTipos = pbCotacaoKits().length - kits.length;
   const cotadoAs = _pbCot.cotadoEm ? new Date(_pbCot.cotadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
 
-  const cards = kits.map((k, i) => {
-    const id = escapeHTML(k.id);
-    const temDe = Number(k.list_price) > Number(k.price);
-    // Admin confere pra onde o frete foi calculado (a unidade; ou a conta Belenus, se ela não atende a cidade).
-    const fr = k._frete;
-    const freteAte = fr?.cidade ? ` · frete até ${fr.cidade}/${fr.estado || ''}${fr.frete_destino === 'conta_belenus' ? ' (a Belenus não atendeu a cidade da unidade)' : ''}` : '';
-    const custo = state.isAdmin && Number(k._custo) > 0
-      ? `<div class="pbd-kit-nota">${escapeHTML(`Só admin: custo ${info.nome} ${formatCurrency(k._custo)}${freteAte}${k._margem != null ? ` · margem-alvo ${String(k._margem).replace('.', ',')}%` : ''}`)}</div>` : '';
-    return `
-      <div data-orcamento-kit="${id}" class="pbd-kit${i === 0 ? ' is-top' : ''}">
-        ${i === 0 ? '<span class="pbd-kit-tag">Menor preço</span>' : ''}
-        <div class="pbd-kit-n">${escapeHTML(k.name)}</div>
-        <div class="pbd-kit-d">${escapeHTML(String(k.power).replace('.', ','))} kWp · Distribuidora: ${escapeHTML(info.nome)} · frete incluso${cotadoAs ? ` · cotado às ${escapeHTML(cotadoAs)}` : ''}</div>
-        ${custo}
-        ${state.isAdmin || state.isGestor ? `<div class="pbd-kit-nota">Preço: ${k._modo === 'custos' ? 'custos + margem alvo da unidade' : 'markup'}</div>` : ''}
-        <div class="pbd-kit-f">
-          <div>
-            ${temDe ? `<div class="pbd-kit-de">De: ${formatCurrency(k.list_price)}</div>` : ''}
-            <div class="pbd-kit-p">${formatCurrency(k.price)}</div>
-          </div>
-          <button type="button" data-kit-id="${id}" onclick="copyProposalLinkById(this.dataset.kitId, event)" class="btn btn-primary" aria-label="Gerar proposta para ${escapeHTML(k.name)}">
-            <i data-lucide="file-text"></i> GERAR PROPOSTA
-          </button>
-        </div>
-      </div>`;
-  }).join('');
-
   const status = telhadoFora && !_pbCot.carregando
-    ? pbAlertaHTML({ icone: 'home', titulo: `A ${info.nome} não tem estrutura pra esse telhado`, corpo: 'Escolha outro no cartão "Telhado do cliente", acima, pra cotar.' })
-    : _pbCot.carregando
-    ? `<p class="pbd-hint"><i data-lucide="loader-2" class="w-3 h-3 inline animate-spin"></i> Cotando na ${escapeHTML(info.nome)}… pode levar até 1 minuto.</p>`
+    ? pbAlertaHTML({ icone: 'home', titulo: `A ${info.nome} não tem estrutura pra esse telhado`, corpo: 'Escolha outro no cartão "Telhado do cliente" pra cotar.' })
+    : _pbCot.carregando ? ''
     : _pbCot.erro ? pbIntegracaoAlertaHTML(_pbCot.erro)
     : (_pbCot.kits.length && !kits.length)
       ? pbAlertaHTML({
         icone: 'package-x', titulo: `Nenhum kit ${state.pbCategory === 'kitsMicro' ? 'com microinversor' : 'com inversor'} nesta cotação`,
-        corpo: outrosTipos ? 'Troque o tipo de kit acima pra ver os outros.' : '',
+        corpo: outrosTipos ? 'Troque o tipo de kit pra ver os outros.' : '',
       }) : '';
   // Opções que não saíram quando outras saíram (ou, pro admin, sempre: ele vê o motivo).
   // "Indisponível" só quando a distribuidora recusou o equipamento; sem resposta, pede pra tentar de novo.
@@ -314,17 +291,89 @@ function pbIntegracaoPainelHTML(placasSugeridas) {
           ? `A ${info.nome} não respondeu a tempo; cote de novo em alguns minutos.`
           : 'Pra esse equipamento, cote com outro módulo ou outro inversor.'),
     }) : '';
+  return { info, telhadoFora, kits, cotadoAs, status, avisoOpcoes };
+}
+
+// Detalhe da opção cotada: o admin confere o custo e pra onde o frete foi calculado
+// (a unidade; ou a conta Belenus, se ela não atende a cidade).
+function _pbCotNotas(k, info) {
+  const fr = k._frete;
+  const freteAte = fr?.cidade ? ` · frete até ${fr.cidade}/${fr.estado || ''}${fr.frete_destino === 'conta_belenus' ? ' (a Belenus não atendeu a cidade da unidade)' : ''}` : '';
+  return [
+    state.isAdmin && Number(k._custo) > 0 ? `Só admin: custo ${info.nome} ${formatCurrency(k._custo)}${freteAte}${k._margem != null ? ` · margem-alvo ${String(k._margem).replace('.', ',')}%` : ''}` : '',
+    state.isAdmin || state.isGestor ? `Preço: ${k._modo === 'custos' ? 'custos + margem alvo da unidade' : 'markup'}` : '',
+  ].filter(Boolean);
+}
+
+// Coluna da direita do orçamento: botão de cotar e as opções (mesmo cartão do híbrido).
+function pbIntegracaoLadoHTML(kit) {
+  const { info, telhadoFora, kits, cotadoAs, status, avisoOpcoes } = _pbCotEstado();
+  let html = '';
+  if (kits.length && !_pbCot.carregando) {
+    html += `<div class="orc-sec">Opções da ${escapeHTML(info.nome)}<button type="button" class="orc-link" onclick="pbIntegracaoCotar()" ${telhadoFora ? 'disabled' : ''}>cotar de novo</button></div>`;
+    html += kits.map((k, i) => {
+      const on = Boolean(kit && String(kit.id) === k.id);
+      const temDe = Number(k.list_price) > Number(k.price);
+      const det = `${String(k.power).replace('.', ',')} kWp · frete incluso${cotadoAs ? ` · cotado às ${cotadoAs}` : ''}`;
+      return `<button type="button" class="hb-op${on ? ' is-on' : ''}" data-kit="${escapeHTML(k.id)}" onclick="orcamentoSelecionarKit(this.dataset.kit)" aria-pressed="${on}">
+        <span class="hb-op-n">${escapeHTML(k.name)}${i === 0 ? '<i class="hb-tag">Menor preço</i>' : ''}</span>
+        <span class="hb-op-d">${escapeHTML(det)}</span>
+        ${_pbCotNotas(k, info).map((n) => `<span class="hb-op-d">${escapeHTML(n)}</span>`).join('')}
+        <span class="hb-op-p">${temDe ? `<s>${formatCurrency(k.list_price)}</s>` : ''}<b>${formatCurrency(k.price)}</b></span>
+      </button>`;
+    }).join('');
+  } else {
+    html += `<div class="orc-sec"><i data-lucide="sparkles"></i> Kit</div>${status}`;
+    html += `<button type="button" class="btn btn-secondary km-cotar hb-cotar" onclick="pbIntegracaoCotar()" ${_pbCot.carregando || telhadoFora ? 'disabled' : ''}>${_pbCot.carregando
+      ? `<i data-lucide="loader-2" class="animate-spin"></i> Cotando na ${escapeHTML(info.nome)}… pode levar até 1 minuto`
+      : `<i data-lucide="search"></i> Cotar kits na ${escapeHTML(info.nome)}`}</button>`;
+  }
+  return html + avisoOpcoes;
+}
+
+function pbIntegracaoPainelHTML(placasSugeridas) {
+  const { info, telhadoFora, kits, cotadoAs, status, avisoOpcoes } = _pbCotEstado();
+  const placas = _pbCot.placas || (placasSugeridas ? String(placasSugeridas) : '');
+  const campoPlacas = `<label class="pbd-mes"><span>Quantidade de placas</span>
+        <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" onchange="pbIntegracaoPlacas(this.value)" placeholder="Ex.: 13"></label>`;
+  // Na tela do orçamento o botão de cotar e as opções ficam na coluna da direita (pbIntegracaoLadoHTML).
+  if (typeof orcamentoAberto === 'function' && orcamentoAberto()) {
+    return `<div class="pbd-sec">Cotar na ${escapeHTML(info.nome)}</div>
+      <div class="pbd-fornecimento-fields pb-cot-campos">${campoPlacas}</div>`;
+  }
+
+  const cards = kits.map((k, i) => {
+    const id = escapeHTML(k.id);
+    const temDe = Number(k.list_price) > Number(k.price);
+    return `
+      <div data-orcamento-kit="${id}" class="pbd-kit${i === 0 ? ' is-top' : ''}">
+        ${i === 0 ? '<span class="pbd-kit-tag">Menor preço</span>' : ''}
+        <div class="pbd-kit-n">${escapeHTML(k.name)}</div>
+        <div class="pbd-kit-d">${escapeHTML(String(k.power).replace('.', ','))} kWp · Distribuidora: ${escapeHTML(info.nome)} · frete incluso${cotadoAs ? ` · cotado às ${escapeHTML(cotadoAs)}` : ''}</div>
+        ${_pbCotNotas(k, info).map((n) => `<div class="pbd-kit-nota">${escapeHTML(n)}</div>`).join('')}
+        <div class="pbd-kit-f">
+          <div>
+            ${temDe ? `<div class="pbd-kit-de">De: ${formatCurrency(k.list_price)}</div>` : ''}
+            <div class="pbd-kit-p">${formatCurrency(k.price)}</div>
+          </div>
+          <button type="button" data-kit-id="${id}" onclick="copyProposalLinkById(this.dataset.kitId, event)" class="btn btn-primary" aria-label="Gerar proposta para ${escapeHTML(k.name)}">
+            <i data-lucide="file-text"></i> GERAR PROPOSTA
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+  const carregando = _pbCot.carregando
+    ? `<p class="pbd-hint"><i data-lucide="loader-2" class="w-3 h-3 inline animate-spin"></i> Cotando na ${escapeHTML(info.nome)}… pode levar até 1 minuto.</p>` : '';
 
   return `
     <div class="pbd-sec">Cotar na ${escapeHTML(info.nome)}</div>
     <div class="pbd-fornecimento-fields pb-cot-campos">
-      <label class="pbd-mes"><span>Quantidade de placas</span>
-        <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" onchange="pbIntegracaoPlacas(this.value)" placeholder="Ex.: 13"></label>
+      ${campoPlacas}
       <!-- O telhado vem do cartão "Telhado do cliente" lá em cima (mesmo _pbEstrutura.telhado). -->
       <button type="button" class="btn btn-primary" onclick="pbIntegracaoCotar()" ${_pbCot.carregando || telhadoFora ? 'disabled' : ''}>
         <i data-lucide="search"></i> Cotar kits</button>
     </div>
-    ${status}
+    ${carregando}${status}
     ${cards ? `<div class="pbd-kits" style="margin-top:10px">${cards}</div>` : ''}
     ${avisoOpcoes}`;
 }
@@ -514,6 +563,6 @@ async function integracaoTestar(provedor, btn) {
 }
 
 Object.assign(window, {
-  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoTelhados, pbIntegracaoTelhadoOk, pbIntegracaoTelhadoOpcoesHTML, pbIntegracaoPainelHTML, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoPlacas, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
+  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoTelhados, pbIntegracaoTelhadoOk, pbIntegracaoTelhadoOpcoesHTML, pbIntegracaoPainelHTML, pbIntegracaoLadoHTML, pbIntegracaoKitsDaVez, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoPlacas, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
   renderAdminDistribuidoras, integracaoSalvar, integracaoTestar,
 });
