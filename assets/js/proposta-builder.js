@@ -971,6 +971,7 @@ async function handleEquipamentosProposalSubmit(event) {
       kit_price:               tot.total,
       kit_list_price:          tot.total,
       geracao_estimada:        calcularGeracaoEstimada(potencia, undefined, client.hsp),
+      consumo_medio:           typeof pbConsumoMedioProposta === 'function' ? pbConsumoMedioProposta() : null,
       custom_system_power_kwp: potencia,
       custom_equipment_price:  tot.equipamentos,
       custom_service_price:    tot.servicos,
@@ -1260,6 +1261,7 @@ async function copyProposalLink(kit, event) {
       kit_price:         kit.price,
       kit_list_price:    kit.list_price,
       geracao_estimada:  calcularGeracaoEstimada(kit.power, kit.categoria, client.hsp),
+      consumo_medio:     typeof pbConsumoMedioProposta === 'function' ? pbConsumoMedioProposta() : null,
       // kit cotado na distribuidora: o banco copia nome/preço da cotação (cotacao_id)
       source_product_id: kit._cotacaoId ? null : (kit.id || null), // a engenharia acha os equipamentos do kit por aqui
       distribuidora_id: kit._cotacaoId ? null : (kit.distribuidora_id || null),

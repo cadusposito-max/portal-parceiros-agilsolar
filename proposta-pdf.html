@@ -20,1642 +20,378 @@
 <link rel="icon" type="image/png" href="assets/img/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <!-- Supabase SDK + config (reuso da aplicacao principal) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/config.js?v=20260714-catalogo"></script>
 <script src="assets/js/geracao-chart.js?v=20260916-pdf"></script>
-<script src="assets/js/proposta-calc.js?v=20261014-geracao"></script>
+<script src="assets/js/proposta-calc.js?v=20261027-pdf-paisagem"></script>
 <style>
-  /* ============================================================
-     PROPOSTA ÁGIL SOLAR — VERSÃO PDF (A4 RETRATO)
-     Template Mustache. Placeholders: {{ campo }}, blocos {{# }}{{/}}
-     ============================================================ */
+/* ============================================================
+   PROPOSTA ÁGIL SOLAR — PDF PARA IMPRIMIR (A4 DEITADO, 10 FOLHAS)
+   Modelo aprovado em 27/10/2026 (outputs/mockups/proposta-ongrid).
+   Só cores da marca; nada encosta na borda, exceto a capa.
+   Para o html2canvas: sem object-fit (fotos são fundo "cover") e
+   textos importantes em HTML, não dentro de SVG.
+   ============================================================ */
+@page { size: A4 landscape; margin: 0; }
+:root{
+  --azul:#008FD4; --azul-txt:#0072AA; --azul-claro:#E5F3FB; --azul-medio:#8ACDEE;
+  --laranja:#FAA519; --laranja-claro:#FFF3DC; --laranja-txt:#8A5600;
+  --cinza:#808284; --tinta:#0F2533; --texto:#3A4753; --suave:#6B7883;
+  --linha:#E2E8EE; --fundo:#F4F7FA;
+  --f-marca:'Montserrat',sans-serif; --f-texto:'Plus Jakarta Sans',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#C9D3DC;font-family:var(--f-texto);color:var(--texto);font-size:10pt;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding-bottom:90px}
+h1,h2,h3{font-family:var(--f-marca);color:var(--tinta);margin:0;letter-spacing:-.01em}
+p{margin:0}
+.num{font-family:var(--f-marca);font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--tinta)}
+.num small{font-size:.5em;font-weight:700;letter-spacing:0;margin-left:.15em;color:var(--suave)}
+.num .rs{font-size:.5em;font-weight:700;letter-spacing:0;margin-right:.2em;vertical-align:.55em;color:inherit}
 
-  :root {
-    --blue: #1d4ed8;
-    --blue-dark: #1e3a8a;
-    --blue-soft: #eff6ff;
-    --orange: #f97316;
-    --orange-soft: #fff7ed;
-    --yellow: #facc15;
-    --green: #16a34a;
-    --green-soft: #f0fdf4;
+.pg{width:297mm;height:210mm;margin:8mm auto;background:#fff;position:relative;overflow:hidden;
+  padding:12mm 16mm 10mm;display:flex;flex-direction:column;box-shadow:0 6px 30px rgba(15,37,51,.18);page-break-after:always;break-after:page}
+.topo{display:flex;align-items:center;justify-content:space-between;padding-bottom:5mm;border-bottom:1px solid var(--linha)}
+.topo img{height:8.5mm;display:block}
+.topo .ref{font-size:8pt;color:var(--suave);text-align:right;line-height:1.35}
+.topo .ref b{color:var(--tinta);font-weight:700}
+.corpo{flex:1;display:flex;flex-direction:column;padding:7mm 0 6mm;min-height:0}
+.rodape{display:flex;justify-content:space-between;align-items:center;gap:8mm;padding-top:4mm;border-top:1px solid var(--linha);font-size:7.5pt;color:var(--suave)}
+.rodape .pag{font-family:var(--f-marca);font-weight:800;color:var(--tinta);font-size:8.5pt;letter-spacing:.04em;white-space:nowrap}
+.rodape .pag span{color:var(--cinza);font-weight:600}
 
-    --ink: #0f172a;
-    --ink-2: #334155;
-    --muted: #64748b;
-    --line: #e2e8f0;
-    --line-strong: #cbd5e1;
-    --bg-soft: #f8fafc;
-    --white: #ffffff;
+.cab{display:flex;align-items:flex-end;justify-content:space-between;gap:10mm;margin-bottom:6mm}
+.olho{display:flex;align-items:center;gap:2.5mm;font-size:8pt;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--azul-txt);margin-bottom:2mm}
+.olho::before{content:"";width:7mm;height:1.6mm;border-radius:1mm;background:var(--laranja)}
+.cab h2{font-size:22pt;font-weight:800;line-height:1.1}
+.cab .lead{max-width:105mm;font-size:9.5pt;color:var(--suave);text-align:right}
+.rot{font-size:7.5pt;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--suave)}
+.miudo{font-size:7.5pt;color:var(--suave);line-height:1.4}
+.ic{width:6mm;height:6mm;flex-shrink:0}
+.sub-tit{font-family:var(--f-marca);font-weight:800;font-size:12pt;color:var(--tinta);margin:0 0 3.5mm;display:flex;align-items:center;gap:3mm}
+.sub-tit::after{content:"";flex:1;height:1px;background:var(--linha)}
 
-    --radius: 10px;
-    --radius-lg: 14px;
-  }
+/* ---------- 1. Capa ---------- */
+.capa{padding:0}
+.capa svg.fundo-capa{position:absolute;inset:0;width:100%;height:100%}
+.capa .conteudo{position:relative;height:100%;padding:16mm 18mm 12mm;display:flex;flex-direction:column}
+.capa .marca{margin-top:30mm}
+.capa .marca img{height:14mm;display:block}
+.capa h1{font-family:var(--f-marca);font-weight:800;font-size:46pt;line-height:1;color:var(--laranja);letter-spacing:-.02em;margin-top:7mm}
+.capa .traco{width:84mm;height:.7mm;background:var(--azul);margin-top:6mm;border-radius:1mm}
+.capa .cliente{font-family:var(--f-marca);font-weight:800;font-size:19pt;color:var(--tinta);margin-top:7mm;max-width:150mm}
+.capa .cidade{font-size:11pt;color:var(--suave);margin-top:1mm}
+.capa .rodape-capa{margin-top:auto;display:flex;align-items:flex-end;gap:12mm}
+.capa .dados{display:grid;grid-template-columns:auto auto auto auto;gap:0 9mm;font-size:8.5pt;color:var(--suave)}
+.capa .dados b{display:block;color:var(--tinta);font-weight:700;font-size:10pt}
+.capa .dados b.kwp{color:var(--azul-txt);font-family:var(--f-marca);font-weight:800;font-size:13pt}
+.capa .redes{margin-left:auto;display:flex;gap:6mm;font-size:9pt;color:var(--tinta);font-weight:600}
+.capa .redes span{display:flex;align-items:center;gap:1.8mm}
+.capa .redes .ic{width:4.5mm;height:4.5mm;color:var(--azul)}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+/* ---------- 2. Resumo: a conta de hoje × a conta com solar ---------- */
+.ad{display:grid;grid-template-columns:84mm minmax(0,1fr);gap:11mm;align-items:center;flex:1;min-height:0}
+.ad .eco-g{font-family:var(--f-marca);font-weight:900;font-size:52pt;color:var(--azul-txt);white-space:nowrap;line-height:1;letter-spacing:-.03em;margin-top:2mm}
+.ad .eco-g .rs{font-size:18pt;vertical-align:24pt;margin-right:1.5mm;font-weight:800}
+.ad .eco-l{font-size:11pt;color:var(--tinta);font-weight:700;margin-top:2mm}
+.ad .eco-mais{display:grid;grid-template-columns:auto auto auto;justify-content:space-between;gap:5mm;margin-top:6mm;padding-top:4mm;border-top:1px solid var(--linha);font-size:8.5pt;color:var(--suave)}
+.ad .eco-mais b{display:block;font-family:var(--f-marca);font-weight:800;color:var(--tinta);font-size:12pt;line-height:1.2;margin-top:.5mm}
+.barras{display:flex;flex-direction:column;gap:8mm}
+.barra .k{font-size:9pt;font-weight:800;color:var(--suave);margin-bottom:1.8mm;letter-spacing:.04em}
+.trilho{position:relative;height:25mm}
+.trilho .b{position:absolute;left:0;top:0;bottom:0;border-radius:3.5mm;display:flex;align-items:center;padding:0 5mm;font-family:var(--f-marca);font-weight:800;white-space:nowrap}
+.trilho .hoje{width:100%;background:var(--laranja);color:var(--tinta);justify-content:center;gap:2.5mm;font-family:var(--f-texto);font-size:11.5pt;font-weight:700}
+.trilho .hoje b{font-family:var(--f-marca);font-weight:800;font-size:19pt}
+.trilho .solar{background:var(--azul);color:#fff;justify-content:center;font-size:15pt;padding:0 2mm}
+.trilho .sobra{position:absolute;top:0;bottom:0;right:0;border:2.5px dashed var(--laranja);border-radius:3.5mm;display:flex;align-items:center;justify-content:center;gap:2.5mm;color:var(--laranja-txt);font-weight:800;font-size:11.5pt}
+.trilho .sobra b{font-family:var(--f-marca);font-size:17pt;color:var(--tinta)}
+.barras .miudo{margin-top:-2mm}
+.sem-geracao{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:170mm}
+.sem-geracao h3{font-size:20pt;line-height:1.2}
+.sem-geracao p{font-size:11pt;margin-top:3mm;line-height:1.6}
+.faixa-res{display:grid;grid-template-columns:1.3fr 1fr auto;border:1px solid var(--linha);border-radius:5mm;margin-top:6mm}
+.faixa-res > div{padding:4.5mm 6mm;border-left:1px solid var(--linha);min-width:0}
+.faixa-res > div:first-child{border-left:0}
+.faixa-res .rot{margin-bottom:2.5mm}
+.mini4{display:flex;justify-content:space-between;gap:4mm}
+.mini4 .num{font-size:14pt;display:block}
+.mini4 span.k{font-size:8pt;color:var(--suave)}
+.faixa-res .preco{font-family:var(--f-marca);font-weight:900;font-size:24pt;color:var(--tinta);white-space:nowrap;line-height:1;letter-spacing:-.02em}
+.faixa-res .preco .rs{font-size:10pt;vertical-align:10pt;margin-right:1mm;font-weight:800}
+.faixa-res .de{font-size:8.5pt;color:var(--suave);text-decoration:line-through;margin-left:2mm;font-weight:500;letter-spacing:0;text-transform:none}
+.faixa-res .ou{font-size:8.5pt;color:var(--suave);margin-top:1.5mm}
+.faixa-res .ou b{color:var(--tinta)}
+.qr-p{display:flex;gap:3mm;align-items:center;font-size:8pt;line-height:1.35;color:var(--suave);max-width:52mm}
+.qr-p .box{width:21mm;height:21mm;padding:1.5mm;border:1px solid var(--linha);border-radius:2mm;flex-shrink:0}
+.qr-p .box img{width:100%;height:100%;display:block;image-rendering:pixelated}
+.qr-p b{display:block;color:var(--tinta);font-size:9pt}
 
-  html, body {
-    font-family: 'Inter', system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
-    color: var(--ink);
-    background: #e5e7eb;
-    -webkit-font-smoothing: antialiased;
-    font-feature-settings: 'ss01', 'cv11';
-  }
+/* ---------- 3. Quem somos: números grandes + fotos dos clientes ---------- */
+.numeros-faixa{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--linha);border-bottom:1px solid var(--linha);padding:4mm 0}
+.numeros-faixa div{padding:0 6mm;border-left:1px solid var(--linha)}
+.numeros-faixa div:first-child{border-left:0;padding-left:0}
+.numeros-faixa .num{font-size:30pt;color:var(--azul-txt);display:block;line-height:1.05}
+.numeros-faixa span.k{font-size:9pt;color:var(--suave);font-weight:600}
+.fotos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5mm;flex:1;min-height:0;margin-top:6mm}
+.foto-caso{position:relative;display:flex;flex-direction:column;min-height:0}
+.foto-caso .ft{flex:1;min-height:0;border-radius:5mm;background-size:cover;background-position:center}
+.foto-caso .depo{position:relative;margin:-16mm 4mm 0;background:#fff;border-radius:4mm;padding:4mm 4.5mm;box-shadow:0 4px 16px rgba(15,37,51,.14)}
+.foto-caso .estrelas{color:var(--laranja);font-size:10.5pt;letter-spacing:1px;line-height:1}
+.foto-caso h3{font-size:10pt;font-weight:800;margin:1.5mm 0 1mm}
+.foto-caso p{font-size:8.5pt;line-height:1.45;font-style:italic}
 
-  /* ----- Páginas (preview no browser: folhas com sombra) ----- */
-  .page {
-    width: 210mm;
-    min-height: 297mm;
-    margin: 12mm auto;
-    background: var(--white);
-    padding: 14mm 14mm 12mm;
-    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+/* ---------- 4. Seu projeto ---------- */
+.proj{display:grid;grid-template-columns:80mm minmax(0,1fr);gap:9mm;flex:1;min-height:0;align-items:center}
+.cobre .pct{font-family:var(--f-marca);font-weight:900;font-size:56pt;line-height:1;color:var(--azul-txt);letter-spacing:-.03em;margin-top:2mm;white-space:nowrap}
+.cobre .pct small{font-size:16pt;font-weight:800;letter-spacing:0;margin-left:1.5mm}
+.cobre .pct-l{font-size:11.5pt;font-weight:700;color:var(--tinta);margin-top:2mm;line-height:1.35}
+.cobre .comp{margin-top:6mm;padding-top:4mm;border-top:1px solid var(--linha);display:flex;flex-direction:column;gap:3mm}
+.cobre .comp div{display:flex;align-items:center;gap:3mm;font-size:9pt;color:var(--suave)}
+.cobre .comp b{margin-left:auto;font-family:var(--f-marca);font-weight:800;font-size:13pt;color:var(--tinta);white-space:nowrap}
+.cobre .comp i{width:9mm;height:3.2mm;border-radius:1mm;background:var(--azul);flex-shrink:0}
+.cobre .comp i.lar{height:0;border-top:3px dashed var(--laranja);border-radius:0;background:none}
+.graf4{height:100%;min-height:0;display:flex}
+.graf4 svg{width:100%;height:100%}
+.ficha6{display:flex;border-top:1px solid var(--linha);border-bottom:1px solid var(--linha);padding:3.5mm 0;margin-top:5mm}
+.ficha6 div{flex:1;padding:0 4mm;border-left:1px solid var(--linha);min-width:0}
+.ficha6 div:first-child{border-left:0;padding-left:0}
+.ficha6 span.k{display:flex;gap:1.8mm;align-items:center;font-size:7.8pt;color:var(--suave);font-weight:700}
+.ficha6 span.k .ic{width:4.2mm;height:4.2mm;color:var(--azul)}
+.ficha6 b{display:block;color:var(--tinta);font-size:9.5pt;margin-top:1mm;line-height:1.25}
+.eco-b{margin-top:5mm;background:var(--azul);border-radius:4mm;color:#fff;padding:4mm 7mm;display:grid;grid-template-columns:auto repeat(3,1fr);gap:8mm;align-items:center}
+.eco-b .tit{font-family:var(--f-marca);font-weight:800;font-size:11pt;line-height:1.25}
+.eco-b .tit span{display:block;font-family:var(--f-texto);font-weight:600;font-size:8pt;opacity:.85;margin-top:.8mm}
+.eco-b .it{display:flex;gap:3.5mm;align-items:center}
+.eco-b .it .ic{width:9mm;height:9mm;color:#fff}
+.eco-b .num{color:#fff;font-size:17pt;display:block;line-height:1.1}
+.eco-b span.k{font-size:8.3pt;opacity:.9}
 
-  /* ----- Header / Footer ----- */
-  .doc-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 8mm;
-    border-bottom: 1px solid var(--line);
-    margin-bottom: 8mm;
-  }
-  .doc-header .logo { height: 14mm; width: auto; display: block; }
-  .doc-header .meta {
-    text-align: right;
-    font-size: 8.5pt;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  .doc-header .meta .pid {
-    color: var(--ink);
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-size: 8pt;
-  }
+/* ---------- 5. Como funciona: cena com números e legendas por cima ---------- */
+.cena5{display:grid;grid-template-columns:158mm minmax(0,1fr);gap:8mm;flex:1;min-height:0;align-items:start}
+.cena{position:relative;border-radius:5mm;overflow:hidden;width:158mm;height:105.33mm}
+.cena > img,.cena > svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+.cena .sl{position:absolute;width:6mm;height:6mm;margin:-3mm 0 0 -3mm;border-radius:50%;background:var(--laranja);border:.55mm solid #fff;display:flex;align-items:center;justify-content:center;font-family:var(--f-marca);font-weight:800;font-size:9pt;color:var(--tinta)}
+.cena .lg{position:absolute;transform:translateX(-50%);text-align:center;white-space:nowrap;font-family:var(--f-marca);font-weight:800;font-size:8.8pt;color:var(--tinta);line-height:1.2}
+.cena .lg span{display:block;font-family:var(--f-texto);font-weight:500;font-size:6.4pt;color:#5E6B76}
+.cena .troca{position:absolute;text-align:right;font-weight:800;font-size:7.3pt;line-height:1.25;color:var(--azul-txt)}
+.cena .dn{position:absolute;left:39.06%;top:6.05%;width:30.6%;background:rgba(255,255,255,.96);border-radius:2.5mm;padding:2mm 3mm;display:flex;flex-direction:column;gap:1.4mm;font-size:7.3pt;color:var(--texto)}
+.cena .dn div{display:flex;align-items:center;gap:2mm;white-space:nowrap}
+.cena .dn b{color:var(--tinta)}
+.cena .dn i{width:3mm;height:3mm;border-radius:50%;background:var(--laranja);flex-shrink:0}
+.cena .dn i.lua{background:var(--azul-txt)}
+.cena .ilus{position:absolute;left:1.6%;bottom:1.2%;font-size:5.3pt;color:#8A97A2}
+.passos-v{display:flex;flex-direction:column;justify-content:space-between;height:100%;gap:3mm}
+.passo-v{display:grid;grid-template-columns:9mm 1fr;gap:3.5mm;align-items:start;padding-bottom:3mm;border-bottom:1px solid var(--linha)}
+.passo-v:last-child{border-bottom:0;padding-bottom:0}
+.passo-v .n{font-family:var(--f-marca);font-weight:800;font-size:11pt;color:var(--tinta);background:var(--laranja);width:9mm;height:9mm;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.passo-v h3{font-size:11.5pt;font-weight:800;margin:.8mm 0 1mm}
+.passo-v p{font-size:8.8pt;line-height:1.45}
+.aviso{margin-top:5mm;display:flex;gap:4mm;align-items:flex-start;background:var(--laranja-claro);border-radius:4mm;padding:4mm 5.5mm;font-size:8.8pt;line-height:1.5}
+.aviso .ic{color:var(--laranja-txt);width:5.5mm;height:5.5mm;margin-top:.3mm}
+.aviso b{color:var(--tinta)}
 
-  .doc-footer {
-    margin-top: auto;
-    padding-top: 6mm;
-    border-top: 1px solid var(--line);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 6mm;
-    font-size: 7.5pt;
-    color: var(--muted);
-    line-height: 1.55;
-  }
-  .doc-footer .brand-mark {
-    font-weight: 800;
-    color: var(--ink);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-size: 8pt;
-    margin-bottom: 2px;
-  }
-  .doc-footer .col { flex: 1; }
-  .doc-footer .col.right { text-align: right; }
-  .doc-footer .pagenum {
-    font-weight: 700;
-    color: var(--ink);
-  }
+/* ---------- 6. Equipamentos: vitrine azul ---------- */
+.vitrine{background:var(--azul);border-radius:6mm;color:#fff;display:grid;grid-template-columns:1fr 1fr;position:relative;flex:1;min-height:0;overflow:hidden}
+.vitrine .lado{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6mm;align-items:center;padding:7mm 8mm}
+.vitrine .lado + .lado{border-left:1px solid rgba(255,255,255,.3)}
+.vitrine .lado > img{height:62mm;width:auto;max-width:56mm;display:block}
+.vitrine .qtd{font-family:var(--f-marca);font-weight:900;font-size:40pt;line-height:1;letter-spacing:-.03em}
+.vitrine h3{color:#fff;font-size:14pt;font-weight:800;line-height:1.2;margin-top:2mm}
+.vitrine .marca{font-size:8pt;font-weight:800;letter-spacing:.14em;text-transform:uppercase;opacity:.85;margin-top:3mm}
+.vitrine .spec{font-size:8.8pt;opacity:.92;margin-top:1mm;line-height:1.45}
+.vitrine .gar{display:inline-block;margin-top:3.5mm;background:var(--laranja);color:var(--tinta);font-weight:800;font-size:9pt;border-radius:99px;padding:1.3mm 3.5mm}
+.vitrine .total{position:absolute;right:6mm;top:5mm;background:#fff;color:var(--azul-txt);font-family:var(--f-marca);font-weight:800;font-size:10pt;border-radius:99px;padding:1.2mm 4mm}
+.vitrine .ilus{position:absolute;left:8mm;bottom:3mm;font-size:6.5pt;opacity:.7}
+.base-eq{display:grid;grid-template-columns:1.2fr 1fr;gap:10mm;margin-top:6mm}
+.itens4{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm}
+.itens4 div{font-size:8.6pt;line-height:1.35}
+.itens4 .bola{width:11mm;height:11mm;border-radius:50%;background:var(--azul-claro);color:var(--azul);display:flex;align-items:center;justify-content:center;margin-bottom:2mm}
+.itens4 .bola .ic{width:5.5mm;height:5.5mm}
+.itens4 b{display:block;color:var(--tinta)}
+.base-eq .marcas{height:30mm;width:auto;max-width:100%;display:block}
 
-  /* ----- Tipografia ----- */
-  .eyebrow {
-    font-size: 8.5pt;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--orange);
-  }
-  .eyebrow.blue { color: var(--blue); }
-  .eyebrow.ink { color: var(--ink-2); }
+/* ---------- 7. Retorno ---------- */
+.graf7{position:relative;width:100%;margin:auto 0}
+.graf7 svg{width:100%;height:auto;display:block}
+.graf7 .pilula{position:absolute;background:var(--tinta);color:#fff;font-weight:800;font-size:10pt;border-radius:99px;padding:1.6mm 4.5mm;white-space:nowrap}
+.graf7 .lucro{position:absolute;text-align:right;white-space:nowrap}
+.graf7 .lucro b{display:block;font-family:var(--f-marca);font-weight:900;font-size:21pt;color:var(--azul-txt);line-height:1.05;letter-spacing:-.02em}
+.graf7 .lucro span{font-size:9.5pt;font-weight:700;color:var(--texto)}
+.faixa7{display:grid;grid-template-columns:1fr 1fr 1.5fr;border:1px solid var(--linha);border-radius:5mm;margin-top:5mm}
+.faixa7 > div{padding:4mm 6mm;border-left:1px solid var(--linha);min-width:0}
+.faixa7 > div:first-child{border-left:0}
+.faixa7 .num{font-size:18pt;display:block;color:var(--azul-txt);margin-top:1mm;line-height:1.1}
+.faixa7 span.s{font-size:8pt;color:var(--suave)}
+.faixa7 .contas{display:flex;align-items:center;gap:4mm;margin-top:1mm}
+.faixa7 .contas .num{color:var(--tinta)}
+.faixa7 .contas .num.azul{color:var(--azul-txt)}
+.faixa7 .contas .ic{width:6mm;height:6mm;color:var(--laranja)}
 
-  h1.greet {
-    font-size: 34pt;
-    font-weight: 900;
-    line-height: 1.02;
-    letter-spacing: -0.025em;
-    color: var(--ink);
-    margin-top: 6px;
-  }
-  h1.greet .accent { color: var(--orange); }
+/* ---------- 8. Pagamento ---------- */
+.pagto{display:grid;grid-template-columns:96mm minmax(0,1fr);grid-template-rows:auto 1fr;gap:5mm;flex:1;min-height:0}
+.vista{grid-row:1 / span 2;background:var(--azul);border-radius:5mm;color:#fff;padding:6mm 7mm;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.vista .tag{align-self:flex-start;background:#fff;color:var(--azul-txt);font-size:7.5pt;font-weight:800;letter-spacing:.14em;text-transform:uppercase;border-radius:99px;padding:1.2mm 3.2mm}
+.vista h3{color:#fff;font-size:16pt;font-weight:800;margin-top:4mm}
+.vista .como{font-size:9.5pt;opacity:.9;margin-top:.5mm}
+.vista .de{font-size:10pt;opacity:.8;text-decoration:line-through;margin-top:auto}
+.vista .preco{font-family:var(--f-marca);font-weight:900;font-size:40pt;line-height:1;letter-spacing:-.03em;white-space:nowrap;margin-top:1.5mm}
+.vista .de + .preco{margin-top:1.5mm}
+.vista .preco:first-of-type{margin-top:auto}
+.vista .preco .rs{font-size:14pt;vertical-align:15pt;margin-right:1.5mm;font-weight:800}
+.vista .desc{align-self:flex-start;margin-top:4mm;background:var(--laranja);color:var(--tinta);font-weight:800;font-size:10pt;border-radius:99px;padding:1.8mm 4mm;white-space:nowrap}
+.vista ul{list-style:none;margin:5mm 0 0;padding:4mm 0 0;border-top:1px solid rgba(255,255,255,.3);display:flex;flex-direction:column;gap:2.5mm;font-size:9.5pt}
+.vista li{display:flex;gap:2.5mm;align-items:center}
+.vista li .ic{width:5mm;height:5mm;color:#fff}
+.opcao{border:1px solid var(--linha);border-radius:5mm;padding:4.5mm 6mm}
+.opcao .topo-op{display:flex;align-items:baseline;justify-content:space-between;gap:5mm}
+.opcao .tit{display:flex;align-items:center;gap:2.5mm;font-family:var(--f-marca);font-weight:800;color:var(--tinta);font-size:11.5pt}
+.opcao .tit .ic{color:var(--azul);width:5.5mm;height:5.5mm}
+.opcao .chamada{font-family:var(--f-marca);font-weight:800;color:var(--tinta);font-size:20pt;white-space:nowrap;letter-spacing:-.02em}
+.opcao .chamada small{font-size:.55em;color:var(--suave);font-weight:700;margin:0 1mm}
+.opcao .sub{font-size:8.5pt;color:var(--suave)}
+.parcelas{display:grid;grid-template-columns:repeat(3,1fr);gap:0 7mm;margin-top:2.5mm;font-size:9pt}
+.parcelas div{display:flex;justify-content:space-between;padding:.85mm 0;border-bottom:1px solid var(--linha)}
+.parcelas span{color:var(--suave);font-weight:700;font-variant-numeric:tabular-nums}
+.parcelas b{color:var(--tinta);font-variant-numeric:tabular-nums}
+.parcelas div.hl b{color:var(--azul-txt)}
+.financ{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12mm;align-items:center}
+.financ .cem{font-family:var(--f-marca);font-weight:900;font-size:26pt;color:var(--tinta);line-height:1;letter-spacing:-.03em}
+.financ .cem small{display:block;white-space:nowrap;font-size:9pt;font-weight:700;color:var(--suave);letter-spacing:0;margin-top:1mm}
+.linha-tempo{position:relative;display:flex;justify-content:space-between}
+.linha-tempo::before{content:"";position:absolute;left:8mm;right:8mm;top:2mm;height:2px;background:var(--azul-medio)}
+.linha-tempo div{position:relative;text-align:center;font-size:8pt;color:var(--suave);white-space:nowrap}
+.linha-tempo div::before{content:"";display:block;width:4mm;height:4mm;border-radius:50%;background:#fff;border:2px solid var(--azul);margin:0 auto 2mm}
+.linha-tempo div:first-child::before{background:var(--azul)}
+.linha-tempo b{display:block;color:var(--tinta);font-size:10pt;font-family:var(--f-marca);font-weight:800}
+.nota{margin-top:4mm;background:var(--fundo);border-radius:3mm;padding:3.5mm 5mm;font-size:8.8pt;white-space:pre-line}
+.nota b{color:var(--tinta)}
 
-  h2.section {
-    font-size: 20pt;
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    color: var(--ink);
-    margin-top: 4px;
-  }
+/* ---------- 9. Fases + garantias ---------- */
+.jornada{position:relative;margin:auto 0;padding-top:4mm}
+.prazo-chave{position:relative;height:13mm;margin:0 10%;border:2px solid var(--laranja);border-bottom:0;border-radius:3mm 3mm 0 0}
+.prazo-chave span{position:absolute;left:50%;top:0;transform:translate(-50%,-50%);background:var(--laranja);color:var(--tinta);font-weight:800;font-size:10pt;border-radius:99px;padding:1.6mm 5mm;white-space:nowrap}
+.prazo-chave span b{font-family:var(--f-marca);font-size:12pt}
+.passos5{display:grid;grid-template-columns:repeat(5,1fr);position:relative;margin-top:-1mm}
+.passos5::before{content:"";position:absolute;left:10%;right:10%;top:10mm;height:3mm;border-radius:2mm;background:var(--azul)}
+.passos5 .e{text-align:center;padding:0 3mm;position:relative}
+.passos5 .bola{width:20mm;height:20mm;border-radius:50%;background:#fff;border:3px solid var(--azul);margin:0 auto;display:flex;align-items:center;justify-content:center;color:var(--azul)}
+.passos5 .e:last-child .bola{background:var(--laranja);border-color:var(--laranja);color:var(--tinta)}
+.passos5 .bola .ic{width:9mm;height:9mm}
+.passos5 .n{font-size:7.5pt;font-weight:800;letter-spacing:.14em;color:var(--suave);margin-top:3mm}
+.passos5 h3{font-size:12.5pt;font-weight:800;margin:.8mm 0 1.2mm}
+.passos5 p{font-size:9pt;line-height:1.45}
+.selos-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6mm}
+.selo-g{display:flex;gap:4mm;align-items:center}
+.selo-g .anel{width:28mm;height:28mm;border-radius:50%;border:2.5mm solid var(--azul);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.selo-g .anel b{font-family:var(--f-marca);font-weight:900;font-size:14pt;color:var(--tinta);white-space:nowrap;letter-spacing:-.02em}
+.selo-g .anel small{font-size:7.5pt;font-weight:700;color:var(--suave);margin-top:.8mm}
+.selo-g h3{font-size:10.5pt;font-weight:800}
+.selo-g p{font-size:8.3pt;line-height:1.4;margin-top:.8mm}
 
-  h3 {
-    font-size: 11pt;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: -0.005em;
-  }
+/* ---------- 10. Fechamento ---------- */
+.fecho{display:grid;grid-template-columns:minmax(0,1fr) 104mm;gap:12mm;flex:1;min-height:0}
+.fecho .esq{display:flex;flex-direction:column;min-width:0}
+.fecho .chamada-f{font-family:var(--f-marca);font-weight:800;font-size:23pt;line-height:1.12;color:var(--tinta);letter-spacing:-.02em}
+.fecho .chamada-f span{color:var(--azul-txt)}
+.fecho .apoio{font-size:10.5pt;line-height:1.6;margin-top:5mm;max-width:120mm}
+.fecho .letra{margin-top:auto;border-left:2px solid var(--laranja);padding-left:4mm;font-size:8pt;line-height:1.55;color:var(--suave)}
+.fecho .letra b{color:var(--tinta);display:block;font-size:8.3pt;margin-bottom:.8mm}
+.contatos-u{display:flex;flex-wrap:wrap;gap:2.5mm 6mm;margin-top:5mm;font-size:8.6pt}
+.contatos-u span{display:flex;gap:2mm;align-items:center}
+.contatos-u .ic{width:4.3mm;height:4.3mm;color:var(--azul)}
+.cv{border-radius:6mm;overflow:hidden;box-shadow:0 8px 26px rgba(15,37,51,.16);display:flex;flex-direction:column;background:#fff;border:1px solid var(--linha)}
+.cv-topo{background:var(--azul);color:#fff;padding:6mm 6.5mm;display:flex;gap:4.5mm;align-items:center}
+.cv-topo .av{width:16mm;height:16mm;border-radius:50%;background:#fff;color:var(--azul-txt);display:flex;align-items:center;justify-content:center;font-family:var(--f-marca);font-weight:900;font-size:20pt;flex-shrink:0}
+.cv-topo .k{font-size:7.5pt;font-weight:800;letter-spacing:.16em;text-transform:uppercase;opacity:.85}
+.cv-topo .nome{font-family:var(--f-marca);font-weight:800;font-size:17pt;line-height:1.1;margin-top:.8mm}
+.cv-topo .uni{font-size:9pt;opacity:.9;margin-top:.5mm}
+.cv-faixa{height:2mm;background:var(--laranja)}
+.cv-meio{padding:5.5mm 6.5mm;display:flex;flex-direction:column;gap:2.5mm}
+.cv-meio .tel{display:flex;gap:3mm;align-items:center;font-family:var(--f-marca);font-weight:800;font-size:18pt;color:var(--tinta);white-space:nowrap;text-decoration:none}
+.cv-meio .tel .ic{width:6mm;height:6mm;color:var(--azul)}
+.cv-faz{list-style:none;margin:2mm 0 0;padding:4mm 0 0;border-top:1px solid var(--linha);display:flex;flex-direction:column;gap:2.6mm;font-size:9.8pt}
+.cv-faz li{display:flex;gap:2.5mm;align-items:center}
+.cv-faz .ic{width:5mm;height:5mm;color:var(--laranja-txt)}
+.cv-qr{margin-top:auto;border-top:1px dashed var(--linha);padding:4.5mm 6.5mm;display:flex;gap:5mm;align-items:center;text-decoration:none;color:inherit}
+.cv-qr .box{width:27mm;height:27mm;padding:2mm;border:1px solid var(--linha);border-radius:2.5mm;flex-shrink:0}
+.cv-qr .box img{width:100%;height:100%;display:block;image-rendering:pixelated}
+.cv-qr b{display:block;font-family:var(--f-marca);font-weight:800;color:var(--tinta);font-size:11.5pt;margin-bottom:1mm}
+.cv-qr p{font-size:8.8pt;line-height:1.45}
+.validade-g{display:flex;align-items:stretch;border:2px solid var(--laranja);border-radius:4mm;overflow:hidden;margin-top:5mm}
+.validade-g .rel{background:var(--laranja);color:var(--tinta);display:flex;align-items:center;justify-content:center;padding:0 5mm}
+.validade-g .rel .ic{width:7mm;height:7mm}
+.validade-g .txt{flex:1;display:flex;align-items:center;justify-content:space-between;gap:6mm;padding:3.2mm 5mm;font-size:11pt;color:var(--tinta)}
+.validade-g .txt b{font-family:var(--f-marca);font-weight:800}
+.validade-g .txt span.s{font-size:8.5pt;color:var(--suave)}
 
-  p, li { font-size: 10pt; line-height: 1.55; color: var(--ink-2); }
-  p.lead { font-size: 11pt; color: var(--ink-2); max-width: 145mm; }
+/* ============================================================
+   CARREGANDO / ERRO / BARRA DE AÇÕES / OVERLAY
+   ============================================================ */
+#pdf-loading,#pdf-error{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:#f4f7fa;color:#3a4753;z-index:100;padding:24px;text-align:center}
+body:not(.is-loading) #pdf-loading{display:none}
+body:not(.is-error) #pdf-error{display:none}
+body.is-loading #doc,body.is-error #doc{display:none}
+#pdf-error h1{font-size:18pt;font-weight:800;color:var(--tinta)}
+#pdf-error p{font-size:11pt;max-width:320px;line-height:1.5}
+.spinner{width:36px;height:36px;border:3px solid #e2e8ee;border-top-color:var(--laranja);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-  .muted { color: var(--muted); }
-  .strong-ink { color: var(--ink); }
+#pdf-action-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;padding:8px;background:rgba(15,37,51,.92);backdrop-filter:blur(8px);border-radius:999px;box-shadow:0 12px 30px rgba(0,0,0,.25);z-index:200}
+.pdf-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:0;border-radius:999px;font-family:var(--f-texto);font-size:12pt;font-weight:700;cursor:pointer;white-space:nowrap;transition:transform .1s ease,background .2s ease}
+.pdf-btn svg{width:16px;height:16px}
+.pdf-btn:hover{transform:translateY(-1px)}
+.pdf-btn-ghost{background:rgba(255,255,255,.08);color:#f1f5f9}
+.pdf-btn-ghost:hover{background:rgba(255,255,255,.14)}
+.pdf-btn-primary{background:var(--laranja);color:var(--tinta)}
+.pdf-btn-wa{background:#16a34a;color:#fff}
+#pdf-overlay{position:fixed;inset:0;z-index:300;background:rgba(15,37,51,.78);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:24px}
+#pdf-overlay.show{display:flex}
+#pdf-overlay .box{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+#pdf-overlay .box h2{font-size:15pt;font-weight:800;color:var(--tinta);font-family:var(--f-marca)}
+#pdf-overlay .box p{font-size:10.5pt;color:var(--suave);margin-top:6px;line-height:1.45}
+#pdf-overlay .spinner{margin:0 auto 14px}
+#pdf-overlay .actions{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+#pdf-overlay .pdf-btn{justify-content:center;width:100%}
+#pdf-overlay .pdf-btn-ghost{background:#f1f5f9;color:var(--tinta)}
+body.is-capturing #pdf-action-bar{display:none}
+/* o html2canvas pinta a sombra por cima da folha inteira (fica cinza): sem sombras na captura */
+body.is-capturing *{box-shadow:none!important}
 
-  /* ----- Layout helpers ----- */
-  .row { display: flex; gap: 6mm; }
-  .stack { display: flex; flex-direction: column; }
-  .gap-3 { gap: 3mm; }
-  .gap-5 { gap: 5mm; }
-  .gap-8 { gap: 8mm; }
-  .mt-4 { margin-top: 4mm; }
-  .mt-5 { margin-top: 5mm; }
-  .mt-6 { margin-top: 6mm; }
-  .mt-8 { margin-top: 8mm; }
-  .mt-10 { margin-top: 10mm; }
-
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5mm; }
-  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5mm; }
-
-  /* ----- Section heading com regra fina ----- */
-  .section-head {
-    display: flex;
-    align-items: baseline;
-    gap: 6mm;
-    padding-bottom: 3mm;
-    border-bottom: 1px solid var(--line);
-    margin-bottom: 6mm;
-  }
-  .section-head .num {
-    font-size: 9pt;
-    font-weight: 800;
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    font-variant-numeric: tabular-nums;
-  }
-  .section-head .title-wrap { flex: 1; }
-  .section-head h2.section { font-size: 16pt; }
-
-  /* ============================================================
-     PÁGINA 1 — CAPA & KIT
-     ============================================================ */
-  .cover-intro { margin-bottom: 8mm; }
-  .cover-intro p.lead { margin-top: 5mm; }
-
-  .meta-strip {
-    display: flex;
-    gap: 8mm;
-    margin-top: 6mm;
-    padding: 4mm 5mm;
-    background: var(--bg-soft);
-    border-radius: var(--radius);
-    border: 1px solid var(--line);
-    font-size: 9pt;
-  }
-  .meta-strip .item { display: flex; flex-direction: column; gap: 1px; }
-  .meta-strip .item .k {
-    font-size: 7.5pt;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    font-weight: 700;
-  }
-  .meta-strip .item .v {
-    font-size: 10pt;
-    font-weight: 600;
-    color: var(--ink);
-  }
-  .meta-strip .sep {
-    width: 1px;
-    background: var(--line);
-  }
-
-  /* ----- Card do kit (destaque principal) ----- */
-  .kit-card {
-    margin-top: 9mm;
-    border: 1.5px solid var(--ink);
-    border-radius: var(--radius-lg);
-    background: var(--white);
-    overflow: hidden;
-    position: relative;
-  }
-
-  .kit-card .head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4mm 6mm;
-    background: var(--ink);
-    color: var(--white);
-  }
-  .kit-card .head .lbl {
-    font-size: 8pt;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--yellow);
-  }
-  .kit-card .head .brand-tag {
-    font-size: 8pt;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 1.5mm 3mm;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 999px;
-    color: var(--white);
-  }
-
-  .kit-card .body { padding: 7mm 6mm 5mm; }
-  .kit-card .name {
-    font-size: 18pt;
-    font-weight: 800;
-    color: var(--ink);
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-  }
-
-  .kit-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    margin-top: 6mm;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-  }
-  .kit-stats .stat {
-    padding: 4mm 5mm 4mm 0;
-    display: flex;
-    gap: 4mm;
-    align-items: center;
-  }
-  .kit-stats .stat + .stat {
-    border-left: 1px solid var(--line);
-    padding-left: 5mm;
-  }
-  .kit-stats .ico {
-    width: 11mm; height: 11mm;
-    border-radius: 50%;
-    background: var(--orange-soft);
-    color: var(--orange);
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-  }
-  .kit-stats .stat:nth-child(2) .ico {
-    background: var(--blue-soft);
-    color: var(--blue);
-  }
-  .kit-stats .ico svg { width: 6mm; height: 6mm; }
-  .kit-stats .v {
-    font-size: 17pt;
-    font-weight: 800;
-    line-height: 1;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-  }
-  .kit-stats .v small {
-    font-size: 9pt;
-    font-weight: 600;
-    color: var(--muted);
-    margin-left: 1mm;
-    letter-spacing: 0;
-  }
-  .kit-stats .k {
-    font-size: 8pt;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    font-weight: 700;
-    margin-top: 2px;
-  }
-
-  .kit-ideal {
-    margin-top: 5mm;
-    font-size: 9.5pt;
-    color: var(--ink-2);
-  }
-  .kit-ideal strong { color: var(--ink); font-weight: 700; }
-
-  .invest-block {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 6mm;
-    margin-top: 6mm;
-    padding-top: 6mm;
-    border-top: 2px solid var(--ink);
-  }
-  .invest-block .label-wrap { flex: 1; }
-  .invest-block .label {
-    font-size: 8pt;
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .invest-block .list-price {
-    font-size: 11pt;
-    color: var(--muted);
-    text-decoration: line-through;
-    margin-top: 3mm;
-    font-weight: 500;
-  }
-  .invest-block .price {
-    font-size: 30pt;
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -0.03em;
-    color: var(--orange);
-    font-variant-numeric: tabular-nums;
-    margin-top: 2mm;
-  }
-  .invest-block .price .currency {
-    font-size: 16pt;
-    font-weight: 700;
-    color: var(--ink);
-    margin-right: 1mm;
-    vertical-align: 0.18em;
-  }
-  .invest-block .badge {
-    background: var(--green);
-    color: var(--white);
-    padding: 2mm 4mm;
-    border-radius: 999px;
-    font-size: 8pt;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    align-self: flex-end;
-  }
-
-  .pay-hint {
-    margin-top: 4mm;
-    padding: 3mm 4mm;
-    background: var(--blue-soft);
-    border-radius: var(--radius);
-    font-size: 9pt;
-    color: var(--blue-dark);
-    display: flex;
-    align-items: center;
-    gap: 3mm;
-  }
-  .pay-hint svg { width: 5mm; height: 5mm; flex-shrink: 0; }
-  .pay-hint strong { font-weight: 700; }
-
-  /* ============================================================
-     PÁGINA 2 — ECONOMIA + PAGAMENTO
-     ============================================================ */
-  .savings-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 4mm;
-  }
-  .save-card {
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 5mm;
-    background: var(--white);
-    display: flex;
-    flex-direction: column;
-    gap: 2mm;
-  }
-  .save-card .k {
-    font-size: 8pt;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    font-weight: 700;
-  }
-  .save-card .v {
-    font-size: 16pt;
-    font-weight: 800;
-    color: var(--green);
-    line-height: 1;
-    letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
-    margin-top: 1mm;
-  }
-  .save-card .sub {
-    font-size: 8.5pt;
-    color: var(--muted);
-    margin-top: 1mm;
-  }
-
-  /* ----- Geração mês a mês ----- */
-  .gen-kpis {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 4mm;
-    margin-bottom: 4mm;
-  }
-  .gen-kpi {
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 3mm 4mm;
-  }
-  .gen-kpi .k {
-    font-size: 7.5pt;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    font-weight: 700;
-  }
-  .gen-kpi .v {
-    font-size: 15pt;
-    font-weight: 800;
-    color: var(--ink);
-    line-height: 1.1;
-    margin-top: 1mm;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-  }
-  .gen-kpi .v small {
-    font-size: 8.5pt;
-    font-weight: 600;
-    color: var(--muted);
-    margin-left: 1mm;
-    letter-spacing: 0;
-  }
-  .gen-chart {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-    padding: 3mm 3mm 1mm;
-  }
-  .gen-legend {
-    display: flex;
-    gap: 5mm;
-    font-size: 7.5pt;
-    color: var(--muted);
-    margin: 0 0 1.5mm 2mm;
-  }
-  .gen-legend i {
-    display: inline-block;
-    width: 3mm; height: 3mm;
-    border-radius: 1px;
-    background: var(--orange);
-    margin-right: 1.5mm;
-    vertical-align: -0.4mm;
-  }
-  .gen-legend i.soft { background: #fdba74; } /* barraBaixa do tema light (geracao-chart.js) */
-  .gen-legend i.line {
-    height: 0;
-    border-top: 2px dashed var(--ink);
-    background: none;
-    border-radius: 0;
-    vertical-align: 0.6mm;
-  }
-
-  .payback-card {
-    margin-top: 4mm;
-    padding: 6mm;
-    background: var(--ink);
-    color: var(--white);
-    border-radius: var(--radius-lg);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8mm;
-  }
-  .payback-card .left {
-    display: flex;
-    align-items: center;
-    gap: 5mm;
-  }
-  .payback-card .ico {
-    width: 14mm; height: 14mm;
-    background: var(--orange);
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    color: var(--white);
-    flex-shrink: 0;
-  }
-  .payback-card .ico svg { width: 7mm; height: 7mm; }
-  .payback-card .k {
-    font-size: 9pt;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--yellow);
-  }
-  .payback-card .title {
-    font-size: 12pt;
-    font-weight: 700;
-    line-height: 1.2;
-    margin-top: 1mm;
-  }
-  .payback-card .v {
-    font-size: 24pt;
-    font-weight: 900;
-    letter-spacing: -0.02em;
-    white-space: nowrap;
-    line-height: 1;
-    text-align: right;
-  }
-
-  /* ----- Pagamento -----
-     Cartão (laranja, com a tabela 1×–18×) + Financiamento (cabeçalho preto,
-     linha do tempo). Os dois cards esticam para a mesma altura. */
-  .pay-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-    gap: 4mm;
-    align-items: stretch;
-  }
-  .pay-card {
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    overflow: hidden;
-    background: var(--white);
-    display: flex;
-    flex-direction: column;
-  }
-  .pay-card.cartao { border-color: #fed7aa; }
-  .pay-card .pay-head { padding: 4.5mm 5mm; color: var(--white); }
-  .pay-card.cartao .pay-head { background: var(--orange); }
-  .pay-card.financ .pay-head { background: var(--ink); }
-  .pay-card .pay-lbl {
-    display: flex;
-    align-items: center;
-    gap: 2mm;
-    font-size: 7.5pt;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-  }
-  .pay-card .pay-lbl svg { width: 4mm; height: 4mm; }
-  .pay-card.cartao .pay-lbl { color: #ffedd5; }
-  .pay-card.financ .pay-lbl { color: #fdba74; }
-  .pay-card .pay-feature {
-    display: flex;
-    align-items: baseline;
-    gap: 2.5mm;
-    margin-top: 2mm;
-    line-height: 1;
-  }
-  .pay-card .pay-feature .big { font-size: 24pt; font-weight: 900; letter-spacing: -0.03em; }
-  .pay-card .pay-feature .rest { font-size: 13pt; font-weight: 800; }
-  .pay-card .pay-sub { font-size: 8pt; margin-top: 1.5mm; }
-  .pay-card.cartao .pay-sub { color: #ffedd5; }
-  .pay-card.financ .pay-sub { color: #94a3b8; }
-
-  /* Tabela de parcelas: 3 colunas lidas de cima para baixo (1–6, 7–12, 13–18). */
-  .parc-tab {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-auto-flow: column;
-    grid-template-rows: repeat(6, auto);
-    column-gap: 3mm;
-    padding: 3mm 4mm 3.5mm;
-  }
-  .parc-tab div {
-    display: flex;
-    justify-content: space-between;
-    gap: 2mm;
-    font-size: 8.5pt;
-    padding: 1.3mm 1.5mm;
-    border-bottom: 1px solid #f1f5f9;
-  }
-  .parc-tab div span { color: var(--muted); }
-  .parc-tab div b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .parc-tab div.hl { background: var(--orange-soft); border-radius: 4px; border-bottom-color: transparent; }
-  .parc-tab div.hl span, .parc-tab div.hl b { color: #c2410c; }
-
-  /* Linha do tempo do financiamento */
-  .financ-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 5mm;
-    padding: 5.5mm 4mm 4mm;
-  }
-  .financ-tl {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    text-align: center;
-    font-size: 8pt;
-    color: var(--muted);
-  }
-  .financ-tl .bar { position: absolute; top: 2mm; left: 16%; right: 16%; height: 2px; background: var(--ink); }
-  .financ-tl .st { position: relative; width: 33.33%; }
-  .financ-tl .dot {
-    width: 4.2mm; height: 4.2mm;
-    border-radius: 50%;
-    margin: 0 auto 2mm;
-    border: 2px solid var(--ink);
-    background: var(--white);
-  }
-  .financ-tl .st.now .dot { background: var(--orange); border-color: var(--orange); }
-  .financ-tl b { display: block; font-size: 9.5pt; font-weight: 800; color: var(--ink); }
-  .financ-ck {
-    display: flex;
-    align-items: center;
-    gap: 2.5mm;
-    font-size: 9pt;
-    color: var(--ink-2);
-    padding-top: 3.5mm;
-    border-top: 1px solid var(--line);
-  }
-  .financ-ck svg { width: 4.5mm; height: 4.5mm; color: var(--orange); flex-shrink: 0; }
-
-  .note-card {
-    margin-top: 5mm;
-    padding: 4mm 5mm;
-    border-left: 3px solid var(--orange);
-    background: var(--orange-soft);
-    border-radius: 0 var(--radius) var(--radius) 0;
-    font-size: 9.5pt;
-    color: var(--ink-2);
-    line-height: 1.55;
-  }
-  .note-card .lbl {
-    font-size: 7.5pt;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--orange);
-    margin-bottom: 1.5mm;
-  }
-
-  .fine-print {
-    margin-top: 4mm;
-    font-size: 8pt;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-
-  /* ============================================================
-     PÁGINA 3 — INSTITUCIONAL + CONSULTOR
-     ============================================================ */
-  .kvc-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4mm 6mm;
-  }
-  .kvc {
-    display: flex;
-    gap: 4mm;
-    padding: 2mm 0;
-  }
-  .kvc .ico {
-    width: 10mm; height: 10mm;
-    flex-shrink: 0;
-    border-radius: 8px;
-    background: var(--blue);
-    color: var(--white);
-    display: grid;
-    place-items: center;
-  }
-  .kvc .ico svg { width: 5.5mm; height: 5.5mm; }
-  .kvc h3 { font-size: 10.5pt; margin-bottom: 1mm; }
-  .kvc p { font-size: 9pt; line-height: 1.45; }
-
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4mm;
-    padding: 5mm 0;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-  }
-  .stat-mini {
-    display: flex;
-    align-items: center;
-    gap: 3mm;
-  }
-  .stat-mini .ico {
-    width: 9mm; height: 9mm;
-    border-radius: 50%;
-    background: var(--blue-soft);
-    color: var(--blue);
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-  }
-  .stat-mini .ico svg { width: 5mm; height: 5mm; }
-  .stat-mini .v {
-    font-size: 12pt;
-    font-weight: 800;
-    color: var(--ink);
-    line-height: 1;
-  }
-  .stat-mini .k {
-    font-size: 8pt;
-    color: var(--muted);
-    font-weight: 600;
-    line-height: 1.2;
-    margin-top: 1mm;
-  }
-
-  .quem-somos {
-    background: var(--bg-soft);
-    border-radius: var(--radius);
-    padding: 6mm;
-    margin-top: 6mm;
-  }
-  .quem-somos p { font-size: 9.5pt; line-height: 1.6; color: var(--ink-2); }
-
-  /* ----- Garantia ----- */
-  .warranty-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4mm;
-  }
-  .warranty {
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 4mm 5mm;
-    display: flex;
-    align-items: center;
-    gap: 4mm;
-  }
-  .warranty .yrs {
-    font-size: 22pt;
-    font-weight: 900;
-    color: var(--orange);
-    line-height: 1;
-    letter-spacing: -0.03em;
-    font-variant-numeric: tabular-nums;
-  }
-  .warranty .yrs small {
-    font-size: 9pt;
-    font-weight: 600;
-    color: var(--muted);
-    display: block;
-    margin-top: 1mm;
-    letter-spacing: 0;
-  }
-  .warranty .lbl {
-    font-size: 9pt;
-    color: var(--ink-2);
-    line-height: 1.45;
-  }
-  .warranty .lbl strong { color: var(--ink); font-weight: 700; display: block; font-size: 10.5pt; margin-bottom: 1mm; }
-
-  /* ----- Consultor + Impacto ----- */
-  /* ----- Consultor: cartão com QR do WhatsApp -----
-     Duas colunas: dados à esquerda, QR à direita. Sem telefone válido a
-     coluna do QR não é renderizada e o cartão ocupa a largura toda. */
-  .consultor-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    overflow: hidden;
-    background: var(--white);
-  }
-  .consultor-card.has-qr { grid-template-columns: minmax(0, 1fr) 46mm; }
-  .consultor-card .cc-info {
-    padding: 6mm 7mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 3.5mm;
-  }
-  .consultor-card .lbl {
-    font-size: 8pt;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--orange);
-  }
-  .consultor-card .top {
-    display: flex;
-    gap: 4mm;
-    align-items: center;
-  }
-  .consultor-card .avatar {
-    width: 13mm; height: 13mm;
-    border-radius: 50%;
-    background: var(--orange-soft);
-    border: 1.5px solid #fdba74;
-    color: #c2410c;
-    display: grid;
-    place-items: center;
-    font-size: 15pt;
-    font-weight: 800;
-    flex-shrink: 0;
-  }
-  .consultor-card .name {
-    font-size: 14pt;
-    font-weight: 800;
-    color: var(--ink);
-    line-height: 1.1;
-    letter-spacing: -0.01em;
-  }
-  .consultor-card .role {
-    font-size: 9pt;
-    color: var(--muted);
-    margin-top: 1mm;
-  }
-  .consultor-card .cc-fone {
-    display: inline-flex;
-    align-items: center;
-    gap: 2.5mm;
-    font-size: 12pt;
-    font-weight: 700;
-    color: var(--ink);
-    text-decoration: none;
-    align-self: flex-start;
-  }
-  .consultor-card .cc-fone svg { width: 5mm; height: 5mm; color: var(--green); flex-shrink: 0; }
-  .consultor-card .cc-meta {
-    font-size: 8.5pt;
-    color: var(--muted);
-    padding-top: 3mm;
-    border-top: 1px solid var(--line);
-  }
-  .consultor-card .cc-meta strong { color: var(--green); font-weight: 700; }
-  .consultor-card .cc-qr {
-    background: var(--bg-soft);
-    border-left: 1px solid var(--line);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3mm;
-    padding: 5mm 4mm;
-    text-decoration: none;
-    text-align: center;
-  }
-  .consultor-card .qr-box {
-    width: 32mm; height: 32mm;
-    padding: 2mm;
-    background: var(--white);
-    border: 1px solid var(--line-strong);
-    border-radius: 6px;
-    display: grid;
-    place-items: center;
-  }
-  .consultor-card .qr-box img {
-    display: block;
-    width: 100%; height: 100%;
-    image-rendering: pixelated;
-  }
-  .consultor-card .qr-txt {
-    font-size: 8pt;
-    line-height: 1.35;
-    color: var(--ink-2);
-    max-width: 34mm;
-  }
-
-  /* ============================================================
-     BARRA INFERIOR FIXA (Voltar | Salvar PDF)
-     Aparece so no preview, e escondida no print.
-     ============================================================ */
-  #pdf-action-bar {
-    position: fixed;
-    left: 50%;
-    bottom: 16px;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 8px;
-    padding: 8px;
-    background: rgba(15, 23, 42, 0.92);
-    backdrop-filter: blur(8px);
-    border-radius: 999px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
-    z-index: 200;
-  }
-  .pdf-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 16px;
-    border: 0;
-    border-radius: 999px;
-    font-family: 'Inter', sans-serif;
-    font-size: 12pt;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: transform 0.1s ease, background 0.2s ease;
-  }
-  .pdf-btn svg { width: 16px; height: 16px; }
-  .pdf-btn:hover  { transform: translateY(-1px); }
-  .pdf-btn:active { transform: translateY(0); }
-
-  .pdf-btn-ghost {
-    background: rgba(255,255,255,0.08);
-    color: #f1f5f9;
-  }
-  .pdf-btn-ghost:hover { background: rgba(255,255,255,0.14); }
-
-  .pdf-btn-primary {
-    background: linear-gradient(135deg, #f97316, #eab308);
-    color: #0b0b0c;
-  }
-  .pdf-btn-primary:hover {
-    background: linear-gradient(135deg, #fb923c, #facc15);
-  }
-
-  /* Espaco no final pra barra nao cobrir conteudo */
-  body { padding-bottom: 90px; }
-
-  /* Celular: as folhas A4 encolhem para caber na tela (--page-zoom vem do JS).
-     Só na tela — impressão e captura do PDF usam o tamanho real. */
-  @media screen {
-    .page { zoom: var(--page-zoom, 1); }
-    body.is-capturing .page { zoom: 1; }
-  }
-  @media (max-width: 480px) {
-    #pdf-action-bar { bottom: 12px; }
-    .pdf-btn { padding: 9px 14px; font-size: 11pt; }
-  }
-  body.is-capturing #pdf-action-bar { display: none; }
-
-  /* Overlay de geração / compartilhamento do PDF */
-  #pdf-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 300;
-    background: rgba(15, 23, 42, 0.78);
-    backdrop-filter: blur(4px);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    font-family: 'Inter', sans-serif;
-  }
-  #pdf-overlay.show { display: flex; }
-  #pdf-overlay .box {
-    background: #fff;
-    border-radius: 16px;
-    padding: 24px;
-    width: 100%;
-    max-width: 340px;
-    text-align: center;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-  }
-  #pdf-overlay .box h2 { font-size: 15pt; font-weight: 800; color: #0f172a; }
-  #pdf-overlay .box p  { font-size: 10.5pt; color: #64748b; margin-top: 6px; line-height: 1.45; }
-  #pdf-overlay .spinner {
-    width: 36px; height: 36px;
-    margin: 0 auto 14px;
-    border: 3px solid #e2e8f0;
-    border-top-color: #f97316;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  #pdf-overlay .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
-  #pdf-overlay .pdf-btn { justify-content: center; width: 100%; }
-  #pdf-overlay .pdf-btn-ghost { background: #f1f5f9; color: #0f172a; }
-  #pdf-overlay .pdf-btn-ghost:hover { background: #e2e8f0; }
-  .pdf-btn-wa { background: #16a34a; color: #fff; }
-  .pdf-btn-wa:hover { background: #15803d; }
-
-  /* ============================================================
-     PRINT
-     ============================================================ */
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
-  @media print {
-    html, body { background: var(--white); padding-bottom: 0 !important; }
-    /* Folha travada em A4: se algum conteúdo passar da altura, é cortado no
-       rodapé em vez de empurrar o rodapé para uma folha extra em branco. */
-    .page {
-      height: 297mm;
-      margin: 0;
-      box-shadow: none;
-      page-break-after: always;
-      break-after: page;
-    }
-    .page:last-of-type {
-      page-break-after: auto;
-      break-after: auto;
-    }
-    #pdf-action-bar, #pdf-overlay { display: none !important; }
-    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  }
-
-  /* ============================================================
-     PLACEHOLDERS — modo template "cru"
-     Texto solto entre {{ }} é exibido em monoespaçada amarelinha
-     pra ficar óbvio o que vem do backend.
-     (Removido automaticamente quando o preview popula os dados.)
-     ============================================================ */
-  body.template-raw {
-    /* nada — só pra debugar template visualmente se quiser */
-  }
+/* Celular: as folhas encolhem para caber na tela (--page-zoom vem do JS).
+   Só na tela — impressão e captura do PDF usam o tamanho real. */
+@media screen{
+  .pg{zoom:var(--page-zoom,1)}
+  body.is-capturing .pg{zoom:1}
+}
+@media (max-width:480px){
+  #pdf-action-bar{bottom:12px}
+  .pdf-btn{padding:9px 14px;font-size:11pt}
+}
+@media print{
+  html,body{background:#fff;padding-bottom:0!important}
+  .pg{margin:0;box-shadow:none}
+  .pg:last-of-type{page-break-after:auto;break-after:auto}
+  #pdf-action-bar,#pdf-overlay{display:none!important}
+}
 </style>
 </head>
-<body>
+<body class="is-loading">
+<div id="pdf-loading"><div class="spinner"></div><p style="font-size:11pt;font-weight:600">Preparando proposta…</p></div>
+<div id="pdf-error"><h1>Proposta indisponível</h1><p>Este link é inválido ou a proposta expirou. Entre em contato com o seu consultor.</p></div>
+<div id="doc"></div>
 
-<!-- Loading / Error UI (visiveis ate o fetch terminar) -->
-<style>
-  body.is-loading .page,
-  body.is-error   .page { display: none !important; }
-
-  #pdf-loading,
-  #pdf-error {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 12px;
-    background: #f8fafc;
-    color: #334155;
-    font-family: 'Inter', sans-serif;
-    z-index: 100;
-    padding: 24px;
-    text-align: center;
-  }
-  body:not(.is-loading) #pdf-loading { display: none; }
-  body:not(.is-error)   #pdf-error   { display: none; }
-
-  #pdf-loading .spinner {
-    width: 36px; height: 36px;
-    border: 3px solid #e2e8f0;
-    border-top-color: #f97316;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  #pdf-error .ico { font-size: 42pt; }
-  #pdf-error h1   { font-size: 18pt; font-weight: 900; color: #0f172a; }
-  #pdf-error p    { font-size: 11pt; max-width: 320px; line-height: 1.5; }
-</style>
-
-<div id="pdf-loading">
-  <div class="spinner"></div>
-  <p style="font-size: 11pt; font-weight: 600;">Preparando proposta…</p>
-</div>
-
-<div id="pdf-error">
-  <div class="ico">⚠️</div>
-  <h1>Proposta indisponível</h1>
-  <p>Este link é inválido ou a proposta expirou. Entre em contato com o seu consultor.</p>
-</div>
-
-<!-- ============================================================
-     PÁGINA 1 — CAPA + KIT
-     ============================================================ -->
-<section class="page" data-screen-label="01 Capa">
-
-  <header class="doc-header">
-    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar — Energia Fotovoltaica">
-    <div class="meta">
-      <div class="pid">Proposta nº {{ proposta_id }}</div>
-      <div>Emitida em {{ proposta_data }}</div>
-    </div>
-  </header>
-
-  <div class="cover-intro">
-    <div class="eyebrow">Proposta Comercial · Ágil Solar</div>
-    <h1 class="greet">Olá, <span class="accent">{{ cliente_primeiro_nome }}</span>.</h1>
-    <p class="lead mt-4">
-      Aqui está a proposta ideal para você reduzir sua conta de luz com energia solar
-      nas melhores condições do mercado. Cada número desta página foi calculado
-      especificamente para o seu consumo.
-    </p>
-  </div>
-
-  <div class="meta-strip">
-    <div class="item">
-      <span class="k">Cliente</span>
-      <span class="v">{{ cliente_nome }}</span>
-    </div>
-    {{# cliente_cidade }}
-    <div class="sep"></div>
-    <div class="item">
-      <span class="k">Cidade</span>
-      <span class="v">{{ cliente_cidade }}</span>
-    </div>
-    {{/ cliente_cidade }}
-    <div class="sep"></div>
-    <div class="item">
-      <span class="k">Validade da proposta</span>
-      <span class="v">{{ proposta_validade }}</span>
-    </div>
-  </div>
-
-  <!-- Card do kit -->
-  <div class="kit-card">
-    <div class="head">
-      <span class="lbl">Sistema recomendado</span>
-      {{# proposta_modo_kit }}
-      <span class="brand-tag">{{ kit_brand }}</span>
-      {{/ proposta_modo_kit }}
-    </div>
-
-    <div class="body">
-      <div class="name">{{ kit_nome }}</div>
-
-      {{# tem_geracao }}
-      <div class="kit-stats">
-        <div class="stat">
-          <div class="ico">
-            <!-- bolt -->
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-          </div>
-          <div>
-            <div class="v">{{ kit_power }}<small>kWp</small></div>
-            <div class="k">Potência do sistema</div>
-          </div>
-        </div>
-        <div class="stat">
-          <div class="ico">
-            <!-- sun -->
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-          </div>
-          <div>
-            <div class="v">{{ geracao_estimada }}<small>kWh/mês</small></div>
-            <div class="k">Geração estimada</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="kit-ideal">
-        Ideal para faturas de luz em torno de <strong>{{ fatura_ideal }}/mês</strong>.
-      </div>
-      {{/ tem_geracao }}
-
-      <div class="invest-block">
-        <div class="label-wrap">
-          <div class="label">Investimento total</div>
-          {{# tem_desconto }}
-          <div class="list-price">De {{ kit_list_price }}</div>
-          {{/ tem_desconto }}
-          <div class="price"><span class="currency">R$</span>{{ kit_price_num }}</div>
-        </div>
-        {{# tem_desconto }}
-        <span class="badge">Desconto ativo</span>
-        {{/ tem_desconto }}
-      </div>
-
-      <div class="pay-hint">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-        <span>
-          <strong>Parcelamos em até 18× no cartão</strong>
-          &nbsp;·&nbsp; ou financiamento em até 84 meses com 120 dias de carência.
-        </span>
-      </div>
-    </div>
-  </div>
-
-  <footer class="doc-footer">
-    <div class="col">
-      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
-      <div>{{ empresa_endereco }}</div>
-      <div>{{ empresa_site }} · {{ empresa_email }}</div>
-    </div>
-    <div class="col right">
-      <div>CNPJ {{ empresa_cnpj }}</div>
-      <div class="pagenum">Página 1 de 4</div>
-    </div>
-  </footer>
-</section>
-
-<!-- ============================================================
-     PÁGINA 2 — GERAÇÃO + ECONOMIA
-     ============================================================ -->
-<section class="page" data-screen-label="02 Geração e Economia">
-
-  <header class="doc-header">
-    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
-    <div class="meta">
-      <div class="pid">{{ cliente_primeiro_nome }} · Proposta {{ proposta_id }}</div>
-      <div>{{ proposta_data }}</div>
-    </div>
-  </header>
-
-  {{# tem_geracao }}
-  <!-- Seção: Geração mês a mês -->
-  <div class="section-head">
-    <div class="num">01</div>
-    <div class="title-wrap">
-      <div class="eyebrow">Sua geração</div>
-      <h2 class="section">Quanto seu sistema produz, mês a mês</h2>
-    </div>
-  </div>
-
-  <div class="gen-kpis">
-    <div class="gen-kpi">
-      <div class="k">Média mensal</div>
-      <div class="v">{{ geracao_media_fmt }}<small>kWh</small></div>
-    </div>
-    <div class="gen-kpi">
-      <div class="k">Total no ano</div>
-      <div class="v">{{ geracao_total_fmt }}<small>kWh</small></div>
-    </div>
-    <div class="gen-kpi">
-      <div class="k">Pico · {{ geracao_pico_mes }}</div>
-      <div class="v">{{ geracao_pico_fmt }}<small>kWh</small></div>
-    </div>
-  </div>
-
-  <div class="gen-chart">
-    <div class="gen-legend">
-      <span><i></i>Geração estimada (kWh)</span>
-      <span><i class="soft"></i>Meses de menor irradiação</span>
-      <span><i class="line"></i>Média anual</span>
-    </div>
-    {{ grafico_geracao_svg }}
-  </div>
-
-  <!-- Seção: Economia -->
-  <div class="section-head mt-6">
-    <div class="num">02</div>
-    <div class="title-wrap">
-      <div class="eyebrow">Sua projeção</div>
-      <h2 class="section">Economia real ao longo da vida útil</h2>
-    </div>
-  </div>
-
-  <div class="savings-grid">
-    <div class="save-card">
-      <span class="k">Em 1 mês</span>
-      <span class="v">{{ economia_mensal }}</span>
-      <span class="sub">Economia mensal estimada com 85% da fatura ideal.</span>
-    </div>
-    <div class="save-card">
-      <span class="k">Em 1 ano</span>
-      <span class="v">{{ economia_anual }}</span>
-      <span class="sub">Doze meses gerando sua própria energia.</span>
-    </div>
-    <div class="save-card">
-      <span class="k">Em 25 anos</span>
-      <span class="v">{{ economia_25_anos }}</span>
-      <span class="sub">Vida útil do sistema fotovoltaico instalado.</span>
-    </div>
-  </div>
-
-  <div class="payback-card">
-    <div class="left">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      </div>
-      <div>
-        <div class="k">Tempo de retorno do investimento</div>
-        <div class="title">Payback estimado do seu sistema</div>
-      </div>
-    </div>
-    <div class="v">{{ payback }}</div>
-  </div>
-
-  <p class="fine-print">
-    * {{ geracao_fonte_texto }} Os valores de economia consideram tarifa média de R$ 0,95/kWh e podem variar
-    conforme distribuidora, consumo real, sombreamento e bandeira tarifária vigente.
-  </p>
-  {{/ tem_geracao }}
-
-  {{^ tem_geracao }}
-  <div class="section-head">
-    <div class="num">01</div>
-    <div class="title-wrap">
-      <div class="eyebrow">Seu projeto</div>
-      <h2 class="section">Proposta de equipamentos</h2>
-    </div>
-  </div>
-  <p class="lead">
-    Esta proposta contempla o fornecimento dos equipamentos descritos na página anterior.
-    Para uma projeção de geração e economia, fale com o seu consultor.
-  </p>
-  {{/ tem_geracao }}
-
-  <footer class="doc-footer">
-    <div class="col">
-      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
-      <div>{{ empresa_endereco }}</div>
-      <div>{{ empresa_site }} · {{ empresa_email }}</div>
-    </div>
-    <div class="col right">
-      <div>CNPJ {{ empresa_cnpj }}</div>
-      <div class="pagenum">Página 2 de 4</div>
-    </div>
-  </footer>
-</section>
-
-<!-- ============================================================
-     PÁGINA 3 — PAGAMENTO + CHAVE NA MÃO
-     ============================================================ -->
-<section class="page" data-screen-label="03 Pagamento e Escopo">
-
-  <header class="doc-header">
-    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
-    <div class="meta">
-      <div class="pid">{{ cliente_primeiro_nome }} · Proposta {{ proposta_id }}</div>
-      <div>{{ proposta_data }}</div>
-    </div>
-  </header>
-
-  <!-- Seção: Pagamento -->
-  <div class="section-head">
-    <div class="num">{{ sec_pagamento }}</div>
-    <div class="title-wrap">
-      <div class="eyebrow">Facilidades</div>
-      <h2 class="section">Condições de pagamento</h2>
-    </div>
-  </div>
-
-  <div class="pay-grid">
-    <div class="pay-card cartao">
-      <div class="pay-head">
-        <div class="pay-lbl">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-          Cartão de crédito
-        </div>
-        <div class="pay-feature"><span class="big">18×</span><span class="rest">de {{ cartao_parcela_18 }}</span></div>
-        <div class="pay-sub">na máquina · principais bandeiras · aprovação na hora</div>
-      </div>
-      <div class="parc-tab">{{ cartao_tabela_html }}</div>
-    </div>
-
-    <div class="pay-card financ">
-      <div class="pay-head">
-        <div class="pay-lbl">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
-          Financiamento
-        </div>
-        <div class="pay-feature"><span class="big">100%</span><span class="rest">financiado</span></div>
-        <div class="pay-sub">pelos parceiros financeiros homologados</div>
-      </div>
-      <div class="financ-body">
-        <div class="financ-tl">
-          <div class="bar"></div>
-          <div class="st now"><div class="dot"></div><b>Hoje</b>instalação</div>
-          <div class="st"><div class="dot"></div><b>120 dias</b>1ª parcela</div>
-          <div class="st"><div class="dot"></div><b>84 meses</b>para pagar</div>
-        </div>
-        <div class="financ-ck">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-          Parcela pensada para caber na economia da sua conta de luz.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {{# proposta_modo_personalizada }}
-  {{# custom_payment_note }}
-  <div class="note-card mt-6">
-    <div class="lbl">Condições personalizadas</div>
-    {{ custom_payment_note }}
-  </div>
-  {{/ custom_payment_note }}
-  {{# custom_commercial_note }}
-  <div class="note-card">
-    <div class="lbl">Observação comercial</div>
-    {{ custom_commercial_note }}
-  </div>
-  {{/ custom_commercial_note }}
-  {{/ proposta_modo_personalizada }}
-
-  <p class="fine-print">
-    * Valores no cartão já incluem a taxa da operadora. Nem todos os cartões de crédito autorizam parcelamentos acima de 12×. Sujeito a análise da operadora
-    e aprovação de crédito junto aos parceiros financeiros.
-  </p>
-
-  <!-- Chave na mão -->
-  <div class="section-head mt-10">
-    <div class="num">{{ sec_escopo }}</div>
-    <div class="title-wrap">
-      <div class="eyebrow">Projeto chave na mão</div>
-      <h2 class="section">O que está incluso no seu sistema</h2>
-    </div>
-  </div>
-
-  <div class="kvc-grid">
-    <div class="kvc">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-      </div>
-      <div>
-        <h3>Equipamentos Premium</h3>
-        <p>Painéis, inversores e estruturas de fixação das melhores marcas globais.</p>
-      </div>
-    </div>
-    <div class="kvc">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
-      </div>
-      <div>
-        <h3>Instalação Especializada</h3>
-        <p>Equipe técnica própria e qualificada seguindo rigorosas normas de segurança.</p>
-      </div>
-    </div>
-    <div class="kvc">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M21 3l-9 9M10 3H3v7M3 14v7h7M21 14v7h-7"/></svg>
-      </div>
-      <div>
-        <h3>Homologação</h3>
-        <p>Tratamos de toda a burocracia do projeto junto à distribuidora de energia.</p>
-      </div>
-    </div>
-    <div class="kvc">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
-      </div>
-      <div>
-        <h3>App de Monitoramento</h3>
-        <p>Acompanhe a geração de energia em tempo real direto do seu celular.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Garantias -->
-  <div class="warranty-grid mt-6">
-    <div class="warranty">
-      <div class="yrs">{{ garantia_paineis }}<small>anos</small></div>
-      <div class="lbl">
-        <strong>Módulos Fotovoltaicos</strong>
-        Garantia de eficiência de geração ao longo da vida útil dos painéis.
-      </div>
-    </div>
-    <div class="warranty">
-      <div class="yrs">{{ garantia_inversor }}<small>anos</small></div>
-      <div class="lbl">
-        <strong>Inversores</strong>
-        Garantia real do fabricante contra defeitos de fabricação.
-      </div>
-    </div>
-  </div>
-
-  <footer class="doc-footer">
-    <div class="col">
-      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
-      <div>{{ empresa_endereco }}</div>
-      <div>{{ empresa_site }} · {{ empresa_email }}</div>
-    </div>
-    <div class="col right">
-      <div>CNPJ {{ empresa_cnpj }}</div>
-      <div class="pagenum">Página 3 de 4</div>
-    </div>
-  </footer>
-</section>
-
-<!-- ============================================================
-     PÁGINA 4 — INSTITUCIONAL + CONSULTOR
-     ============================================================ -->
-<section class="page" data-screen-label="04 Institucional e Contato">
-
-  <header class="doc-header">
-    <img class="logo" src="assets/img/logo-light.png" alt="Ágil Solar">
-    <div class="meta">
-      <div class="pid">{{ cliente_primeiro_nome }} · Proposta {{ proposta_id }}</div>
-      <div>{{ proposta_data }}</div>
-    </div>
-  </header>
-
-  <!-- Quem somos -->
-  <div class="section-head">
-    <div class="num">{{ sec_sobre }}</div>
-    <div class="title-wrap">
-      <div class="eyebrow">Quem somos</div>
-      <h2 class="section">Ágil Solar, transformando o sol em economia</h2>
-    </div>
-  </div>
-
-  <div class="quem-somos" style="margin-top: 0;">
-    <p>
-      Somos uma empresa especializada em soluções inteligentes em energia. Desde 2020, já
-      atendemos milhares de clientes em todo o Brasil, oferecendo economia, eficiência e segurança
-      por meio de projetos personalizados, tecnologia de ponta e equipe altamente capacitada.
-      Muito além de transformar o sol em energia, nós transformamos vidas — gerando lucros reais
-      para nossos clientes e sustentabilidade para o planeta.
-    </p>
-  </div>
-
-  <div class="stats-row mt-6">
-    <div class="stat-mini">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.5-7-12a7 7 0 1 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
-      </div>
-      <div>
-        <div class="v">8 Estados</div>
-        <div class="k">Presença nacional</div>
-      </div>
-    </div>
-    <div class="stat-mini">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l2-5h14l2 5"/><path d="M3 9v11h18V9"/><path d="M9 20v-6h6v6"/></svg>
-      </div>
-      <div>
-        <div class="v">+35</div>
-        <div class="k">Unidades</div>
-      </div>
-    </div>
-    <div class="stat-mini">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a8 8 0 0 1 16 0v2H4z"/><path d="M2 13h20v3H2z"/></svg>
-      </div>
-      <div>
-        <div class="v">+4.000</div>
-        <div class="k">Projetos instalados</div>
-      </div>
-    </div>
-    <div class="stat-mini">
-      <div class="ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
-      </div>
-      <div>
-        <div class="v">+150</div>
-        <div class="k">Municípios atendidos</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Próximos passos -->
-  <div class="section-head mt-10">
-    <div class="num">{{ sec_contato }}</div>
-    <div class="title-wrap">
-      <div class="eyebrow">Vamos começar</div>
-      <h2 class="section">Fale com o seu consultor</h2>
-    </div>
-  </div>
-
-  <!-- Consultor + QR do WhatsApp. Os <a data-pdf-link> viram áreas clicáveis
-       no PDF gerado (a imagem do html2canvas não leva links). -->
-  <div class="consultor-card{{# tem_whatsapp }} has-qr{{/ tem_whatsapp }}">
-    <div class="cc-info">
-      <div class="lbl">Seu consultor</div>
-      <div class="top">
-        <div class="avatar">{{ vendedor_inicial }}</div>
-        <div>
-          <div class="name">{{ vendedor_nome }}</div>
-          <div class="role">Especialista Ágil Solar</div>
-        </div>
-      </div>
-      {{# tem_whatsapp }}
-      <a class="cc-fone" href="{{ vendedor_whatsapp_url }}" target="_blank" rel="noopener" data-pdf-link>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-        <span>{{ vendedor_telefone }}</span>
-      </a>
-      {{/ tem_whatsapp }}
-      {{^ tem_whatsapp }}{{# vendedor_telefone }}
-      <div class="cc-fone">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92V21a1 1 0 0 1-1.1 1A19 19 0 0 1 2 4.1 1 1 0 0 1 3 3h4.09a1 1 0 0 1 1 .75l1 4a1 1 0 0 1-.29 1L7 10.5a16 16 0 0 0 6.5 6.5l1.75-1.75a1 1 0 0 1 1-.29l4 1a1 1 0 0 1 .75 1z"/></svg>
-        <span>{{ vendedor_telefone }}</span>
-      </div>
-      {{/ vendedor_telefone }}{{/ tem_whatsapp }}
-      <div class="cc-meta">
-        Proposta válida até {{ proposta_validade }}{{# tem_geracao }} · <strong>+{{ arvores_salvas }} árvores salvas</strong> com energia limpa{{/ tem_geracao }}
-      </div>
-    </div>
-    {{# tem_whatsapp }}
-    <a class="cc-qr" href="{{ vendedor_whatsapp_url }}" target="_blank" rel="noopener" data-pdf-link>
-      <div class="qr-box" id="consultor-qr"></div>
-      <div class="qr-txt">Aponte a câmera e fale comigo no WhatsApp</div>
-    </a>
-    {{/ tem_whatsapp }}
-  </div>
-
-  <p class="fine-print mt-6">
-    Após a validade, confirme valores e condições com o seu consultor.
-  </p>
-
-  <footer class="doc-footer">
-    <div class="col">
-      <div class="brand-mark">Ágil Solar · Energia Fotovoltaica</div>
-      <div>{{ empresa_endereco }}</div>
-      <div>{{ empresa_site }} · {{ empresa_email }}</div>
-    </div>
-    <div class="col right">
-      <div>CNPJ {{ empresa_cnpj }}</div>
-      <div class="pagenum">Página 4 de 4</div>
-    </div>
-  </footer>
-</section>
-<!-- ============================================================
-     RENDERER — Busca proposta no Supabase, calcula derivados e popula
-     os placeholders com mini Mustache.
-     Suporta ?id=<uuid>. Barra inferior: Voltar | Baixar PDF (| Imprimir no desktop).
-     O PDF é gerado no próprio aparelho (html2canvas + jsPDF), então funciona
-     também no celular e dentro do navegador do WhatsApp, onde print() falha.
-     ============================================================ -->
 <script>
 (function () {
-  document.body.classList.add('is-loading');
-
   var urlParams  = new URLSearchParams(window.location.search);
   var propostaId = urlParams.get('id');
-  var dadosProposta = null;
+  var D = null;          // dados da proposta já calculados (montarDados)
+  var arquivoPdf = 'Proposta-Agil-Solar.pdf';
+  var IMG = 'assets/img/proposta/';
 
-  // Valores que já são HTML confiável (gerado aqui) — o resto é escapado.
-  var CAMPOS_HTML = { grafico_geracao_svg: true, cartao_tabela_html: true };
-
+  // ---------- utilitários ----------
   function isValidUUID(v) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || '').trim());
   }
@@ -1663,19 +399,18 @@
     document.body.classList.remove('is-loading');
     document.body.classList.add('is-error');
   }
-  function fmt(n) {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
-  }
-  function fmtInt(n) {
-    return Math.round(n || 0).toLocaleString('pt-BR');
-  }
-  function firstName(s) {
-    return String(s || 'Cliente').trim().split(/\s+/)[0] || 'Cliente';
-  }
   function esc(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+  function firstName(s) { return String(s || 'Cliente').trim().split(/\s+/)[0] || 'Cliente'; }
+  // Nome cadastrado todo em maiúsculas vira "Thalyta Carolina" (de/da/do ficam minúsculos).
+  function nomeBonito(s) {
+    var t = String(s || '').trim();
+    if (!t || t !== t.toUpperCase()) return t;
+    return t.toLowerCase().replace(/(^|\s)(\S)/g, function (m, esp, l) { return esp + l.toUpperCase(); })
+      .replace(/\s(D[aeo]s?|E)\s/g, function (m) { return m.toLowerCase(); });
   }
   function fmtTelefone(s) {
     var d = String(s || '').replace(/\D/g, '');
@@ -1692,246 +427,502 @@
       + (numero ? ' nº ' + numero : '') + ' da Ágil Solar e quero conversar.';
     return 'https://wa.me/55' + d + '?text=' + encodeURIComponent(msg);
   }
-  // Parcelas no cartão: taxas e fórmula em assets/js/proposta-calc.js
-  // (as mesmas da proposta web).
-  function tabelaCartao(valor, taxasCartao) {
-    var html = '', parcela18 = '';
-    propostaParcelasCartao(valor, taxasCartao).forEach(function (x) {
-      if (x.n === 18) parcela18 = fmt(x.parcela);
-      html += '<div' + (x.n % 6 === 0 ? ' class="hl"' : '') + '><span>' + x.n + '×</span><b>' + fmt(x.parcela) + '</b></div>';
-    });
-    return { html: html, parcela18: parcela18 };
-  }
   function slug(s) {
     return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '');
   }
+  var brl = function (v, d) { d = d == null ? 2 : d; return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }); };
+  var int = function (v) { return Math.round(v || 0).toLocaleString('pt-BR'); };
+  var din = function (v, d) { return '<span class="rs">R$</span>' + brl(v, d); };
+  var kwpFmt = function (v) { return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var kwFmt = function (v) { return Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 }); };
 
+  // TIR de 25 anos: investimento hoje e a mesma economia todo ano (sem reajuste, como o resto da conta).
+  function tir() {
+    if (!(D.economiaAnual > 0) || !(D.preco > 0)) return 0;
+    var lo = 0, hi = 5;
+    for (var i = 0; i < 100; i++) {
+      var r = (lo + hi) / 2, vpl = -D.preco;
+      for (var k = 1; k <= 25; k++) vpl += D.economiaAnual / Math.pow(1 + r, k);
+      if (vpl > 0) lo = r; else hi = r;
+    }
+    return lo * 100;
+  }
+
+  // ---------- dados ----------
+  // Placa e inversor: do kit_snapshot (kits) ou da proposta personalizada.
+  function equipamento(snap, nomeCustom, qtdCustom) {
+    var nome = (snap && snap.nome) || nomeCustom || '';
+    if (!nome) return null;
+    var potW = Number(snap && snap.potencia_wp) || 0;
+    if (!potW) { var m = String(nome).match(/(\d{3,5})\s*W\b/i); if (m) potW = Number(m[1]); }
+    return {
+      nome: nome,
+      marca: (snap && snap.marca) || '',
+      qtd: Number((snap && snap.qtd) || qtdCustom) || null,
+      potW: potW || null,
+    };
+  }
+
+  function montarDados(p) {
+    var num = calcularNumerosProposta(p);
+    var temGeracao = num.geracao > 0;
+    var mensal = temGeracao ? calcularGeracaoMensal(num.geracao, p.cidade_hsp_mensal, p.cidade_hsp_anual) : { valores: [], fonte: '' };
+    var valores = mensal.valores.map(function (v) { return Math.round(v); });
+    var modulo = equipamento(p.kit_modulo, p.custom_modulo_nome, p.custom_modulo_qty);
+    var inversor = equipamento(p.kit_inversor, p.custom_inversor_nome, p.custom_inversor_qty);
+    if (inversor && !inversor.qtd) inversor.qtd = 1;
+    var criada = new Date(p.created_at);
+    var validade = propostaValidade(p.created_at);
+    var precoDe = !num.personalizada && Number(p.kit_list_price) > num.preco ? Number(p.kit_list_price) : null;
+    var cidade = formatarCidadeUF(p.cliente_cidade);
+    var consumo = Number(p.consumo_medio) > 0 ? Number(p.consumo_medio) : null;
+
+    return {
+      numero: p.numero || '—',
+      data: criada.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
+      dataCurta: criada.toLocaleDateString('pt-BR'),
+      validade: validade.toLocaleDateString('pt-BR') + ' às ' + validade.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      cliente: nomeBonito(p.cliente_nome) || 'Cliente',
+      primeiro: firstName(nomeBonito(p.cliente_nome)),
+      cidade: cidade,
+      consumo: consumo,
+      consultor: {
+        nome: p.vendedor_nome || 'Consultor Ágil Solar',
+        // sem telefone do consultor, vale o da unidade
+        tel: fmtTelefone(p.vendedor_telefone || p.franquia_telefone),
+        wa: whatsappUrl(p.vendedor_telefone || p.franquia_telefone, p.vendedor_nome, p.numero),
+        unidade: p.franquia_nome || 'Ágil Solar',
+      },
+      empresa: {
+        cnpj: p.franquia_cnpj || '',
+        end: String(p.franquia_endereco || p.franquia_cidade || '').replace(/\s+([,.;])/g, '$1').replace(/\s{2,}/g, ' ').trim(),
+        site: p.franquia_site || 'agilsolar.com',
+        email: p.franquia_email || '',
+        insta: '@agilsolar',
+      },
+      linkProposta: linkProposta({ id: propostaId, codigo: p.codigo }),
+      kit: num.nome || p.kit_nome || 'Sistema fotovoltaico',
+      modulo: modulo,
+      inversor: inversor,
+      telhado: p.estrutura_nome || '',
+      garantiaPlacas: Number(p.franquia_garantia_paineis_anos) || 25,
+      garantiaInversor: Number(p.franquia_garantia_inversor_anos) || 10,
+      kwp: num.potencia,
+      preco: num.preco,
+      precoDe: precoDe,
+      temGeracao: temGeracao,
+      fonteCidade: mensal.fonte === 'cidade',
+      geracao: num.geracao,
+      mensal: valores,
+      geracaoAno: valores.reduce(function (a, b) { return a + b; }, 0),
+      economiaMensal: num.economiaMensal,
+      economiaAnual: num.economiaAnual,
+      economia25: num.economia25Anos,
+      contaSem: Math.round(num.faturaIdeal * 100) / 100,
+      meses: num.mesesPayback,
+      payback: num.payback,
+      area: modulo && modulo.qtd ? modulo.qtd * 2.6 : num.potencia * 4.3,
+      co2: num.co2Toneladas,
+      arvores: num.arvores,
+      carro: num.carroAnos,
+      cartaoTaxas: p.cartao_taxas,
+      notaPagamento: p.custom_payment_note || '',
+      notaComercial: p.custom_commercial_note || '',
+      nomesMes: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+    };
+  }
+
+  // ---------- ícones (traço) ----------
+  var IC = {
+    raio: '<path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/>',
+    sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moeda: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6v2M12 16v2"/>',
+    grafico: '<path d="M3 20h18M6 16l4-5 3 3 5-7"/><path d="M15 7h3v3"/>',
+    relogio: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    placa: '<path d="M4 6h16l-2 12H2L4 6zM3 12h16M9 6l-1.5 12M15 6l-1 12"/>',
+    inversor: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12l2 2 4-4M9 17h6"/>',
+    arvore: '<path d="M12 22v-6M12 2l6 8h-3l4 6H5l4-6H6l6-8z"/>',
+    carro: '<path d="M5 16h14M3 16v-3l2-5h14l2 5v3M5 16v2M19 16v2"/><circle cx="7.5" cy="13" r="1"/><circle cx="16.5" cy="13" r="1"/>',
+    nuvem: '<path d="M7 18h10a4 4 0 00.5-8A6 6 0 006 9.5 4.3 4.3 0 007 18z"/>',
+    cartao: '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3 10h18"/>',
+    banco: '<path d="M3 9.5L12 4l9 5.5M5 10v7M9.5 10v7M14.5 10v7M19 10v7M3 20h18"/>',
+    seta: '<path d="M4 12h15M13 6l6 6-6 6"/>',
+    ok: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+    telhado: '<path d="M2 13l10-8 10 8M5 11v9h14v-9"/><path d="M9 20v-4h6v4"/>',
+    ferramenta: '<path d="M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.5-.5-.5-2.5 2.5-2.5z"/>',
+    documento: '<path d="M14 3H6a1 1 0 00-1 1v16a1 1 0 001 1h12a1 1 0 001-1V8l-5-5z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+    celular: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>',
+    medidor: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8v4H8zM8 16h2M14 16h2"/>',
+    fone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>',
+    email: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    local: '<path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+    escudo: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M8.5 12l2.5 2.5 4.5-4.5"/>',
+    caminhao: '<path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+    regua: '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+    globo: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>',
+    insta: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/>',
+  };
+  function ic(k) {
+    return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[k] + '</svg>';
+  }
+
+  // ---------- gráficos (SVG só com formas e rótulos pequenos) ----------
+  function graficoGeracaoConsumo() {
+    var W = 640, H = 330, L = 40, R = 8, T = 26, B = 28;
+    var topo = Math.max.apply(null, D.mensal.concat([D.consumo || 0]));
+    var passo = topo > 2000 ? 1000 : topo > 1000 ? 500 : 200;
+    var max = Math.ceil(topo * 1.12 / passo) * passo || passo;
+    var y = function (v) { return T + (H - T - B) * (1 - v / max); };
+    var bw = (W - L - R) / 12, g = '';
+    for (var v = 0; v <= max; v += passo) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="#E2E8EE"/><text x="' + (L - 7) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="10.5" fill="#8A97A2">' + int(v) + '</text>';
+    D.mensal.forEach(function (val, i) {
+      var x = L + i * bw + bw * 0.16, w = bw * 0.68;
+      var claro = D.consumo && val < D.consumo;
+      g += '<rect x="' + x + '" y="' + y(val) + '" width="' + w + '" height="' + (y(0) - y(val)) + '" rx="4" fill="' + (claro ? '#8ACDEE' : '#008FD4') + '"/>';
+      g += '<text x="' + (x + w / 2) + '" y="' + (y(val) - 6) + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="#0F2533">' + int(val) + '</text>';
+      g += '<text x="' + (x + w / 2) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="#6B7883">' + D.nomesMes[i] + '</text>';
+    });
+    if (D.consumo) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(D.consumo) + '" y2="' + y(D.consumo) + '" stroke="#FAA519" stroke-width="3" stroke-dasharray="9 6"/>';
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" font-family="Plus Jakarta Sans, Arial, sans-serif">' + g + '</svg>';
+  }
+
+  // Saldo acumulado em 25 anos. A etiqueta do retorno e o lucro final vão em HTML por cima
+  // (posição em % do desenho), para sair com a fonte certa no PDF.
+  function graficoRetorno() {
+    var W = 1000, H = 300, L = 56, R = 8, T = 16, B = 26;
+    var anos = []; for (var k = 0; k <= 25; k++) anos.push(-D.preco + D.economiaAnual * k);
+    var passo = anos[25] > 400000 ? 100000 : anos[25] > 200000 ? 50000 : 20000;
+    var max = Math.ceil(anos[25] / passo) * passo, min = -Math.ceil(D.preco / passo) * passo;
+    var y = function (v) { return T + (H - T - B) * (max - v) / (max - min); };
+    var bw = (W - L - R) / 26, g = '';
+    for (var v = min; v <= max; v += passo) g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="' + (v === 0 ? '#9AA8B4' : '#E2E8EE') + '"' + (v === 0 ? ' stroke-width="1.4"' : '') + '/><text x="' + (L - 8) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="11" fill="#8A97A2">' + (v === 0 ? '0' : (v / 1000).toLocaleString('pt-BR') + ' mil') + '</text>';
+    anos.forEach(function (val, k) {
+      var x = L + k * bw + bw * 0.18, w = bw * 0.64;
+      var top = Math.min(y(val), y(0)), h = Math.abs(y(val) - y(0));
+      g += '<rect x="' + x + '" y="' + top + '" width="' + w + '" height="' + Math.max(h, 1) + '" rx="3" fill="' + (val < 0 ? '#FAA519' : '#008FD4') + '"/>';
+      if (k % 5 === 0) g += '<text x="' + (x + w / 2) + '" y="' + (H - 7) + '" text-anchor="middle" font-size="11.5" fill="#6B7883">' + (k === 0 ? 'Hoje' : 'Ano ' + k) + '</text>';
+    });
+    var xp = L + Math.min(D.meses / 12, 25) * bw + bw * 0.5;
+    g += '<line x1="' + xp + '" x2="' + xp + '" y1="' + (T + 30) + '" y2="' + y(0) + '" stroke="#0F2533" stroke-width="1.6" stroke-dasharray="4 4"/>';
+    g += '<circle cx="' + xp + '" cy="' + y(0) + '" r="6" fill="#0F2533"/>';
+    var xf = L + 19 * bw;
+    var pct = function (a, total) { return (a / total * 100).toFixed(2) + '%'; };
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" font-family="Plus Jakarta Sans, Arial, sans-serif">' + g + '</svg>'
+      + '<div class="pilula" style="left:' + pct(xp - 14, W) + ';top:' + pct(T, H) + '">Investimento pago em ' + esc(D.payback) + '</div>'
+      + '<div class="lucro" style="right:' + pct(W - xf, W) + ';top:' + pct(y(anos[25]) - 14, H) + '"><b>R$ ' + int(anos[25]) + '</b><span>de lucro em 25 anos</span></div>';
+  }
+
+  // Fundo da capa: forma laranja arredondada + linhas azuis finas (por baixo da forma).
+  function fundoCapa() {
+    return '<svg class="fundo-capa" viewBox="0 0 297 210" preserveAspectRatio="none" aria-hidden="true">'
+      + '<defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7A21B"/><stop offset="1" stop-color="#FBB540"/></linearGradient></defs>'
+      + '<g fill="none" stroke="#008FD4" stroke-width=".45"><path d="M118 -2 Q130 4 136 14 L262 214"/><path d="M232 104 L192 166 L299 166"/><path d="M-2 176 L20 212"/></g>'
+      + '<path d="M150 -2 L297 -2 L297 128 L262 128 Q238 128 226 108 Z" fill="url(#lg)"/>'
+      + '<path d="M176 -2 L297 -2 L297 112 L266 112 Q246 112 236 95 Z" fill="#FBB743" opacity=".55"/>'
+      + '</svg>';
+  }
+
+  // Cena do "Como funciona" (imagem 1536 × 1024, sem texto): setas em SVG, o resto em HTML por cima.
+  function cenaSobreposta() {
+    var X = function (x) { return (x / 15.36).toFixed(2) + '%'; };
+    var Y = function (y) { return (y / 10.24).toFixed(2) + '%'; };
+    var selo = function (x, y, n) { return '<div class="sl" style="left:' + X(x) + ';top:' + Y(y) + '">' + n + '</div>'; };
+    var legenda = function (x, y, t, s) { return '<div class="lg" style="left:' + X(x) + ';top:' + Y(y) + '">' + t + (s ? '<span>' + s + '</span>' : '') + '</div>'; };
+    return '<img src="' + IMG + 'cena-como-funciona.webp" alt="">'
+      + '<svg viewBox="0 0 1536 1024" aria-hidden="true"><defs>'
+      + '<marker id="c5-lar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#FAA519"/></marker>'
+      + '<marker id="c5-az" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#008FD4"/></marker></defs>'
+      + '<g stroke="#FAA519" stroke-width="7" stroke-dasharray="20 16" stroke-linecap="round" fill="none"><line x1="232" y1="190" x2="455" y2="340" marker-end="url(#c5-lar)"/><line x1="205" y1="222" x2="320" y2="395" marker-end="url(#c5-lar)"/></g>'
+      + '<line x1="1175" y1="590" x2="1290" y2="470" stroke="#008FD4" stroke-width="8" stroke-linecap="round" marker-start="url(#c5-az)" marker-end="url(#c5-az)"/>'
+      + '</svg>'
+      + '<div class="troca" style="right:' + X(1536 - 1150) + ';top:' + Y(478) + '">troca de energia<br>com a rede</div>'
+      + '<div class="dn"><div><i></i><span><b>De dia:</b> o que sobra vira crédito</span></div><div><i class="lua"></i><span><b>À noite:</b> sua casa usa o crédito</span></div></div>'
+      + legenda(470, 905, 'Sua casa') + legenda(1060, 905, 'Medidor', 'mede o que entra e o que sai') + legenda(1372, 905, 'Rede', 'guarda os seus créditos')
+      + '<div class="ilus">imagem ilustrativa</div>'
+      + selo(178, 352, 1) + selo(762, 630, 2) + selo(332, 592, 3) + selo(1050, 634, 4);
+  }
+
+  // ---------- páginas ----------
+  function montarPaginas() {
+    var nomeCli = esc(D.cliente), primeiro = esc(D.primeiro), cidade = esc(D.cidade);
+    var mod = D.modulo, inv = D.inversor;
+    var parcelas = propostaParcelasCartao(D.preco, D.cartaoTaxas);
+    var parcela = function (n) { return parcelas[n - 1].parcela; };
+    var paginas = [];
+
+    var topo = function () {
+      return '<header class="topo"><img src="' + IMG + 'logo-cor.png" alt="Ágil Solar"><div class="ref"><b>' + nomeCli + '</b><br>Proposta ' + esc(D.numero) + ' · ' + esc(D.data) + '</div></header>';
+    };
+    var cab = function (olho, titulo, lead) {
+      return '<div class="cab"><div><div class="olho">' + olho + '</div><h2>' + titulo + '</h2></div>' + (lead ? '<p class="lead">' + lead + '</p>' : '') + '</div>';
+    };
+    var folha = function (conteudo) { paginas.push({ conteudo: conteudo }); };
+
+    // 1. Capa
+    paginas.push({ capa: true, html: '<section class="pg capa">' + fundoCapa()
+      + '<div class="conteudo"><div class="marca"><img src="' + IMG + 'logo-cor.png" alt="Ágil Solar"></div>'
+      + '<h1>Proposta<br>comercial</h1><div class="traco"></div>'
+      + '<div class="cliente">' + nomeCli + '</div>' + (cidade ? '<div class="cidade">' + cidade + '</div>' : '')
+      + '<div class="rodape-capa"><div class="dados">'
+      + '<div>Proposta<b>' + esc(D.numero) + '</b></div>'
+      + '<div>Sistema<b class="kwp">' + kwpFmt(D.kwp) + ' kWp</b></div>'
+      + '<div>Emitida em<b>' + esc(D.dataCurta) + '</b></div>'
+      + '<div>Responsável comercial<b>' + esc(D.consultor.nome) + '</b></div>'
+      + '</div><div class="redes"><span>' + ic('insta') + ' ' + esc(D.empresa.insta) + '</span><span>' + ic('globo') + ' ' + esc(D.empresa.site) + '</span></div></div>'
+      + '</div></section>' });
+
+    // 2. Resumo: a conta de hoje × a conta com solar
+    var mini = '<div><span class="num">' + kwpFmt(D.kwp) + '<small>kWp</small></span><span class="k">potência</span></div>'
+      + (D.temGeracao ? '<div><span class="num">' + int(D.geracao) + '<small>kWh</small></span><span class="k">geração por mês</span></div>' : '')
+      + (mod && mod.qtd ? '<div><span class="num">' + mod.qtd + '<small>placas</small></span><span class="k">' + esc((mod.marca ? mod.marca + ' ' : '') + (mod.potW ? mod.potW + ' W' : '')) + '</span></div>' : '')
+      + (inv && inv.potW ? '<div><span class="num">' + kwFmt(inv.potW / 1000) + '<small>kW</small></span><span class="k">inversor ' + esc(inv.marca) + '</span></div>' : '');
+    var faixaRes = '<div class="faixa-res"><div><div class="rot">Seu sistema</div><div class="mini4">' + mini + '</div></div>'
+      + '<div><div class="rot">Investimento' + (D.precoDe ? '<span class="de">De R$ ' + brl(D.precoDe) + '</span>' : '') + '</div>'
+      + '<div class="preco">' + din(D.preco) + '</div>'
+      + '<div class="ou">ou <b>18× de R$ ' + brl(parcela(18)) + '</b> · financiamento em 84 meses</div></div>'
+      + '<div><div class="qr-p"><div class="box" data-qr="' + esc(D.linkProposta) + '"></div><div><b>Proposta online</b>aponte a câmera do celular</div></div></div></div>';
+    if (D.temGeracao) {
+      var comSolar = D.contaSem - D.economiaMensal;
+      var pctSolar = Math.max(comSolar / D.contaSem * 100, 19); // largura mínima para o valor caber na barra
+      var pago = esc(D.payback).replace(' e ', '<br>e ');
+      folha(cab('Sua proposta em uma página', 'Olá, ' + primeiro + '. Este é o seu sistema.', 'Calculado para o seu consumo' + (cidade ? ' e para a irradiação solar de ' + cidade : '') + '.')
+        + '<div class="ad"><div><div class="olho">Sua economia</div>'
+        + '<div class="eco-g">' + din(D.economiaMensal) + '</div><div class="eco-l">a menos na sua conta de luz, todo mês</div>'
+        + '<div class="eco-mais"><div>em 1 ano<b>R$ ' + brl(D.economiaAnual) + '</b></div><div>em 25 anos<b>R$ ' + int(D.economia25) + '</b></div><div>se paga em<b>' + pago + '</b></div></div></div>'
+        + '<div class="barras">'
+        + '<div class="barra"><div class="k">SUA CONTA HOJE</div><div class="trilho"><div class="b hoje"><b>R$ ' + brl(D.contaSem) + '</b> é o que você paga hoje</div></div></div>'
+        + '<div class="barra"><div class="k">COM ENERGIA SOLAR</div><div class="trilho"><div class="b solar" style="width:' + pctSolar + '%">R$ ' + brl(comSolar) + '</div>'
+        + '<div class="sobra" style="left:calc(' + pctSolar + '% + 2mm)"><b>R$ ' + brl(D.economiaMensal) + '</b> que você deixa de pagar</div></div></div>'
+        + '<p class="miudo">A taxa mínima da distribuidora e a iluminação pública continuam na conta.</p></div></div>'
+        + faixaRes);
+    } else {
+      folha(cab('Sua proposta em uma página', 'Olá, ' + primeiro + '. Esta é a sua proposta.', '')
+        + '<div class="sem-geracao"><h3>' + esc(D.kit) + '</h3><p>Esta proposta contempla o fornecimento dos equipamentos descritos nas próximas páginas. Para uma projeção de geração e economia, fale com o seu consultor.</p></div>'
+        + faixaRes);
+    }
+
+    // 3. Quem somos: números grandes + fotos dos clientes
+    var caso = function (n, nome, txt) {
+      return '<div class="foto-caso"><div class="ft" style="background-image:url(' + IMG + 'caso-' + n + '.jpg)"></div><div class="depo"><div class="estrelas">★★★★★</div><h3>' + nome + '</h3><p>“' + txt + '”</p></div></div>';
+    };
+    folha(cab('Quem somos', 'Ágil Solar, transformando o sol em economia', 'Desde 2020 levando economia, eficiência e segurança com projetos personalizados, tecnologia de ponta e equipe capacitada.')
+      + '<div class="numeros-faixa"><div><span class="num">+4.000</span><span class="k">projetos instalados</span></div><div><span class="num">+35</span><span class="k">unidades</span></div><div><span class="num">8</span><span class="k">estados com presença</span></div><div><span class="num">+150</span><span class="k">municípios atendidos</span></div></div>'
+      + '<div class="fotos">'
+      + caso(1, 'Colégio Severino Judá', 'A experiência com a Ágil Solar mudou nossa visão: equipe atenciosa, transparente e que cuida como quem realmente se importa.')
+      + caso(2, 'Santa Casa Saúde', 'Pagávamos mais de R$ 8.000 e hoje só o mínimo. Escolhemos a Ágil Solar pelo profissionalismo do projeto à execução.')
+      + caso(3, 'Estefani · residencial', 'Pagávamos mais de R$ 600 e hoje só a taxa mínima. Economia real e zero preocupação. A Ágil é 100%.')
+      + '</div>');
+
+    // 4. Seu projeto (só com geração)
+    if (D.temGeracao) {
+      var heroi = D.consumo
+        ? '<div class="olho">Seu sistema gera</div><div class="pct">' + Math.round(D.geracao / D.consumo * 100) + '%</div><div class="pct-l">do seu consumo de energia, na média do ano</div>'
+          + '<div class="comp"><div><i></i> Geração média <b>' + int(D.geracao) + ' kWh/mês</b></div><div><i class="lar"></i> Seu consumo <b>' + int(D.consumo) + ' kWh/mês</b></div></div>'
+        : '<div class="olho">Seu sistema gera</div><div class="pct">' + int(D.geracao) + '<small>kWh/mês</small></div><div class="pct-l">de energia, na média do ano</div>'
+          + '<div class="comp"><div><i></i> Geração anual <b>' + int(D.geracaoAno) + ' kWh</b></div></div>';
+      var fichas = [
+        ['raio', 'Potência', kwpFmt(D.kwp) + ' kWp'],
+        mod && mod.qtd ? ['placa', 'Placas', mod.qtd + (mod.potW ? ' × ' + mod.potW + ' W' : '')] : null,
+        inv ? ['inversor', 'Inversor', (inv.marca ? inv.marca + ' ' : '') + (inv.potW ? kwFmt(inv.potW / 1000) + ' kW' : inv.nome)] : null,
+        ['grafico', 'Geração anual', int(D.geracaoAno) + ' kWh'],
+        D.telhado ? ['telhado', 'Telhado', D.telhado] : null,
+        ['regua', 'Área mínima', brl(D.area, 1) + ' m²'],
+      ].filter(Boolean).map(function (f) { return '<div><span class="k">' + ic(f[0]) + ' ' + f[1] + '</span><b>' + esc(f[2]) + '</b></div>'; }).join('');
+      folha(cab('Seu projeto', 'O sistema pensado para o seu consumo', D.fonteCidade ? 'A geração foi calculada com a irradiação solar histórica de ' + cidade + ' (NASA POWER).' : 'Geração estimada com a variação típica do sol ao longo do ano.')
+        + '<div class="proj"><div class="cobre">' + heroi + '</div><div class="graf4">' + graficoGeracaoConsumo() + '</div></div>'
+        + '<div class="ficha6">' + fichas + '</div>'
+        + '<div class="eco-b"><div class="tit">O resultado ecológico<br>do seu projeto<span>em 25 anos de geração</span></div>'
+        + '<div class="it">' + ic('arvore') + '<div><span class="num">' + int(D.arvores) + '</span><span class="k">árvores salvas</span></div></div>'
+        + '<div class="it">' + ic('carro') + '<div><span class="num">' + brl(D.carro, 1) + ' anos</span><span class="k">de um carro fora de circulação</span></div></div>'
+        + '<div class="it">' + ic('nuvem') + '<div><span class="num">' + brl(D.co2, 1) + ' t</span><span class="k">de CO₂ que deixam de ir para o ar</span></div></div></div>');
+    }
+
+    // 5. Como funciona
+    folha(cab('Como funciona', 'Do sol à sua conta de luz', 'O sistema fica ligado à rede da distribuidora. Não precisa de bateria: a própria rede guarda o que sobra, em forma de crédito.')
+      + '<div class="cena5"><div class="cena">' + cenaSobreposta() + '</div><div class="passos-v">'
+      + '<div class="passo-v"><div class="n">1</div><div><h3>As placas captam o sol</h3><p>Durante o dia, ' + (mod && mod.qtd ? 'as ' + mod.qtd + ' placas' : 'as placas') + ' no seu telhado transformam a luz do sol em energia elétrica.</p></div></div>'
+      + '<div class="passo-v"><div class="n">2</div><div><h3>O inversor converte</h3><p>Transforma essa energia no mesmo padrão da tomada da sua casa e mostra tudo no aplicativo.</p></div></div>'
+      + '<div class="passo-v"><div class="n">3</div><div><h3>Sua casa usa primeiro</h3><p>O que estiver ligado usa a energia do sol antes de puxar da rede.</p></div></div>'
+      + '<div class="passo-v"><div class="n">4</div><div><h3>O que sobra vira crédito</h3><p>O excedente vai para a rede e volta como crédito, para usar à noite ou nos meses de menos sol. Os créditos valem por 60 meses.</p></div></div>'
+      + '</div></div>'
+      + '<div class="aviso">' + ic('info') + '<span><b>O que continua na conta de luz:</b> a taxa mínima da distribuidora (custo de disponibilidade), a iluminação pública e a parcela de uso da rede sobre a energia injetada prevista na Lei 14.300. Por isso a economia estimada nesta proposta é de 85% da conta, e não de 100%.</span></div>');
+
+    // 6. Equipamentos: vitrine azul
+    var ladoPlaca = '<div class="lado"><img src="' + IMG + 'eq-placa.png" alt=""><div>'
+      + (mod && mod.qtd ? '<div class="qtd">' + mod.qtd + '×</div>' : '')
+      + '<h3>Placas solares' + (mod && mod.potW ? '<br>' + mod.potW + ' W' : '') + '</h3>'
+      + (mod && mod.marca ? '<div class="marca">' + esc(mod.marca) + '</div>' : '')
+      + (mod ? '<div class="spec">' + esc(mod.nome) + '</div>' : '<div class="spec">' + esc(D.kit) + '</div>')
+      + '<span class="gar">' + D.garantiaPlacas + ' anos de eficiência</span></div></div>';
+    var ladoInv = '<div class="lado"><img src="' + IMG + 'eq-inversor.png" alt=""><div>'
+      + '<div class="qtd">' + ((inv && inv.qtd) || 1) + '×</div>'
+      + '<h3>Inversor' + (inv && inv.potW ? '<br>' + kwFmt(inv.potW / 1000) + ' kW' : '') + '</h3>'
+      + (inv && inv.marca ? '<div class="marca">' + esc(inv.marca) + '</div>' : '')
+      + (inv ? '<div class="spec">' + esc(inv.nome) + '</div>' : '')
+      + '<span class="gar">' + D.garantiaInversor + ' anos de garantia</span></div></div>';
+    folha(cab('Seus equipamentos', 'O que vai no seu telhado', 'Equipamentos de marcas reconhecidas, com garantia do fabricante e instalação pela nossa equipe técnica.')
+      + '<div class="vitrine"><span class="total">Total ' + kwpFmt(D.kwp) + ' kWp</span>' + ladoPlaca + ladoInv + '<span class="ilus">imagens ilustrativas</span></div>'
+      + '<div class="base-eq"><div><div class="sub-tit">Completa o sistema</div><div class="itens4">'
+      + '<div><div class="bola">' + ic('telhado') + '</div><b>Estrutura</b>para o seu telhado</div>'
+      + '<div><div class="bola">' + ic('raio') + '</div><b>Cabos e conectores</b>para sol e chuva</div>'
+      + '<div><div class="bola">' + ic('escudo') + '</div><b>Proteções elétricas</b>para a sua casa</div>'
+      + '<div><div class="bola">' + ic('celular') + '</div><b>Aplicativo</b>da geração no celular</div>'
+      + '</div></div><div><div class="sub-tit">Trabalhamos com as melhores marcas</div><img class="marcas" src="' + IMG + 'marcas.png" alt="Astronergy, Znshine Solar, Jinko Solar, Hoymiles, Chint, Solis, Sofar, Ronma, Huawei"></div></div>');
+
+    // 7. Retorno (só com geração)
+    if (D.temGeracao) {
+      var com = D.contaSem - D.economiaMensal;
+      folha(cab('Retorno do investimento', 'O investimento se paga e depois vira lucro', 'Saldo acumulado: a economia somada ano a ano, já descontado o valor investido.')
+        + '<div class="graf7">' + graficoRetorno() + '</div>'
+        + '<div class="faixa7">'
+        + '<div><span class="s">Economia por ano</span><span class="num">R$ ' + brl(D.economiaAnual) + '</span><span class="s">já no primeiro ano</span></div>'
+        + '<div><span class="s">TIR (taxa interna de retorno)</span><span class="num">' + brl(tir(), 1) + '% ao ano</span><span class="s">em 25 anos</span></div>'
+        + '<div><span class="s">Sua conta de luz por ano</span><div class="contas"><span class="num">R$ ' + brl(D.contaSem * 12) + '</span>' + ic('seta') + '<span class="num azul">R$ ' + brl(com * 12) + '</span></div><span class="s">sem solar → com solar</span></div>'
+        + '</div>'
+        + '<p class="miudo" style="margin-top:2.5mm">Conta conservadora: tarifa média de R$ 0,95/kWh, economia de 85% da conta e sem considerar os reajustes anuais da energia, que costumam deixar o retorno ainda mais rápido.</p>');
+    }
+
+    // 8. Pagamento
+    var col = [0, 1, 2, 3, 4, 5].map(function (i) {
+      return [i + 1, i + 7, i + 13].map(function (n) {
+        return '<div' + (n === 12 || n === 18 ? ' class="hl"' : '') + '><span>' + n + '×</span><b>R$ ' + brl(parcela(n)) + '</b></div>';
+      }).join('');
+    }).join('');
+    var notas = [
+      D.notaPagamento ? '<b>Condições especiais:</b> ' + esc(D.notaPagamento) : '',
+      D.notaComercial ? '<b>Observação:</b> ' + esc(D.notaComercial) : '',
+    ].filter(Boolean);
+    folha(cab('Investimento', 'Escolha como prefere pagar', 'Todas as condições valem para o mesmo sistema e o mesmo serviço completo.')
+      + '<div class="pagto"><div class="vista"><span class="tag">Melhor condição</span><h3>À vista</h3><div class="como">no Pix ou transferência bancária</div>'
+      + (D.precoDe ? '<div class="de">De R$ ' + brl(D.precoDe) + '</div>' : '')
+      + '<div class="preco"' + (D.precoDe ? '' : ' style="margin-top:auto"') + '>' + din(D.preco) + '</div>'
+      + (D.precoDe ? '<span class="desc">Você economiza R$ ' + brl(D.precoDe - D.preco) + '</span>' : '')
+      + (D.temGeracao ? '<ul><li>' + ic('relogio') + ' Investimento pago em ' + esc(D.payback) + '</li><li>' + ic('moeda') + ' R$ ' + brl(D.economiaMensal) + ' a menos na conta todo mês</li></ul>' : '')
+      + '</div>'
+      + '<div class="opcao"><div class="topo-op"><div><div class="tit">' + ic('cartao') + ' Cartão de crédito</div><div class="sub" style="margin-top:1mm">Na maquininha, nas principais bandeiras</div></div><div class="chamada">18×<small>de</small>R$ ' + brl(parcela(18)) + '</div></div><div class="parcelas">' + col + '</div></div>'
+      + '<div class="opcao"><div class="topo-op"><div class="tit">' + ic('banco') + ' Financiamento</div><div class="sub">Parceiros homologados · sujeito à análise de crédito</div></div>'
+      + '<div class="financ" style="margin-top:4mm"><div class="cem">100%<small>financiado, sem entrada</small></div><div class="linha-tempo"><div><b>Hoje</b>assinatura</div><div><b>120 dias</b>1ª parcela</div><div><b>84 meses</b>para pagar</div></div></div></div>'
+      + '</div>'
+      + (notas.length ? '<div class="nota">' + notas.join('<br>') + '</div>' : ''));
+
+    // 9. Fases do projeto + garantias
+    folha(cab('Fases do projeto', 'Cuidamos de tudo para você', 'Projeto registrado no CREA com ART e acompanhamento da instalação até a produção de energia.')
+      + '<div class="jornada"><div class="prazo-chave"><span>Estimativa de <b>até 90 dias</b> até a geração</span></div><div class="passos5">'
+      + '<div class="e"><div class="bola">' + ic('documento') + '</div><div class="n">ETAPA 1</div><h3>Projeto</h3><p>Feito pelos nossos engenheiros, dentro de todas as normas, com ART.</p></div>'
+      + '<div class="e"><div class="bola">' + ic('caminhao') + '</div><div class="n">ETAPA 2</div><h3>Frete</h3><p>Levamos os equipamentos até o local da instalação.</p></div>'
+      + '<div class="e"><div class="bola">' + ic('ferramenta') + '</div><div class="n">ETAPA 3</div><h3>Instalação</h3><p>Equipe técnica própria, num horário bom para a sua rotina.</p></div>'
+      + '<div class="e"><div class="bola">' + ic('medidor') + '</div><div class="n">ETAPA 4</div><h3>Homologação</h3><p>Aprovação na distribuidora para a economia ser real.</p></div>'
+      + '<div class="e"><div class="bola">' + ic('sol') + '</div><div class="n">ETAPA 5</div><h3>Pós-venda</h3><p>Sistema gerando e o nosso time acompanhando.</p></div>'
+      + '</div></div>'
+      + '<div class="sub-tit">Garantias <span class="miudo" style="font-family:var(--f-texto);font-weight:500">conforme o fabricante de cada equipamento</span></div>'
+      + '<div class="selos-g">'
+      + '<div class="selo-g"><div class="anel"><b>25 a 30</b><small>anos</small></div><div><h3>Placas</h3><p>de eficiência na geração · 12 a 15 anos contra defeito</p></div></div>'
+      + '<div class="selo-g"><div class="anel"><b>10 a 15</b><small>anos</small></div><div><h3>Inversor</h3><p>contra defeito de fabricação</p></div></div>'
+      + '<div class="selo-g"><div class="anel"><b>10</b><small>anos</small></div><div><h3>Estrutura</h3><p>de fixação no telhado</p></div></div>'
+      + '<div class="selo-g"><div class="anel"><b>12</b><small>meses</small></div><div><h3>Instalação</h3><p>do serviço da nossa equipe</p></div></div>'
+      + '</div>');
+
+    // 10. Fechamento: cartão de visita do consultor + validade (sem assinatura)
+    var c = D.consultor, e = D.empresa;
+    var contatos = [
+      e.end ? ic('local') + ' ' + esc(e.end) : '',
+      ic('globo') + ' ' + esc(e.site),
+      e.email ? ic('email') + ' ' + esc(e.email) : '',
+      ic('insta') + ' ' + esc(e.insta),
+    ].filter(Boolean).map(function (x) { return '<span>' + x + '</span>'; }).join('');
+    folha('<div class="fecho"><div class="esq"><div class="olho">Vamos começar</div>'
+      + '<h2 class="chamada-f">Obrigado pela confiança, <span>' + primeiro + '</span>.<br>Vamos juntos gerar a sua própria energia.</h2>'
+      + '<p class="apoio">Ficou com alguma dúvida ou quer seguir com o seu sistema? É só chamar o seu consultor no WhatsApp ou ligar.</p>'
+      + '<div class="contatos-u">' + contatos + '</div>'
+      + '<div class="letra"><b>Informações importantes</b>Para o dimensionamento e o preço finais, a nossa visita técnica é fundamental: a face e a inclinação do telhado podem alterar a geração do sistema. Na visita avaliamos também a estrutura e a parte elétrica. Esta proposta considera que o telhado tem estrutura adequada para a fixação dos equipamentos; reforços ou adequações na rede elétrica da casa, se forem necessários, são avaliados na vistoria, para a sua segurança e para a correta homologação na distribuidora.</div></div>'
+      + '<div class="cv"><div class="cv-topo"><div class="av">' + esc(c.nome.charAt(0).toUpperCase()) + '</div><div><div class="k">Seu consultor</div><div class="nome">' + esc(c.nome) + '</div><div class="uni">' + esc(c.unidade) + '</div></div></div>'
+      + '<div class="cv-faixa"></div><div class="cv-meio">'
+      + (c.tel ? (c.wa ? '<a class="tel" href="' + esc(c.wa) + '" target="_blank" rel="noopener" data-pdf-link>' : '<div class="tel">') + ic('fone') + ' ' + esc(c.tel) + (c.wa ? '</a>' : '</div>') : '')
+      + '<ul class="cv-faz"><li>' + ic('ok') + ' Tira as suas dúvidas sobre o projeto</li><li>' + ic('ok') + ' Agenda a visita técnica no seu imóvel</li><li>' + ic('ok') + ' Acompanha você até o sistema gerando</li></ul></div>'
+      + (c.wa
+        ? '<a class="cv-qr" href="' + esc(c.wa) + '" target="_blank" rel="noopener" data-pdf-link><div class="box" data-qr="' + esc(c.wa) + '"></div><div><b>Fale comigo no WhatsApp</b><p>Aponte a câmera do celular para o código e a conversa já abre comigo.</p></div></a>'
+        : '<a class="cv-qr" href="' + esc(D.linkProposta) + '" target="_blank" rel="noopener" data-pdf-link><div class="box" data-qr="' + esc(D.linkProposta) + '"></div><div><b>Sua proposta online</b><p>Aponte a câmera do celular para ver a versão digital, sempre atualizada.</p></div></a>')
+      + '</div></div>'
+      + '<div class="validade-g"><div class="rel">' + ic('relogio') + '</div><div class="txt"><span>Esta proposta é válida até <b>' + esc(D.validade) + '</b></span><span class="s">Depois disso, valores e condições podem mudar.</span></div></div>');
+
+    // numeração só agora, que se sabe quantas folhas saíram
+    var total = paginas.length, dois = function (n) { return String(n).padStart(2, '0'); };
+    var rodapeEmp = 'Ágil Solar · Energia Fotovoltaica' + (D.empresa.cnpj ? ' · CNPJ ' + esc(D.empresa.cnpj) : '') + (D.empresa.end ? ' · ' + esc(D.empresa.end) : '') + ' · ' + esc(D.empresa.site);
+    return paginas.map(function (pg, i) {
+      if (pg.capa) return pg.html;
+      return '<section class="pg">' + topo() + '<div class="corpo">' + pg.conteudo + '</div>'
+        + '<footer class="rodape"><div>' + rodapeEmp + '</div><div class="pag">' + dois(i + 1) + ' <span>/ ' + dois(total) + '</span></div></footer></section>';
+    }).join('');
+  }
+
+  // ---------- carregar e renderizar ----------
   if (!propostaId || !isValidUUID(propostaId)) { showError(); return; }
-
   carregarProposta();
 
   async function carregarProposta() {
     try {
       var resp = await supabaseClient.rpc('get_public_proposta', { p_id: propostaId }).single();
       if (resp.error || !resp.data) { showError(); return; }
-      dadosProposta = montarDados(resp.data);
-      renderizar(dadosProposta);
+      D = montarDados(resp.data);
+      arquivoPdf = 'Proposta-' + slug(D.numero || 'Agil-Solar') + '-' + slug(D.primeiro) + '.pdf';
+      document.getElementById('doc').innerHTML = montarPaginas();
+      document.body.classList.remove('is-loading');
+      document.title = 'Proposta ' + (D.numero || '') + ' - ' + D.primeiro;
+      injetarActionBar();
+      injetarOverlay();
+      qrPronto = gerarQrs();
+      ajustarZoom();
+      window.addEventListener('resize', ajustarZoom);
     } catch (err) {
       console.error('[proposta-pdf]', err);
       showError();
     }
   }
 
-  function montarDados(p) {
-    var isPersonalizada = p.proposal_mode === 'PERSONALIZADA';
-    var isEquipamentos  = p.proposal_mode === 'EQUIPAMENTOS';
-
-    // Todos os números vêm do proposta-calc.js (a proposta web usa o mesmo cálculo).
-    var num            = calcularNumerosProposta(p);
-    var isCustom       = num.personalizada;
-    var precoFinal     = num.preco;
-    var potencia       = num.potencia;
-    var nomeKit        = num.nome;
-    var brand          = num.marca;
-    var geracao        = num.geracao;
-    var temGeracao     = geracao > 0;
-    var faturaIdeal    = num.faturaIdeal;
-    var economiaMensal = num.economiaMensal;
-    var economiaAnual  = num.economiaAnual;
-    var economia25Anos = num.economia25Anos;
-    var arvores        = num.arvores;
-    var payback        = num.payback;
-
-    var mensal  = calcularGeracaoMensal(geracao, p.cidade_hsp_mensal, p.cidade_hsp_anual);
-    var resumo  = resumoGeracaoMensal(mensal.valores);
-    var cidade  = formatarCidadeUF(p.cliente_cidade);
-    var fonteTexto = mensal.fonte === 'cidade'
-      ? 'Geração mensal estimada com a irradiação solar histórica de ' + cidade + ' (NASA POWER) para um sistema de ' + String(potencia).replace('.', ',') + ' kWp.'
-      : 'Geração mensal estimada com variação sazonal típica da região para um sistema de ' + String(potencia).replace('.', ',') + ' kWp.';
-
-    var dataCriacao = new Date(p.created_at);
-    var validade    = propostaValidade(p.created_at);
-    var fmtData     = function (d) {
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
-    var fmtDataHora = function (d) {
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
-             ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    };
-
-    // WhatsApp do consultor (QR + áreas clicáveis): só com DDD + número válido.
-    var waUrl = whatsappUrl(p.vendedor_telefone, p.vendedor_nome, p.numero);
-
-    var cartao = tabelaCartao(precoFinal, p.cartao_taxas);
-
-    var precoStr     = fmt(precoFinal);
-    var precoNum     = precoStr.replace(/^R\$\s*/, '').trim();
-    var listPriceStr = fmt(p.kit_list_price || precoFinal);
-    var temDesconto  = !isCustom && p.kit_list_price && p.kit_list_price > precoFinal;
-
-    return {
-      proposta_id:        p.numero || '—',
-      proposta_data:      fmtData(dataCriacao),
-      proposta_validade:  fmtDataHora(validade),
-
-      cliente_nome:           p.cliente_nome || '',
-      cliente_primeiro_nome:  firstName(p.cliente_nome),
-      cliente_cidade:         cidade,
-
-      vendedor_nome:      p.vendedor_nome || 'Consultor Ágil Solar',
-      vendedor_inicial:   (p.vendedor_nome || 'C').trim().charAt(0).toUpperCase(),
-      vendedor_telefone:  fmtTelefone(p.vendedor_telefone),
-      tem_whatsapp:          !!waUrl,
-      vendedor_whatsapp_url: waUrl,
-
-      proposta_modo_kit:           !isCustom,
-      proposta_modo_personalizada: isPersonalizada,
-      proposta_modo_equipamentos:  isEquipamentos,
-
-      kit_nome:       nomeKit,
-      kit_brand:      brand,
-      kit_power:      potencia ? String(potencia).replace('.', ',') : '0',
-      kit_price:      precoStr,
-      kit_price_num:  precoNum,
-      kit_list_price: listPriceStr,
-      tem_desconto:   temDesconto,
-
-      cartao_parcela_18:  cartao.parcela18,
-      cartao_tabela_html: cartao.html,
-
-      tem_geracao:      temGeracao,
-      geracao_estimada: fmtInt(geracao),
-      fatura_ideal:     fmt(faturaIdeal),
-
-      geracao_media_fmt:   fmtInt(resumo.media),
-      geracao_total_fmt:   fmtInt(resumo.total),
-      geracao_pico_mes:    resumo.picoMes,
-      geracao_pico_fmt:    fmtInt(resumo.picoValor),
-      geracao_fonte_texto: fonteTexto,
-      grafico_geracao_svg: temGeracao ? renderGeracaoChartSVG(mensal.valores, { tema: 'light' }) : '',
-
-      economia_mensal:  fmt(economiaMensal),
-      economia_anual:   fmt(economiaAnual),
-      economia_25_anos: fmt(economia25Anos),
-      payback:          payback,
-
-      arvores_salvas: String(arvores),
-
-      custom_payment_note:    p.custom_payment_note    || '',
-      custom_commercial_note: p.custom_commercial_note || '',
-
-      garantia_paineis:  String(p.franquia_garantia_paineis_anos  || 25),
-      garantia_inversor: String(p.franquia_garantia_inversor_anos || 10),
-
-      // Dados da franquia (vindos do JOIN na RPC)
-      empresa_cnpj:     p.franquia_cnpj         || '—',
-      empresa_endereco: String(p.franquia_endereco || p.franquia_cidade || '—').replace(/\s+([,.;])/g, '$1').replace(/\s{2,}/g, ' ').trim(),
-
-      // Seções numeradas em sequência: sem geração, a página 2 tem uma seção só (01).
-      sec_pagamento: temGeracao ? '03' : '02',
-      sec_escopo:    temGeracao ? '04' : '03',
-      sec_sobre:     temGeracao ? '05' : '04',
-      sec_contato:   temGeracao ? '06' : '05',
-      empresa_site:     p.franquia_site         || 'agilsolar.com',
-      empresa_email:    p.franquia_email        || '—',
-
-      _arquivo: 'Proposta-' + slug(p.numero || 'Agil-Solar') + '-' + slug(firstName(p.cliente_nome)) + '.pdf'
-    };
-  }
-
-  function renderizar(data) {
-    var html = document.body.innerHTML;
-
-    // 1+2) blocos {{^ key }} e {{# key }} ... {{/ key }}
-    // Loop ate estabilizar, pra resolver blocos ANINHADOS (ex.: custom_payment_note
-    // dentro de proposta_modo_personalizada). Um unico .replace nao reprocessa o
-    // conteudo ja consumido do bloco externo, deixando as tags internas literais.
-    function bloco(v) {
-      return !(v === undefined || v === null || v === false || v === '' || v === 0);
-    }
-    var prev;
-    do {
-      prev = html;
-      // blocos invertidos {{^ key }}...{{/ key }}
-      html = html.replace(/\{\{\^\s*([\w_]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g, function (_, k, body) {
-        return bloco(data[k]) ? '' : body;
-      });
-      // blocos {{# key }}...{{/ key }}
-      html = html.replace(/\{\{#\s*([\w_]+)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g, function (_, k, body) {
-        return bloco(data[k]) ? body : '';
-      });
-    } while (html !== prev);
-
-    // 3) substituicoes simples {{ key }} — texto vindo do banco sempre escapado
-    html = html.replace(/\{\{\s*([\w_]+)\s*\}\}/g, function (_, k) {
-      if (data[k] === undefined || data[k] === null) return '';
-      return CAMPOS_HTML[k] ? data[k] : esc(data[k]);
-    });
-
-    document.body.innerHTML = html;
-    document.body.classList.remove('is-loading');
-    document.title = 'Proposta ' + (data.proposta_id || '') + ' - ' + (data.cliente_primeiro_nome || '');
-
-    // A barra inferior fixa eh perdida quando innerHTML substitui o body.
-    // Re-anexa aqui e religa o handler.
-    injetarActionBar();
-    injetarOverlay();
-    qrPronto = gerarQrWhatsapp(data.vendedor_whatsapp_url);
-    ajustarZoom();
-    window.addEventListener('resize', ajustarZoom);
-  }
-
-  // ---------- QR do WhatsApp do consultor ----------
-  // Vira <img> data: (o CSP já libera data: em img-src e o html2canvas captura
-  // imagem sem problema). Se a lib não carregar, some a coluna do QR em vez de
-  // ficar um quadrado vazio — o telefone continua no cartão.
+  // QR da proposta online e do WhatsApp do consultor (imagem data: — o CSP libera).
   var qrPronto = Promise.resolve();
-  async function gerarQrWhatsapp(url) {
-    var box = document.getElementById('consultor-qr');
-    if (!url || !box) return;
+  async function gerarQrs() {
+    var boxes = document.querySelectorAll('[data-qr]');
+    if (!boxes.length) return;
     try {
       await carregarScript('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js', function () { return typeof window.qrcode === 'function'; });
-      var qr = window.qrcode(0, 'M');
-      qr.addData(url);
-      qr.make();
-      var img = new Image();
-      img.alt = 'QR code para falar com o consultor no WhatsApp';
-      img.src = qr.createDataURL(8, 0);
-      await new Promise(function (ok) { img.onload = ok; img.onerror = ok; });
-      box.appendChild(img);
+      await Promise.all(Array.prototype.map.call(boxes, function (box) {
+        var qr = window.qrcode(0, 'M'); qr.addData(box.getAttribute('data-qr')); qr.make();
+        var img = new Image(); img.alt = ''; img.src = qr.createDataURL(8, 0);
+        box.appendChild(img);
+        return new Promise(function (ok) { img.onload = ok; img.onerror = ok; });
+      }));
     } catch (err) {
       console.warn('[proposta-pdf] QR indisponível', err);
-      var col = box.closest('.cc-qr');
-      if (col) col.remove();
-      var card = document.querySelector('.consultor-card');
-      if (card) card.classList.remove('has-qr');
+      Array.prototype.forEach.call(boxes, function (b) { b.style.display = 'none'; });
     }
   }
 
-  // Áreas clicáveis no PDF: a página vira imagem, então cada <a data-pdf-link>
-  // ganha um link do jsPDF na mesma posição (mm = px × mmPorPx da folha).
-  function adicionarLinksPdf(pdf, pagina, mmPorPx, offsetXmm) {
+  // O html2canvas desenha o SVG como imagem e perde o "currentColor": grava a cor de cada ícone.
+  function fixarCorIcones() {
+    document.querySelectorAll('svg.ic').forEach(function (s) { s.setAttribute('stroke', getComputedStyle(s).color); });
+  }
+
+  // Áreas clicáveis no PDF: cada <a data-pdf-link> vira um link do jsPDF na mesma posição.
+  function adicionarLinksPdf(pdf, pagina, mmPorPx) {
     var base = pagina.getBoundingClientRect();
     pagina.querySelectorAll('a[data-pdf-link]').forEach(function (a) {
       var r = a.getBoundingClientRect();
       if (!r.width || !r.height || !a.href) return;
-      pdf.link(offsetXmm + (r.left - base.left) * mmPorPx, (r.top - base.top) * mmPorPx,
-        r.width * mmPorPx, r.height * mmPorPx, { url: a.href });
+      pdf.link((r.left - base.left) * mmPorPx, (r.top - base.top) * mmPorPx, r.width * mmPorPx, r.height * mmPorPx, { url: a.href });
     });
   }
 
-  // ---------- Celular: encolhe as folhas A4 para caber na largura ----------
-  var LARGURA_A4_PX = 210 * 96 / 25.4; // ~794px
+  // Celular: encolhe as folhas A4 deitadas para caber na largura.
+  var LARGURA_A4_PX = 297 * 96 / 25.4; // ~1123px
   function ajustarZoom() {
     var largura = document.documentElement.clientWidth;
-    if (!largura) return; // aba oculta/sem layout: mantém o último valor
-    var z = Math.max(0.3, Math.min(1, (largura - 16) / LARGURA_A4_PX));
+    if (!largura) return;
+    var z = Math.max(0.25, Math.min(1, (largura - 16) / LARGURA_A4_PX));
     document.documentElement.style.setProperty('--page-zoom', z.toFixed(4));
   }
-
-  function isMobile() {
-    return window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 768;
-  }
+  function isMobile() { return window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 768; }
 
   var ICON_BACK  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
   var ICON_DOWN  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
@@ -1941,29 +932,22 @@
   function injetarActionBar() {
     var bar = document.createElement('div');
     bar.id = 'pdf-action-bar';
-    bar.innerHTML = ''
-      + '<button id="pdf-back-btn" type="button" class="pdf-btn pdf-btn-ghost">' + ICON_BACK + '<span>Voltar</span></button>'
+    bar.innerHTML = '<button id="pdf-back-btn" type="button" class="pdf-btn pdf-btn-ghost">' + ICON_BACK + '<span>Voltar</span></button>'
       + (isMobile() ? '' : '<button id="pdf-print-btn" type="button" class="pdf-btn pdf-btn-ghost">' + ICON_PRINT + '<span>Imprimir</span></button>')
       + '<button id="pdf-save-btn" type="button" class="pdf-btn pdf-btn-primary">' + ICON_DOWN + '<span>Baixar PDF</span></button>';
     document.body.appendChild(bar);
-
     document.getElementById('pdf-back-btn').addEventListener('click', function () {
-      if (window.history.length > 1) window.history.back();
-      else window.close();
+      if (window.history.length > 1) window.history.back(); else window.close();
     });
-
     var printBtn = document.getElementById('pdf-print-btn');
-    if (printBtn) {
-      printBtn.addEventListener('click', async function () {
-        try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
-        window.print();
-      });
-    }
-
+    if (printBtn) printBtn.addEventListener('click', async function () {
+      try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+      await qrPronto;
+      window.print();
+    });
     document.getElementById('pdf-save-btn').addEventListener('click', gerarPdf);
   }
 
-  // ---------- Overlay (gerando / pronto / erro) ----------
   function injetarOverlay() {
     var ov = document.createElement('div');
     ov.id = 'pdf-overlay';
@@ -1975,17 +959,13 @@
     document.getElementById('pdf-overlay-box').innerHTML = html;
     document.getElementById('pdf-overlay').classList.add('show');
   }
-  function fecharOverlay() {
-    document.getElementById('pdf-overlay').classList.remove('show');
-  }
+  function fecharOverlay() { document.getElementById('pdf-overlay').classList.remove('show'); }
 
-  // ---------- Geração do PDF ----------
   function carregarScript(src, pronto) {
     if (pronto()) return Promise.resolve();
     return new Promise(function (resolve, reject) {
       var s = document.createElement('script');
-      s.src = src;
-      s.onload = resolve;
+      s.src = src; s.onload = resolve;
       s.onerror = function () { reject(new Error('Falha ao carregar ' + src)); };
       document.head.appendChild(s);
     });
@@ -1996,7 +976,6 @@
   async function gerarPdf() {
     if (pdfGerado) { mostrarPronto(); return; }
     overlay('<div class="spinner"></div><h2>Gerando PDF…</h2><p>Isso leva alguns segundos.</p>');
-
     try {
       await Promise.all([
         carregarScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', function () { return !!window.html2canvas; }),
@@ -2004,40 +983,25 @@
       ]);
       try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
       await qrPronto;
+      fixarCorIcones();
 
-      // Captura no tamanho real (sem o zoom do celular).
+      // Captura no tamanho real (sem o zoom do celular). Folha A4 deitada: 297 × 210 mm.
       document.body.classList.add('is-capturing');
-      var pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
-      var paginas = document.querySelectorAll('.page');
+      var pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape', compress: true });
+      var paginas = document.querySelectorAll('.pg');
       for (var i = 0; i < paginas.length; i++) {
-        var canvas = await window.html2canvas(paginas[i], {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          windowWidth: 1000,
-          logging: false
-        });
-        var img = canvas.toDataURL('image/jpeg', 0.92);
-        if (i > 0) pdf.addPage('a4', 'portrait');
-        // A folha tem min-height 297mm: se crescer, encaixa pela altura.
-        var alturaMm = 210 * canvas.height / canvas.width;
-        var larguraPx = paginas[i].getBoundingClientRect().width;
-        if (alturaMm <= 297.5) {
-          pdf.addImage(img, 'JPEG', 0, 0, 210, alturaMm);
-          adicionarLinksPdf(pdf, paginas[i], 210 / larguraPx, 0);
-        } else {
-          var largura = 297 * canvas.width / canvas.height;
-          pdf.addImage(img, 'JPEG', (210 - largura) / 2, 0, largura, 297);
-          adicionarLinksPdf(pdf, paginas[i], largura / larguraPx, (210 - largura) / 2);
-        }
+        var canvas = await window.html2canvas(paginas[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1200, logging: false });
+        var img = canvas.toDataURL('image/jpeg', 0.9);
+        if (i > 0) pdf.addPage('a4', 'landscape');
+        pdf.addImage(img, 'JPEG', 0, 0, 297, 210);
+        adicionarLinksPdf(pdf, paginas[i], 297 / paginas[i].getBoundingClientRect().width);
       }
       document.body.classList.remove('is-capturing');
 
       var blob = pdf.output('blob');
       var file = null;
-      try { file = new File([blob], dadosProposta._arquivo, { type: 'application/pdf' }); } catch (e) {}
+      try { file = new File([blob], arquivoPdf, { type: 'application/pdf' }); } catch (e) {}
       pdfGerado = { blob: blob, file: file };
-
       if (typeof captureEvent === 'function') captureEvent('public_proposal_pdf_generated', {});
       mostrarPronto();
     } catch (err) {
@@ -2053,29 +1017,21 @@
   }
 
   function podeCompartilhar() {
-    return !!(pdfGerado && pdfGerado.file && navigator.canShare && navigator.share
-      && navigator.canShare({ files: [pdfGerado.file] }));
+    return !!(pdfGerado && pdfGerado.file && navigator.canShare && navigator.share && navigator.canShare({ files: [pdfGerado.file] }));
   }
 
   // O compartilhamento precisa de um toque "fresco" do usuário (iOS recusa
   // share() depois de um await longo), por isso ele vem num segundo botão.
   function mostrarPronto() {
     var share = podeCompartilhar();
-    overlay('<h2>PDF pronto</h2>'
-      + '<p>' + esc(dadosProposta._arquivo) + '</p>'
-      + '<div class="actions">'
+    overlay('<h2>PDF pronto</h2><p>' + esc(arquivoPdf) + '</p><div class="actions">'
       + (share ? '<button type="button" class="pdf-btn pdf-btn-wa" id="pdf-share">' + ICON_SHARE + '<span>Compartilhar</span></button>' : '')
       + '<button type="button" class="pdf-btn ' + (share ? 'pdf-btn-ghost' : 'pdf-btn-primary') + '" id="pdf-download">' + ICON_DOWN + '<span>Salvar no aparelho</span></button>'
-      + '<button type="button" class="pdf-btn pdf-btn-ghost" id="pdf-close">Fechar</button>'
-      + '</div>');
-
+      + '<button type="button" class="pdf-btn pdf-btn-ghost" id="pdf-close">Fechar</button></div>');
     if (share) {
       document.getElementById('pdf-share').onclick = async function () {
-        try {
-          await navigator.share({ files: [pdfGerado.file], title: 'Proposta Ágil Solar' });
-        } catch (e) {
-          if (e && e.name !== 'AbortError') baixarPdf();
-        }
+        try { await navigator.share({ files: [pdfGerado.file], title: 'Proposta Ágil Solar' }); }
+        catch (e) { if (e && e.name !== 'AbortError') baixarPdf(); }
       };
     }
     document.getElementById('pdf-download').onclick = baixarPdf;
@@ -2085,11 +1041,8 @@
   function baixarPdf() {
     var url = URL.createObjectURL(pdfGerado.blob);
     var a = document.createElement('a');
-    a.href = url;
-    a.download = dadosProposta._arquivo;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    a.href = url; a.download = arquivoPdf;
+    document.body.appendChild(a); a.click(); a.remove();
     // Navegadores embutidos (WhatsApp/Instagram) ignoram download: abre o PDF.
     var ua = navigator.userAgent || '';
     if (/FBAN|FBAV|Instagram|WhatsApp|; wv\)/i.test(ua)) window.open(url, '_blank');
@@ -2097,6 +1050,5 @@
   }
 })();
 </script>
-
 </body>
 </html>

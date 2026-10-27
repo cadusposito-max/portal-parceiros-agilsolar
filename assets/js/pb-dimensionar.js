@@ -216,6 +216,14 @@ function _pbdConsumo() {
   return { media, meses, preenchidos: validos.length };
 }
 
+// Consumo médio (kWh/mês) do cliente em atendimento, para gravar na proposta
+// (o PDF mostra quanto do consumo o sistema cobre). null = não informado.
+function pbConsumoMedioProposta() {
+  if (!_pbd || !state.pbActiveClient || _pbd.clienteId !== state.pbActiveClient.id) return null;
+  const media = _pbdConsumo().media;
+  return media > 0 ? Math.round(media) : null;
+}
+
 function _pbdHspCliente() {
   const h = Number(state.pbActiveClient?.hsp);
   return h > 0 ? h : undefined; // undefined → calcularGeracaoEstimada usa o HSP da franquia

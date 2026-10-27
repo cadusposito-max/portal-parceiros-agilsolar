@@ -11,6 +11,11 @@ var PROPOSTA_TARIFA_MEDIA   = 0.95; // R$/kWh
 var PROPOSTA_FATOR_ECONOMIA = 0.85; // parte da conta que o sistema economiza
 var PROPOSTA_VALIDADE_HORAS = 72;
 var PROPOSTA_MAX_PARCELAS   = 18;
+// Resultado ecológico em 25 anos (fatores da proposta antiga da Groner):
+// kg de CO₂ evitados por kWh, kg de CO₂ por árvore, t de CO₂ de um carro por ano.
+var PROPOSTA_CO2_KG_KWH     = 0.047;
+var PROPOSTA_CO2_KG_ARVORE  = 14.2;
+var PROPOSTA_CO2_T_CARRO    = 1.8;
 // Taxa da maquininha (%) por nº de parcelas. Repasse: total = valor / (1 − taxa%).
 var PROPOSTA_TAXAS_CARTAO = {
   1: 2.99,  2: 4.09,  3: 4.78,  4: 5.47,  5: 6.14,  6: 6.81,
@@ -51,6 +56,7 @@ function calcularNumerosProposta(p) {
   // Arredonda a mensal em centavos antes de multiplicar: anual = 12 × mensal exibida.
   var economiaMensal = Math.round(faturaIdeal * PROPOSTA_FATOR_ECONOMIA * 100) / 100;
   var mesesPayback   = economiaMensal > 0 ? Math.ceil(preco / economiaMensal) : 0;
+  var co2Toneladas   = geracao * 12 * 25 * PROPOSTA_CO2_KG_KWH / 1000;
 
   return {
     personalizada:  custom,
@@ -63,7 +69,9 @@ function calcularNumerosProposta(p) {
     economiaMensal: economiaMensal,
     economiaAnual:  economiaMensal * 12,
     economia25Anos: economiaMensal * 12 * 25,
-    arvores:        Math.round(potencia * 3),
+    arvores:        Math.round(co2Toneladas * 1000 / PROPOSTA_CO2_KG_ARVORE),
+    co2Toneladas:   co2Toneladas,
+    carroAnos:      co2Toneladas / PROPOSTA_CO2_T_CARRO,
     mesesPayback:   mesesPayback,
     payback:        propostaTextoPayback(mesesPayback)
   };
