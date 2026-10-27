@@ -1067,7 +1067,7 @@ function _pbKitLinhaHTML(item, geracao, r) {
         <b>${_pbKwp(item.power)} kWp${rec ? '<i class="pbl-rec">Recomendado</i>' : ''}</b>
         <small><span class="pbl-nm">${escapeHTML(item.name)}</span><span class="pbl-mt">${dist ? escapeHTML(dist) + ' · ' : ''}${est ? escapeHTML(est) + ' · ' : ''}~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês</span></small>
       </span>
-      ${pct != null ? `<span class="pbl-pc${faixa}" title="Gera ${pct}% da média de consumo">${pct}%</span>` : ''}
+      ${pct != null ? `<span class="pbl-pc${faixa}" title="Gera ${pct}% da média de consumo">${pct}%<small>do consumo</small></span>` : ''}
       <span class="pbl-pv">${temDe ? `<s>${formatCurrency(item.list_price)}</s>` : ''}<b>${formatCurrency(item.price)}</b></span>
     </div>`;
 }
