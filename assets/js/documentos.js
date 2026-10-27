@@ -639,6 +639,7 @@ function docDadosIniciais(client, fonte) {
     prazo_entrega_dias: salvo.prazo_entrega_dias || DOC_DEFAULTS.prazo_entrega_dias,
     data: salvo.data || new Date().toISOString().slice(0, 10),
     empresa_id: salvo.empresa_id || null,
+    salvo_em: salvo.salvo_em || null,
   };
 }
 
@@ -679,7 +680,7 @@ async function abrirDocumentosCliente(clientId, origem) {
     return;
   }
 
-  _docCtx = { clientId: client.id, fontes, dados: docDadosIniciais(client, fonte), config };
+  _docCtx = { clientId: client.id, fontes, dados: docDadosIniciais(client, fonte), config, temRascunho: Boolean(client.documentos_dados) };
   const empresa = _docEmpresaEscolhida();
   _docCtx.dados.empresa_id = empresa ? empresa.id : null;
 
@@ -690,11 +691,58 @@ async function abrirDocumentosCliente(clientId, origem) {
   // Clicar fora NÃO fecha (perdia o que foi digitado) — só o X ou ESC.
   document.body.appendChild(overlay);
   _docRender();
+  _docLer();
+  _docCtx.assinaturaSalva = _docAssinatura();
 }
 
-function fecharDocumentosVenda() {
+// Retrato do formulário para saber se há alteração sem salvar (salvo_em não conta)
+function _docAssinatura() {
+  return _docCtx ? JSON.stringify({ ..._docCtx.dados, salvo_em: undefined }) : '';
+}
+function _docTemAlteracao() {
+  if (!_docCtx || !document.getElementById('doc-overlay')) return false;
+  _docLer();
+  return _docAssinatura() !== _docCtx.assinaturaSalva;
+}
+
+// Fechar (X / ESC) salva sozinho o que foi preenchido — antes só salvava ao gerar.
+async function fecharDocumentosVenda() {
+  if (_docCtx?.fechando) return;
+  if (_docTemAlteracao()) {
+    _docCtx.fechando = true;
+    const ok = await _docSalvar();
+    if (ok) showToast('Dados do contrato salvos.');
+    else if (!confirm('Não foi possível salvar os dados preenchidos. Fechar mesmo assim e perder o que foi digitado?')) {
+      _docCtx.fechando = false;
+      return;
+    }
+  }
   document.getElementById('doc-overlay')?.remove();
   _docCtx = null;
+}
+
+// Recarregar / fechar a aba com alteração sem salvar → o navegador pergunta antes
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', (ev) => {
+    if (_docTemAlteracao()) { ev.preventDefault(); ev.returnValue = ''; }
+  });
+}
+
+function _docTextoSalvo() {
+  const em = _docCtx?.dados?.salvo_em;
+  if (em) return 'Salvo em ' + new Date(em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return _docCtx?.temRascunho ? 'Dados salvos anteriormente' : 'Ainda não salvo';
+}
+
+async function _docSalvarManual() {
+  if (!_docCtx) return;
+  _docLer();
+  const btn = document.getElementById('doc-btn-salvar');
+  const html = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Salvando...'; lucide.createIcons(); }
+  const ok = await _docSalvar();
+  if (btn) { btn.disabled = false; btn.innerHTML = html; lucide.createIcons(); }
+  showToast(ok ? 'DADOS SALVOS!' : 'Não foi possível salvar: ' + (_docCtx?.erroSalvar || 'erro desconhecido'));
 }
 
 const _docInp = 'crm360-input';
@@ -845,6 +893,7 @@ function _docRender() {
         <div>
           <p class="text-orange-500 text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2"><i data-lucide="file-signature" class="w-4 h-4"></i> Contrato e procuração</p>
           <p class="text-neutral-500 text-[10px] font-mono mt-1">${escapeHTML(c.nome || '')}</p>
+          <p id="doc-status-salvo" class="text-[10px] mt-1 flex items-center gap-1 ${d.salvo_em || _docCtx.temRascunho ? 'text-green-400' : 'text-yellow-400'}"><i data-lucide="${d.salvo_em || _docCtx.temRascunho ? 'check-circle' : 'alert-circle'}" class="w-3 h-3"></i> ${escapeHTML(_docTextoSalvo())}</p>
         </div>
         <button onclick="fecharDocumentosVenda()" class="text-neutral-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
@@ -919,6 +968,7 @@ function _docRender() {
       <div class="p-5 border-t border-neutral-800 bg-neutral-950 shrink-0">
         ${tit.outro_titular ? `<p class="mb-3 text-xs text-orange-300 bg-orange-600/10 border border-orange-600/40 px-3 py-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i><span id="doc-aviso-titular">${escapeHTML(_docTextoAvisoTitular(tit.nome))}</span></p>` : ''}
         <div class="flex flex-col sm:flex-row gap-2">
+          <button id="doc-btn-salvar" onclick="_docSalvarManual()" class="btn btn-secondary flex-1"><i data-lucide="save"></i> Salvar dados</button>
           <button id="doc-btn-contrato" onclick="_docGerar('contrato')" class="btn btn-primary flex-1"><i data-lucide="file-text"></i> Gerar contrato ${pj ? 'PJ' : 'PF'}</button>
           <button id="doc-btn-procuracao" onclick="_docGerar('procuracao')" class="btn btn-secondary flex-1"><i data-lucide="file-pen"></i> Gerar procuração ${procuracaoPj ? 'PJ' : 'PF'}</button>
         </div>
@@ -1227,8 +1277,11 @@ const DOC_ROTULOS = {
 // Salva na ficha (clientes) e guarda o formulário em clientes.documentos_dados.
 // Na PJ os dados pessoais são do representante — ficam só no rascunho.
 async function _docSalvar() {
+  if (!_docCtx) return false;
   const d = _docCtx.dados;
   const c = d.cliente, e = c.endereco || {};
+  const salvoAntes = d.salvo_em;
+  d.salvo_em = new Date().toISOString();
   const clientePayload = {
     documento: c.cpf || null,
     endereco: e.logradouro || null,
@@ -1248,13 +1301,25 @@ async function _docSalvar() {
       profissao: c.profissao || null,
     });
   }
-  const { error } = await supabaseClient.from('clientes').update(clientePayload).eq('id', _docCtx.clientId);
-  if (error) {
-    console.warn('[documentos] Falha ao salvar dados do contrato.', error);
+  // .select() confere que a linha foi gravada mesmo (RLS que barra não dá erro, só 0 linhas)
+  const { data, error } = await supabaseClient.from('clientes').update(clientePayload).eq('id', _docCtx.clientId).select('id');
+  if (!_docCtx) return !error;
+  if (error || !data?.length) {
+    console.warn('[documentos] Falha ao salvar dados do contrato.', error || 'nenhuma linha atualizada');
+    d.salvo_em = salvoAntes;
+    _docCtx.erroSalvar = error?.message || 'sem permissão para editar este cliente';
     return false;
   }
   const client = (state.clientes || []).find((x) => x.id === _docCtx.clientId);
   if (client) Object.assign(client, clientePayload);
+  _docCtx.assinaturaSalva = _docAssinatura();
+  _docCtx.temRascunho = true;
+  const st = document.getElementById('doc-status-salvo');
+  if (st) {
+    st.className = 'text-[10px] mt-1 flex items-center gap-1 text-green-400';
+    st.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3"></i> ${escapeHTML(_docTextoSalvo())}`;
+    lucide.createIcons();
+  }
   return true;
 }
 
@@ -1297,6 +1362,8 @@ async function _docGerar(tipo) {
   const modelo = `${tipo}_${dados.tipo_pessoa === 'PJ' ? 'pj' : 'pf'}`;
   const faltando = validarDadosDocumento(modelo, dados);
   if (faltando.length) {
+    // Não gera, mas guarda o que já foi preenchido
+    if (_docTemAlteracao()) await _docSalvar();
     const deQuem = tipo === 'procuracao' && dados.titular?.outro_titular ? 'Titular da UC — falta preencher: ' : 'Falta preencher: ';
     showToast(deQuem + faltando.map((k) => DOC_ROTULOS[k] || k).join(', '));
     return;
