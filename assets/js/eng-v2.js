@@ -62,7 +62,7 @@
 
   const E = {
     projetos: null, loading: null, catalogo: null, kits: null, osLista: null,
-    ev: {}, os: {}, tab: 'visao', ctx: 'eng', container: null,
+    ev: {}, os: {}, crm: {}, tab: 'visao', ctx: 'eng', container: null,
     view: lsGet('eng_view') || 'kanban', busca: '', fr: '', fst: '', soComp: false, soAtraso: false, soAlerta: false, trilhoAberto: {}, concTodos: false,
     aberto: null, ptab: 'dim', dimRodando: false,
     kitBusca: '', kitFiltro: '', kitLimite: 8, catDist: '',
@@ -1158,6 +1158,11 @@
     E.cli[p.cliente_id] = data || null;
     return data;
   }
+  // o que o comercial registrou do cliente, para a timeline contar a história toda (timeline-unificada.js)
+  async function carregarCrm(p) {
+    if (!p || !p.cliente_id || !window.TLU) return;
+    E.crm[p.cliente_id] = await TLU.crmDoCliente(p.cliente_id).catch(() => null);
+  }
   async function abrir(id, aba) {
     if (E.aberto !== id) E.prob = {};
     E.aberto = id;
@@ -1168,7 +1173,7 @@
       if (!E.projetos || !E.projetos.some((p) => p.id === id)) await recarregarProjeto(id);
       else await Promise.all([carregarEventos(id), carregarOS(id)]);
       const p = E.projetos.find((x) => x.id === id);
-      if (p) await carregarCliente(p).catch((e) => console.warn('[eng] cadastro do cliente', e));
+      if (p) await Promise.all([carregarCliente(p).catch((e) => console.warn('[eng] cadastro do cliente', e)), carregarCrm(p)]);
       if (p && central() && p.status === 'validacao' && !p.dim) await rodarAutomaticos();
     } catch (e) { console.error('[eng] abrir projeto', e); toast('Não foi possível abrir o projeto: ' + e.message); }
     pintarDrawer();
@@ -1247,6 +1252,17 @@
     const np = d.querySelector('.eg-pb');
     if (np && y) np.scrollTop = y;
     if (E.ptab === 'docs' || E.ptab === 'conc') assinarDocs(p);
+    if (E.ptab === 'tl') posTL(p);
+  }
+  // filtro da timeline: redesenha sem perder o comentário que está sendo escrito
+  if (window.TLU) {
+    TLU.aoMudar('eng', () => {
+      const t = document.getElementById('eg-com');
+      const v = t ? t.value : '';
+      pintarDrawer();
+      const n = document.getElementById('eg-com');
+      if (n && v) n.value = v;
+    });
   }
 
   const TOM_CHIP = { info: 't-blue', bad: 't-red', ok: 't-green', at: 't-orange', gray: 't-gray' };
@@ -1991,20 +2007,64 @@
     if (e.tipo === 'compensacao') return { t: 'at', i: 'zap' };
     return { t: 'gray', i: EV_ICON[e.tipo] || 'dot' };
   }
+  // texto corrido do evento (a timeline da ficha do comercial usa este)
+  function textoEvento(e) {
+    if (e.tipo === 'status' || e.tipo === 'envio') {
+      const st = `${e.de_status ? ((ST[e.de_status] || {}).n || e.de_status) + ' → ' : ''}${(ST[e.para_status] || {}).n || e.para_status || ''}`;
+      if (e.tipo === 'envio') return 'Enviado à engenharia' + (st ? ' · ' + st : '');
+      return st + (e.texto ? ' · ' + e.texto : '');
+    }
+    const docs = e.meta && Array.isArray(e.meta.docs) && e.meta.docs.length ? ' · ' + e.meta.docs.map((d) => d.rotulo).join(', ') : '';
+    return (e.texto || '') + docs;
+  }
+  // Timeline unificada (timeline-unificada.js): eventos do projeto + o que o
+  // comercial registrou do cliente, com filtro por origem e @ nos comentários
   function abaTL(p) {
-    const ev = [...(E.ev[p.id] || [])].reverse();
     const eng = central();
+    const TL = window.TLU;
+    const men = (t, m) => (typeof crmMencaoTextoHTML === 'function' ? crmMencaoTextoHTML(t, m) : esc(t));
+    const avisou = (m) => (typeof crmMencaoAvisouHTML === 'function' ? crmMencaoAvisouHTML(m) : '');
     const txt = (e) => {
       if (e.tipo === 'status' || e.tipo === 'envio') return `<b>${e.de_status ? esc((ST[e.de_status] || {}).n || e.de_status) + ' → ' : ''}${esc((ST[e.para_status] || {}).n || e.para_status || '')}</b>${e.texto && e.tipo !== 'envio' ? `<div>${esc(e.texto)}</div>` : e.tipo === 'envio' ? '<div>Enviado à engenharia</div>' : ''}`;
-      return `<b>${esc(e.texto || '')}</b>`;
+      return `<b>${men(e.texto || '', e.meta)}</b>`;
     };
     const arqs = (e) => (e.meta && Array.isArray(e.meta.docs) && e.meta.docs.length ? `<div class="eg-tlarq">${e.meta.docs.map((d) => `<span>${ic('file-x')}${esc(d.rotulo)}</span>`).join('')}</div>` : '');
-    return `<div class="rd-card"><h3>${ic('history')}Timeline</h3><p class="rd-sub">Ninguém edita nem apaga. ${eng ? 'Comentário interno não aparece para a franquia.' : ''}</p>
+    const crm = p.cliente_id ? E.crm[p.cliente_id] : null;
+    const itens = (E.ev[p.id] || []).map((e) => ({ e, data: e.created_at, origem: TL ? TL.origemEng(e) : 'eng', tecnico: TL ? TL.tecnicoEng(e) : false, interno: e.interno }));
+    if (TL && crm) TL.semEspelho(crm, [p.id]).forEach((a) => itens.push({ a, data: a.created_at, origem: TL.origemCrm(a) }));
+    itens.sort((x, y) => new Date(y.data) - new Date(x.data));
+    const f = TL ? TL.filtrar('eng', p.id, itens) : { lista: itens, barra: '' };
+    const tag = (i) => (TL ? TL.tagHTML(i.origem, i.interno) : (i.interno ? 'interno · ' : ''));
+    const linhaEng = (i) => {
+      const e = i.e;
+      const tom = tomEvento(e);
+      return `<div id="eg-ev-eng-${e.id}" class="${e.tipo === 'alerta' ? 'al' : ''} ${tom.t === 'bad' ? 'rb' : ''} ${e.interno ? 'int' : ''}"><span class="eg-tli t-${tom.t}">${ic(tom.i)}</span><div>${txt(e)}${arqs(e)}<div class="rd-muted">${tag(i)}${esc(e.autor_nome || '')} · ${dataHora(e.created_at)}${avisou(e.meta)}</div></div></div>`;
+    };
+    const linhaCrm = (i) => {
+      const a = i.a;
+      const v = typeof crmAtividadeTL === 'function'
+        ? crmAtividadeTL({ id: a.id, tipo: a.tipo, data: a.created_at, autor: a.autor_email, descricao: a.descricao, meta: a.meta })
+        : { icon: 'message-square', texto: a.descricao || '' };
+      const autor = a.autor_email ? (typeof crmNomeAutor === 'function' ? crmNomeAutor(a.autor_email) : a.autor_email) : '';
+      return `<div id="eg-ev-${esc(a.id)}"><span class="eg-tli">${ic(v.icon)}</span><div><b>${men(v.texto, a.meta)}</b><div class="rd-muted">${tag(i)}${autor ? esc(autor) + ' · ' : ''}${dataHora(a.created_at)}${avisou(a.meta)}</div></div></div>`;
+    };
+    return `<div class="rd-card"><h3>${ic('history')}Timeline</h3><p class="rd-sub">Ninguém edita nem apaga. Mostra também o que o comercial registrou do cliente.${eng ? ' Comentário interno não aparece para a franquia.' : ''}</p>
       <div class="eg-com">
-        <textarea id="eg-com" rows="2" placeholder="Escreva um comentário"></textarea>
+        <textarea id="eg-com" rows="2" placeholder="Escreva um comentário" autocomplete="off"></textarea>
+        ${typeof crmMencaoDicaHTML === 'function' ? crmMencaoDicaHTML('eg-men-dica') : ''}
         <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:6px">${eng ? '<label class="rd-check"><input type="checkbox" id="eg-com-int">Interno</label>' : ''}<button class="rd-btn sm pri" id="eg-com-btn" onclick="EV.comentar('${p.id}')">${ic('send')}Comentar</button></div>
       </div>
-      <div class="eg-tl">${ev.map((e) => `<div class="${e.tipo === 'alerta' ? 'al' : ''} ${tomEvento(e).t === 'bad' ? 'rb' : ''} ${e.interno ? 'int' : ''}"><span class="eg-tli t-${tomEvento(e).t}">${ic(tomEvento(e).i)}</span><div>${txt(e)}${arqs(e)}<div class="rd-muted">${esc(e.autor_nome || '')} · ${dataHora(e.created_at)}${e.interno ? ' · interno' : ''}</div></div></div>`).join('') || '<div class="rd-muted">Sem eventos.</div>'}</div></div>`;
+      ${f.barra}
+      <div class="eg-tl">${f.lista.map((i) => (i.e ? linhaEng(i) : linhaCrm(i))).join('') || `<div class="rd-muted">${itens.length ? 'Nada aqui com esse filtro.' : 'Sem eventos.'}</div>`}</div></div>`;
+  }
+  // depois de desenhar a timeline: @ na caixa e destaque do evento aberto pelo sininho
+  function posTL(p) {
+    const inp = document.getElementById('eg-com');
+    if (inp && p.cliente_id && typeof crmMencaoLigarCaixa === 'function') {
+      // comentário interno: só a engenharia lê, então só ela aparece no @
+      crmMencaoLigarCaixa(inp, p.cliente_id, { dica: 'eg-men-dica', soEng: () => !!(document.getElementById('eg-com-int') || {}).checked });
+    }
+    if (typeof crmMencaoDestacarEm === 'function') crmMencaoDestacarEm('eg-ev-');
   }
 
   // ------------------------------------------------------------ ações
@@ -2066,8 +2126,25 @@
     const t = val('eg-com');
     if (!t) return;
     const int = !!(document.getElementById('eg-com-int') || {}).checked;
+    const cli = ((E.projetos || []).find((x) => x.id === id) || {}).cliente_id;
+    const men = cli && typeof crmMencaoColher === 'function' ? crmMencaoColher(cli, t, int ? { soEng: true } : null) : null;
     await ocupado('eg-com-btn', async () => {
-      try { await rpc('eng_comentar', { p_id: id, p_texto: t, p_interno: int }); await carregarEventos(id); pintarDrawer(); } catch (e) { toast(e.message); }
+      try {
+        const args = { p_id: id, p_texto: t, p_interno: int };
+        if (men) args.p_mencao = men;
+        try {
+          await rpc('eng_comentar', args);
+        } catch (e) {
+          // banco ainda sem a migration 20261027150000: salva sem o aviso do @
+          if (!men || !/p_mencao|function|schema cache/i.test(e.message || '')) throw e;
+          delete args.p_mencao;
+          await rpc('eng_comentar', args);
+          toast('Comentário salvo. O aviso do @ começa a valer quando o banco for atualizado.');
+        }
+        if (cli && typeof crmMencaoLimpar === 'function') crmMencaoLimpar(cli);
+        await carregarEventos(id);
+        pintarDrawer();
+      } catch (e) { toast(e.message); }
     });
   }
   async function salvarConc(id) {
@@ -2447,6 +2524,8 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
     kitMenos: () => { E.kitLimite = KITS_PASSO; pintarKits(); },
     envioModal, envioKit, enviar,
     dimensionar, sugerirVinculo,
+    // timeline unificada: a ficha do comercial desenha os eventos da engenharia com estes
+    textoEvento, tomEvento,
   };
   window.EV = EV;
   window.renderEngRoute = renderEngRoute;

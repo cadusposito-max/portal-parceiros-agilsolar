@@ -415,3 +415,32 @@ html[data-ui="v2"] .v2f .v2-men-avisou svg { width: 11px; height: 11px; }
 /* anotação aberta pelo sininho pisca uma vez */
 @keyframes v2menPisca { 0%, 60% { background: var(--v2-orange-50); } 100% { background: transparent; } }
 html[data-ui="v2"] .v2-men-alvo { animation: v2menPisca 2.4s ease-out; border-radius: 12px; }
+/* comentário interno no @: aviso no pé da lista */
+.v2-men-int { display: flex; gap: 6px; align-items: flex-start; margin: 0 6px 6px; padding: 8px 10px; border-radius: 10px; background: var(--v2-soft); font-size: 11.5px; font-weight: 600; color: var(--v2-ink-2); }
+.v2-men-int svg { width: 13px; height: 13px; flex: none; margin-top: 1px; }
+
+/* ---------- timeline unificada (timeline-unificada.js): ficha e card da engenharia ---------- */
+html[data-ui="v2"] .tlu-filtro { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 8px; }
+html[data-ui="v2"] .tlu-chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--v2-line-strong); background: var(--v2-card);
+  border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--v2-ink-2); cursor: pointer;
+}
+html[data-ui="v2"] .tlu-chip em { font-style: normal; font-size: 11px; font-weight: 800; color: var(--v2-gray); }
+html[data-ui="v2"] .tlu-chip.on { background: var(--v2-ink); border-color: var(--v2-ink); color: var(--v2-card); }
+html[data-ui="v2"] .tlu-chip.on em { color: inherit; opacity: .7; }
+html[data-ui="v2"] .tlu-tec { margin-left: auto; border: 0; background: none; padding: 5px 2px; font: inherit; font-size: 12px; font-weight: 800; color: var(--v2-blue-text); cursor: pointer; }
+html[data-ui="v2"] .tlu-ori { display: inline-block; font-size: 10.5px; font-weight: 800; line-height: 1.5; padding: 0 7px; border-radius: 6px; margin-right: 6px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0; text-transform: none; }
+html[data-ui="v2"] .tlu-ori.com { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+html[data-ui="v2"] .tlu-ori.eng { background: rgba(124,92,214,.13); color: #6A4CC4; }
+html[data-ui="v2"] .tlu-ori.obra { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] .tlu-ori.int { background: var(--v2-ink); color: var(--v2-card); }
+html[data-ui="v2"][data-theme="dark"] .tlu-ori.eng { color: #B4A2F0; }
+/* interno: listrado, igual ao card da engenharia */
+html[data-ui="v2"] .tlu-int { background: repeating-linear-gradient(135deg, var(--v2-soft), var(--v2-soft) 8px, transparent 8px, transparent 16px); border-radius: 12px; padding-left: 6px; padding-right: 6px; }
+html[data-ui="v2"] .tlu-vazio { padding: 14px 4px; font-size: 13px; color: var(--v2-ink-2); }
+@media (max-width: 560px) { html[data-ui="v2"] .tlu-tec { margin-left: 0; } }
+/* card da engenharia: dica do @ e a lista um pouco abaixo do filtro */
+html[data-ui="v2"] .eg-com .v2-men-dica { margin-top: 6px; }
+html[data-ui="v2"] .eg-com .v2-men-dica svg { width: 14px; height: 14px; }
+html[data-ui="v2"] .eg-tl .v2-men-avisou svg { width: 11px; height: 11px; }
+html[data-ui="v2"] .eg-panel .tlu-filtro { margin-top: 14px; margin-bottom: 0; }

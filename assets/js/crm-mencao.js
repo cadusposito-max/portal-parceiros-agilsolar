@@ -1,6 +1,10 @@
 // ==========================================
-// MENÇÃO COM @ nas anotações da timeline (ficha do cliente, visual novo)
+// MENÇÃO COM @ nas anotações da timeline (ficha do cliente e card da
+// engenharia, visual novo)
 // ==========================================
+// No card da engenharia (eng-v2.js) a menção vai em eng_eventos.meta pelo
+// eng_comentar; comentário interno só oferece e só avisa a engenharia
+// (migration 20261027150000_timeline_unificada).
 // Na caixa da timeline, "@" abre a lista de quem consegue abrir o cliente
 // (RPC mencao_pessoas, mesma regra da RLS). Setas/Enter escolhem e o nome entra
 // como "@Nome". Ao salvar, os escolhidos que ainda estão no texto vão em
@@ -47,28 +51,35 @@
       pessoas.set(clienteId, null);
       return null;
     }
-    const lista = (data || []).map((p) => ({ id: p.user_id, nome: nomeBonito(p.nome), papel: p.papel || '' }));
+    // eng = engenharia central (sem a migration 20261027150000 a coluna não vem: deduz pelo papel)
+    const lista = (data || []).map((p) => ({ id: p.user_id, nome: nomeBonito(p.nome), papel: p.papel || '', eng: p.eng === undefined ? /^Matriz/.test(p.papel || '') : p.eng === true }));
     pessoas.set(clienteId, lista);
     return lista;
   }
 
   // ---- caixa ------------------------------------------------------------------
-  function composerDicaHTML() {
+  function composerDicaHTML(id) {
     if (!v2()) return '';
-    return `<div class="v2-men-dica" id="v2-men-dica" hidden><i data-lucide="at-sign"></i><span>Digite <kbd>@</kbd> para avisar alguém da equipe.</span></div>`;
+    return `<div class="v2-men-dica" id="${id || 'v2-men-dica'}" hidden><i data-lucide="at-sign"></i><span>Digite <kbd>@</kbd> para avisar alguém da equipe.</span></div>`;
   }
 
+  // caixa da timeline da ficha
   function ligar() {
     fechar();
-    if (!v2()) return;
-    const inp = document.getElementById('crm360-composer-text');
     const clienteId = typeof _crm360ClientId !== 'undefined' ? _crm360ClientId : null;
-    if (!inp || !clienteId || inp.dataset.mencao) return;
+    ligarCaixa(document.getElementById('crm360-composer-text'), clienteId, { dica: 'v2-men-dica' });
+  }
+
+  // qualquer caixa (ficha, card da engenharia). opts.dica = id da dica "Digite @";
+  // opts.soEng() = true enquanto só a engenharia pode ser marcada (comentário interno)
+  function ligarCaixa(inp, clienteId, opts) {
+    if (!v2() || !inp || !clienteId || inp.dataset.mencao) return;
     inp.dataset.mencao = '1';
+    inp._mencao = opts || {};
     inp.setAttribute('autocomplete', 'off');
 
     carregar(clienteId).then((lista) => {
-      const dica = document.getElementById('v2-men-dica');
+      const dica = document.getElementById((opts && opts.dica) || 'v2-men-dica');
       if (dica && Array.isArray(lista) && lista.length) dica.hidden = false;
     });
 
@@ -103,14 +114,16 @@
     if (!m) { fechar(); return; }
     const filtro = m[2];
     const f = semAcento(filtro.trim());
+    const soEng = !!(inp._mencao && inp._mencao.soEng && inp._mencao.soEng());
     const opcoes = lista.filter((p) => {
+      if (soEng && !p.eng) return false;
       const nm = semAcento(p.nome);
       return !f || nm.startsWith(f) || nm.split(' ').some((pt) => pt.startsWith(f));
     });
     // "@palavra outra" sem ninguém com esse nome: é texto normal, não menção
     if (!opcoes.length && /\s/.test(filtro)) { fechar(); return; }
     if (M.filtro !== filtro || M.inp !== inp) M.sel = 0;
-    Object.assign(M, { aberta: true, ini: pos - filtro.length - 1, filtro, opcoes, inp, cliente: clienteId });
+    Object.assign(M, { aberta: true, ini: pos - filtro.length - 1, filtro, opcoes, inp, cliente: clienteId, soEng });
     pintar();
   }
 
@@ -143,7 +156,9 @@
     };
     el.innerHTML = `<h6>Avisar quem?</h6>` + (M.opcoes.length
       ? `<div class="v2-men-lista">${M.opcoes.map((p, i) => `<button type="button" role="option" aria-selected="${i === M.sel}" class="v2-men-op ${i === M.sel ? 'on' : ''}" data-i="${i}"><span class="v2-men-av">${esc(iniciais(p.nome))}</span><span class="v2-men-tx"><b>${marca(p.nome)}</b><small>${esc(p.papel)}</small></span></button>`).join('')}</div>`
-      : `<div class="v2-men-vazio">Ninguém com esse nome entre quem pode ver este cliente.</div>`);
+      : `<div class="v2-men-vazio">Ninguém com esse nome entre quem pode ver ${M.soEng ? 'este comentário' : 'este cliente'}.</div>`)
+      + (M.soEng ? `<div class="v2-men-int"><i data-lucide="lock"></i>Comentário interno: só a engenharia aparece aqui.</div>` : '');
+    if (M.soEng && window.lucide) window.lucide.createIcons({ nodes: [el] });
     posicionar();
     el.querySelector('.v2-men-op.on')?.scrollIntoView({ block: 'nearest' });
   }
@@ -185,7 +200,7 @@
     inp.value = antes + inp.value.slice(fim).replace(/^ /, '');
     inp.setSelectionRange(antes.length, antes.length);
     const lista = escolhidos.get(M.cliente) || [];
-    if (!lista.some((m) => m.id === p.id)) lista.push({ id: p.id, nome: p.nome });
+    if (!lista.some((m) => m.id === p.id)) lista.push({ id: p.id, nome: p.nome, eng: p.eng });
     escolhidos.set(M.cliente, lista);
     fechar();
     inp.focus();
@@ -197,8 +212,9 @@
 
   // ---- salvar -------------------------------------------------------------------
   // meta para o insert (ou null) com quem ainda está marcado no texto
-  function colher(clienteId, texto) {
-    const lista = (escolhidos.get(clienteId) || []).filter((m) => texto.includes('@' + m.nome));
+  // opts.soEng: comentário interno, quem não é da engenharia não é avisado
+  function colher(clienteId, texto, opts) {
+    const lista = (escolhidos.get(clienteId) || []).filter((m) => texto.includes('@' + m.nome) && (!(opts && opts.soEng) || m.eng));
     if (!lista.length) return null;
     return { mencionados: lista.map((m) => m.id), mencionados_nomes: lista.map((m) => m.nome) };
   }
@@ -228,8 +244,12 @@
   function marcarAlvo(atividadeId) { alvoPendente = atividadeId ? String(atividadeId) : null; }
   function posRender() {
     ligar();
+    destacarEm('crm-ev-');
+  }
+  // prefixo do id na tela: 'crm-ev-' (ficha) ou 'eg-ev-' (card da engenharia)
+  function destacarEm(prefixo) {
     if (!alvoPendente) return;
-    const el = document.getElementById('crm-ev-' + alvoPendente);
+    const el = document.getElementById(prefixo + alvoPendente);
     if (!el) return; // timeline ainda carregando: tenta no próximo render
     alvoPendente = null;
     el.classList.add('v2-men-alvo');
@@ -243,5 +263,7 @@
   window.crmMencaoAvisouHTML = avisouHTML;
   window.crmMencaoMarcarAlvo = marcarAlvo;
   window.crmMencaoPosRender = posRender;
+  window.crmMencaoLigarCaixa = ligarCaixa;
+  window.crmMencaoDestacarEm = destacarEm;
   window.crmMencaoFechar = fechar;
 })();

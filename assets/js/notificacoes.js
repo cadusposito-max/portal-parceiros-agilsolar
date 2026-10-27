@@ -137,13 +137,18 @@
           state.clientes.unshift(data);
         }
         if (a.atividade && has('crmMencaoMarcarAlvo')) crmMencaoMarcarAlvo(a.atividade);
+        // menção: o evento tem que aparecer mesmo com filtro na timeline
+        if (a.atividade && window.TLU) TLU.mostrarTudo('ficha');
         if (has('openCrm360')) openCrm360(a.id, a.aba);
       } else if (a.tela === 'eng' && a.id) {
+        // evento = menção na timeline unificada ('eng-<id>' ou id da atividade do comercial)
+        if (a.evento && has('crmMencaoMarcarAlvo')) crmMencaoMarcarAlvo(a.evento);
+        if (a.evento && window.TLU) TLU.mostrarTudo('eng');
         if (state.canEng && has('setEnvironment') && window.EV) {
           setEnvironment('engenharia');
-          window.EV.abrir(a.id);
+          window.EV.abrir(a.id, a.aba);
         } else if (a.cliente) {
-          abrirAlvo({ tela: 'cliente', id: a.cliente, aba: 'engenharia' });
+          abrirAlvo(a.evento ? { tela: 'cliente', id: a.cliente, aba: 'timeline', atividade: a.evento } : { tela: 'cliente', id: a.cliente, aba: 'engenharia' });
         }
       } else if (a.tela === 'os' && a.id) {
         if (state.environment !== 'om' && has('setEnvironment')) setEnvironment('om');

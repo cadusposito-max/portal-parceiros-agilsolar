@@ -280,6 +280,7 @@ function crmDropStatus(event, status) {
 let _crm360ClientId = null;
 let _crm360Tab = 'timeline';
 let _crm360Atividades = [];
+let _crm360EngTL = null;         // eventos da engenharia na timeline (timeline-unificada.js)
 let _crm360OmDetalhe = null;
 let _crm360Cidade = null;        // município re-escolhido na edição
 let _crm360ComposerTipo = 'nota';
@@ -350,6 +351,7 @@ async function openCrm360(clientId, initialTab) {
   _crm360ClientId = clientId;
   _crm360Tab = typeof initialTab === 'string' && initialTab ? initialTab : 'timeline';
   _crm360Atividades = [];
+  _crm360EngTL = null;
   _crm360OmDetalhe = null;
   _crm360Cidade = null;
   _crm360ComposerTipo = 'nota';
@@ -387,18 +389,32 @@ function closeCrm360() {
   document.removeEventListener('keydown', _crm360OnKeydown);
 }
 
+// A timeline da ficha também traz a engenharia (mesma história do card do projeto)
 async function crmFetchAtividades(clientId) {
-  const { data, error } = await supabaseClient
-    .from('crm_atividades')
-    .select('*')
-    .eq('cliente_id', clientId)
-    .order('created_at', { ascending: false })
-    .limit(120);
+  const [{ data, error }, eng] = await Promise.all([
+    supabaseClient
+      .from('crm_atividades')
+      .select('*')
+      .eq('cliente_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(120),
+    window.TLU ? TLU.engDoCliente(clientId).catch(() => null) : Promise.resolve(null),
+  ]);
 
-  if (!error && _crm360ClientId === clientId) {
-    _crm360Atividades = data || [];
+  if (_crm360ClientId !== clientId) return;
+  if (!error) _crm360Atividades = data || [];
+  _crm360EngTL = eng;
+  if (!error || eng) renderCrm360();
+}
+// filtro da timeline: redesenha sem perder a anotação que está sendo escrita
+if (window.TLU) {
+  TLU.aoMudar('ficha', () => {
+    const t = document.getElementById('crm360-composer-text');
+    const v = t ? t.value : '';
     renderCrm360();
-  }
+    const n = document.getElementById('crm360-composer-text');
+    if (n && v) n.value = v;
+  });
 }
 
 function _crm360ClientRows() {
@@ -852,18 +868,31 @@ function renderCrm360TabContent(client, propostas, vendas) {
       </div>`;
   }
 
-  // TIMELINE (padrão): atividades + propostas + vendas mescladas
+  // TIMELINE (padrão): atividades + propostas + vendas + engenharia mescladas
+  // (timeline-unificada.js: a mesma história que o card do projeto mostra)
+  const eng = _crm360EngTL;
+  const atividades = eng && window.TLU ? TLU.semEspelho(_crm360Atividades, eng.projetos.map((p) => p.id)) : _crm360Atividades;
   const eventos = [];
-  _crm360Atividades.forEach((a) => eventos.push({ id: a.id, tipo: a.tipo, data: a.created_at, autor: a.autor_email, descricao: a.descricao, meta: a.meta }));
+  atividades.forEach((a) => eventos.push({ id: a.id, tipo: a.tipo, data: a.created_at, autor: a.autor_email, descricao: a.descricao, meta: a.meta, origem: window.TLU ? TLU.origemCrm(a) : 'com' }));
   propostas.forEach((p) => {
     const kit = p.kit_nome || 'personalizada';
-    eventos.push({ tipo: 'proposta', data: p.created_at, autor: p.vendedor_email, descricao: `Proposta gerada: ${kit}` });
-    if (p.enviada_em) eventos.push({ tipo: 'proposta_enviada', data: p.enviada_em, autor: p.vendedor_email, descricao: `Proposta enviada ao cliente: ${kit}` });
+    eventos.push({ tipo: 'proposta', data: p.created_at, autor: p.vendedor_email, descricao: `Proposta gerada: ${kit}`, origem: 'com' });
+    if (p.enviada_em) eventos.push({ tipo: 'proposta_enviada', data: p.enviada_em, autor: p.vendedor_email, descricao: `Proposta enviada ao cliente: ${kit}`, origem: 'com' });
     // vista_em = primeira abertura do link pelo cliente
-    if (p.vista_em) eventos.push({ tipo: 'proposta_vista', data: p.vista_em, descricao: `Cliente abriu a proposta: ${kit}${Number(p.vista_count) > 1 ? ` (${p.vista_count} visualizações)` : ''}` });
+    if (p.vista_em) eventos.push({ tipo: 'proposta_vista', data: p.vista_em, descricao: `Cliente abriu a proposta: ${kit}${Number(p.vista_count) > 1 ? ` (${p.vista_count} visualizações)` : ''}`, origem: 'com' });
   });
-  vendas.forEach((v) => eventos.push({ tipo: 'venda', data: v.created_at, autor: v.vendedor_email, descricao: `Venda fechada: ${v.kit_nome || ''} (${formatCurrency(v.kit_price || 0)})` }));
+  vendas.forEach((v) => eventos.push({ tipo: 'venda', data: v.created_at, autor: v.vendedor_email, descricao: `Venda fechada: ${v.kit_nome || ''} (${formatCurrency(v.kit_price || 0)})`, origem: 'com' }));
+  if (eng && window.EV && EV.textoEvento) {
+    const varios = eng.projetos.length > 1;
+    const num = Object.fromEntries(eng.projetos.map((p) => [p.id, 'P-' + String(p.numero || 0).padStart(4, '0')]));
+    eng.eventos.forEach((e) => eventos.push({
+      id: 'eng-' + e.id, eng: e, data: e.created_at, autorNome: e.autor_nome, meta: e.meta, interno: e.interno,
+      descricao: (varios ? num[e.projeto_id] + ' · ' : '') + EV.textoEvento(e),
+      origem: TLU.origemEng(e), tecnico: TLU.tecnicoEng(e),
+    }));
+  }
   eventos.sort((a, b) => new Date(b.data) - new Date(a.data));
+  const filtro = window.TLU ? TLU.filtrar('ficha', client.id, eventos) : { lista: eventos, barra: '' };
 
   const composer = `
     <div class="border border-neutral-800 bg-black/40 p-3.5 mb-4">
@@ -886,39 +915,52 @@ function renderCrm360TabContent(client, propostas, vendas) {
 
   // Celular: lista com altura fixa (420px). Desktop: a lista preenche o espaço
   // que sobra na coluna (absolute dentro do flex-1, pra não esticar a caixa).
-  return composer + `
+  return composer + filtro.barra + `
     <div class="crm360-tl-wrap relative lg:flex-1 lg:min-h-[420px]">
     <div class="crm360-tl-lista space-y-0 max-h-[420px] overflow-y-auto pr-1 lg:max-h-none lg:absolute lg:inset-0 custom-scrollbar">
-      ${eventos.map((ev) => {
-        const criado = ev.tipo === 'cadastro' && ev.meta?.evento === 'criado';
-        const meta = criado ? CRM_ATIVIDADE_META.cadastro_criado : (CRM_ATIVIDADE_META[ev.tipo] || CRM_ATIVIDADE_META.nota);
-        let texto = ev.descricao || '';
-        if (ev.tipo === 'status' && ev.meta) {
-          texto = `Status: ${ev.meta.de || '—'} → ${ev.meta.para || '—'}${ev.meta.motivo ? ` (${ev.meta.motivo})` : ''}`;
-        }
-        // Nascimento do card (gravado pelo trigger trg_clientes_log_criado)
-        if (criado) {
-          const origem = typeof clientOrigemLabel === 'function' ? clientOrigemLabel(ev.meta.origem) : '';
-          texto = `Cliente cadastrado${origem && origem !== 'NÃO INFORMADO' ? ` · origem ${origem}` : ''}`;
-        }
-        // contato (ligação/WhatsApp/visita): "3º contato · Ligação · Não atendeu — obs" (crm-contatos.js)
-        const textoContato = window.crmContatos ? crmContatos.textoTimeline(ev) : null;
-        if (textoContato) texto = textoContato;
-        if (!texto) texto = meta.label;
-        texto = crmTrocaEmailPorNome(texto);
+      ${filtro.lista.map((ev) => {
+        const { icon, color, texto } = ev.eng ? crmEventoEngTL(ev) : crmAtividadeTL(ev);
+        const autor = ev.eng ? ev.autorNome : (ev.autor ? crmNomeAutor(ev.autor) : '');
         return `
-          <div class="flex gap-3 py-2.5 border-b border-neutral-900 last:border-b-0"${ev.id ? ` id="crm-ev-${escapeHTML(String(ev.id))}"` : ''}>
-            <div class="shrink-0 w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center ${meta.color}">
-              <i data-lucide="${meta.icon}" class="w-3.5 h-3.5"></i>
+          <div class="flex gap-3 py-2.5 border-b border-neutral-900 last:border-b-0 ${ev.interno ? 'tlu-int' : ''}"${ev.id ? ` id="crm-ev-${escapeHTML(String(ev.id))}"` : ''}>
+            <div class="shrink-0 w-7 h-7 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center ${color}">
+              <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-neutral-300 text-[11px] leading-snug">${typeof crmMencaoTextoHTML === 'function' ? crmMencaoTextoHTML(texto, ev.meta) : escapeHTML(texto)}</p>
-              <p class="text-neutral-600 text-[9px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(ev.data)} · ${crmTimeAgo(ev.data)}${ev.autor ? ` · ${escapeHTML(crmNomeAutor(ev.autor))}` : ''}${typeof crmMencaoAvisouHTML === 'function' ? crmMencaoAvisouHTML(ev.meta) : ''}</p>
+              <p class="text-neutral-600 text-[9px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${window.TLU ? TLU.tagHTML(ev.origem, ev.interno) : ''}${formatDate(ev.data)} · ${crmTimeAgo(ev.data)}${autor ? ` · ${escapeHTML(autor)}` : ''}${typeof crmMencaoAvisouHTML === 'function' ? crmMencaoAvisouHTML(ev.meta) : ''}</p>
             </div>
           </div>`;
-      }).join('')}
+      }).join('') || '<p class="tlu-vazio">Nada aqui com esse filtro.</p>'}
     </div>
     </div>`;
+}
+
+// Ícone e texto de uma atividade do comercial (ficha e card da engenharia)
+function crmAtividadeTL(ev) {
+  const criado = ev.tipo === 'cadastro' && ev.meta?.evento === 'criado';
+  const meta = criado ? CRM_ATIVIDADE_META.cadastro_criado : (CRM_ATIVIDADE_META[ev.tipo] || CRM_ATIVIDADE_META.nota);
+  let texto = ev.descricao || '';
+  if (ev.tipo === 'status' && ev.meta) {
+    texto = `Status: ${ev.meta.de || '—'} → ${ev.meta.para || '—'}${ev.meta.motivo ? ` (${ev.meta.motivo})` : ''}`;
+  }
+  // Nascimento do card (gravado pelo trigger trg_clientes_log_criado)
+  if (criado) {
+    const origem = typeof clientOrigemLabel === 'function' ? clientOrigemLabel(ev.meta.origem) : '';
+    texto = `Cliente cadastrado${origem && origem !== 'NÃO INFORMADO' ? ` · origem ${origem}` : ''}`;
+  }
+  // contato (ligação/WhatsApp/visita): "3º contato · Ligação · Não atendeu — obs" (crm-contatos.js)
+  const textoContato = window.crmContatos ? crmContatos.textoTimeline(ev) : null;
+  if (textoContato) texto = textoContato;
+  if (!texto) texto = meta.label;
+  return { icon: meta.icon, color: meta.color, texto: crmTrocaEmailPorNome(texto) };
+}
+
+// Evento da engenharia na ficha (ícone e cor como no card do projeto)
+function crmEventoEngTL(ev) {
+  const tom = window.EV && EV.tomEvento ? EV.tomEvento(ev.eng) : { t: 'info', i: 'hard-hat' };
+  const cor = { ok: 'text-green-400', bad: 'text-red-400', at: 'text-orange-400', os: 'text-purple-400', gray: 'text-neutral-400' }[tom.t] || 'text-blue-400';
+  return { icon: tom.i, color: cor, texto: ev.descricao };
 }
 
 // ==========================================
