@@ -182,6 +182,7 @@ async function pbEstruturaCarregarOpcoes() {
   // Sem a lista (erro), fica só o padrão cerâmico; não tenta de novo a cada desenho da tela.
   if (error) { console.warn('[estrutura] opções', error); _pbEstrutura.opcoes = []; pbFornecimentoSync(); return null; }
   _pbEstrutura.opcoes = Array.isArray(data) ? data : [];
+  pbEstruturaAjustarDistribuidora();
   pbFornecimentoSync();
   return _pbEstrutura.opcoes;
 }
@@ -225,9 +226,27 @@ function pbEstruturaEscolher(campo, valor) {
   pbFornecimentoSync();
 }
 
+// Estruturas da distribuidora escolhida (a AVT não tem as linhas Flex/Smart da Helte); sem distribuidora,
+// ou integrada (Belenus, que não tem estrutura cadastrada aqui), todas.
+function pbEstruturaOpcoesDaDistribuidora() {
+  const ops = _pbEstrutura.opcoes || [];
+  const dist = _pbFornecimento.distribuidora;
+  const dela = dist ? ops.filter((o) => String(o.distribuidora_id) === dist) : [];
+  return dela.length ? dela : ops;
+}
+
+// Trocou a distribuidora: se ela não monta o telhado/linha atual, fica a mesma telha na linha dela, senão o cerâmico.
+function pbEstruturaAjustarDistribuidora() {
+  if (!_pbEstrutura.opcoes || pbEstruturaPadrao()) return;
+  if (pbEstruturaLinhas(_pbEstrutura.telhado).includes(_pbEstrutura.linha)) return;
+  const linhas = pbEstruturaLinhas(_pbEstrutura.telhado);
+  if (linhas.length) _pbEstrutura.linha = linhas[0];
+  else pbEstruturaReset();
+}
+
 // Linhas da estrutura do telhado para módulo até 620 W (o 710 W usa a linha Smart da Helte).
 function pbEstruturaLinhas(telhado) {
-  const ops = (_pbEstrutura.opcoes || []).filter((o) => o.telhado === telhado);
+  const ops = pbEstruturaOpcoesDaDistribuidora().filter((o) => o.telhado === telhado);
   const t1 = ops.filter((o) => Number(o.tamanho) === 1).map((o) => o.linha);
   return [...new Set(t1.length ? t1 : ops.map((o) => o.linha))];
 }
@@ -267,15 +286,18 @@ function pbEstruturaEscolherValor(valor) {
 }
 
 function pbEstruturaOpcoesTelhado() {
-  const ops = _pbEstrutura.opcoes || [];
+  const ops = pbEstruturaOpcoesDaDistribuidora();
   const vistos = new Set();
   const lista = [];
   ops.forEach((o) => {
     if (!pbEstruturaLinhas(o.telhado).includes(o.linha)) return;
     const v = `${o.telhado}|${o.linha}`;
-    if (vistos.has(v)) return;
+    const nome = o.telhado === 'solo' ? 'Solo' : `${o.telhado_nome}${o.linha !== 'standard' ? ' · ' + (PB_ESTRUTURA_LINHAS[o.linha] || o.linha) : ''}`;
+    // Mesmo nome em duas distribuidoras (Solo: Pratyc na Helte, standard na AVT) aparece uma vez só.
+    if (vistos.has(v) || vistos.has(nome)) return;
     vistos.add(v);
-    lista.push({ valor: v, nome: o.telhado === 'solo' ? 'Solo' : `${o.telhado_nome}${o.linha !== 'standard' ? ' · ' + (PB_ESTRUTURA_LINHAS[o.linha] || o.linha) : ''}` });
+    vistos.add(nome);
+    lista.push({ valor: v, nome });
   });
   return lista.length ? lista : [{ valor: 'ceramico|standard', nome: 'Cerâmico / colonial' }];
 }
@@ -471,6 +493,7 @@ function pbFornecimentoEscolher(campo, value) {
     // as preferências evita carregar o kit/preço da distribuidora anterior.
     _pbFornecimento.modulo = '';
     _pbFornecimento.inversor = '';
+    pbEstruturaAjustarDistribuidora();
   }
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbFornecimentoSync();
