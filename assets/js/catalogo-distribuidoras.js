@@ -100,7 +100,7 @@ function pbKitServeLigacao(kit, ligacao) {
 // orçamento só mostra os da linha escolhida no seletor do topo.
 const PB_LINHAS = {
   promocional: 'SOFAR com RONMA 620W de 5 a 21 módulos e microinversor Hoymiles de 4 a 20, com preço promocional.',
-  catalogo: 'Todas as marcas, até 150 módulos, nas distribuidoras Helte e Belenus.',
+  catalogo: 'Todas as marcas, até 150 módulos, nas distribuidoras Helte, AVT e Belenus.',
 };
 
 function pbLinhaAtual() {
