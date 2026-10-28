@@ -19,3 +19,6 @@ supabase/
 
 # Previa estatica de relatorio usada em desenvolvimento.
 _preview-relatorio.html
+
+# Documentos internos (planilhas, scripts, repasses): nunca servir pelo site.
+outputs/

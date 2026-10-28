@@ -15,3 +15,8 @@ _preview-relatorio.html
 
 # Pacotes de repasse (zip grande, fica só no disco)
 outputs/**/*.zip
+
+# Documentos internos (scripts de dados, migrations, planilhas de custo/preço, repasses).
+# Este repositório é público: nada disso pode subir. Ficam só no disco.
+supabase/
+outputs/
