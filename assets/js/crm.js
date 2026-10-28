@@ -409,11 +409,10 @@ async function crmFetchAtividades(clientId) {
 // filtro da timeline: redesenha sem perder a anotação que está sendo escrita
 if (window.TLU) {
   TLU.aoMudar('ficha', () => {
-    const t = document.getElementById('crm360-composer-text');
-    const v = t ? t.value : '';
+    const ids = ['crm360-composer-text', 'tf-cx-tit', 'tf-cx-det'];
+    const v = ids.map((id) => (document.getElementById(id) || {}).value || '');
     renderCrm360();
-    const n = document.getElementById('crm360-composer-text');
-    if (n && v) n.value = v;
+    ids.forEach((id, i) => { const n = document.getElementById(id); if (n && v[i]) n.value = v[i]; });
   });
 }
 
@@ -873,7 +872,10 @@ function renderCrm360TabContent(client, propostas, vendas) {
   const eng = _crm360EngTL;
   const atividades = eng && window.TLU ? TLU.semEspelho(_crm360Atividades, eng.projetos.map((p) => p.id)) : _crm360Atividades;
   const eventos = [];
-  atividades.forEach((a) => eventos.push({ id: a.id, tipo: a.tipo, data: a.created_at, autor: a.autor_email, descricao: a.descricao, meta: a.meta, origem: window.TLU ? TLU.origemCrm(a) : 'com' }));
+  // tarefas (tarefas.js): os passos de cada uma viram um cartão só
+  const tfTl = window.tarefasTimeline ? tarefasTimeline.agrupar(atividades, client.id) : null;
+  if (tfTl) eventos.push(...tfTl.cartoes);
+  (tfTl ? tfTl.resto : atividades).forEach((a) => eventos.push({ id: a.id, tipo: a.tipo, data: a.created_at, autor: a.autor_email, descricao: a.descricao, meta: a.meta, origem: window.TLU ? TLU.origemCrm(a) : 'com' }));
   propostas.forEach((p) => {
     const kit = p.kit_nome || 'personalizada';
     eventos.push({ tipo: 'proposta', data: p.created_at, autor: p.vendedor_email, descricao: `Proposta gerada: ${kit}`, origem: 'com' });
@@ -894,21 +896,26 @@ function renderCrm360TabContent(client, propostas, vendas) {
   eventos.sort((a, b) => new Date(b.data) - new Date(a.data));
   const filtro = window.TLU ? TLU.filtrar('ficha', client.id, eventos) : { lista: eventos, barra: '' };
 
+  // "Tarefa" na caixa só com a tabela de tarefas no ar (tarefas.js)
+  const comTarefa = Boolean(window.tarefasTimeline && tarefasTimeline.pronta());
+  if (_crm360ComposerTipo === 'tarefa' && !comTarefa) _crm360ComposerTipo = 'nota';
+  const ehTarefa = _crm360ComposerTipo === 'tarefa';
   const composer = `
     <div class="border border-neutral-800 bg-black/40 p-3.5 mb-4">
       <div class="flex gap-1 mb-2 flex-wrap">
-        ${['nota', 'ligacao', 'whatsapp', 'visita'].map((tipo) => {
+        ${['nota', 'ligacao', 'whatsapp', 'visita', ...(comTarefa ? ['tarefa'] : [])].map((tipo) => {
           const meta = CRM_ATIVIDADE_META[tipo];
           const active = _crm360ComposerTipo === tipo;
           return `<button onclick="crmSetComposerTipo('${tipo}')" class="px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest border flex items-center gap-1 transition-all ${active ? 'bg-orange-600 text-black border-orange-500' : 'bg-black text-neutral-500 border-neutral-800 hover:text-white'}"><i data-lucide="${meta.icon}" class="w-3 h-3"></i> ${meta.label}</button>`;
         }).join('')}
       </div>
+      ${ehTarefa ? tarefasTimeline.caixaHTML(client) : `
       ${window.crmContatos ? crmContatos.composerHTML(_crm360ComposerTipo) : ''}
       <div class="flex gap-2">
         <input id="crm360-composer-text" placeholder="${window.crmContatos && crmContatos.ehContato(_crm360ComposerTipo) ? 'Como foi? (opcional)' : `Registrar ${CRM_ATIVIDADE_META[_crm360ComposerTipo].label.toLowerCase()}...`}" class="crm360-input flex-1" onkeydown="if(event.key==='Enter'){event.preventDefault();crmSubmitAtividade();}">
         <button onclick="crmSubmitAtividade()" class="px-4 bg-orange-600 hover:bg-orange-500 text-black font-black uppercase tracking-widest text-[10px] transition-colors">OK</button>
       </div>
-      ${typeof crmMencaoDicaHTML === 'function' ? crmMencaoDicaHTML() : ''}
+      ${typeof crmMencaoDicaHTML === 'function' ? crmMencaoDicaHTML() : ''}`}
     </div>`;
 
   if (eventos.length === 0) return composer + crm360Empty('history', 'Sem atividades ainda — registre a primeira acima');
@@ -919,6 +926,7 @@ function renderCrm360TabContent(client, propostas, vendas) {
     <div class="crm360-tl-wrap relative lg:flex-1 lg:min-h-[420px]">
     <div class="crm360-tl-lista space-y-0 max-h-[420px] overflow-y-auto pr-1 lg:max-h-none lg:absolute lg:inset-0 custom-scrollbar">
       ${filtro.lista.map((ev) => {
+        if (ev.tarefaCard) return tarefasTimeline.cartaoHTML(ev);
         const { icon, color, texto } = ev.eng ? crmEventoEngTL(ev) : crmAtividadeTL(ev);
         const autor = ev.eng ? ev.autorNome : (ev.autor ? crmNomeAutor(ev.autor) : '');
         return `
@@ -1206,12 +1214,14 @@ function crmSetComposerTipo(tipo) {
   _crm360ComposerTipo = tipo;
   if (window.crmContatos) crmContatos.resetComposer();
   renderCrm360();
-  const input = document.getElementById('crm360-composer-text');
+  const input = document.getElementById(tipo === 'tarefa' ? 'tf-cx-tit' : 'crm360-composer-text');
   if (input) input.focus();
 }
 
 async function crmSubmitAtividade() {
   const client = _crm360Client();
+  // tarefa: quem grava é o tarefa_salvar (tarefas.js), que já leva para a timeline
+  if (client && _crm360ComposerTipo === 'tarefa' && window.tarefasTimeline) return tarefasTimeline.enviar(client);
   const input = document.getElementById('crm360-composer-text');
   if (!client || !input) return;
 

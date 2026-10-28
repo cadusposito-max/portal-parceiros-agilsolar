@@ -67,10 +67,14 @@
     const st = F[tela];
     if (st.chave !== chave) Object.assign(st, { chave, f: 'tudo', tec: PADRAO_TEC[tela] });
     if (st.forcar) Object.assign(st, { forcar: false, f: 'tudo', tec: true });
-    const cont = { tudo: itens.length, com: 0, eng: 0, obra: 0 };
-    itens.forEach((i) => { cont[i.origem] = (cont[i.origem] || 0) + 1; });
+    const cont = { tudo: itens.length, com: 0, eng: 0, obra: 0, tarefas: 0 };
+    let abertas = 0;
+    itens.forEach((i) => {
+      cont[i.origem] = (cont[i.origem] || 0) + 1;
+      if (i.tarefa) { cont.tarefas += 1; if (i.aberta) abertas += 1; }
+    });
     if (st.f !== 'tudo' && !cont[st.f]) st.f = 'tudo';
-    let lista = st.f === 'tudo' ? itens : itens.filter((i) => i.origem === st.f);
+    let lista = st.f === 'tudo' ? itens : st.f === 'tarefas' ? itens.filter((i) => i.tarefa) : itens.filter((i) => i.origem === st.f);
     const nTec = lista.filter((i) => i.tecnico).length;
     const mostraTec = st.tec || st.f === 'eng';
     if (!mostraTec) lista = lista.filter((i) => !i.tecnico);
@@ -78,9 +82,13 @@
       `<button type="button" class="tlu-chip ${st.f === k ? 'on' : ''}" onclick="TLU.filtro('${tela}','${k}')">${n}<em>${cont[k]}</em></button>`).join('');
     const tec = nTec && st.f !== 'eng'
       ? `<button type="button" class="tlu-tec" onclick="TLU.tec('${tela}')">${mostraTec ? 'Esconder ajustes técnicos' : `Mostrar ajustes técnicos (${nTec})`}</button>` : '';
-    // um filtro só faz sentido com mais de uma origem
+    // um filtro de origem só faz sentido com mais de uma; o de tarefas, com alguma tarefa (cartões de tarefas.js)
     const origens = ['com', 'eng', 'obra'].filter((k) => cont[k]).length;
-    return { lista, barra: origens > 1 || tec ? `<div class="tlu-filtro">${origens > 1 ? chips : ''}${tec}</div>` : '' };
+    const tudo = `<button type="button" class="tlu-chip ${st.f === 'tudo' ? 'on' : ''}" onclick="TLU.filtro('${tela}','tudo')">Tudo<em>${cont.tudo}</em></button>`;
+    const tarefas = cont.tarefas
+      ? `<button type="button" class="tlu-chip tlu-tar ${st.f === 'tarefas' ? 'on' : ''}" onclick="TLU.filtro('${tela}','tarefas')"><i data-lucide="list-checks"></i>Tarefas${abertas ? `<em>${abertas} aberta${abertas > 1 ? 's' : ''}</em>` : `<em>${cont.tarefas}</em>`}</button>` : '';
+    const esquerda = origens > 1 ? chips + tarefas : tarefas ? tudo + tarefas : '';
+    return { lista, barra: esquerda || tec ? `<div class="tlu-filtro">${esquerda}${tec}</div>` : '' };
   }
 
   function tagHTML(origem, interno) {

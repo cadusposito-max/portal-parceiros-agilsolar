@@ -6,7 +6,8 @@
 // Quem pode mandar para quem, e os avisos, ficam no banco
 // (migration 20261010120000_tarefas: tarefa_salvar, tarefa_concluir,
 // tarefa_excluir, tarefa_destinatarios). Aqui é só a tela. Tarefa com cliente
-// entra na timeline dele (o banco grava em crm_atividades, tipo 'tarefa').
+// entra na timeline dele (o banco grava em crm_atividades, tipo 'tarefa'), onde
+// vira um cartão só; dá para criar pela própria caixa da timeline.
 // Sem a tabela (migration pendente), o ícone nem aparece.
 //
 // Depende de: config.js (state, supabaseClient), utils.js (escapeHTML,
@@ -543,10 +544,255 @@
     icones();
   }
 
+  // ---- timeline do cliente: um cartão por tarefa -------------------------------------------------
+  // O banco grava cada passo em crm_atividades (tipo 'tarefa'; meta.tarefa_id, meta.evento e o
+  // retrato da tarefa naquele momento — migration 20261028120000_tarefa_timeline). Aqui os passos
+  // viram um cartão só, na data em que a tarefa foi criada. Quem mandou ou recebeu vê o estado ao
+  // vivo (TF.lista); quem só abre o cliente vê o que a timeline registrou.
+  const ddmm = (d) => (d ? `${String(d).slice(8, 10)}/${String(d).slice(5, 7)}` : 'sem prazo');
+  const quemTx = (uid, nome) => (uid && uid === TF.uid ? 'você' : primeiro(nome));
+  // registro antigo, sem meta.titulo: tira o "Tarefa para Fulano: " e o "(prazo 10/10)"
+  const tituloDaDescricao = (d) => String(d || '')
+    .replace(/^(Tarefa para [^:]+|Lembrete|Tarefa concluída por [^:]+|Lembrete concluído|Tarefa cancelada|Tarefa excluída|Tarefa tirada deste cliente): /, '')
+    .replace(/ \(prazo \d\d\/\d\d\)$/, '');
+
+  const TL = { atividades: null, cliente: null };  // o último agrupado (para repintar os cartões)
+  function tlAgrupar(atividades, clienteId) {
+    Object.assign(TL, { atividades, cliente: clienteId });
+    const resto = [], grupos = new Map();
+    (atividades || []).forEach((a) => {
+      const id = a.tipo === 'tarefa' && a.meta && a.meta.tarefa_id;
+      if (!id) { resto.push(a); return; }
+      if (!grupos.has(id)) grupos.set(id, []);
+      grupos.get(id).push(a);
+    });
+    const cartoes = [...grupos.entries()].map(([id, evs]) => {
+      evs.sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+      const ult = evs[evs.length - 1];
+      const m = ult.meta;
+      const criada = evs.find((e) => e.meta.evento === 'criada') || evs[0];
+      const fim = [...evs].reverse().find((e) => ['concluida', 'excluida', 'saiu'].includes(e.meta.evento));
+      const viva = TF.lista.find((t) => t.id === id && String(t.cliente_id) === String(clienteId));
+      const t = {
+        id, viva: !!viva,
+        titulo: (viva && viva.titulo) || m.titulo || tituloDaDescricao(ult.descricao),
+        detalhes: viva ? viva.detalhes : m.detalhes,
+        de_user: viva ? viva.de_user : m.de_user, de: viva ? viva.de_nome : m.de,
+        para_user: viva ? viva.para_user : m.para_user, para: viva ? viva.para_nome : m.para,
+        prazo: viva ? viva.prazo : m.prazo, urgente: viva ? viva.urgente : m.urgente,
+        criadaEm: criada.created_at, criadaPor: criada.autor_email,
+        mudancas: evs.filter((e) => e.meta.evento === 'editada').flatMap((e) => e.meta.mudancas || []),
+      };
+      if (viva) t.estado = viva.feita_em ? 'feita' : 'aberta';
+      else t.estado = !fim ? 'aberta' : fim.meta.evento === 'concluida' ? 'feita' : fim.meta.evento;
+      if (t.estado === 'feita') {
+        t.feitaEm = (viva && viva.feita_em) || (fim && fim.created_at);
+      } else if (t.estado !== 'aberta') {
+        t.fimEm = fim.created_at;
+        t.fimPor = fim.autor_email;
+      }
+      return { id: 'tf-' + id, tipo: 'tarefa', tarefaCard: t, data: t.criadaEm, origem: 'com', tarefa: true, aberta: t.estado === 'aberta' };
+    });
+    return { resto, cartoes };
+  }
+
+  function tlStatus(t) {
+    if (t.estado === 'feita') return { cls: 'done', pill: `<span class="tf-st done">${ic('check')}Concluída</span>`, ico: 'circle-check' };
+    if (t.estado === 'excluida') return { cls: 'del', pill: '<span class="tf-st del">Excluída</span>', ico: 'list-x' };
+    if (t.estado === 'saiu') return { cls: 'del', pill: '<span class="tf-st del">Tirada deste cliente</span>', ico: 'list-x' };
+    if (!t.prazo) return { cls: '', pill: '<span class="tf-st">Sem prazo</span>', ico: 'list-checks' };
+    const n = dias(t.prazo);
+    if (n < 0) return { cls: 'late', pill: `<span class="tf-st late">${ic('alarm-clock')}Atrasada ${-n} dia${n < -1 ? 's' : ''}</span>`, ico: 'list-checks' };
+    const tx = n === 0 ? 'Vence hoje' : n === 1 ? 'Vence amanhã' : `Até ${SEM[new Date(t.prazo + 'T12:00').getDay()]} ${ddmm(t.prazo)}`;
+    return { cls: '', pill: `<span class="tf-st">${ic(n <= 1 ? 'clock' : 'calendar')}${tx}</span>`, ico: 'list-checks' };
+  }
+
+  function tlCartaoHTML(ev) {
+    const t = ev.tarefaCard;
+    const s = tlStatus(t);
+    const aberta = t.estado === 'aberta';
+    const cab = t.de_user && t.de_user === t.para_user
+      ? `<span class="tf-quem">${ic('bell')}Lembrete ${t.de_user === TF.uid ? 'seu' : 'de ' + esc(primeiro(t.de))}</span>`
+      : `<span class="tf-quem">${esc(quemTx(t.de_user, t.de))}${ic('arrow-right')}${esc(quemTx(t.para_user, t.para))}</span>`;
+    const data = (ts) => `${has('formatDate') ? formatDate(ts) : new Date(ts).toLocaleDateString('pt-BR')} ${new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    const eu = String((state.currentUser && state.currentUser.email) || '').toLowerCase();
+    const autor = (email) => (String(email || '').toLowerCase() === eu ? 'você' : has('crmNomeAutor') ? crmNomeAutor(email) : email);
+
+    let resultado = '';
+    if (t.estado === 'feita' && t.feitaEm) {
+      const d = new Date(t.feitaEm);
+      let prazo = '';
+      if (t.prazo) {
+        const n = Math.round((new Date(t.prazo + 'T12:00') - new Date(iso(d) + 'T12:00')) / 864e5);
+        prazo = n > 0 ? ` · ${n} dia${n > 1 ? 's' : ''} antes do prazo` : n === 0 ? ' · no dia do prazo' : ` · ${-n} dia${n < -1 ? 's' : ''} depois do prazo`;
+      }
+      const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      resultado = `<div class="tf-res">${ic('circle-check')}<div>Concluída por ${esc(quemTx(t.para_user, t.para))} em ${ddmm(iso(d))} às ${hora}<span>${prazo}</span></div></div>`;
+    } else if (!aberta && t.fimEm) {
+      resultado = `<div class="tf-res mudo">${ic('list-x')}<div>${t.estado === 'saiu' ? 'Passou para outro cliente' : 'Excluída'} por ${esc(autor(t.fimPor))} · ${esc(data(t.fimEm))}</div></div>`;
+    }
+    // edições, com o valor de antes e o novo (as 3 últimas)
+    const hist = t.mudancas.slice(-3).map((x) => `<div class="tf-hist">${ic('pencil')}<span>${esc(x.campo)}:</span><s>${esc(x.de)}</s>${ic('arrow-right')}<b>${esc(x.para)}</b></div>`).join('');
+
+    const acoes = [];
+    if (t.viva && aberta && t.para_user === TF.uid) acoes.push(`<button type="button" class="tf-btn verde" onclick="tarefasConcluir('${t.id}')">${ic('check')}Concluir</button>`);
+    if (t.viva && aberta && t.de_user === TF.uid && t.para_user !== TF.uid) {
+      acoes.push(`<button type="button" class="tf-lk" onclick="tarefasEditar('${t.id}')">Editar</button>`);
+      acoes.push(`<button type="button" class="tf-lk" onclick="tarefasExcluir('${t.id}')">Excluir</button>`);
+    }
+    if (t.viva && t.estado === 'feita' && t.para_user === TF.uid) acoes.push(`<button type="button" class="tf-lk" onclick="tarefasReabrir('${t.id}')">Reabrir</button>`);
+
+    return `<div class="tf-tl ${s.cls}" id="crm-ev-${esc(ev.id)}">
+        <span class="tf-tl-ico">${ic(s.ico)}</span>
+        <div class="tf-tl-tx">
+          <div class="tf-tl-h">${cab}${s.pill}${aberta && t.urgente ? '<span class="tf-st urg">Urgente</span>' : ''}</div>
+          <p class="tf-tl-t">${esc(t.titulo)}</p>
+          ${t.detalhes ? `<p class="tf-tl-d">${esc(t.detalhes)}</p>` : ''}
+          ${hist}${resultado}
+          <div class="tf-tl-pe"><span class="tf-tl-meta">${window.TLU ? TLU.tagHTML('com') : ''}Criada por ${esc(autor(t.criadaPor))} · ${esc(data(t.criadaEm))}</span>${acoes.join('')}</div>
+        </div>
+      </div>`;
+  }
+
+  // ---- timeline do cliente: "Tarefa" na caixa de registrar ---------------------------------------
+  // Mesma regra do modal (tarefa_salvar): quem é gestor escolhe a pessoa; vendedor só cria lembrete.
+  const CX = { cliente: null, para: null, prazo: '', urg: false, det: false };
+
+  function cxPadrao(client) {
+    const eu = TF.uid;
+    let para = eu;
+    const vend = client.vendedor_email && has('dashVendedorNome') ? String(dashVendedorNome(client.vendedor_email) || '') : '';
+    const n = (s) => String(s || '').trim().toLowerCase();
+    const achou = (TF.dest || []).find((d) => !d.eu && (n(d.nome) === n(vend) || n(d.nome) === n(client.vendedor_email)));
+    if (achou) para = achou.user_id;
+    Object.assign(CX, { cliente: String(client.id), para, prazo: somaDias(1), urg: false, det: false });
+  }
+
+  function cxParaHTML() {
+    const lista = TF.dest;
+    if (!lista) return `<span class="tf-cx-rot">Para</span><span class="tf-mudo">carregando…</span>`;
+    if (lista.length <= 1) return `<span class="tf-cx-dica">${ic('info')}Lembrete só para você. Quem manda tarefa para a equipe é o gestor.</span>`;
+    if (lista.length > 6) {
+      return `<span class="tf-cx-rot">Para</span><select id="tf-cx-para" class="v2-select" data-titulo="Para quem" aria-label="Para quem">${opcoesPara(lista, CX.para)}</select>`;
+    }
+    return `<span class="tf-cx-rot">Para</span><div class="tf-cx-pills">${lista.map((d) => `<button type="button" data-cx-para="${d.user_id}" class="${d.user_id === CX.para ? 'on' : ''}"><i>${d.eu ? 'EU' : esc(iniciais(d.nome))}</i>${d.eu ? 'Eu' : esc(primeiro(d.nome))}</button>`).join('')}</div>`;
+  }
+
+  function cxBotaoTx() {
+    if (CX.para === TF.uid) return `${ic('bell-plus')}Criar lembrete`;
+    const d = (TF.dest || []).find((x) => x.user_id === CX.para);
+    return `${ic('send')}Enviar para ${esc(primeiro(d && d.nome))}`;
+  }
+
+  function cxHTML(client) {
+    if (CX.cliente !== String(client.id) || !CX.para) cxPadrao(client);
+    if (!TF.dest) {
+      destinatarios().then(() => {
+        cxPadrao(client);
+        const box = document.getElementById('tf-cx');
+        if (box && box.dataset.cliente === String(client.id)) cxRepintar();
+      });
+    }
+    const prazos = [['Hoje', hoje()], ['Amanhã', somaDias(1)], ['Segunda', proxSegunda()], ['Sem prazo', '']];
+    return `<div id="tf-cx" class="tf-cx" data-cliente="${esc(client.id)}">
+        <input id="tf-cx-tit" class="crm360-input" maxlength="140" autocomplete="off" placeholder="O que precisa ser feito? Ex.: anexar a conta de luz"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();crmSubmitAtividade();}">
+        <textarea id="tf-cx-det" class="crm360-input" rows="2" maxlength="1000" placeholder="Detalhes (opcional)" ${CX.det ? '' : 'hidden'}></textarea>
+        <div class="tf-cx-linha" id="tf-cx-paralinha">${cxParaHTML()}</div>
+        <div class="tf-cx-linha"><span class="tf-cx-rot">Prazo</span><div class="tf-cx-pills" id="tf-cx-prazos">${prazos.map(([l, d]) => `<button type="button" data-cx-prazo="${d}" class="sem-av ${d === CX.prazo ? 'on' : ''}">${l}</button>`).join('')}
+          <input type="date" id="tf-cx-data" value="${CX.prazo}" aria-label="Escolher data"></div></div>
+        <div class="tf-cx-pe">
+          <button type="button" class="tf-lk" id="tf-cx-maisdet" ${CX.det ? 'hidden' : ''}>${ic('plus')}Detalhes</button>
+          <label class="tf-cx-urg" id="tf-cx-urgbox" ${CX.para === TF.uid ? 'hidden' : ''}><input type="checkbox" id="tf-cx-urg" ${CX.urg ? 'checked' : ''}>Urgente <small>(avisa no celular)</small></label>
+          <em class="tf-err" id="tf-cx-err" hidden>Escreva o que precisa ser feito.</em>
+          <button type="button" class="tf-btn azul" id="tf-cx-ok" onclick="crmSubmitAtividade()">${cxBotaoTx()}</button>
+        </div>
+      </div>`;
+  }
+
+  // só a parte que muda (pessoa/botão); o que já foi digitado fica
+  function cxRepintar() {
+    const linha = document.getElementById('tf-cx-paralinha');
+    if (!linha) return;
+    linha.innerHTML = cxParaHTML();
+    document.getElementById('tf-cx-ok').innerHTML = cxBotaoTx();
+    document.getElementById('tf-cx-urgbox').hidden = CX.para === TF.uid;
+    if (window.uiV2Select) window.uiV2Select.scan(linha);
+    icones();
+  }
+
+  // ligado uma vez no documento (a ficha redesenha a caixa a cada render)
+  document.addEventListener('click', (e) => {
+    const box = e.target.closest && e.target.closest('#tf-cx');
+    if (!box) return;
+    const p = e.target.closest('[data-cx-para]');
+    if (p) { CX.para = p.dataset.cxPara; if (CX.para === TF.uid) CX.urg = false; cxRepintar(); return; }
+    const z = e.target.closest('[data-cx-prazo]');
+    if (z) {
+      CX.prazo = z.dataset.cxPrazo;
+      document.getElementById('tf-cx-data').value = CX.prazo;
+      box.querySelectorAll('[data-cx-prazo]').forEach((b) => b.classList.toggle('on', b === z));
+      return;
+    }
+    if (e.target.closest('#tf-cx-maisdet')) {
+      CX.det = true;
+      document.getElementById('tf-cx-maisdet').hidden = true;
+      const det = document.getElementById('tf-cx-det');
+      det.hidden = false;
+      det.focus();
+    }
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.id === 'tf-cx-para') { CX.para = e.target.value; if (CX.para === TF.uid) CX.urg = false; cxRepintar(); }
+    else if (e.target.id === 'tf-cx-urg') CX.urg = e.target.checked;
+    else if (e.target.id === 'tf-cx-data') {
+      CX.prazo = e.target.value;
+      document.querySelectorAll('#tf-cx [data-cx-prazo]').forEach((b) => b.classList.toggle('on', b.dataset.cxPrazo === CX.prazo));
+    }
+  });
+  document.addEventListener('input', (e) => { if (e.target.id === 'tf-cx-tit') document.getElementById('tf-cx-err').hidden = true; });
+
+  async function cxEnviar(client) {
+    const tit = document.getElementById('tf-cx-tit');
+    if (!tit) return;
+    const titulo = tit.value.trim();
+    if (!titulo) { document.getElementById('tf-cx-err').hidden = false; tit.focus(); return; }
+    const ok = document.getElementById('tf-cx-ok');
+    ok.disabled = true;
+    const para = CX.para || TF.uid;
+    const args = {
+      p_id: null, p_para: para, p_titulo: titulo,
+      p_detalhes: (document.getElementById('tf-cx-det').value || '').trim() || null,
+      p_cliente: client.id, p_prazo: CX.prazo || null, p_urgente: para !== TF.uid && CX.urg,
+    };
+    const { data, error } = await supabaseClient.rpc('tarefa_salvar', args);
+    ok.disabled = false;
+    if (error) { toast(msgErro(error)); return; }
+    tit.value = '';
+    document.getElementById('tf-cx-det').value = '';
+    CX.urg = false;
+    await recarregarUma(data);
+    if (has('crmFetchAtividades')) crmFetchAtividades(client.id);
+    const d = (TF.dest || []).find((x) => x.user_id === para);
+    toast(para === TF.uid ? 'Lembrete criado' : `Tarefa enviada para ${primeiro(d && d.nome)}${args.p_urgente ? ' com aviso no celular' : ''}`);
+  }
+
   function atualizarTudo() {
     pintarBotao();
     repintarPainel();
     repintarFicha();
+    repintarTimeline();
+  }
+
+  // a timeline aberta acompanha o estado ao vivo (concluir, editar): troca só os cartões,
+  // sem redesenhar a ficha (apagaria o que a pessoa está digitando)
+  function repintarTimeline() {
+    if (!TL.atividades || !document.querySelector('.tf-tl')) return;
+    tlAgrupar(TL.atividades, TL.cliente).cartoes.forEach((ev) => {
+      const el = document.getElementById('crm-ev-' + ev.id);
+      if (el) el.outerHTML = tlCartaoHTML(ev);
+    });
+    icones();
   }
 
   // virou o dia com a plataforma aberta: "hoje"/"atrasada" mudam
@@ -595,6 +841,17 @@
   window.tarefasToggle = () => { if (painelAberto()) fecharPainel(); else abrirPainel(); };
   window.tarefasAbrir = (id) => { pendente = id; abrirPendente(); };
   window.tarefasConcluir = (id) => concluir(id, true);
+  window.tarefasReabrir = (id) => concluir(id, false);
+  window.tarefasExcluir = (id) => excluir(id);
+  window.tarefasEditar = (id) => { const t = TF.lista.find((x) => x.id === id); if (t) abrirModal({ tarefa: t }); };
+  // timeline da ficha (crm.js): cartões das tarefas e a opção "Tarefa" na caixa de registrar
+  window.tarefasTimeline = {
+    pronta: () => TF.pronto && !TF.semTabela,
+    agrupar: tlAgrupar,
+    cartaoHTML: tlCartaoHTML,
+    caixaHTML: cxHTML,
+    enviar: cxEnviar,
+  };
   window.tarefasNova = (opts) => abrirModal(opts || {});
   window.tarefasFichaHTML = (client) => (TF.semTabela ? '' : fichaHTML(client));
 })();
