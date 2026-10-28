@@ -236,15 +236,24 @@ p{margin:0}
 .vista .tag{align-self:flex-start;background:#fff;color:var(--azul-txt);font-size:7.5pt;font-weight:800;letter-spacing:.14em;text-transform:uppercase;border-radius:99px;padding:1.2mm 3.2mm}
 .vista h3{color:#fff;font-size:16pt;font-weight:800;margin-top:4mm}
 .vista .como{font-size:9.5pt;opacity:.9;margin-top:.5mm}
-.vista .de{font-size:10pt;opacity:.8;text-decoration:line-through;margin-top:auto}
-.vista .preco{font-family:var(--f-marca);font-weight:900;font-size:40pt;line-height:1;letter-spacing:-.03em;white-space:nowrap;margin-top:1.5mm}
+.vista .de{font-size:10pt;opacity:.8;text-decoration:line-through;margin-top:6mm}
+.vista .preco{font-family:var(--f-marca);font-weight:900;font-size:44pt;line-height:1;letter-spacing:-.03em;white-space:nowrap;margin-top:7mm}
 .vista .de + .preco{margin-top:1.5mm}
-.vista .preco:first-of-type{margin-top:auto}
 .vista .preco .rs{font-size:14pt;vertical-align:15pt;margin-right:1.5mm;font-weight:800}
 .vista .desc{align-self:flex-start;margin-top:4mm;background:var(--laranja);color:var(--tinta);font-weight:800;font-size:10pt;border-radius:99px;padding:1.8mm 4mm;white-space:nowrap}
-.vista ul{list-style:none;margin:5mm 0 0;padding:4mm 0 0;border-top:1px solid rgba(255,255,255,.3);display:flex;flex-direction:column;gap:2.5mm;font-size:9.5pt}
+.vista ul{list-style:none;margin:7mm 0 0;padding:5mm 0 0;border-top:1px solid rgba(255,255,255,.3);display:flex;flex-direction:column;gap:3.5mm;font-size:10.5pt}
 .vista li{display:flex;gap:2.5mm;align-items:center}
-.vista li .ic{width:5mm;height:5mm;color:#fff}
+.vista li .ic{width:5.5mm;height:5.5mm;color:#fff}
+.vista li b{font-family:var(--f-marca);font-weight:800}
+/* com desconto entram o "De" riscado e a etiqueta: espaços mais justos para caber */
+.vista.com-desc .de{margin-top:4mm}
+.vista.com-desc .preco{margin-top:1.5mm}
+.vista.com-desc ul{margin-top:4.5mm;padding-top:3.5mm;gap:2.3mm;font-size:9.8pt}
+.vista.com-desc .vs-cartao{padding:4mm 5mm}
+.vista .vs-cartao{margin-top:auto;background:#fff;color:var(--texto);border-radius:4mm;padding:5mm 5.5mm;display:flex;gap:4mm;align-items:center}
+.vista .vs-cartao .ic{width:8mm;height:8mm;color:var(--laranja-txt)}
+.vista .vs-cartao .num{font-size:20pt;color:var(--azul-txt);display:block;line-height:1.1}
+.vista .vs-cartao p{font-size:9.5pt;line-height:1.35;margin-top:.5mm}
 .opcao{border:1px solid var(--linha);border-radius:5mm;padding:4.5mm 6mm}
 .opcao .topo-op{display:flex;align-items:baseline;justify-content:space-between;gap:5mm}
 .opcao .tit{display:flex;align-items:center;gap:2.5mm;font-family:var(--f-marca);font-weight:800;color:var(--tinta);font-size:11.5pt}
@@ -257,15 +266,19 @@ p{margin:0}
 .parcelas span{color:var(--suave);font-weight:700;font-variant-numeric:tabular-nums}
 .parcelas b{color:var(--tinta);font-variant-numeric:tabular-nums}
 .parcelas div.hl b{color:var(--azul-txt)}
-.financ{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12mm;align-items:center}
-.financ .cem{font-family:var(--f-marca);font-weight:900;font-size:26pt;color:var(--tinta);line-height:1;letter-spacing:-.03em}
+.opcao.fin{display:flex;flex-direction:column}
+.financ{flex:1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14mm;align-items:center;padding:3mm 2mm}
+.financ .cem{font-family:var(--f-marca);font-weight:900;font-size:32pt;color:var(--tinta);line-height:1;letter-spacing:-.03em}
 .financ .cem small{display:block;white-space:nowrap;font-size:9pt;font-weight:700;color:var(--suave);letter-spacing:0;margin-top:1mm}
 .linha-tempo{position:relative;display:flex;justify-content:space-between}
-.linha-tempo::before{content:"";position:absolute;left:8mm;right:8mm;top:2mm;height:2px;background:var(--azul-medio)}
-.linha-tempo div{position:relative;text-align:center;font-size:8pt;color:var(--suave);white-space:nowrap}
-.linha-tempo div::before{content:"";display:block;width:4mm;height:4mm;border-radius:50%;background:#fff;border:2px solid var(--azul);margin:0 auto 2mm}
+.linha-tempo::before{content:"";position:absolute;left:8mm;right:8mm;top:2.5mm;height:2px;background:var(--azul-medio)}
+.linha-tempo div{position:relative;text-align:center;font-size:9pt;color:var(--suave);white-space:nowrap}
+.linha-tempo div::before{content:"";display:block;width:5mm;height:5mm;border-radius:50%;background:#fff;border:2px solid var(--azul);margin:0 auto 2mm}
 .linha-tempo div:first-child::before{background:var(--azul)}
-.linha-tempo b{display:block;color:var(--tinta);font-size:10pt;font-family:var(--f-marca);font-weight:800}
+.linha-tempo b{display:block;color:var(--tinta);font-size:12pt;font-family:var(--f-marca);font-weight:800}
+.fin-rodape{display:flex;justify-content:space-between;gap:4mm;padding-top:3.5mm;border-top:1px solid var(--linha);font-size:9pt;color:var(--texto)}
+.fin-rodape span{display:flex;gap:2mm;align-items:center}
+.fin-rodape .ic{width:5mm;height:5mm;color:var(--azul)}
 .nota{margin-top:4mm;background:var(--fundo);border-radius:3mm;padding:3.5mm 5mm;font-size:8.8pt;white-space:pre-line}
 .nota b{color:var(--tinta)}
 
@@ -796,16 +809,20 @@ body.is-capturing *{box-shadow:none!important}
       D.notaPagamento ? '<b>Condições especiais:</b> ' + esc(D.notaPagamento) : '',
       D.notaComercial ? '<b>Observação:</b> ' + esc(D.notaComercial) : '',
     ].filter(Boolean);
+    // quanto o à vista sai mais barato que o cartão em 18× (taxas da própria proposta)
+    var economiaCartao = parcela(18) * 18 - D.preco;
     folha(cab('Investimento', 'Escolha como prefere pagar', 'Todas as condições valem para o mesmo sistema e o mesmo serviço completo.')
-      + '<div class="pagto"><div class="vista"><span class="tag">Melhor condição</span><h3>À vista</h3><div class="como">no Pix ou transferência bancária</div>'
+      + '<div class="pagto"><div class="vista' + (D.precoDe ? ' com-desc' : '') + '"><span class="tag">Melhor condição</span><h3>À vista</h3><div class="como">no Pix ou transferência bancária</div>'
       + (D.precoDe ? '<div class="de">De R$ ' + brl(D.precoDe) + '</div>' : '')
-      + '<div class="preco"' + (D.precoDe ? '' : ' style="margin-top:auto"') + '>' + din(D.preco) + '</div>'
+      + '<div class="preco">' + din(D.preco) + '</div>'
       + (D.precoDe ? '<span class="desc">Você economiza R$ ' + brl(D.precoDe - D.preco) + '</span>' : '')
-      + (D.temGeracao ? '<ul><li>' + ic('relogio') + ' Investimento pago em ' + esc(D.payback) + '</li><li>' + ic('moeda') + ' R$ ' + brl(D.economiaMensal) + ' a menos na conta todo mês</li></ul>' : '')
+      + (D.temGeracao ? '<ul><li>' + ic('relogio') + '<span>Investimento pago em <b>' + esc(D.payback) + '</b></span></li><li>' + ic('moeda') + '<span><b>R$ ' + brl(D.economiaMensal) + '</b> a menos na conta todo mês</span></li><li>' + ic('grafico') + '<span><b>R$ ' + int(D.economia25) + '</b> de economia em 25 anos</span></li></ul>' : '')
+      + (economiaCartao > 0 ? '<div class="vs-cartao">' + ic('cartao') + '<div><span class="num">R$ ' + brl(economiaCartao) + '</span><p>a menos do que pagando no cartão em 18×</p></div></div>' : '')
       + '</div>'
       + '<div class="opcao"><div class="topo-op"><div><div class="tit">' + ic('cartao') + ' Cartão de crédito</div><div class="sub" style="margin-top:1mm">Na maquininha, nas principais bandeiras</div></div><div class="chamada">18×<small>de</small>R$ ' + brl(parcela(18)) + '</div></div><div class="parcelas">' + col + '</div></div>'
-      + '<div class="opcao"><div class="topo-op"><div class="tit">' + ic('banco') + ' Financiamento</div><div class="sub">Parceiros homologados · sujeito à análise de crédito</div></div>'
-      + '<div class="financ" style="margin-top:4mm"><div class="cem">100%<small>financiado, sem entrada</small></div><div class="linha-tempo"><div><b>Hoje</b>assinatura</div><div><b>120 dias</b>1ª parcela</div><div><b>84 meses</b>para pagar</div></div></div></div>'
+      + '<div class="opcao fin"><div class="topo-op"><div class="tit">' + ic('banco') + ' Financiamento</div><div class="sub">Parceiros homologados · sujeito à análise de crédito</div></div>'
+      + '<div class="financ"><div class="cem">100%<small>do sistema financiado</small></div><div class="linha-tempo"><div><b>Hoje</b>assinatura</div><div><b>120 dias</b>1ª parcela</div><div><b>84 meses</b>para pagar</div></div></div>'
+      + '<div class="fin-rodape"><span>' + ic('ok') + ' Sem entrada</span><span>' + ic('ok') + ' 1ª parcela só depois de 120 dias</span><span>' + ic('ok') + ' Simulação com o seu consultor</span></div></div>'
       + '</div>'
       + (notas.length ? '<div class="nota">' + notas.join('<br>') + '</div>' : ''));
 
