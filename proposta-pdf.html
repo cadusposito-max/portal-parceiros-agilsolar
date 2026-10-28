@@ -283,13 +283,13 @@ p{margin:0}
 .passos5 .n{font-size:7.5pt;font-weight:800;letter-spacing:.14em;color:var(--suave);margin-top:3mm}
 .passos5 h3{font-size:12.5pt;font-weight:800;margin:.8mm 0 1.2mm}
 .passos5 p{font-size:9pt;line-height:1.45}
-.selos-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6mm}
-.selo-g{display:flex;gap:4mm;align-items:center}
-.selo-g .anel{width:28mm;height:28mm;border-radius:50%;border:2.5mm solid var(--azul);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
-.selo-g .anel b{font-family:var(--f-marca);font-weight:900;font-size:14pt;color:var(--tinta);white-space:nowrap;letter-spacing:-.02em}
-.selo-g .anel small{font-size:7.5pt;font-weight:700;color:var(--suave);margin-top:.8mm}
-.selo-g h3{font-size:10.5pt;font-weight:800}
-.selo-g p{font-size:8.3pt;line-height:1.4;margin-top:.8mm}
+.selos-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4mm}
+.gar-card{border:1px solid var(--linha);border-radius:3.5mm;padding:3mm 4mm;display:flex;gap:3mm;align-items:flex-start}
+.gar-card .gi{width:9mm;height:9mm;border-radius:2.5mm;background:var(--azul-claro);color:var(--azul);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gar-card .gi .ic{width:5mm;height:5mm}
+.gar-card .k{display:block;font-size:7.5pt;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--suave)}
+.gar-card .num{display:block;font-size:13pt;color:var(--azul-txt);line-height:1.15;margin-top:.3mm}
+.gar-card p{font-size:7.8pt;line-height:1.35;margin-top:.5mm}
 
 /* ---------- 10. Fechamento ---------- */
 .fecho{display:grid;grid-template-columns:minmax(0,1fr) 104mm;gap:12mm;flex:1;min-height:0}
@@ -817,10 +817,10 @@ body.is-capturing *{box-shadow:none!important}
       + '</div></div>'
       + '<div class="sub-tit">Garantias <span class="miudo" style="font-family:var(--f-texto);font-weight:500">conforme o fabricante de cada equipamento</span></div>'
       + '<div class="selos-g">'
-      + '<div class="selo-g"><div class="anel"><b>25 a 30</b><small>anos</small></div><div><h3>Placas</h3><p>de eficiência na geração · 12 a 15 anos contra defeito</p></div></div>'
-      + '<div class="selo-g"><div class="anel"><b>10 a 15</b><small>anos</small></div><div><h3>Inversor</h3><p>contra defeito de fabricação</p></div></div>'
-      + '<div class="selo-g"><div class="anel"><b>10</b><small>anos</small></div><div><h3>Estrutura</h3><p>de fixação no telhado</p></div></div>'
-      + '<div class="selo-g"><div class="anel"><b>12</b><small>meses</small></div><div><h3>Instalação</h3><p>do serviço da nossa equipe</p></div></div>'
+      + '<div class="gar-card"><div class="gi">' + ic('placa') + '</div><div><span class="k">Placas</span><span class="num">25 a 30<small>anos</small></span><p>de eficiência · 12 a 15 contra defeito</p></div></div>'
+      + '<div class="gar-card"><div class="gi">' + ic('inversor') + '</div><div><span class="k">Inversor</span><span class="num">10 a 15<small>anos</small></span><p>contra defeito de fabricação</p></div></div>'
+      + '<div class="gar-card"><div class="gi">' + ic('telhado') + '</div><div><span class="k">Estrutura</span><span class="num">10<small>anos</small></span><p>de fixação no telhado</p></div></div>'
+      + '<div class="gar-card"><div class="gi">' + ic('ferramenta') + '</div><div><span class="k">Instalação</span><span class="num">12<small>meses</small></span><p>do serviço da nossa equipe</p></div></div>'
       + '</div>');
 
     // 10. Fechamento: cartão de visita do consultor + validade (sem assinatura)
