@@ -1126,10 +1126,56 @@ function omEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-// Converte um textarea "um item por linha" em array (trim + remove vazias).
-// Retorna null quando não sobra nenhum item, para o backend cair no coalesce (padrão do template).
-function omLinesToArray(s) {
-  const arr = String(s == null ? '' : s).split('\n').map(l => l.trim()).filter(Boolean);
+// --- "O que está incluído" (lista com check, editável em toda proposta) ---
+// Padrão = o mesmo de om_servicos.itens_inclusos; vem preenchido e o usuário mexe se quiser.
+const OM_INCLUSO_PADRAO = [
+  'Limpeza técnica completa dos módulos',
+  'Manutenção preventiva da parte elétrica',
+  'Verificação de conectores',
+  'Inspeção de cabos',
+  'Análise de tensão e corrente do sistema',
+  'Diagnóstico de desempenho e geração',
+  'Inspeção e limpeza do inversor',
+  'Configuração e validação do monitoramento',
+];
+
+function omInclusoRowHTML(texto) {
+  return `
+    <div class="om-incl-row flex items-center gap-2 mb-1.5">
+      <i data-lucide="check" class="w-4 h-4 shrink-0 text-blue-400 stroke-[3]"></i>
+      <input name="itemIncluso" value="${omEsc(texto)}" class="${OM_INPUT_CLS}" placeholder="Descreva o item" onkeydown="if(event.key==='Enter'){event.preventDefault();omInclusoAdd(this);}" />
+      <button type="button" onclick="this.closest('.om-incl-row').remove()" title="Remover item" class="p-2 shrink-0 text-neutral-500 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>`;
+}
+
+function omInclusosEditorHTML(itens) {
+  const lista = (Array.isArray(itens) && itens.length) ? itens : OM_INCLUSO_PADRAO;
+  return `
+    <div class="block mb-3">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[10px] font-black uppercase tracking-widest text-neutral-400">O que está incluído <span class="text-neutral-600 normal-case tracking-normal font-bold">(aparece na proposta)</span></span>
+        <button type="button" onclick="omInclusoPadrao(this)" class="text-[10px] font-bold text-neutral-500 hover:text-blue-300">Voltar ao padrão</button>
+      </div>
+      <div class="om-incl-list">${lista.map(omInclusoRowHTML).join('')}</div>
+      <button type="button" onclick="omInclusoAdd(this)" class="mt-1 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-blue-300"><i data-lucide="plus" class="w-3.5 h-3.5 stroke-[3]"></i>Adicionar item</button>
+    </div>`;
+}
+
+function omInclusoAdd(el) {
+  const list = el.closest('form').querySelector('.om-incl-list');
+  list.insertAdjacentHTML('beforeend', omInclusoRowHTML(''));
+  if (window.lucide) lucide.createIcons();
+  list.lastElementChild.querySelector('input').focus();
+}
+
+function omInclusoPadrao(el) {
+  el.closest('form').querySelector('.om-incl-list').innerHTML = OM_INCLUSO_PADRAO.map(omInclusoRowHTML).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+// Itens preenchidos (trim + remove vazios). null quando a lista fica vazia.
+function omInclusosFromForm(fd) {
+  const arr = fd.getAll('itemIncluso').map(s => String(s).trim()).filter(Boolean);
   return arr.length ? arr : null;
 }
 function omFriendlyErr(e) {
@@ -1342,8 +1388,8 @@ async function omOpenCreateProposta(opts = {}) {
         ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}" placeholder="Detalhe o que está incluso no serviço. Na corretiva, descreva aqui o problema identificado.">${omEsc(opts.descricao || '')}</textarea>`)}
         <div id="om-prop-corretiva" style="display:${omIsCorretiva(tipo) ? 'block' : 'none'}">
           ${omField('Diagnóstico / causa provável <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="diagnostico" rows="3" class="${OM_INPUT_CLS}" placeholder="O que a equipe apurou como causa da falha.">${omEsc(opts.diagnostico || '')}</textarea>`)}
-          ${omField('O que está incluído — um item por linha <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="itensInclusos" rows="4" class="${OM_INPUT_CLS}" placeholder="Deixe em branco para usar o padrão do serviço."></textarea>`)}
         </div>
+        ${omInclusosEditorHTML(null)}
         ${omField('Observações internas', `<textarea name="obs" rows="2" class="${OM_INPUT_CLS}" placeholder="Notas que não aparecem para o cliente"></textarea>`)}
 
         <div class="text-[10px] font-black uppercase tracking-widest text-blue-400/80 mb-1 mt-4">3 · Sistema / equipamento <span class="text-neutral-600 normal-case tracking-normal font-bold">(opcional)</span></div>
@@ -1663,6 +1709,7 @@ async function omSubmitProposta(nextAction = 'rascunho') {
   const fd = new FormData(form);
   const servicoId = fd.get('servicoId');
   if (!servicoId) { if (typeof showToast === 'function') showToast('Selecione o serviço.'); return; }
+  if (!omInclusosFromForm(fd)) { if (typeof showToast === 'function') showToast('Deixe pelo menos um item em "O que está incluído".'); return; }
 
   // Resolve o cliente: já selecionado OU cadastrar agora um novo.
   let clienteId = omPropCli.id;
@@ -1706,7 +1753,7 @@ async function omSubmitProposta(nextAction = 'rascunho') {
       p_descricao: (fd.get('descricao') || '').trim() || null,
       p_observacoes_internas: (fd.get('obs') || '').trim() || null,
       p_corretiva_diagnostico: (fd.get('diagnostico') || '').trim() || null,
-      p_itens_inclusos: omLinesToArray(fd.get('itensInclusos')),
+      p_itens_inclusos: omInclusosFromForm(fd),
     });
     if (error || !newId) throw error || new Error('Falha ao criar a proposta.');
 
@@ -2013,8 +2060,8 @@ async function omPropEditar(id) {
         ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}">${omEsc(p.descricao || '')}</textarea>`)}
         <div id="om-prop-corretiva" style="display:${omIsCorretiva(p.tipo_servico) ? 'block' : 'none'}">
           ${omField('Diagnóstico / causa provável <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="diagnostico" rows="3" class="${OM_INPUT_CLS}" placeholder="O que a equipe apurou como causa da falha.">${omEsc(p.corretiva_diagnostico || '')}</textarea>`)}
-          ${omField('O que está incluído — um item por linha <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="itensInclusos" rows="4" class="${OM_INPUT_CLS}" placeholder="Deixe em branco para usar o padrão do serviço.">${omEsc((p.itens_inclusos || []).join('\n'))}</textarea>`)}
         </div>
+        ${omInclusosEditorHTML(p.itens_inclusos)}
         ${omField('Observações internas', `<textarea name="obsInt" rows="2" class="${OM_INPUT_CLS}" placeholder="Não aparecem para o cliente">${omEsc(p.observacoes_internas || '')}</textarea>`)}
         ${omField('Observações para o cliente', `<textarea name="obsCli" rows="2" class="${OM_INPUT_CLS}">${omEsc(p.observacoes_cliente || '')}</textarea>`)}
 
@@ -2043,6 +2090,7 @@ async function omSubmitPropEdit(id) {
   const fd = new FormData(form);
   const servicoId = fd.get('servicoId');
   if (!servicoId) { if (typeof showToast === 'function') showToast('Selecione o serviço.'); return; }
+  if (!omInclusosFromForm(fd)) { if (typeof showToast === 'function') showToast('Deixe pelo menos um item em "O que está incluído".'); return; }
 
   omSetModalBusy(true);
   try {
@@ -2058,7 +2106,7 @@ async function omSubmitPropEdit(id) {
       p_observacoes_cliente: (fd.get('obsCli') || '').trim() || null,
       p_observacoes_internas: (fd.get('obsInt') || '').trim() || null,
       p_corretiva_diagnostico: (fd.get('diagnostico') || '').trim() || null,
-      p_itens_inclusos: omLinesToArray(fd.get('itensInclusos')),
+      p_itens_inclusos: omInclusosFromForm(fd),
     });
     if (error) throw error;
 
