@@ -2121,9 +2121,9 @@ async function omSubmitPropEdit(id) {
   }
 }
 
-// Geração de OS a partir da proposta (gestor gera → atribui técnico).
-// Backend: RPC create_os_from_om_proposta (anti-duplicação + evento os_gerada);
-// técnicos via list_om_tecnicos; sistema via list_om_sistemas quando a proposta não tem.
+// Geração de OS a partir da proposta (gestor gera e imprime; técnico é externo,
+// não é atribuído na plataforma). Backend: RPC create_os_from_om_proposta
+// (anti-duplicação + evento os_gerada); sistema via list_om_sistemas quando a proposta não tem.
 async function omOpenCreateOSFromProposta(propId) {
   // Reusa a proposta já carregada no detalhe (traz .os, .sistema, .cliente, .numero).
   const p = (omPropDetailCache && omPropDetailCache.data && omPropDetailCache.data.id === propId)
@@ -2133,17 +2133,6 @@ async function omOpenCreateOSFromProposta(propId) {
   if (p && p.os && p.os.id) { omAbrirOSDaProposta(p.os.id); return; }
 
   if (typeof showToast === 'function') showToast('Carregando dados da OS…');
-
-  let tecnicos = [];
-  try {
-    const { data, error } = await supabaseClient.rpc('list_om_tecnicos');
-    if (error) throw error;
-    tecnicos = data || [];
-  } catch (e) { if (typeof showToast === 'function') showToast(omFriendlyErr(e)); return; }
-  if (!tecnicos.length) {
-    if (typeof showToast === 'function') showToast('Nenhum técnico ativo na sua franquia. Cadastre um técnico antes de gerar a OS.');
-    return;
-  }
 
   // Sistema só é oferecido quando a proposta não tem um vinculado; é opcional
   // (sem sistema a OS sai assim mesmo e o técnico confirma na visita).
@@ -2173,7 +2162,6 @@ async function omOpenCreateOSFromProposta(propId) {
     icon: 'clipboard-list',
     bodyHTML: `
       <form id="om-form-gerar-os" onsubmit="event.preventDefault(); omSubmitCreateOSFromProposta('${omEsc(propId)}');">
-        ${omField('Técnico responsável', `<select name="tecnicoId" required class="${OM_INPUT_CLS}"><option value="">Selecionar...</option>${tecnicos.map(t => `<option value="${omEsc(t.id)}">${omEsc(t.nome)}</option>`).join('')}</select>`)}
         ${sistemaField}
         ${omField('Agendar para (opcional)', `<input type="datetime-local" name="agendadoPara" class="${OM_INPUT_CLS}" />`)}
         ${omField('Prioridade', `<select name="prioridade" class="${OM_INPUT_CLS}"><option value="baixa">Baixa</option><option value="normal" selected>Normal</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select>`)}
@@ -2188,15 +2176,13 @@ async function omSubmitCreateOSFromProposta(propId) {
   const form = document.getElementById('om-form-gerar-os');
   if (!form) return;
   const fd = new FormData(form);
-  const tecnicoId = fd.get('tecnicoId');
-  if (!tecnicoId) { if (typeof showToast === 'function') showToast('Selecione o técnico.'); return; }
   const sistemaId = fd.get('sistemaId') || null;
   const agRaw = fd.get('agendadoPara');
   const agendadoPara = agRaw ? new Date(agRaw).toISOString() : null;
   const prioridade = fd.get('prioridade') || 'normal';
 
   omSetModalBusy(true);
-  const params = { p_proposta_id: propId, p_tecnico_id: tecnicoId, p_agendado_para: agendadoPara, p_prioridade: prioridade };
+  const params = { p_proposta_id: propId, p_agendado_para: agendadoPara, p_prioridade: prioridade };
   if (sistemaId) params.p_sistema_id = sistemaId;
   const { data: osId, error } = await supabaseClient.rpc('create_os_from_om_proposta', params);
   omSetModalBusy(false);
