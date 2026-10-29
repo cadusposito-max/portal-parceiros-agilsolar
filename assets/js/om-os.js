@@ -408,7 +408,11 @@
             <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>Voltar</button>
           <div class="text-sm font-black text-white">${esc(os.numero || 'OS')}</div>
           ${pr ? `<span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${pr.cls}">${pr.label}</span>` : ''}
-          <div class="ml-auto">${stChip}</div>
+          <div class="ml-auto flex items-center gap-2">
+            <button onclick="omOsImprimir()" title="Imprimir OS / salvar PDF" class="px-3 py-2 bg-neutral-900 border border-neutral-800 hover:border-blue-500/40 text-neutral-300 font-black text-[10px] uppercase tracking-widest inline-flex items-center gap-2">
+              <i data-lucide="printer" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Imprimir</span></button>
+            ${stChip}
+          </div>
         </div>
 
         <div class="text-[13px] text-neutral-400 mb-3">${esc(os.tipo_servico || '')}</div>
@@ -477,7 +481,9 @@
     const inversor = [s.marca_inversor, s.modelo_inversor].filter(Boolean).join(' ') || null;
     const sysItem = (k, v) => `<div class="p-3"><div class="text-[10px] font-black uppercase tracking-widest text-neutral-500">${esc(k)}</div>
       <div class="text-[13px] font-bold text-white mt-0.5">${esc(v || '—')}</div></div>`;
-    const sistemaCard = card('Sistema fotovoltaico', 'sun',
+    const sistemaCard = !d.sistema
+      ? card('Sistema fotovoltaico', 'sun', `<div class="p-4 text-[12.5px] text-amber-100/90 leading-relaxed">Sistema não cadastrado — conferir potência, módulos e inversor na visita.</div>`)
+      : card('Sistema fotovoltaico', 'sun',
       `<div class="grid grid-cols-2 divide-x divide-y divide-neutral-800">
         ${sysItem('Potência', s.potencia_kwp != null ? s.potencia_kwp + ' kWp' : null)}
         ${sysItem('Módulos', modulos)}
@@ -1360,9 +1366,171 @@
   }
 
   // ==========================================================================
+  // OS impressa — folha em papel para o técnico preencher à mão e o cliente
+  // assinar. Abre em janela própria e dispara a impressão (salvar como PDF).
+  // Sem sistema cadastrado, os campos do sistema saem em branco p/ preencher.
+  // ==========================================================================
+  async function omOsImprimir() {
+    const d = cache.detalhe;
+    if (!d) { toast('Abra uma OS primeiro.'); return; }
+    // Abre a janela já no clique (depois de um await o navegador bloqueia o pop-up).
+    const w = window.open('', '_blank');
+    if (!w) { toast('Permita pop-ups para imprimir a OS.'); return; }
+    const os = d.os, c = d.cliente || {}, s = d.sistema;
+    const st = STATUS[os.status] || STATUS.agendada;
+    const prioLabel = { baixa: 'Baixa', normal: 'Normal', alta: 'Alta', urgente: 'Urgente' }[os.prioridade] || '—';
+    const linha = (listRows || []).find(o => String(o.id) === String(os.id));
+    let tecnico = linha && linha.tecnico_nome ? linha.tecnico_nome : '';
+    if (!tecnico && os.tecnico_id) {
+      try {
+        const { data } = await sb.rpc('list_om_tecnicos');
+        const t = (data || []).find(x => String(x.id) === String(os.tecnico_id));
+        if (t) tecnico = t.nome || '';
+      } catch (_) {}
+    }
+    const endereco = (s && s.endereco_instalacao && s.endereco_instalacao.trim())
+      || [c.endereco, c.cidade].filter(Boolean).join(' — ') || '';
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const logo = new URL('assets/img/logo-light.png', location.href).href;
+    const checklist = d.checklist || [];
+
+    // Campo com valor (ou linha em branco p/ preencher à mão)
+    const campo = (k, v, wide) => `<div class="f${wide ? ' wide' : ''}"><div class="k">${esc(k)}</div><div class="v">${v ? esc(v) : '&nbsp;'}</div></div>`;
+
+    let sistemaHtml;
+    if (s) {
+      const modulos = s.quantidade_modulos
+        ? `${s.quantidade_modulos}× ${[s.marca_modulos, s.modelo_modulos].filter(Boolean).join(' ') || 'módulos'}`
+        : [s.marca_modulos, s.modelo_modulos].filter(Boolean).join(' ');
+      sistemaHtml = `<div class="grid">
+        ${campo('Potência', s.potencia_kwp != null ? s.potencia_kwp + ' kWp' : '')}
+        ${campo('Módulos', modulos)}
+        ${campo('Inversor', [s.marca_inversor, s.modelo_inversor].filter(Boolean).join(' '))}
+        ${campo('Local do inversor', s.local_inversor)}
+        ${campo('Telhado', s.tipo_telhado)}
+        ${campo('Rede', s.tipo_rede)}
+      </div>`;
+    } else {
+      sistemaHtml = `<p class="aviso">Sistema não cadastrado — preencher na visita.</p>
+      <div class="grid">
+        ${campo('Potência (kWp)')}${campo('Qtd. de módulos')}
+        ${campo('Marca/modelo dos módulos')}${campo('Marca/modelo do inversor')}
+        ${campo('Local do inversor')}${campo('Telhado')}
+        ${campo('Rede (mono/bi/tri)')}${campo('Nº de série do inversor')}
+      </div>`;
+    }
+
+    const checkRows = checklist.length
+      ? checklist.map((i, n) => `<tr><td class="cx">☐</td><td>${n + 1}. ${esc(i.label)}${i.criticidade === 'critico' ? ' <b class="crit">*</b>' : ''}</td><td class="obs"></td></tr>`).join('')
+      : Array.from({ length: 6 }, () => `<tr><td class="cx">☐</td><td></td><td class="obs"></td></tr>`).join('');
+
+    const linhas = n => Array.from({ length: n }, () => '<div class="ln"></div>').join('');
+
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>OS ${esc(os.numero || '')} — ${esc(c.nome || '')}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 24px 32px; background: #fff; font-size: 11.5px; }
+  .head { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #0a4ba0; padding-bottom: 8px; margin-bottom: 10px; }
+  .head img { height: 38px; }
+  .head .tit { font-size: 18px; font-weight: 800; letter-spacing: .02em; }
+  .head .meta { margin-left: auto; text-align: right; font-size: 11px; color: #555; line-height: 1.5; }
+  .head .num { font-size: 16px; font-weight: 800; color: #0a4ba0; }
+  section { border: 1px solid #d6d6d6; border-radius: 5px; padding: 7px 10px; margin-bottom: 7px; break-inside: avoid; }
+  h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: #0a4ba0; margin: 0 0 5px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px 16px; }
+  .f .k { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #888; }
+  .f .v { font-size: 12px; font-weight: 600; min-height: 18px; border-bottom: 1px solid #cfcfcf; padding: 1px 0; }
+  .f.wide { grid-column: 1 / -1; }
+  .aviso { margin: 0 0 4px; font-size: 11px; color: #b45309; font-weight: 700; }
+  .acesso { background: #fffaf2; border-color: #f3d19c; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { border-bottom: 1px solid #e3e3e3; padding: 4px 4px; vertical-align: top; text-align: left; }
+  th { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #888; font-weight: 700; }
+  td.cx { width: 22px; font-size: 15px; line-height: 1; }
+  td.obs { width: 38%; border-left: 1px dashed #e3e3e3; }
+  .crit { color: #b91c1c; }
+  .ln { border-bottom: 1px solid #cfcfcf; height: 20px; }
+  .estado { display: flex; gap: 24px; font-size: 13px; margin-top: 2px; }
+  .ass { display: flex; gap: 32px; margin-top: 30px; }
+  .ass div { flex: 1; border-top: 1px solid #333; padding-top: 4px; text-align: center; font-size: 11px; color: #444; }
+  .foot { margin-top: 10px; font-size: 10px; color: #888; display: flex; }
+  .foot .r { margin-left: auto; }
+  @page { size: A4; margin: 10mm 12mm; }
+  @media print { body { padding: 0; } }
+</style></head><body>
+  <div class="head">
+    <img src="${esc(logo)}" alt="Ágil Solar" onerror="this.style.display='none'">
+    <div class="tit">Ordem de Serviço · O&amp;M</div>
+    <div class="meta"><div class="num">${esc(os.numero || '')}</div>Emitida em ${hoje}</div>
+  </div>
+
+  <section><h2>Cliente</h2>
+    <div class="grid">
+      ${campo('Nome', c.nome, true)}
+      ${campo('Telefone', c.telefone)}
+      ${campo('Cidade', c.cidade)}
+      ${campo('Endereço do atendimento', endereco, true)}
+    </div>
+  </section>
+
+  ${d.acesso_obs ? `<section class="acesso"><h2>Observação de acesso</h2><div>${esc(d.acesso_obs)}</div></section>` : ''}
+
+  <section><h2>Serviço</h2>
+    <div class="grid3">
+      ${campo('Tipo de serviço', os.tipo_servico)}
+      ${campo('Prioridade', prioLabel)}
+      ${campo('Status', st.label)}
+      ${campo('Agendado para', os.agendado_para ? fmtDateTime(os.agendado_para) : '')}
+      ${campo('Técnico responsável', tecnico)}
+      ${campo('Data do atendimento')}
+      ${os.titulo ? campo('Descrição', os.titulo, true) : ''}
+    </div>
+  </section>
+
+  <section><h2>Sistema fotovoltaico</h2>${sistemaHtml}</section>
+
+  <section><h2>Checklist</h2>
+    <table><thead><tr><th></th><th>Item</th><th>Observação</th></tr></thead><tbody>${checkRows}</tbody></table>
+  </section>
+
+  <section><h2>Problemas encontrados / materiais utilizados</h2>${linhas(4)}</section>
+
+  <section><h2>Observações finais / recomendações</h2>${linhas(3)}
+    <div class="grid3" style="margin-top:10px">
+      ${campo('Hora de chegada')}${campo('Hora de saída')}
+      <div class="f"><div class="k">Estado geral do sistema</div><div class="estado"><span>☐ Bom</span><span>☐ Atenção</span><span>☐ Crítico</span></div></div>
+    </div>
+  </section>
+
+  <div class="ass"><div>Técnico responsável</div><div>Cliente / responsável no local</div></div>
+
+  <div class="foot"><span>Plataforma Ágil Solar · O&amp;M</span><span class="r">${esc(os.numero || '')}</span></div>
+
+  <script>
+    (function () {
+      var feito = false;
+      function go() { if (feito) return; feito = true; window.focus(); window.print(); }
+      var img = document.images[0];
+      if (!img || img.complete) { setTimeout(go, 300); return; }
+      img.addEventListener('load', function () { setTimeout(go, 300); });
+      img.addEventListener('error', function () { setTimeout(go, 300); });
+      setTimeout(go, 3000);
+    })();
+  <\/script>
+</body></html>`;
+
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+  // ==========================================================================
   // Exposição global (handlers usados via onclick e pelo roteador do om.js)
   // ==========================================================================
   Object.assign(window, {
+    omOsImprimir,
     omRenderOSTab,
     omOsView, omOsFiltro, omOsSort, omOsBusca, omOsKanbanTab,
     omOsAbrir, omOsVoltar, omOsSubtab, omOsFlow,

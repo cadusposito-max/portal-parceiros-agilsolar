@@ -2145,27 +2145,27 @@ async function omOpenCreateOSFromProposta(propId) {
     return;
   }
 
-  // Sistema só é pedido quando a proposta não tem um vinculado (ex.: OM sem sistema).
+  // Sistema só é oferecido quando a proposta não tem um vinculado; é opcional
+  // (sem sistema a OS sai assim mesmo e o técnico confirma na visita).
   const precisaSistema = !(p && p.sistema && p.sistema.id);
   let sistemas = [];
   if (precisaSistema) {
     const cliId = p && p.cliente && p.cliente.id;
-    if (!cliId) { if (typeof showToast === 'function') showToast('Não foi possível identificar o cliente da proposta.'); return; }
-    try {
-      const { data, error } = await supabaseClient.rpc('list_om_sistemas', { p_cliente_id: cliId });
-      if (error) throw error;
-      sistemas = data || [];
-    } catch (e) { if (typeof showToast === 'function') showToast(omFriendlyErr(e)); return; }
-    if (!sistemas.length) {
-      if (typeof showToast === 'function') showToast('A proposta não tem sistema e o cliente não possui sistemas cadastrados. Cadastre um sistema antes de gerar a OS.');
-      return;
+    if (cliId) {
+      try {
+        const { data, error } = await supabaseClient.rpc('list_om_sistemas', { p_cliente_id: cliId });
+        if (error) throw error;
+        sistemas = data || [];
+      } catch (e) { if (typeof showToast === 'function') showToast(omFriendlyErr(e)); return; }
     }
   }
 
-  const sistemaField = precisaSistema ? omField('Sistema', `<select name="sistemaId" required class="${OM_INPUT_CLS}"><option value="">Selecionar...</option>${sistemas.map(s => {
-    const det = [s.potencia_kwp != null ? s.potencia_kwp + ' kWp' : null, s.marca_inversor ? 'Inv. ' + s.marca_inversor : null].filter(Boolean).join(' · ');
-    return `<option value="${omEsc(s.id)}">${omEsc((s.apelido || 'Sistema') + (det ? ' — ' + det : ''))}</option>`;
-  }).join('')}</select>`) : '';
+  const sistemaField = !precisaSistema ? '' : sistemas.length
+    ? omField('Sistema (opcional)', `<select name="sistemaId" class="${OM_INPUT_CLS}"><option value="">Sem sistema — confirmar na visita</option>${sistemas.map(s => {
+        const det = [s.potencia_kwp != null ? s.potencia_kwp + ' kWp' : null, s.marca_inversor ? 'Inv. ' + s.marca_inversor : null].filter(Boolean).join(' · ');
+        return `<option value="${omEsc(s.id)}">${omEsc((s.apelido || 'Sistema') + (det ? ' — ' + det : ''))}</option>`;
+      }).join('')}</select>`)
+    : `<div class="text-[11px] text-amber-300/80 bg-amber-500/[0.07] border border-amber-500/25 px-3 py-2 mb-3">Sem sistema cadastrado — a OS sai assim mesmo e o técnico confirma os dados na visita.</div>`;
 
   omOpenModal({
     title: 'Gerar Ordem de Serviço',
@@ -2190,9 +2190,7 @@ async function omSubmitCreateOSFromProposta(propId) {
   const fd = new FormData(form);
   const tecnicoId = fd.get('tecnicoId');
   if (!tecnicoId) { if (typeof showToast === 'function') showToast('Selecione o técnico.'); return; }
-  const temCampoSistema = !!form.querySelector('[name="sistemaId"]');
   const sistemaId = fd.get('sistemaId') || null;
-  if (temCampoSistema && !sistemaId) { if (typeof showToast === 'function') showToast('Selecione o sistema.'); return; }
   const agRaw = fd.get('agendadoPara');
   const agendadoPara = agRaw ? new Date(agRaw).toISOString() : null;
   const prioridade = fd.get('prioridade') || 'normal';
