@@ -527,6 +527,7 @@ function renderCrm360() {
               ${crm360Field('Endereço', `<input id="crm360-endereco" value="${escapeHTML(client.endereco || '')}" class="crm360-input">`, 'sm:col-span-2')}
               ${crm360Field('Número', `<input id="crm360-numero" value="${escapeHTML(client.numero || '')}" class="crm360-input">`)}
               ${crm360Field('Bairro', `<input id="crm360-bairro" value="${escapeHTML(client.bairro || '')}" class="crm360-input">`)}
+              ${crm360Field('Nome da mãe', `<input id="crm360-nome-mae" value="${escapeHTML(client.nome_mae || '')}" class="crm360-input uppercase">`, 'sm:col-span-2')}
               ${crm360CamposDocumentosHTML(client)}
               ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="2" class="crm360-input">${escapeHTML(client.observacoes || '')}</textarea>`, 'sm:col-span-2')}
             </div>
@@ -570,6 +571,7 @@ function renderCrm360() {
   ligarMascara(document.getElementById('crm360-documento'), 'auto');
   ligarMascara(document.getElementById('crm360-cep'), 'cep');
   crm360LigarReceita();
+  crm360LigarCep();
 
   if (_crm360Tab === 'financiamento' && typeof renderFinanciamento === 'function') renderFinanciamento();
   // Selo de margem da precificação interna (só admin; preenchido async).
@@ -647,6 +649,28 @@ function crm360AjustarTipoPessoa() {
   document.querySelectorAll('.crm360-so-pf').forEach((el) => { el.style.display = pj ? 'none' : ''; });
   const rep = document.getElementById('crm360-rep-card');
   if (rep) rep.style.display = pj ? '' : 'none';
+}
+
+// Pós-render da aba Dados (ficha antiga e nova): CEP digitado preenche endereço, bairro e cidade.
+// CEP novo = endereço novo, então troca o que estiver lá; só não apaga a rua quando o CEP é da cidade toda.
+function crm360LigarCep() {
+  const el = (id) => document.getElementById(id);
+  if (typeof ligarBuscaCep !== 'function') return;
+  ligarBuscaCep(el('crm360-cep'), async (r) => {
+    const piscar = (e) => { e.classList.remove('cnpj-rf-flash'); void e.offsetWidth; e.classList.add('cnpj-rf-flash'); };
+    const por = (id, v) => { const e = el(id); if (e && v) { e.value = v; piscar(e); } };
+    por('crm360-endereco', r.rua);
+    por('crm360-bairro', r.bairro);
+    if (r.cidade && el('crm360-cidade')) {
+      if (typeof loadMunicipios === 'function') await loadMunicipios();
+      const mun = typeof parseCidadeLivre === 'function' ? parseCidadeLivre(`${r.cidade}/${r.uf}`) : null;
+      el('crm360-cidade').value = mun ? `${mun.nome.toUpperCase()}/${mun.uf}` : `${r.cidade}/${r.uf}`.toUpperCase();
+      _crm360Cidade = mun;
+      piscar(el('crm360-cidade'));
+    }
+    if (r.rua && el('crm360-numero')) el('crm360-numero').focus();
+    showToast(r.rua ? 'Endereço preenchido pelo CEP. Coloque o número e salve.' : 'CEP da cidade toda: cidade preenchida, rua e bairro à mão.');
+  });
 }
 
 // Pós-render da aba Dados (ficha antiga e nova): troca PF/PJ e consulta o CNPJ na Receita.
@@ -1260,7 +1284,7 @@ async function crmSubmitAtividade() {
 
 // Campos do cadastro que entram no registro da timeline (rótulo legível)
 const CRM_CAMPOS_CADASTRO = {
-  nome: 'nome', telefone: 'telefone', email: 'e-mail', cidade: 'cidade', documento: 'CPF/CNPJ',
+  nome: 'nome', nome_mae: 'nome da mãe', telefone: 'telefone', email: 'e-mail', cidade: 'cidade', documento: 'CPF/CNPJ',
   cep: 'CEP', endereco: 'endereço', numero: 'número', complemento: 'complemento', bairro: 'bairro',
   origem: 'origem', observacoes: 'observações', rg: 'RG', rg_orgao: 'órgão emissor', genero: 'gênero',
   estado_civil: 'estado civil', nacionalidade: 'nacionalidade', profissao: 'profissão',
@@ -1333,6 +1357,7 @@ async function crmSaveClient360() {
 
   const payload = {
     nome: document.getElementById('crm360-nome').value.toUpperCase().trim(),
+    nome_mae: document.getElementById('crm360-nome-mae')?.value.toUpperCase().trim() || null,
     telefone: document.getElementById('crm360-telefone').value.trim(),
     email: document.getElementById('crm360-email').value.trim() || null,
     documento: document.getElementById('crm360-documento').value.trim() || null,

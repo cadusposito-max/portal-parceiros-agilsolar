@@ -1018,6 +1018,55 @@ function ligarMascara(el, tipo) {
   el.addEventListener('input', () => aplicarMascaraInput(el, formatar));
 }
 
+// CEP → endereço (BrasilAPI, a mesma da busca de CNPJ). Devolve
+// { cep, rua, bairro, cidade, uf } ou { erro }. CEP de cidade pequena vem sem rua/bairro.
+const _cepCache = {};
+async function buscarCep(cep) {
+  const d = String(cep ?? '').replace(/\D/g, '');
+  if (d.length !== 8) return { erro: 'CEP incompleto.' };
+  if (_cepCache[d]) return _cepCache[d];
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch('https://brasilapi.com.br/api/cep/v1/' + d, { signal: ctrl.signal });
+    if (r.status === 404 || r.status === 400) return { erro: 'CEP não encontrado. Preencha o endereço à mão.' };
+    if (!r.ok) return { erro: 'A busca do CEP falhou. Preencha o endereço à mão.' };
+    const j = await r.json();
+    _cepCache[d] = {
+      cep: d,
+      rua: String(j.street || '').trim(),
+      bairro: String(j.neighborhood || '').trim(),
+      cidade: String(j.city || '').trim(),
+      uf: String(j.state || '').trim().toUpperCase(),
+    };
+    return _cepCache[d];
+  } catch (err) {
+    console.warn('[cep] consulta', err);
+    return { erro: 'Não deu para buscar o CEP agora. Preencha o endereço à mão.' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Busca o endereço quando um CEP novo termina de ser digitado/colado e chama preencher(r).
+// O CEP que já estava salvo não dispara, nem valor posto por código (ex.: painel da Receita).
+function ligarBuscaCep(el, preencher) {
+  if (!el || el.dataset.buscaCep) return;
+  el.dataset.buscaCep = '1';
+  const dig = () => el.value.replace(/\D/g, '');
+  let ultimo = dig();
+  el.addEventListener('input', async (ev) => {
+    const d = dig();
+    if (d.length < 8) { ultimo = ''; return; }
+    if (d === ultimo || !ev.isTrusted) return;
+    ultimo = d;
+    const r = await buscarCep(d);
+    if (dig() !== d) return; // digitou outro no meio
+    if (r.erro) { showToast(r.erro); return; }
+    preencher(r);
+  });
+}
+
 // Dígitos verificadores. Vazio conta como válido (campo opcional).
 function documentoValido(valor) {
   const d = String(valor ?? '').replace(/\D/g, '');

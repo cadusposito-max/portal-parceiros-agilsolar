@@ -462,6 +462,7 @@
                   ${crm360Field('Endereço', `<input id="crm360-endereco" value="${esc(client.endereco || '')}" class="crm360-input">`, 'span2')}
                   ${crm360Field('Número', `<input id="crm360-numero" value="${esc(client.numero || '')}" class="crm360-input">`)}
                   ${crm360Field('Bairro', `<input id="crm360-bairro" value="${esc(client.bairro || '')}" class="crm360-input">`)}
+                  ${crm360Field('Nome da mãe', `<input id="crm360-nome-mae" value="${esc(client.nome_mae || '')}" class="crm360-input">`, 'span2')}
                   ${crm360CamposDocumentosHTML(client)}
                   ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="3" class="crm360-input">${esc(client.observacoes || '')}</textarea>`, 'full')}`;
     const cardProx = `
@@ -562,6 +563,7 @@
       if (cepInput) ligarMascara(cepInput, 'cep');
     }
     if (has('crm360LigarReceita')) crm360LigarReceita();
+    if (has('crm360LigarCep')) crm360LigarCep();
     if (_crm360Tab === 'financiamento' && has('renderFinanciamento')) renderFinanciamento();
     if (_crm360Tab === 'propostas' && state.isAdmin && has('preencherSelosPrecificacao')) preencherSelosPrecificacao();
 
