@@ -820,14 +820,15 @@ async function crmPropostaEnviar(id, via) {
 function crmPropostaTrilha(p, st) {
   const passos = [['GERADA', 'Gerada'], ['ENVIADA', 'Enviada'], ['VISTA', 'Vista'], ['ACEITA', 'Aceita']];
   const at = passos.findIndex(([k]) => k === st);
-  const vezes = Number(p.vista_count) > 1 ? ` · ${p.vista_count} vezes` : '';
-  const info = st === 'ACEITA' ? 'cliente aceitou'
-    : st === 'VISTA' ? `cliente abriu ${p.vista_em ? crmTimeAgo(p.vista_em) : ''}${vezes}`
-      : st === 'ENVIADA' ? `enviada${p.enviada_em ? ' ' + formatDate(p.enviada_em) : ''}, ainda não abriu`
-        : 'ainda não enviada';
+  // vista_em é a PRIMEIRA abertura (registrar_proposta_view não sobrescreve)
+  const vezes = Number(p.vista_count) || 1;
+  const [ico, info] = st === 'ACEITA' ? ['check', 'Cliente aceitou']
+    : st === 'VISTA' ? ['eye', `Cliente abriu ${vezes} ${vezes > 1 ? 'vezes' : 'vez'}${p.vista_em ? ` · 1ª ${crmTimeAgo(p.vista_em)}` : ''}`]
+      : st === 'ENVIADA' ? ['send', `Enviada${p.enviada_em ? ' ' + formatDate(p.enviada_em) : ''} · ainda não abriu`]
+        : ['clock', 'Ainda não enviada'];
   return `<div class="crm-pa-trilha">${passos.map(([k, rot], i) =>
     `${i ? `<em class="${i <= at ? 'ok' : ''}"></em>` : ''}<i class="${i <= at ? 'ok ' + k.toLowerCase() : ''}">${rot}</i>`).join('')}
-    <small>· ${escapeHTML(info)}</small></div>`;
+    <span class="crm-pa-info ${st.toLowerCase()}"><i data-lucide="${ico}"></i>${escapeHTML(info)}</span></div>`;
 }
 
 function crmPropostaCartaoHTML(p, client) {
