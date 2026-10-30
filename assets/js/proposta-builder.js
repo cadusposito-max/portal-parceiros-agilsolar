@@ -949,8 +949,6 @@ async function handleEquipamentosProposalSubmit(event) {
   const modulo = primeiro('modulo');
   const inversor = primeiro('inversor');
 
-  const shouldUsePopup = !isStandaloneDisplayMode();
-  const popupRef = shouldUsePopup ? window.open('', '_blank') : null;
   try {
     const seller    = await resolveEffectiveSellerForClient(client);
     const descricao = (draft.descricao || '').trim() || _pbNomeSugerido(potencia);
@@ -997,7 +995,7 @@ async function handleEquipamentosProposalSubmit(event) {
     if (error) throw error;
 
     const linkFinal = linkProposta(data[0]);
-    handleProposalLinkOpen(linkFinal, popupRef);
+    handleProposalLinkOpen(linkFinal);
 
     if (!client.status || client.status === 'NOVO') await cycleClientStatus(client.id, 'NOVO');
     await fetchPropostas();
@@ -1023,7 +1021,6 @@ async function handleEquipamentosProposalSubmit(event) {
   } catch (err) {
     console.error('Erro ao gerar proposta personalizada:', err);
     showToast('Erro ao gerar a proposta personalizada. Tente novamente.');
-    if (popupRef) popupRef.close();
     if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; lucide.createIcons(); }
   }
 }
@@ -1231,15 +1228,11 @@ async function copyProposalLink(kit, event) {
   btnCopiar.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> GERANDO...';
   lucide.createIcons();
 
-  const shouldUsePopup = !isStandaloneDisplayMode();
-  const popupRef = shouldUsePopup ? window.open('', '_blank') : null;
-
   try {
     // Kit montado no modo avançado: grava a cotação dele antes (o banco trava preço e custo).
     if (kit._montado) {
       kit = await kitMontadoPrepararProposta(kit);
       if (!kit) {
-        if (popupRef) popupRef.close();
         btnCopiar.innerHTML = originalText;
         lucide.createIcons();
         return;
@@ -1275,7 +1268,7 @@ async function copyProposalLink(kit, event) {
 
     const linkFinal = linkProposta(data[0]);
 
-    handleProposalLinkOpen(linkFinal, popupRef);
+    handleProposalLinkOpen(linkFinal);
 
     if (!client.status || client.status === 'NOVO') {
       await cycleClientStatus(client.id, 'NOVO');
@@ -1303,66 +1296,15 @@ async function copyProposalLink(kit, event) {
   } catch (err) {
     console.error('Erro na geração da proposta personalizada:', err);
     showToast('Erro ao gerar a proposta. Tente novamente.');
-    if (popupRef) popupRef.close();
     btnCopiar.innerHTML = originalText;
     lucide.createIcons();
   }
 }
 
-function isStandaloneDisplayMode() {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.matchMedia('(display-mode: fullscreen)').matches ||
-    window.navigator.standalone === true
-  );
-}
-
-function handleProposalLinkOpen(link, popupRef) {
-  // Em modo app (PWA), evita navegar para dentro da proposta e "prender" o vendedor.
+// Gerou a proposta: só copia o link, sem abrir aba nova. A mensagem
+// "Proposta pronta!" (showProposalSharePanel) traz WhatsApp, copiar, abrir e PDF.
+function handleProposalLinkOpen(link) {
   copiarTextoBlindado(link);
-
-  if (isStandaloneDisplayMode()) {
-    const externalAttempt = tryOpenExternalBrowser(link);
-
-    if (navigator.share) {
-      navigator.share({
-        title: 'Proposta Ágil Solar',
-        text: 'Segue o link da proposta:',
-        url: link,
-      }).catch(() => {});
-    }
-
-    showToast(externalAttempt
-      ? 'LINK COPIADO! Se nao abrir fora do app, use compartilhar.'
-      : 'LINK COPIADO! Use compartilhar para abrir no navegador.');
-    return;
-  }
-
-  if (popupRef) {
-    popupRef.location.href = link;
-    return;
-  }
-
-  const newTab = window.open(link, '_blank', 'noopener,noreferrer');
-  if (!newTab) {
-    window.location.href = link;
-  }
-}
-
-function tryOpenExternalBrowser(link) {
-  try {
-    const anchor = document.createElement('a');
-    anchor.href = link;
-    anchor.target = '_blank';
-    anchor.rel = 'noopener noreferrer external';
-    anchor.style.display = 'none';
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    return true;
-  } catch (_) {
-    return false;
-  }
 }
 
 // Marca a proposta como ENVIADA no 1º envio (ciclo GERADA→ENVIADA→VISTA→ACEITA).
