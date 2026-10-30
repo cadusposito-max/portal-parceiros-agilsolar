@@ -295,6 +295,10 @@ html[data-ui="v2"] .v2s .v2-veq { display: block; margin: 2px 0 0 19px; font-siz
 html[data-ui="v2"] .v2s .v2-vkit { display: flex; gap: 5px; align-items: flex-start; margin-top: 3px; font-size: 12.5px; font-weight: 700; color: var(--v2-ink-2); max-width: 420px; line-height: 1.35; }
 html[data-ui="v2"] .v2s .v2-vkit svg { color: var(--v2-green); width: 14px !important; height: 14px !important; flex: none; margin-top: 1px; }
 html[data-ui="v2"] .v2s .v2-vkit em { font-style: normal; font-weight: 600; color: var(--v2-gray); margin-left: 6px; }
+/* a célula é nowrap: sem isto o nome do kit passa dos 420px e invade a coluna Potência */
+html[data-ui="v2"] .v2s .v2-vkit,
+html[data-ui="v2"] .v2s .v2-veq { white-space: normal; }
+html[data-ui="v2"] .v2s .v2-vkit > span { min-width: 0; overflow-wrap: anywhere; }
 html[data-ui="v2"] .v2s .v2-drop { border: 1.5px dashed var(--v2-line-strong); border-radius: 16px; padding: 26px 10px; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--v2-gray); }
 html[data-ui="v2"] .v2s .v2-colmore { border: 0; background: var(--v2-card); border-radius: 14px; height: 38px; font-size: 13px; font-weight: 700; color: var(--v2-blue-text); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
