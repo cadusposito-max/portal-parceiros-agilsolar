@@ -653,8 +653,8 @@ body.is-capturing *{box-shadow:none!important}
       + '<line x1="1175" y1="590" x2="1290" y2="470" stroke="#008FD4" stroke-width="8" stroke-linecap="round" marker-start="url(#c5-az)" marker-end="url(#c5-az)"/>'
       + '</svg>'
       + '<div class="troca" style="right:' + X(1536 - 1150) + ';top:' + Y(478) + '">troca de energia<br>com a rede</div>'
-      + '<div class="dn"><div><i></i><span><b>De dia:</b> o que sobra vira crédito</span></div><div><i class="lua"></i><span><b>À noite:</b> sua casa usa o crédito</span></div></div>'
-      + legenda(470, 905, 'Sua casa') + legenda(1060, 905, 'Medidor', 'mede o que entra e o que sai') + legenda(1372, 905, 'Rede', 'guarda os seus créditos')
+      + '<div class="dn"><div><i></i><span><b>De dia:</b> o que sobra vira crédito</span></div><div><i class="lua"></i><span><b>À noite:</b> seu imóvel usa o crédito</span></div></div>'
+      + legenda(470, 905, 'Seu imóvel') + legenda(1060, 905, 'Medidor', 'mede o que entra e o que sai') + legenda(1372, 905, 'Rede', 'guarda os seus créditos')
       + '<div class="ilus">imagem ilustrativa</div>'
       + selo(178, 352, 1) + selo(762, 630, 2) + selo(332, 592, 3) + selo(1050, 634, 4);
   }
@@ -758,8 +758,8 @@ body.is-capturing *{box-shadow:none!important}
     folha(cab('Como funciona', 'Do sol à sua conta de luz', 'O sistema fica ligado à rede da distribuidora. Não precisa de bateria: a própria rede guarda o que sobra, em forma de crédito.')
       + '<div class="cena5"><div class="cena">' + cenaSobreposta() + '</div><div class="passos-v">'
       + '<div class="passo-v"><div class="n">1</div><div><h3>As placas captam o sol</h3><p>Durante o dia, ' + (mod && mod.qtd ? 'as ' + mod.qtd + ' placas' : 'as placas') + ' no seu telhado transformam a luz do sol em energia elétrica.</p></div></div>'
-      + '<div class="passo-v"><div class="n">2</div><div><h3>O inversor converte</h3><p>Transforma essa energia no mesmo padrão da tomada da sua casa e mostra tudo no aplicativo.</p></div></div>'
-      + '<div class="passo-v"><div class="n">3</div><div><h3>Sua casa usa primeiro</h3><p>O que estiver ligado usa a energia do sol antes de puxar da rede.</p></div></div>'
+      + '<div class="passo-v"><div class="n">2</div><div><h3>O inversor converte</h3><p>Transforma essa energia no mesmo padrão da tomada do seu imóvel e mostra tudo no aplicativo.</p></div></div>'
+      + '<div class="passo-v"><div class="n">3</div><div><h3>Seu imóvel usa primeiro</h3><p>O que estiver ligado usa a energia do sol antes de puxar da rede.</p></div></div>'
       + '<div class="passo-v"><div class="n">4</div><div><h3>O que sobra vira crédito</h3><p>O excedente vai para a rede e volta como crédito, para usar à noite ou nos meses de menos sol. Os créditos valem por 60 meses.</p></div></div>'
       + '</div></div>'
       + '<div class="aviso">' + ic('info') + '<span><b>O que continua na conta de luz:</b> a taxa mínima da distribuidora (custo de disponibilidade), a iluminação pública e a parcela de uso da rede sobre a energia injetada prevista na Lei 14.300. Por isso a economia estimada nesta proposta é de 85% da conta, e não de 100%.</span></div>');
@@ -782,7 +782,7 @@ body.is-capturing *{box-shadow:none!important}
       + '<div class="base-eq"><div><div class="sub-tit">Completa o sistema</div><div class="itens4">'
       + '<div><div class="bola">' + ic('telhado') + '</div><b>Estrutura</b>para o seu telhado</div>'
       + '<div><div class="bola">' + ic('raio') + '</div><b>Cabos e conectores</b>para sol e chuva</div>'
-      + '<div><div class="bola">' + ic('escudo') + '</div><b>Proteções elétricas</b>para a sua casa</div>'
+      + '<div><div class="bola">' + ic('escudo') + '</div><b>Proteções elétricas</b>para o seu imóvel</div>'
       + '<div><div class="bola">' + ic('celular') + '</div><b>Aplicativo</b>da geração no celular</div>'
       + '</div></div><div><div class="sub-tit">Trabalhamos com as melhores marcas</div><img class="marcas" src="' + IMG + 'marcas.png" alt="Astronergy, Znshine Solar, Jinko Solar, Hoymiles, Chint, Solis, Sofar, Ronma, Huawei"></div></div>');
 
@@ -855,7 +855,7 @@ body.is-capturing *{box-shadow:none!important}
       + '<h2 class="chamada-f">Obrigado pela confiança, <span>' + primeiro + '</span>.<br>Vamos juntos gerar a sua própria energia.</h2>'
       + '<p class="apoio">Ficou com alguma dúvida ou quer seguir com o seu sistema? É só chamar o seu consultor no WhatsApp ou ligar.</p></div>'
       + '<div class="contatos-u">' + contatos + '</div>'
-      + '<div class="letra"><b>Informações importantes</b>Para o dimensionamento e o preço finais, a nossa visita técnica é fundamental: a face e a inclinação do telhado podem alterar a geração do sistema. Na visita avaliamos também a estrutura e a parte elétrica. Esta proposta considera que o telhado tem estrutura adequada para a fixação dos equipamentos; reforços ou adequações na rede elétrica da casa, se forem necessários, são avaliados na vistoria, para a sua segurança e para a correta homologação na distribuidora.</div></div>'
+      + '<div class="letra"><b>Informações importantes</b>Para o dimensionamento e o preço finais, a nossa visita técnica é fundamental: a face e a inclinação do telhado podem alterar a geração do sistema. Na visita avaliamos também a estrutura e a parte elétrica. Esta proposta considera que o telhado tem estrutura adequada para a fixação dos equipamentos; reforços ou adequações na rede elétrica do imóvel, se forem necessários, são avaliados na vistoria, para a sua segurança e para a correta homologação na distribuidora.</div></div>'
       + '<div class="cv"><div class="cv-faixa"></div><div class="cv-topo"><div class="av">' + esc(c.nome.charAt(0).toUpperCase()) + '</div><div><div class="k">Seu consultor</div><div class="nome">' + esc(c.nome) + '</div><div class="uni">' + esc(c.unidade) + '</div></div></div>'
       + '<div class="cv-meio">'
       + (c.tel ? (c.wa ? '<a class="tel" href="' + esc(c.wa) + '" target="_blank" rel="noopener" data-pdf-link>' : '<div class="tel">') + ic('fone') + ' ' + esc(c.tel) + (c.wa ? '</a>' : '</div>') : '')
