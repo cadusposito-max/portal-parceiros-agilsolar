@@ -770,6 +770,121 @@ function crmGeracaoTexto(p) {
   return calculada ? `· ~${Math.round(calculada)} kWh/mês` : '';
 }
 
+// "KIT 13 MOD. 620W + INV. HYXIPOWER 6KW" → "13 módulos 620 W + inversor Hyxipower 6 kW".
+// Só mexe em nome todo em maiúsculo (o que o orçamento grava); o resto fica como veio.
+function crmPropostaTitulo(nome) {
+  const s = String(nome || '').trim();
+  if (!s) return 'Proposta';
+  if (/[a-zà-ú]/.test(s)) return s;
+  return s
+    .replace(/^KIT\s+/, '')
+    .replace(/(\d+)\s*(?:MOD\.?|PN)(?=\s)/g, '$1 módulos')
+    .replace(/\bINV\.?\s*H[IÍ]B\.?/g, 'inversor híbrido')
+    .replace(/\bINV\.?(?=\s)/g, 'inversor')
+    .replace(/\bMICROINVERSOR\b/g, 'microinversor')
+    .replace(/\bBATERIAS?\b/g, (b) => b.toLowerCase())
+    .replace(/(\d[\d,.]*)\s*KWP\b/g, '$1 kWp')
+    .replace(/(\d[\d,.]*)\s*KWH\b/g, '$1 kWh')
+    .replace(/(\d[\d,.]*)\s*KW\b/g, '$1 kW')
+    .replace(/(\d+)\s*W\b/g, '$1 W')
+    .replace(/\b([A-ZÀ-Ú])([A-ZÀ-Ú]+)\b/g, (_, a, b) => a + b.toLowerCase())
+    .replace(/\s{2,}/g, ' ');
+}
+
+function crmPropostaTipo(p) {
+  if (/H[IÍ]B|BATERIA/i.test(p.kit_nome || '')) return 'Híbrido';
+  if (p.proposal_mode === 'PERSONALIZADA' || p.proposal_mode === 'EQUIPAMENTOS') return 'Personalizada';
+  return 'Kit promocional';
+}
+
+// Copiar link / WhatsApp: os dois marcam a proposta como enviada e redesenham a trilha.
+async function crmPropostaEnviar(id, via) {
+  const link = linkProposta(id);
+  if (via === 'whatsapp') {
+    const client = _crm360Client();
+    const fone = digitsOnly(client?.telefone || '');
+    if (fone.length < 10) { showToast('CLIENTE SEM WHATSAPP CADASTRADO'); return; }
+    const nome = String(client?.nome || 'cliente').trim().split(' ')[0];
+    const nomeBonito = nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase();
+    const msg = encodeURIComponent(`Olá, ${nomeBonito}! Segue a sua proposta de energia solar da Ágil Solar: ${link}\nQualquer dúvida, é só me chamar por aqui.`);
+    window.open(`https://wa.me/55${fone}?text=${msg}`, '_blank', 'noopener');
+  } else {
+    copiarTextoBlindado(link);
+    showToast('LINK DA PROPOSTA COPIADO!');
+  }
+  await marcarPropostaEnviada(id);
+  if (_crm360ClientId && _crm360Tab === 'propostas') renderCrm360();
+}
+
+// Gerada → Enviada → Vista → Aceita, com o que aconteceu por último ao lado.
+function crmPropostaTrilha(p, st) {
+  const passos = [['GERADA', 'Gerada'], ['ENVIADA', 'Enviada'], ['VISTA', 'Vista'], ['ACEITA', 'Aceita']];
+  const at = passos.findIndex(([k]) => k === st);
+  const vezes = Number(p.vista_count) > 1 ? ` · ${p.vista_count} vezes` : '';
+  const info = st === 'ACEITA' ? 'cliente aceitou'
+    : st === 'VISTA' ? `cliente abriu ${p.vista_em ? crmTimeAgo(p.vista_em) : ''}${vezes}`
+      : st === 'ENVIADA' ? `enviada${p.enviada_em ? ' ' + formatDate(p.enviada_em) : ''}, ainda não abriu`
+        : 'ainda não enviada';
+  return `<div class="crm-pa-trilha">${passos.map(([k, rot], i) =>
+    `${i ? `<em class="${i <= at ? 'ok' : ''}"></em>` : ''}<i class="${i <= at ? 'ok ' + k.toLowerCase() : ''}">${rot}</i>`).join('')}
+    <small>· ${escapeHTML(info)}</small></div>`;
+}
+
+function crmPropostaCartaoHTML(p, client) {
+  const isPersonalizada = p.proposal_mode === 'PERSONALIZADA' || p.proposal_mode === 'EQUIPAMENTOS';
+  const preco = isPersonalizada ? (p.custom_total_price || p.kit_price) : p.kit_price;
+  // Ciclo de vida (GERADA→ENVIADA→VISTA→ACEITA) — helpers do app.js.
+  const st = (typeof propostaStatus === 'function') ? propostaStatus(p) : 'GERADA';
+  const tipo = crmPropostaTipo(p);
+  const kwp = Number(p.kit_power || p.custom_system_power_kwp) || 0;
+  const ajustada = Number(p.geracao_ajustada) || 0;
+  const geracao = ajustada || Number(p.geracao_estimada) || 0;
+  const dicaGer = ajustada
+    ? `Ajustada${p.geracao_ajustada_por ? ' por ' + p.geracao_ajustada_por : ''}${p.geracao_estimada ? ` · calculada: ${Math.round(p.geracao_estimada)} kWh/mês` : ''}`
+    : '';
+  const autor = p.vendedor_email ? crmNomeAutor(p.vendedor_email).split(' ')[0] : '';
+  const chip = {
+    GERADA: ['file', 'Gerada'], ENVIADA: ['send', 'Enviada'], VISTA: ['eye', 'Cliente abriu'], ACEITA: ['check', 'Aceita'],
+  }[st];
+  const interno = [];
+  if (state.isAdmin || state.isGestor) interno.push(['calculator', 'Precificação', `openOrcamentoDre('${p.id}')`]);
+  if (podeAjustarGeracao() && window.uiV2Geracao) interno.push(['sun', 'Ajustar geração', `uiV2Geracao.abrir('${p.id}')`]);
+  if (st === 'ACEITA' && crmPodeGerirVenda(p)) interno.push(['undo-2', 'Desfazer aceite', `crmDesfazerAceite('${p.id}')`, true]);
+
+  return `
+    <div class="crm-pa ${st.toLowerCase()}">
+      <div class="crm-pa-top">
+        <div class="crm-pa-ico ${tipo === 'Híbrido' ? 'hib' : ''}"><i data-lucide="${tipo === 'Híbrido' ? 'battery-charging' : 'sun'}"></i></div>
+        <div class="crm-pa-tit">
+          <b>${escapeHTML(crmPropostaTitulo(p.kit_nome))}</b>
+          <small>${tipo} · criada em ${formatDate(p.created_at)}${autor ? ` por ${escapeHTML(autor)}` : ''}</small>
+        </div>
+        <span class="crm-pa-chip ${st.toLowerCase()}"><i data-lucide="${chip[0]}"></i>${chip[1]}</span>
+      </div>
+      <div class="crm-pa-num">
+        <div><span>Potência</span><strong>${kwp ? kwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kWp' : '—'}</strong></div>
+        <div><span>Geração</span><strong>${geracao ? `~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês` : '—'}</strong>${ajustada ? `<em title="${escapeHTML(dicaGer)}">ajustada</em>` : ''}</div>
+        <div class="val"><span>Valor ${state.isAdmin ? `<span data-prec-selo="${p.id}"></span>` : ''}</span><strong>${formatCurrency(preco || 0)}</strong></div>
+      </div>
+      <div class="crm-pa-pe">
+        ${crmPropostaTrilha(p, st)}
+        <div class="crm-pa-acoes">
+          <div class="crm-menu">
+            <button type="button" class="btn btn-sm crm-pa-enviar" onclick="crmMenuToggle(event, this)"><i data-lucide="send"></i> Enviar ao cliente</button>
+            <div class="crm-menu-pop">
+              <button type="button" onclick="crmMenuFechar(); crmPropostaEnviar('${p.id}', 'link')"><i data-lucide="copy"></i>Copiar link</button>
+              <button type="button" onclick="crmMenuFechar(); crmPropostaEnviar('${p.id}', 'whatsapp')"><i data-lucide="message-circle"></i>Mandar no WhatsApp</button>
+            </div>
+          </div>
+          <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Ver como o cliente vê" class="btn btn-secondary btn-sm"><i data-lucide="external-link"></i><span class="crm-pa-txt">Abrir</span></a>
+          <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
+          <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-sm"><i data-lucide="file-down"></i><span class="crm-pa-txt">PDF</span></a>
+          ${interno.length ? crmMenuHTML(interno) : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderCrm360TabContent(client, propostas, vendas) {
   // Projetos na engenharia + envio (eng-v2.js).
   if (_crm360Tab === 'engenharia' && typeof renderEngFichaTab === 'function') {
@@ -796,42 +911,13 @@ function renderCrm360TabContent(client, propostas, vendas) {
         </div>`;
     }
 
+    const n = propostas.length;
     return `
-      ${novaBtn ? `<div class="flex justify-end mb-2">${novaBtn}</div>` : ''}
-      <div class="space-y-2">${propostas.map((p) => {
-      const isPersonalizada = p.proposal_mode === 'PERSONALIZADA' || p.proposal_mode === 'EQUIPAMENTOS';
-      const preco = isPersonalizada ? (p.custom_total_price || p.kit_price) : p.kit_price;
-      // Ciclo de vida (GERADA→ENVIADA→VISTA→ACEITA) — helpers do app.js.
-      const st = (typeof propostaStatus === 'function') ? propostaStatus(p) : 'GERADA';
-      const stCls = (typeof PROPOSTA_STATUS_STYLE !== 'undefined' && PROPOSTA_STATUS_STYLE[st])
-        ? PROPOSTA_STATUS_STYLE[st].cls
-        : 'bg-neutral-800/60 text-neutral-400 border-neutral-700';
-      const vistaInfo = st === 'VISTA' && p.vista_em
-        ? `<span class="text-[9px] text-orange-400/80 font-bold">vista ${typeof crmTimeAgo === 'function' ? crmTimeAgo(p.vista_em) : formatDate(p.vista_em)}${Number(p.vista_count) > 1 ? ` · ${p.vista_count}x` : ''}</span>`
-        : '';
-      return `
-        <div class="border ${st === 'VISTA' ? 'border-orange-500/30' : 'border-neutral-800'} bg-black/40 p-3.5 flex items-center gap-3 flex-wrap">
-          <div class="flex-1 min-w-[160px]">
-            <div class="flex items-center gap-2 flex-wrap">
-              <p class="text-white font-black text-xs uppercase">${escapeHTML(p.kit_nome || 'Proposta')}</p>
-              <span class="text-[8px] px-1.5 py-0.5 uppercase font-black tracking-widest border shrink-0 ${stCls}">${st}</span>
-              ${vistaInfo}
-            </div>
-            <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(p.created_at)} · ${escapeHTML(String(p.kit_power || p.custom_system_power_kwp || '-'))} kWp ${crmGeracaoTexto(p)}</p>
-          </div>
-          ${state.isAdmin ? `<span data-prec-selo="${p.id}"></span>` : ''}
-          <span class="text-green-400 font-black text-sm">${formatCurrency(preco || 0)}</span>
-          <div class="flex items-center gap-1.5">
-            ${(state.isAdmin || state.isGestor) ? `<button onclick="openOrcamentoDre('${p.id}')" title="Precificação interna (admin e gestor)" class="btn btn-secondary btn-icon"><i data-lucide="calculator"></i></button>` : ''}
-            ${podeAjustarGeracao() && window.uiV2Geracao ? `<button onclick="uiV2Geracao.abrir('${p.id}')" title="Ajustar geração (admin e franqueado)" class="btn btn-secondary btn-icon"><i data-lucide="sun"></i></button>` : ''}
-            <button onclick="copiarLinkExistente('${p.id}', this); marcarPropostaEnviada('${p.id}')" title="Copiar link (marca como enviada)" class="btn btn-secondary btn-icon"><i data-lucide="copy"></i></button>
-            <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
-            <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-icon"><i data-lucide="file-down"></i></a>
-            <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Abrir proposta" class="btn btn-secondary btn-icon"><i data-lucide="external-link"></i></a>
-            ${st === 'ACEITA' && crmPodeGerirVenda(p) ? crmMenuHTML([['undo-2', 'Desfazer aceite', `crmDesfazerAceite('${p.id}')`]]) : ''}
-          </div>
-        </div>`;
-    }).join('')}</div>`;
+      <div class="crm-pa-cab">
+        <div><h3>Propostas do cliente</h3><small>${n} proposta${n > 1 ? 's' : ''}${n > 1 ? ' · a mais nova fica em cima' : ''}</small></div>
+        ${novaBtn}
+      </div>
+      ${propostas.map((p) => crmPropostaCartaoHTML(p, client)).join('')}`;
   }
 
   // Pós-venda (vendas-andamento.js): pagamento → monitoramento de cada venda
