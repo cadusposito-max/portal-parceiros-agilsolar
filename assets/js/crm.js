@@ -826,8 +826,8 @@ function crmPropostaTrilha(p, st) {
     : st === 'VISTA' ? ['eye', `Cliente abriu ${vezes} ${vezes > 1 ? 'vezes' : 'vez'}${p.vista_em ? ` · 1ª ${crmTimeAgo(p.vista_em)}` : ''}`]
       : st === 'ENVIADA' ? ['send', `Enviada${p.enviada_em ? ' ' + formatDate(p.enviada_em) : ''} · ainda não abriu`]
         : ['clock', 'Ainda não enviada'];
-  return `<div class="crm-pa-trilha">${passos.map(([k, rot], i) =>
-    `${i ? `<em class="${i <= at ? 'ok' : ''}"></em>` : ''}<i class="${i <= at ? 'ok ' + k.toLowerCase() : ''}">${rot}</i>`).join('')}
+  return `<div class="crm-pa-trilha"><span class="crm-pa-passos">${passos.map(([k, rot], i) =>
+    `${i ? `<em class="${i <= at ? 'ok' : ''}"></em>` : ''}<i class="${i <= at ? 'ok ' + k.toLowerCase() : ''}">${rot}</i>`).join('')}</span>
     <span class="crm-pa-info ${st.toLowerCase()}"><i data-lucide="${ico}"></i>${escapeHTML(info)}</span></div>`;
 }
 
@@ -864,7 +864,7 @@ function crmPropostaCartaoHTML(p, client) {
       </div>
       <div class="crm-pa-num">
         <div><span>Potência</span><strong>${kwp ? kwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kWp' : '—'}</strong></div>
-        <div><span>Geração</span><strong>${geracao ? `~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês` : '—'}</strong>${ajustada ? `<em title="${escapeHTML(dicaGer)}">ajustada</em>` : ''}</div>
+        <div><span>Geração ${ajustada ? `<em title="${escapeHTML(dicaGer)}">ajustada</em>` : ''}</span><strong>${geracao ? `~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês` : '—'}</strong></div>
         <div class="val"><span>Valor ${state.isAdmin ? `<span data-prec-selo="${p.id}"></span>` : ''}</span><strong>${formatCurrency(preco || 0)}</strong></div>
       </div>
       <div class="crm-pa-pe">
