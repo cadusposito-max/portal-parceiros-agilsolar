@@ -5,7 +5,8 @@
 // SÓ quando o v2 está ativo; sem ele, roda a função original do om.js.
 // Os dados saem das mesmas RPCs e filtros do om.js (list_om_propostas,
 // state.omPropFilters, get_om_kpis_central...); aqui muda só a apresentação.
-// Telas: Propostas O&M (lista) e Central. Detalhes e demais abas: om.js.
+// Telas: Central e as listas de Propostas O&M, Clientes, Pendências e
+// Relatórios. Detalhes, OS, Agenda e Técnicos: om.js / om-os.js.
 // ==========================================
 
 (function () {
@@ -237,15 +238,197 @@
       if (!q) { out.innerHTML = ''; return; }
       let r;
       try { r = (await omSearchClientes(q)) || []; } catch (e) { out.innerHTML = `<div class="v2-card"><div class="v2-empty">${esc(erroTx(e))}</div></div>`; return; }
-      const ori = (c) => (has('omOrigemLabel') && c.origem ? omOrigemLabel(c.origem) : '');
+      const ori = (c) => (!c.origem ? '' : ORI_NOME[c.origem] || (has('omOrigemLabel') ? omOrigemLabel(c.origem) : c.origem));
       out.innerHTML = `<div class="v2-card">${r.length ? r.map((c) => `<div class="v2-lst click" onclick="omUseClient('${esc(c.id)}')">${avCliente(c)}<div class="tx"><b>${esc(c.nome)}</b><small>${esc(c.cidade || '—')} · ${esc(c.telefone || '—')}${ori(c) ? ' · ' + esc(ori(c)) : ''}${c.no_om ? ' · já no O&amp;M' : ''}</small></div><button class="v2-sq" title="Nova proposta O&M" onclick="event.stopPropagation(); omUseClient('${esc(c.id)}')">${ic('file-plus-2')}</button></div>`).join('')
         : `<div class="v2-lst"><div class="tx"><b>Nenhum cliente encontrado</b><small>Cadastre o cliente O&amp;M para começar o atendimento.</small></div><button class="v2-btnp" onclick="omOpenCreateClient({ next: 'proposta' })">${ic('user-plus')}Criar cliente O&amp;M</button></div>`}</div>`;
       icons();
     }, 250);
   }
 
+  // ==================== CLIENTES O&M ====================
+  // origens que o om.js não traduz (vêm do Comercial/leads) — antes saía o código cru
+  const ORI_NOME = { comercial: 'Comercial', meta: 'Meta', trafego: 'Tráfego', nao_informado: 'Não informado', porta: 'Porta' };
+  // A busca é no banco (omListOMClientes), como no om.js; a linha inteira inicia a proposta.
+  function renderClientesV2(container) {
+    if (!state.omClientesFilters) state.omClientesFilters = { search: '' };
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'om-clientes';
+    setPageMeta('om:clientes', 'Clientes', 'Carregando…');
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        <label class="v2-sbox">${ic('search')}<input id="om-cli-search" type="text" value="${esc(state.omClientesFilters.search || '')}" oninput="uiV2Om.cliBusca(this.value)" placeholder="Nome, telefone, CPF/CNPJ ou cidade" autocomplete="off"></label>
+        <div class="v2-grow"></div>
+        <button class="v2-btnp" onclick="omOpenCreateClient()">${ic('user-plus')}<span>Criar cliente O&amp;M</span></button>
+      </div>
+      <div class="v2-ctx">${ic('info', 'style="width:14px;height:14px"')}Aqui ficam só os clientes O&amp;M. Para um cliente do Comercial, use "Nova proposta O&amp;M" e busque por ele lá.</div>
+      <div class="v2om-cli-body"><div class="v2-card v2-empty">Carregando clientes…</div></div>`;
+    icons();
+    clientesCarregar();
+  }
+  let tCli = null, cliSeq = 0;
+  async function clientesCarregar() {
+    const seq = ++cliSeq;
+    const q = (state.omClientesFilters || {}).search || '';
+    let rows, erro = null;
+    try { rows = (await omListOMClientes(q)) || []; } catch (e) { erro = e; }
+    const box = document.querySelector('#main-container .v2om-cli-body');
+    if (!box || seq !== cliSeq) return; // saiu da tela ou chegou uma busca mais nova
+    if (erro) { setPageMeta('om:clientes', 'Clientes', ''); box.innerHTML = `<div class="v2-card v2-empty">${esc(erroTx(erro))}</div>`; return; }
+    setPageMeta('om:clientes', 'Clientes', q.trim() ? `${plural(rows.length, 'cliente encontrado', 'clientes encontrados')}` : plural(rows.length, 'cliente O&M', 'clientes O&M'));
+    const ori = (c) => ORI_NOME[c.origem] || (has('omOrigemLabel') ? omOrigemLabel(c.origem) : c.origem || '—');
+    const ORI_COR = { crm: 't-blue', comercial: 't-blue', proposta: 't-green', manual: 't-orange', om: 't-blue', meta: 't-blue', whatsapp: 't-green', indicacao: 't-green' };
+    if (!rows.length) {
+      box.innerHTML = `<div class="v2-card v2-empty">${q.trim() ? 'Nenhum cliente O&amp;M bate com essa busca.' : 'Você ainda não tem clientes O&amp;M.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="omOpenCreateClient()">${ic('user-plus')}Criar cliente O&amp;M</button></div></div>`;
+      icons();
+      return;
+    }
+    box.innerHTML = `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+        <thead><tr><th>Cliente</th><th class="hide-m">Origem</th><th class="hide-m">Cidade</th><th class="hide-m">Documento</th><th></th></tr></thead>
+        <tbody>${rows.map((c) => `<tr onclick="omUseClient('${esc(c.id)}')" title="Nova proposta O&amp;M para este cliente">
+          <td><div class="v2-who">${avCliente(c)}<div class="v2om-tx"><span class="v2-nm">${esc(c.nome || '—')}</span><small>${esc(c.telefone || '—')}<span class="show-m"> · ${esc(c.cidade || '—')}</span></small></div></div></td>
+          <td class="hide-m"><span class="v2-chip ${ORI_COR[c.origem] || 't-gray'}">${esc(ori(c))}</span></td>
+          <td class="hide-m">${esc(c.cidade || '—')}</td>
+          <td class="hide-m muted">${esc(c.documento || '—')}</td>
+          <td><div class="v2-acts"><button class="v2-sq" title="Nova proposta O&amp;M" onclick="event.stopPropagation(); omUseClient('${esc(c.id)}')">${ic('file-plus-2')}</button></div></td></tr>`).join('')}</tbody></table></div></div>
+      <div class="v2-fim"><div class="m"><span>${ic('circle-check')}Fim da lista · <b>${plural(rows.length, 'cliente', 'clientes')}</b></span></div></div>`;
+    icons();
+  }
+  function cliBusca(v) {
+    state.omClientesFilters = state.omClientesFilters || {};
+    state.omClientesFilters.search = v;
+    clearTimeout(tCli);
+    tCli = setTimeout(clientesCarregar, 250);
+  }
+
+  // ==================== PENDÊNCIAS ====================
+  // Filtros do om.js (state.omPendFilters, rótulos OM_PEND_*); ações do om.js (omPend*).
+  const PEND_ST = { aberta: ['Aberta', 'Abertas', 't-red'], em_analise: ['Em análise', 'Em análise', 't-orange'], proposta_gerada: ['Proposta gerada', 'Proposta gerada', 't-blue'],
+    aprovada: ['Aprovada', 'Aprovadas', 't-green'], resolvida: ['Resolvida', 'Resolvidas', 't-green'], ignorada: ['Ignorada', 'Ignoradas', 't-gray'] };
+  async function renderPendenciasV2(container) {
+    if (!state.omPendFilters) state.omPendFilters = { criticidade: 'Todas', status: 'Todos', responsavel: 'Todos' };
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'om-pendencias';
+    setPageMeta('om:pendencias', 'Pendências', 'Carregando…');
+    container.innerHTML = `<div class="v2-card v2-empty">Carregando pendências…</div>`;
+    const { data, error } = await supabaseClient.rpc('list_om_pendencias');
+    if (state.environment !== 'om' || state.omActiveTab !== 'pendencias') return;
+    if (error) { setPageMeta('om:pendencias', 'Pendências', ''); container.innerHTML = `<div class="v2-card v2-empty">${esc(erroTx(error))}</div>`; return; }
+    omPendListCache = (data || []).map((p) => ({ ...p, critLabel: OM_PEND_CRIT_LABEL[p.criticidade] || p.criticidade, statusLabel: OM_PEND_STATUS_LABEL[p.status] || p.status }));
+    pintarPendencias(container);
+  }
+  function pintarPendencias(container) {
+    const all = omPendListCache || [];
+    const f = state.omPendFilters;
+    const abertas = all.filter((p) => !['resolvida', 'ignorada'].includes(p.status)).length;
+    setPageMeta('om:pendencias', 'Pendências', `${plural(all.length, 'pendência', 'pendências')} · ${abertas} em aberto`);
+    const resp = [...new Set(all.map((p) => p.responsavel).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const novo = `<button class="v2-btno" style="width:auto;height:44px" onclick="omOpenCreatePendencia()">${ic('plus')}Registrar pendência</button>`;
+    if (!all.length) {
+      container.innerHTML = `<div class="v2-card v2-empty">Nenhuma pendência registrada.<div style="margin-top:12px">${novo}</div></div>`;
+      icons();
+      return;
+    }
+    // contagem das etapas respeita criticidade/responsável (não o próprio status)
+    const base = all.filter((p) => (f.criticidade === 'Todas' || p.critLabel === f.criticidade) && (f.responsavel === 'Todos' || p.responsavel === f.responsavel));
+    const lista = base.filter((p) => f.status === 'Todos' || p.statusLabel === f.status);
+    const cnt = {};
+    base.forEach((p) => { cnt[p.status] = (cnt[p.status] || 0) + 1; });
+    const etapas = Object.keys(PEND_ST).filter((s) => ['aberta', 'em_analise', 'proposta_gerada', 'resolvida'].includes(s) || cnt[s] || f.status === PEND_ST[s][0]);
+    const pill = (lbl, val, n) => `<button class="${f.status === val ? 'on' : ''}" onclick="uiV2Om.pendSet('status','${esc(val)}')">${lbl}<em>${n}</em></button>`;
+    const ativos = [f.criticidade !== 'Todas', f.responsavel !== 'Todos', f.status !== 'Todos'].filter(Boolean).length;
+
+    const item = (p) => {
+      const enc = p.status === 'resolvida' || p.status === 'ignorada';
+      const c = CRIT[p.criticidade] || CRIT.media;
+      const st = PEND_ST[p.status] || [p.statusLabel || '—', '', 't-gray'];
+      const av = p.criticidade === 'critica' ? 'v2om-r' : p.criticidade === 'alta' ? 'o' : 'g';
+      const acoes = [
+        !enc ? `<button class="v2-btnp" onclick="omPendGerarProposta('${esc(p.id)}')">${ic(p.om_proposta_id ? 'file-text' : 'file-plus')}${p.om_proposta_id ? 'Ver proposta' : 'Gerar proposta corretiva'}</button>` : '',
+        enc && p.om_proposta_id ? `<button class="v2-btn2" onclick="omPendGerarProposta('${esc(p.id)}')">${ic('file-text')}Ver proposta</button>` : '',
+        !enc ? `<button class="v2-btn2" onclick="omPendResolver('${esc(p.id)}')">${ic('check')}Resolver</button>` : '',
+        p.os_id ? `<button class="v2-btn2" onclick="omPendVerOS('${esc(p.id)}')">${ic('clipboard-list')}Ver OS</button>` : '',
+      ].join('');
+      return `<div class="v2-card v2om-pitem ${enc ? 'enc' : ''}">
+        <i class="v2-ini ${av}">${ic('triangle-alert')}</i>
+        <div class="tx"><div class="chips"><span class="v2-chip dot ${c[1]}">${c[0]}</span><span class="v2-chip ${st[2]}">${st[0]}</span>${p.os_numero ? `<small>${esc(p.os_numero)}</small>` : ''}</div>
+          <b>${esc(p.descricao || '—')}</b><small>${esc(p.cliente || '—')} · Responsável: ${esc(p.responsavel || '—')}</small></div>
+        ${acoes ? `<div class="acts">${acoes}</div>` : ''}</div>`;
+    };
+
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        <select class="v2-select ${f.criticidade !== 'Todas' ? 'on' : ''}" onchange="uiV2Om.pendSet('criticidade', this.value)" data-titulo="Criticidade"><option value="Todas">Todas as criticidades</option>${['Crítica', 'Alta', 'Média', 'Baixa'].map((s) => `<option value="${s}" ${s === f.criticidade ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        <select class="v2-select ${f.responsavel !== 'Todos' ? 'on' : ''}" onchange="uiV2Om.pendSet('responsavel', this.value)" data-titulo="Responsável"><option value="Todos">Todos os responsáveis</option>${resp.map((r) => `<option value="${esc(r)}" ${r === f.responsavel ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
+        ${ativos ? `<button class="v2-pill v2-fclear" onclick="uiV2Om.pendLimpar()">${ic('filter-x')}Limpar · ${lista.length} de ${all.length}</button>` : ''}
+        <div class="v2-grow"></div>
+        ${novo}
+      </div>
+      <div class="v2-pills">${pill('Todas', 'Todos', base.length)}${etapas.map((s) => pill(PEND_ST[s][1], PEND_ST[s][0], cnt[s] || 0)).join('')}</div>
+      ${lista.length ? `<div class="v2om-plist">${lista.map(item).join('')}</div>
+        <div class="v2-fim"><div class="m"><span>${ic('circle-check')}Fim da lista · <b>${plural(lista.length, 'pendência', 'pendências')}</b></span></div></div>`
+        : `<div class="v2-card v2-empty">Nenhuma pendência com esses filtros.<div style="margin-top:12px"><button class="v2-btn2" onclick="uiV2Om.pendLimpar()">${ic('filter-x')}Limpar filtros</button></div></div>`}`;
+    icons();
+    if (window.uiV2Filtros) window.uiV2Filtros.aplicar(container);
+  }
+
+  // ==================== RELATÓRIOS ====================
+  // OS finalizadas (list_om_relatorios); o detalhe continua no om.js.
+  const EST_COR = { 'Bom': 't-green', 'Atenção': 't-orange', 'Crítico': 't-red' };
+  let relRows = [];
+  async function renderRelatoriosV2(container) {
+    if (state.omReportDetailId) return renderOMRelatorioDetail(container, state.omReportDetailId);
+    if (!state.omRelFilters) state.omRelFilters = { cliente: 'Todos', tecnico: 'Todos', estado: 'Todos' };
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'om-relatorios';
+    setPageMeta('om:relatorios', 'Relatórios', 'Carregando…');
+    container.innerHTML = `<div class="v2-card v2-empty">Carregando relatórios…</div>`;
+    const { data, error } = await supabaseClient.rpc('list_om_relatorios');
+    if (state.environment !== 'om' || state.omActiveTab !== 'relatorios' || state.omReportDetailId) return;
+    if (error) { setPageMeta('om:relatorios', 'Relatórios', ''); container.innerHTML = `<div class="v2-card v2-empty">${esc(erroTx(error))}</div>`; return; }
+    relRows = data || [];
+    pintarRelatorios(container);
+  }
+  function pintarRelatorios(container) {
+    const f = state.omRelFilters;
+    const est = (o) => OM_ESTADO_LABEL[o.estado_geral] || '—';
+    const agora = new Date();
+    const noMes = relRows.filter((o) => { const d = new Date(o.finalizado_em); return d.getMonth() === agora.getMonth() && d.getFullYear() === agora.getFullYear(); }).length;
+    setPageMeta('om:relatorios', 'Relatórios', `${plural(relRows.length, 'relatório', 'relatórios')} · ${noMes} no mês`);
+    if (!relRows.length) {
+      container.innerHTML = `<div class="v2-card v2-empty">Nenhum relatório ainda. Conclua uma OS para gerar o relatório técnico.</div>`;
+      return;
+    }
+    const clientes = [...new Set(relRows.map((o) => o.cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const tecnicos = [...new Set(relRows.map((o) => o.tecnico).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const base = relRows.filter((o) => (f.cliente === 'Todos' || o.cliente === f.cliente) && (f.tecnico === 'Todos' || (o.tecnico || '') === f.tecnico));
+    const lista = base.filter((o) => f.estado === 'Todos' || est(o) === f.estado);
+    const cnt = {};
+    base.forEach((o) => { const e = est(o); cnt[e] = (cnt[e] || 0) + 1; });
+    const pill = (lbl, val, n) => `<button class="${f.estado === val ? 'on' : ''}" onclick="uiV2Om.relSet('estado','${val}')">${lbl}<em>${n}</em></button>`;
+    const ativos = [f.cliente !== 'Todos', f.tecnico !== 'Todos', f.estado !== 'Todos'].filter(Boolean).length;
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        <select class="v2-select ${f.cliente !== 'Todos' ? 'on' : ''}" onchange="uiV2Om.relSet('cliente', this.value)" data-titulo="Cliente"><option value="Todos">Todos os clientes</option>${clientes.map((c) => `<option value="${esc(c)}" ${c === f.cliente ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+        <select class="v2-select ${f.tecnico !== 'Todos' ? 'on' : ''}" onchange="uiV2Om.relSet('tecnico', this.value)" data-titulo="Técnico"><option value="Todos">Todos os técnicos</option>${tecnicos.map((t) => `<option value="${esc(t)}" ${t === f.tecnico ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+        ${ativos ? `<button class="v2-pill v2-fclear" onclick="uiV2Om.relLimpar()">${ic('filter-x')}Limpar · ${lista.length} de ${relRows.length}</button>` : ''}
+      </div>
+      <div class="v2-pills">${pill('Todos', 'Todos', base.length)}${pill('Bom', 'Bom', cnt['Bom'] || 0)}${pill('Atenção', 'Atenção', cnt['Atenção'] || 0)}${pill('Crítico', 'Crítico', cnt['Crítico'] || 0)}</div>
+      ${lista.length ? `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+        <thead><tr><th>Cliente e OS</th><th class="hide-m">Técnico</th><th class="hide-m">Concluída em</th><th class="hide-m">Estado geral</th><th></th></tr></thead>
+        <tbody>${lista.map((o) => { const e = est(o); return `<tr onclick="omOpenRelatorio('${esc(o.id)}')">
+          <td><div class="v2-who">${avServico(o.tipo_servico)}<div class="v2om-tx"><span class="v2-nm">${esc(o.cliente || '—')}</span><small>${esc(o.numero || '—')}${o.tipo_servico ? ' · ' + esc(o.tipo_servico) : ''}</small><span class="show-m v2-mline"><span class="v2-chip dot ${EST_COR[e] || 't-gray'}">${esc(e)}</span><span class="v2om-minfo">${ic('calendar')}${dataBR(o.finalizado_em)}</span></span></div></div></td>
+          <td class="hide-m">${esc(o.tecnico || '—')}</td>
+          <td class="hide-m muted">${dataBR(o.finalizado_em)}</td>
+          <td class="hide-m"><span class="v2-chip dot ${EST_COR[e] || 't-gray'}">${esc(e)}</span></td>
+          <td><div class="v2-acts"><button class="v2-sq" title="Ver relatório" onclick="event.stopPropagation(); omOpenRelatorio('${esc(o.id)}')">${ic('chevron-right')}</button></div></td></tr>`; }).join('')}</tbody></table></div></div>
+        <div class="v2-fim"><div class="m"><span>${ic('circle-check')}Fim da lista · <b>${plural(lista.length, 'relatório', 'relatórios')}</b></span></div></div>`
+        : `<div class="v2-card v2-empty">Nenhum relatório com esses filtros.<div style="margin-top:12px"><button class="v2-btn2" onclick="uiV2Om.relLimpar()">${ic('filter-x')}Limpar filtros</button></div></div>`}`;
+    icons();
+    if (window.uiV2Filtros) window.uiV2Filtros.aplicar(container);
+  }
+
   // ==================== troca de render ====================
-  const V2 = { renderOMPropostas: renderPropostasV2, renderOMCentral: renderCentralV2 };
+  const V2 = { renderOMPropostas: renderPropostasV2, renderOMCentral: renderCentralV2, renderOMClientes: renderClientesV2, renderOMPendencias: renderPendenciasV2, renderOMRelatorios: renderRelatoriosV2 };
   Object.entries(V2).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];
@@ -281,5 +464,18 @@
       else if (has('renderContent')) renderContent();
     },
     busca,
+    cliBusca,
+    pendSet(k, v) {
+      state.omPendFilters[k] = v;
+      const box = document.getElementById('main-container');
+      if (box && omPendListCache && state.omActiveTab === 'pendencias') pintarPendencias(box); else if (has('renderContent')) renderContent();
+    },
+    pendLimpar() { state.omPendFilters = { criticidade: 'Todas', status: 'Todos', responsavel: 'Todos' }; this.pendSet('status', 'Todos'); },
+    relSet(k, v) {
+      state.omRelFilters[k] = v;
+      const box = document.getElementById('main-container');
+      if (box && state.omActiveTab === 'relatorios' && !state.omReportDetailId) pintarRelatorios(box); else if (has('renderContent')) renderContent();
+    },
+    relLimpar() { state.omRelFilters = { cliente: 'Todos', tecnico: 'Todos', estado: 'Todos' }; this.relSet('estado', 'Todos'); },
   };
 })();

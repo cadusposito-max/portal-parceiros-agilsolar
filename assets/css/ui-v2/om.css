@@ -56,7 +56,31 @@ html[data-ui="v2"] .v2s .v2om-donut > div { position: absolute; inset: 0; displa
 html[data-ui="v2"] .v2s .v2om-donut b { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
 html[data-ui="v2"] .v2s .v2om-donut small { font-size: 12px; color: var(--v2-gray); font-weight: 600; }
 
+/* Pendências: um cartão por pendência, ações à direita */
+html[data-ui="v2"] .v2s .v2om-plist { display: flex; flex-direction: column; gap: 10px; }
+html[data-ui="v2"] .v2s .v2om-pitem { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+html[data-ui="v2"] .v2s .v2om-pitem.enc { opacity: .72; }
+html[data-ui="v2"] .v2s .v2om-pitem > .v2-ini { width: 40px; height: 40px; }
+html[data-ui="v2"] .v2s .v2om-pitem > .v2-ini svg { width: 18px; height: 18px; }
+html[data-ui="v2"] .v2s .v2om-pitem .tx { flex: 1; min-width: 0; }
+html[data-ui="v2"] .v2s .v2om-pitem .chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+html[data-ui="v2"] .v2s .v2om-pitem .chips small { font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .v2om-pitem .tx > b { display: block; font-size: 15px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui="v2"] .v2s .v2om-pitem .tx > small { display: block; font-size: 12.5px; font-weight: 500; color: var(--v2-gray); margin-top: 2px; }
+html[data-ui="v2"] .v2s .v2om-pitem .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+html[data-ui="v2"] .v2s .v2om-pitem .acts .v2-btnp { height: 38px; }
+html[data-ui="v2"] .v2s .v2-ini.g svg, html[data-ui="v2"] .v2s .v2-ini.o svg { width: 18px; height: 18px; }
+
+@media (max-width: 1100px) {
+  html[data-ui="v2"] .v2s .v2om-pitem { flex-wrap: wrap; }
+  html[data-ui="v2"] .v2s .v2om-pitem .acts { width: 100%; justify-content: flex-start; padding-left: 54px; }
+}
+
 @media (max-width: 760px) {
+  html[data-ui="v2"] .v2s .v2om-pitem { padding: 14px; gap: 10px; align-items: flex-start; }
+  html[data-ui="v2"] .v2s .v2om-pitem .acts { padding-left: 0; }
+  html[data-ui="v2"] .v2s .v2om-pitem .acts > button { flex: 1 1 auto; justify-content: center; }
+  html[data-ui="v2"] .v2s .v2-toolbar > .v2-btno { flex: 1 1 100%; justify-content: center; }
   html[data-ui="v2"] .v2s .v2om-busca .v2-sbox { flex: 1 1 100% !important; min-width: 0; }
   html[data-ui="v2"] .v2s .v2om-busca > button { flex: 1 1 0; justify-content: center; padding: 0 10px; font-size: 13px; }
   html[data-ui="v2"] .v2s .v2om-stk { height: 150px; }
