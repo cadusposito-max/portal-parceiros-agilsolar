@@ -102,7 +102,7 @@ function orcamentoVerFicha() {
   openCrm360(id, 'propostas');
 }
 
-// Seletor do topo: as duas linhas de kits + a Personalizada (admin e gestor).
+// Seletor do topo: as duas linhas de kits + a Personalizada (admin e franqueado).
 function _orcamentoLinhasHTML() {
   const opcoes = [
     ['promocional', 'tag', 'Promocionais'],

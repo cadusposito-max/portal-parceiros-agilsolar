@@ -19,12 +19,12 @@ const PB_PROPOSAL_MODES = {
   PERSONALIZADA: 'PERSONALIZADA'
 };
 function canUsePersonalizada() {
-  return Boolean(state.isAdmin || state.isGestor);
+  return Boolean(state.isAdmin || state.isFranqueado);
 }
 
 function updatePBPersonalizadaRoleBadge() {
   const label = document.getElementById('pb-personalizada-role-badge-label');
-  if (label) label.textContent = 'Admin e gestor';
+  if (label) label.textContent = 'Admin e franqueado';
 }
 const _pbSellerNameCache = new Map();
 const _pbSellerPhoneCache = new Map();
@@ -409,7 +409,7 @@ function bindPBSearchInputEvent() {
 
 bindPBSearchInputEvent();
 // ==========================================
-// MODO: PERSONALIZADA (Admin/Gestor only)
+// MODO: PERSONALIZADA (Admin/Franqueado only)
 // ==========================================
 
 // Tipos de item (mesmas categorias do cadastro de Equipamentos) + kit pronto.
@@ -921,8 +921,8 @@ async function handleEquipamentosProposalSubmit(event) {
   if (!client) return showToast('Nenhum cliente em atendimento!');
 
   if (!canUsePersonalizada()) {
-    console.warn('[proposta-builder] Tentativa bloqueada de gerar proposta personalizada sem permissao (admin/gestor).');
-    showToast('Apenas administrador ou gestor pode gerar proposta personalizada.');
+    console.warn('[proposta-builder] Tentativa bloqueada de gerar proposta personalizada sem permissao (admin/franqueado).');
+    showToast('Apenas administrador ou franqueado pode gerar proposta personalizada.');
     return;
   }
 
