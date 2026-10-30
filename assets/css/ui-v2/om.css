@@ -1,0 +1,64 @@
+/* ==========================================
+   VISUAL NOVO (v2) — O&M NO PADRÃO DO COMERCIAL
+   Peças próprias de assets/js/ui-v2-om.js (Propostas O&M e Central).
+   O resto vem de screens.css (.v2-card, .v2-kpis, .v2-table, .v2-pills...).
+   ========================================== */
+
+/* lista de propostas: número e serviço numa linha só, cortando no fim */
+html[data-ui="v2"] .v2s .v2om-tx { min-width: 0; }
+html[data-ui="v2"] .v2s .v2om-tx small { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 1280px) { html[data-ui="v2"] .v2s .v2om-tx small { max-width: 230px; } }
+html[data-ui="v2"] .v2s .v2om-minfo { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .v2om-minfo svg { width: 13px !important; height: 13px !important; }
+html[data-ui="v2"] .v2s .v2om-val { display: block; font-weight: 800; margin-bottom: 4px; }
+
+/* Central: busca de cliente com resultados por cima */
+html[data-ui="v2"] .v2s .v2om-busca { position: relative; z-index: 30; }
+html[data-ui="v2"] .v2s .v2om-busca .v2-sbox { flex: 1; }
+html[data-ui="v2"] .v2s .v2om-busca > .v2-btn2 { height: 44px; }
+html[data-ui="v2"] .v2s .v2om-res { position: absolute; top: calc(100% + 6px); left: 0; right: 0; }
+html[data-ui="v2"] .v2s .v2om-res:empty { display: none; }
+html[data-ui="v2"] .v2s .v2om-res .v2-card { padding: 10px; box-shadow: var(--v2-shadow-pop); max-height: 360px; overflow-y: auto; }
+
+/* Central: atividade da semana (barra = total do dia, parte cheia = concluídas) */
+html[data-ui="v2"] .v2s .v2om-stk { display: flex; align-items: flex-end; gap: clamp(6px, 1.6vw, 18px); height: 200px; padding-top: 10px; }
+html[data-ui="v2"] .v2s .v2om-stk .c { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; min-width: 0; }
+html[data-ui="v2"] .v2s .v2om-stk .b { width: 100%; max-width: 48px; border-radius: 12px; background: rgba(0,143,212,.16); display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+html[data-ui="v2"] .v2s .v2om-stk .b i { display: block; background: rgba(0,143,212,.55); }
+html[data-ui="v2"] .v2s .v2om-stk .hoje .b i { background: var(--v2-blue); }
+html[data-ui="v2"] .v2s .v2om-stk em { font-style: normal; font-size: 12px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui="v2"] .v2s .v2om-stk span { font-size: 12px; color: var(--v2-gray); font-weight: 600; }
+html[data-ui="v2"] .v2s .v2om-stk .hoje span { color: var(--v2-blue-text); font-weight: 800; }
+html[data-ui="v2"] .v2s .v2om-leg { display: flex; gap: 16px; margin-top: 14px; font-size: 12px; font-weight: 600; color: var(--v2-gray); flex-wrap: wrap; }
+html[data-ui="v2"] .v2s .v2om-leg span { display: inline-flex; align-items: center; gap: 6px; }
+html[data-ui="v2"] .v2s .v2om-leg i { width: 10px; height: 10px; border-radius: 3px; background: rgba(0,143,212,.16); }
+html[data-ui="v2"] .v2s .v2om-leg i.f { background: var(--v2-blue); }
+
+/* Central: próxima OS */
+html[data-ui="v2"] .v2s .v2om-prox { display: flex; flex-direction: column; }
+html[data-ui="v2"] .v2s .v2om-info { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; font-size: 13px; font-weight: 600; color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .v2om-info span { display: flex; align-items: center; gap: 8px; }
+html[data-ui="v2"] .v2s .v2om-info svg { width: 15px !important; height: 15px !important; color: var(--v2-gray); }
+
+/* Central: pendências em até 2 linhas */
+html[data-ui="v2"] .v2s .v2om-pend .v2-lst { align-items: flex-start; }
+html[data-ui="v2"] .v2s .v2om-pend .v2-lst b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+html[data-ui="v2"] .v2s .v2om-pend .v2-ini svg { width: 16px; height: 16px; }
+html[data-ui="v2"] .v2s .v2-ini.v2om-r { background: rgba(209,67,67,.12); color: #D14343; }
+
+/* Central: progresso do mês */
+html[data-ui="v2"] .v2s .v2om-donut { position: relative; width: 170px; height: 170px; margin: 4px auto 0; }
+html[data-ui="v2"] .v2s .v2om-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+html[data-ui="v2"] .v2s .v2om-donut circle { fill: none; stroke-width: 12; }
+html[data-ui="v2"] .v2s .v2om-donut .t { stroke: var(--v2-bg); }
+html[data-ui="v2"] .v2s .v2om-donut .p { stroke: var(--v2-blue); stroke-linecap: round; }
+html[data-ui="v2"] .v2s .v2om-donut > div { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+html[data-ui="v2"] .v2s .v2om-donut b { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+html[data-ui="v2"] .v2s .v2om-donut small { font-size: 12px; color: var(--v2-gray); font-weight: 600; }
+
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2s .v2om-busca .v2-sbox { flex: 1 1 100% !important; min-width: 0; }
+  html[data-ui="v2"] .v2s .v2om-busca > button { flex: 1 1 0; justify-content: center; padding: 0 10px; font-size: 13px; }
+  html[data-ui="v2"] .v2s .v2om-stk { height: 150px; }
+  html[data-ui="v2"] .v2s .v2om-tx small { max-width: 100%; }
+}
