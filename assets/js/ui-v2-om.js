@@ -5,8 +5,9 @@
 // SÓ quando o v2 está ativo; sem ele, roda a função original do om.js.
 // Os dados saem das mesmas RPCs e filtros do om.js (list_om_propostas,
 // state.omPropFilters, get_om_kpis_central...); aqui muda só a apresentação.
-// Telas: Central e as listas de Propostas O&M, Clientes, Pendências e
-// Relatórios. Detalhes, OS, Agenda e Técnicos: om.js / om-os.js.
+// Telas: Central e as listas de Propostas O&M, Clientes, Pendências,
+// Relatórios e Técnicos. A lista de OS fica em om-os.js (isV2); Agenda,
+// detalhes e janelas ganham o visual pelo om.css.
 // ==========================================
 
 (function () {
@@ -26,6 +27,8 @@
     window.uiV2PageMeta = { key, title, sub };
     if (window.uiV2Shell) window.uiV2Shell.refresh();
   }
+  // detalhe aberto: a barra de cima volta ao nome da aba (sem o resumo da lista)
+  const semMeta = () => { window.uiV2PageMeta = null; if (window.uiV2Shell) window.uiV2Shell.refresh(); };
   const erroTx = (e) => (has('omFriendlyErr') ? omFriendlyErr(e) : 'Não foi possível carregar.');
 
   // [rótulo, plural, cor]
@@ -47,7 +50,7 @@
   // ==================== PROPOSTAS O&M (lista) ====================
   let propRows = [];
   async function renderPropostasV2(container) {
-    if (state.omPropostaDetailId) return renderOMPropostaDetail(container, state.omPropostaDetailId);
+    if (state.omPropostaDetailId) { semMeta(); return renderOMPropostaDetail(container, state.omPropostaDetailId); }
     if (!state.omPropFilters) state.omPropFilters = { status: 'Todos', tipo: 'Todos', responsavel: 'Todos', search: '' };
     if (state.omPropFilters.search === undefined) state.omPropFilters.search = '';
     container.className = 'v2s';
@@ -376,7 +379,7 @@
   const EST_COR = { 'Bom': 't-green', 'Atenção': 't-orange', 'Crítico': 't-red' };
   let relRows = [];
   async function renderRelatoriosV2(container) {
-    if (state.omReportDetailId) return renderOMRelatorioDetail(container, state.omReportDetailId);
+    if (state.omReportDetailId) { semMeta(); return renderOMRelatorioDetail(container, state.omReportDetailId); }
     if (!state.omRelFilters) state.omRelFilters = { cliente: 'Todos', tecnico: 'Todos', estado: 'Todos' };
     container.className = 'v2s';
     document.body.dataset.v2screen = 'om-relatorios';
@@ -427,8 +430,63 @@
     if (window.uiV2Filtros) window.uiV2Filtros.aplicar(container);
   }
 
+  // ==================== TÉCNICOS ====================
+  // Mesmos dados do om.js (omTecFetchData / omTecDerived); guarda state.omTecCache
+  // porque "Ver agenda" (omOpenAgendaTecnico) lê dele.
+  async function renderTecnicosV2(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'om-tecnicos';
+    setPageMeta('om:tecnicos', 'Técnicos', 'Carregando…');
+    container.innerHTML = `<div class="v2-card v2-empty">Carregando técnicos…</div>`;
+    let fetched;
+    try { fetched = await omTecFetchData(); } catch (e) {
+      if (state.omActiveTab !== 'tecnicos') return;
+      setPageMeta('om:tecnicos', 'Técnicos', '');
+      container.innerHTML = `<div class="v2-card v2-empty">${esc(erroTx(e))}</div>`;
+      return;
+    }
+    if (state.environment !== 'om' || state.omActiveTab !== 'tecnicos') return;
+    state.omTecCache = { tecnicos: fetched.tecnicos, oss: fetched.oss, at: Date.now() };
+    const { tecnicos, oss } = fetched;
+    const ativas = ['agendada', 'deslocamento', 'em_atendimento'];
+    const der = tecnicos.map((t) => omTecDerived(t, oss));
+    const emCampo = der.filter((t) => t.status !== 'Disponível').length;
+    setPageMeta('om:tecnicos', 'Técnicos', `${plural(tecnicos.length, 'técnico', 'técnicos')} · ${emCampo} em campo`);
+    const novo = state.isAdmin ? `<button class="v2-btnp" onclick="omOpenCreateTecnico()">${ic('user-plus')}<span>Novo técnico</span></button>` : '';
+    if (!der.length) {
+      container.innerHTML = `<div class="v2-card v2-empty">Nenhum técnico cadastrado.${novo ? `<div style="margin-top:12px">${novo}</div>` : ''}</div>`;
+      icons();
+      return;
+    }
+    const iniciais = (n) => (n || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+    const cards = der.map((t) => `<div class="v2-card v2om-tec">
+        <div class="hd"><i class="v2-ini round">${esc(iniciais(t.nome))}</i><div class="tx"><b>${esc(t.nome || '—')}</b><small>${esc(omTecBase(t))}</small></div></div>
+        <span class="v2-chip dot ${TEC_ST[t.status] || 't-green'}">${esc(t.status)}</span>
+        <div class="nums"><div><small>OS hoje</small><b>${t.osHoje}</b></div><div><small>Concluídas</small><b>${t.concluidas}</b></div></div>
+        <div class="prox">${ic('clock')}${t.proxima !== '—' ? 'Próxima: <b>' + t.proxima + '</b>' : 'Sem próxima OS'}</div>
+        <button class="v2-btn2" onclick="omOpenAgendaTecnico('${esc(t.id)}')">${ic('calendar')}Ver agenda</button>
+      </div>`).join('');
+
+    const hoje = new Date();
+    const agendaHoje = oss.filter((o) => ativas.includes(o.status) && omMesmoDiaLocal(o.agendado_para, hoje))
+      .sort((a, b) => new Date(a.agendado_para || 0) - new Date(b.agendado_para || 0));
+    const agenda = `<div class="v2-card"><div class="v2-ch"><div><h3>Agenda do dia</h3><small>${agendaHoje.length ? plural(agendaHoje.length, 'OS hoje', 'OS hoje') : 'Nada agendado para hoje'}</small></div></div>
+      ${agendaHoje.length ? agendaHoje.slice(0, 6).map((o) => `<div class="v2-lst click" onclick="setTab('os'); omOsAbrir('${esc(o.id)}')">${avServico(o.tipo_servico)}<div class="tx"><b>${esc(o.cliente || '—')}</b><small>${esc(o.numero || 'OS')} · ${esc(o.tipo_servico || '—')}${o.tecnico_nome ? ' · ' + esc(o.tecnico_nome) : ''}</small></div><div class="val">${omFmtHoraISO(o.agendado_para)}</div></div>`).join('')
+        : '<div class="v2-empty">Nenhuma OS agendada para hoje.</div>'}</div>`;
+    const counts = der.map((t) => oss.filter((o) => o.tecnico_id === t.id && ativas.includes(o.status)).length);
+    const mx = Math.max(1, ...counts);
+    const porTec = `<div class="v2-card"><div class="v2-ch"><div><h3>OS por técnico</h3><small>Ordens em aberto de cada um</small></div></div>
+      <div class="v2-funnel">${der.map((t, i) => `<div class="v2-fs"><div class="t"><span>${esc(t.nome || '—')}</span><b>${counts[i]} OS</b></div><div class="v2-track"><div style="width:${counts[i] ? Math.max(3, (counts[i] / mx) * 100) : 0}%"></div></div></div>`).join('')}</div></div>`;
+
+    container.innerHTML = `
+      ${novo ? `<div class="v2-toolbar"><div class="v2-grow"></div>${novo}</div>` : ''}
+      <div class="v2om-tecs">${cards}</div>
+      <div class="v2-row r2">${agenda}${porTec}</div>`;
+    icons();
+  }
+
   // ==================== troca de render ====================
-  const V2 = { renderOMPropostas: renderPropostasV2, renderOMCentral: renderCentralV2, renderOMClientes: renderClientesV2, renderOMPendencias: renderPendenciasV2, renderOMRelatorios: renderRelatoriosV2 };
+  const V2 = { renderOMPropostas: renderPropostasV2, renderOMCentral: renderCentralV2, renderOMClientes: renderClientesV2, renderOMPendencias: renderPendenciasV2, renderOMRelatorios: renderRelatoriosV2, renderOMTecnicos: renderTecnicosV2 };
   Object.entries(V2).forEach(([name, v2]) => {
     if (!has(name)) return;
     const original = window[name];

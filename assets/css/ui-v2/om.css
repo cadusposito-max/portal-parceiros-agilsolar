@@ -86,3 +86,79 @@ html[data-ui="v2"] .v2s .v2-ini.g svg, html[data-ui="v2"] .v2s .v2-ini.o svg { w
   html[data-ui="v2"] .v2s .v2om-stk { height: 150px; }
   html[data-ui="v2"] .v2s .v2om-tx small { max-width: 100%; }
 }
+
+/* OS: status e prioridade lado a lado; aviso de "+N" no quadro */
+html[data-ui="v2"] .v2s .v2om-sts { display: inline-flex; gap: 6px; align-items: center; }
+html[data-ui="v2"] .v2s .v2om-oscard { cursor: pointer; }
+html[data-ui="v2"] .v2s .v2om-mais { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--v2-gray); padding: 4px 0 2px; }
+html[data-ui="v2"] .v2s .v2om-mais svg { width: 13px !important; height: 13px !important; }
+
+/* Técnicos: um cartão por técnico */
+html[data-ui="v2"] .v2s .v2om-tecs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+html[data-ui="v2"] .v2s .v2om-tec { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; }
+html[data-ui="v2"] .v2s .v2om-tec .hd { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; }
+html[data-ui="v2"] .v2s .v2om-tec .hd .v2-ini { width: 42px; height: 42px; font-size: 13px; }
+html[data-ui="v2"] .v2s .v2om-tec .hd .tx { min-width: 0; }
+html[data-ui="v2"] .v2s .v2om-tec .hd b { display: block; font-size: 15px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2s .v2om-tec .hd small { font-size: 12px; color: var(--v2-gray); font-weight: 500; }
+html[data-ui="v2"] .v2s .v2om-tec .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+html[data-ui="v2"] .v2s .v2om-tec .nums > div { background: var(--v2-soft); border-radius: 14px; padding: 10px 12px; }
+html[data-ui="v2"] .v2s .v2om-tec .nums small { display: block; font-size: 12px; color: var(--v2-gray); font-weight: 600; }
+html[data-ui="v2"] .v2s .v2om-tec .nums b { font-size: 22px; font-weight: 800; }
+html[data-ui="v2"] .v2s .v2om-tec .prox { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--v2-ink-2); font-weight: 600; }
+html[data-ui="v2"] .v2s .v2om-tec .prox svg { width: 14px !important; height: 14px !important; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .v2om-tec .v2-btn2 { width: 100%; justify-content: center; margin-top: auto; }
+
+/* ==========================================
+   TELAS ANTIGAS QUE CONTINUAM NO om.js / om-os.js
+   (Agenda, detalhe da proposta, da OS e do relatório, janelas do O&M).
+   Só aparência: o título já está na barra de cima, sem CAIXA ALTA,
+   letras legíveis, cartões e etiquetas arredondados como no Comercial.
+   ========================================== */
+html[data-ui="v2"] .om-env .om-ph { padding: 0 !important; margin-bottom: 14px !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+html[data-ui="v2"] .om-env .om-ph > .absolute, html[data-ui="v2"] .om-env .om-ph .om-ph-id { display: none !important; }
+html[data-ui="v2"] .om-env .om-ph:not(:has(.om-ph-acts)) { display: none !important; }
+html[data-ui="v2"] .om-env .om-ph > .relative { justify-content: flex-end !important; }
+
+html[data-ui="v2"] :is(.om-env, #om-modal-root) [class*="uppercase"] { text-transform: none !important; letter-spacing: 0 !important; }
+html[data-ui="v2"] :is(.om-env, #om-modal-root) [class*="tracking-"] { letter-spacing: 0 !important; }
+html[data-ui="v2"] :is(.om-env, #om-modal-root) [class*="text-[8px]"],
+html[data-ui="v2"] :is(.om-env, #om-modal-root) [class*="text-[9px]"] { font-size: 11.5px !important; }
+html[data-ui="v2"] :is(.om-env, #om-modal-root) [class*="text-[10px]"],
+html[data-ui="v2"] :is(.om-env, #om-modal-root) [class*="text-[10.5px]"] { font-size: 12px !important; }
+html[data-ui="v2"] :is(.om-env, #om-modal-root) [class*="text-[11px]"] { font-size: 12.5px !important; }
+html[data-ui="v2"] :is(.om-env, #om-modal-root) .font-black { font-weight: 700 !important; }
+html[data-ui="v2"] :is(.om-env, #om-modal-root) :is(h1, h2, h3, .text-base, .text-lg, .text-xl, .text-2xl).font-black { font-weight: 800 !important; }
+
+/* cartões: fundo do cartão e sombra, sem contorno (como .v2-card) */
+html[data-ui="v2"] .om-env :is([class*="bg-neutral-900/40"], [class*="bg-neutral-900/20"], [class*="bg-[#0c0c0e]"])[class*="border"]:not(button):not(a) {
+  background-color: var(--v2-card) !important; border-color: transparent !important; box-shadow: var(--v2-shadow) !important; border-radius: 20px !important;
+}
+html[data-ui="v2"] :is(.om-env, #om-modal-root) [class*="bg-neutral-950"][class*="border"]:not(button):not(a):not(input):not(select):not(textarea) { border-radius: 14px !important; }
+
+/* etiquetas de status (omChip / omCPill) e prioridade */
+html[data-ui="v2"] :is(.om-env, #om-modal-root, .v2s) .om-chip { border: 0 !important; border-radius: 999px !important; padding: 4px 10px !important; font-size: 12px !important; font-weight: 700 !important; gap: 6px !important; }
+html[data-ui="v2"] :is(.om-env, #om-modal-root) .om-chip > span:first-child { border-radius: 50%; width: 6px; height: 6px; }
+html[data-ui="v2"] .om-env span[class*="px-1.5"][class*="py-0.5"][class*="border"] { border-radius: 999px !important; border: 0 !important; padding: 3px 9px !important; }
+
+/* botões e abas */
+html[data-ui="v2"] :is(.om-env, #om-modal-root) button { font-size: 13px; }
+html[data-ui="v2"] :is(.om-env, #om-modal-root) button[class*="py-2"][class*="text-[10px]"],
+html[data-ui="v2"] :is(.om-env, #om-modal-root) button[class*="py-2.5"][class*="text-[10px]"] { font-size: 13px !important; font-weight: 700 !important; border-radius: 12px !important; }
+
+/* janelas do O&M (omOpenModal): igual às do Comercial */
+html[data-ui="v2"] body #om-modal-root { background-color: var(--v2-scrim) !important; }
+html[data-ui="v2"] body #om-modal-root > div { background: var(--v2-card) !important; border: 0 !important; border-radius: 26px !important; box-shadow: var(--v2-shadow-pop) !important; }
+html[data-ui="v2"] body #om-modal-root > div > div:first-child { border-bottom-color: var(--v2-line) !important; padding: 18px 22px !important; }
+html[data-ui="v2"] body #om-modal-root > div > div:first-child .text-sm.font-black { font-size: 16px !important; font-weight: 800 !important; }
+html[data-ui="v2"] body #om-modal-root > div > div:first-child > div > div:first-child { border-radius: 12px; }
+html[data-ui="v2"] body #om-modal-root > div > div:last-child[class*="border-t"] { background: var(--v2-soft) !important; border-top-color: var(--v2-line) !important; padding: 14px 22px !important; }
+html[data-ui="v2"] body #om-modal-root label > span[class*="text-[10px]"] { font-size: 12.5px !important; font-weight: 700 !important; color: var(--v2-ink-2) !important; }
+@media (max-width: 760px) { html[data-ui="v2"] body #om-modal-root > div { border-radius: 26px 26px 0 0 !important; } }
+
+/* Agenda: grade e eventos arredondados */
+html[data-ui="v2"] .om-env .grid.grid-cols-7[class*="gap-px"] { border-radius: 20px !important; overflow: hidden; border-color: transparent !important; box-shadow: var(--v2-shadow); }
+html[data-ui="v2"] .om-env [ondragstart] { border-radius: 7px !important; }
+
+/* etiqueta nunca quebra em duas linhas */
+html[data-ui="v2"] .om-chip { white-space: nowrap; }

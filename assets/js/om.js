@@ -97,7 +97,7 @@ const OM_CHIP_TONES = {
 function omChip(text, tone = 'gray', withDot = true) {
   const cls = OM_CHIP_TONES[tone] || OM_CHIP_TONES.gray;
   const dot = withDot ? `<span class="w-1.5 h-1.5 rounded-full bg-current opacity-80"></span>` : '';
-  return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest ${cls}">${dot}${text}</span>`;
+  return `<span class="om-chip inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest ${cls}">${dot}${text}</span>`;
 }
 
 // Mapas para chip tones por campo
@@ -336,7 +336,7 @@ const OM_CENTRAL_PILL = {
 };
 function omCPill(text, tone = 'gray') {
   const cls = OM_CENTRAL_PILL[tone] || OM_CENTRAL_PILL.gray;
-  return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 border text-[9px] font-black uppercase tracking-widest ${cls}"><span class="w-1 h-1 bg-current"></span>${text}</span>`;
+  return `<span class="om-chip inline-flex items-center gap-1.5 px-2.5 py-1 border text-[9px] font-black uppercase tracking-widest ${cls}"><span class="w-1 h-1 bg-current"></span>${text}</span>`;
 }
 const OM_TEC_STATUS_TONE_C = { 'Disponível':'emerald','Em atendimento':'yellow','Em execução':'emerald','Em deslocamento':'orange' };
 const OM_OS_STATUS_LABEL = { agendada:'Agendada', deslocamento:'Em deslocamento', em_atendimento:'Em atendimento', finalizada:'Concluída', cancelada:'Cancelada' };

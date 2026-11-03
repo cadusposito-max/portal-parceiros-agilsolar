@@ -145,6 +145,7 @@
       if (error) { container.innerHTML = erroHTML(error); icons(); return; }
       listRows = data || [];
     }
+    if (isV2()) return omRenderListaV2(container);
 
     const head = (typeof omPageHeader === 'function')
       ? omPageHeader({ icon: 'clipboard-list', title: 'Ordens de Serviço',
@@ -234,8 +235,79 @@
     const body = document.getElementById('om-os-list-body');
     if (!body) return;
     const rows = listFiltradas();
+    if (isV2()) { body.innerHTML = listaCorpoV2(rows); icons(); return; }
     body.innerHTML = listView === 'kanban' ? kanbanHTML(rows) : listaHTML(rows);
     icons();
+  }
+
+  // ---------- Visual novo (v2): lista e quadro no padrão do Comercial --------
+  // Mesmos dados, filtros, busca e ordem da lista acima; muda só a apresentação.
+  const isV2 = () => !!(window.uiV2 && window.uiV2.isActive());
+  const V2_ST = { agendada: 't-orange', deslocamento: 't-orange', em_atendimento: 't-blue', finalizada: 't-green', cancelada: 't-gray' };
+  const V2_PRIO = { alta: 't-orange', urgente: 't-red' };
+  const v2Celular = () => window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+  const v2Ic = (t) => (typeof OM_PROP_TIPO_ICON !== 'undefined' && OM_PROP_TIPO_ICON[t]) || 'clipboard-list';
+  const v2Chip = (o) => { const st = STATUS[o.status] || STATUS.agendada; return `<span class="v2-chip dot ${V2_ST[o.status] || 't-gray'}">${st.label}</span>`; };
+  const v2Prio = (o) => (PRIO[o.prioridade] ? `<span class="v2-chip ${V2_PRIO[o.prioridade]}">${PRIO[o.prioridade].label}</span>` : '');
+
+  function omRenderListaV2(container) {
+    container.className = 'v2s';
+    const c = grupoCounts();
+    window.uiV2PageMeta = { key: 'om:os', title: 'Ordens de serviço', sub: `${c.todas} OS · ${c.campo} em campo` };
+    if (window.uiV2Shell) window.uiV2Shell.refresh();
+    if (!listRows.length) {
+      container.innerHTML = `<div class="v2-card v2-empty">${state.isTecnico ? 'Nenhuma OS para você no momento.' : 'Nenhuma ordem de serviço ainda.'}</div>`;
+      return;
+    }
+    const vista = v2Celular() ? 'lista' : listView;
+    const seg = (id, icon, label) => `<button class="${vista === id ? 'on' : ''}" onclick="omOsView('${id}')" title="Ver em ${label.toLowerCase()}"><i data-lucide="${icon}"></i><span>${label}</span></button>`;
+    container.innerHTML = `
+      <div class="v2-toolbar">
+        <label class="v2-sbox"><i data-lucide="search"></i><input id="om-os-search" type="text" value="${esc(listSearch)}" oninput="omOsBusca(this.value)" placeholder="Buscar por número, serviço ou cliente" autocomplete="off"></label>
+        <select class="v2-select ${listSort !== 'recentes' ? 'on' : ''}" onchange="omOsSort(this.value)" data-titulo="Ordenar por">
+          <option value="recentes" ${listSort === 'recentes' ? 'selected' : ''}>Mais recentes</option>
+          <option value="antigos" ${listSort === 'antigos' ? 'selected' : ''}>Mais antigas</option>
+          <option value="prioridade" ${listSort === 'prioridade' ? 'selected' : ''}>Prioridade</option>
+        </select>
+        <div class="v2-grow"></div>
+        <div class="v2-seg v2-viewseg hide-m" role="group" aria-label="Visualização">${seg('lista', 'list', 'Lista')}${seg('kanban', 'square-kanban', 'Quadro')}</div>
+      </div>
+      ${vista === 'lista' ? `<div class="v2-pills">${[['todas', 'Todas'], ['agendada', 'Agendadas'], ['campo', 'Em campo'], ['encerrada', 'Encerradas']]
+        .map(([id, l]) => `<button class="${listFilter === id ? 'on' : ''}" onclick="omOsFiltro('${id}')">${l}<em>${c[id] || 0}</em></button>`).join('')}</div>` : ''}
+      <div id="om-os-list-body"></div>`;
+    paintListBody();
+    if (window.uiV2Filtros) window.uiV2Filtros.aplicar(container);
+  }
+
+  function listaCorpoV2(rows) {
+    const vista = v2Celular() ? 'lista' : listView;
+    if (vista === 'kanban') {
+      const cols = GRUPO_COLS.map(([g, label, cor]) => {
+        const all = listOrdena(rows.filter(o => STATUS_GRUPO[o.status] === g));
+        const list = all.slice(0, KANBAN_LIMITE);
+        const extra = all.length - list.length;
+        return `<div class="v2-col"><div class="v2-colh"><i class="dot" style="background:${cor}"></i><b>${label === 'Agendada' ? 'Agendadas' : label}</b><em>${all.length}</em></div>
+          ${list.length ? list.map(o => `<article class="v2-kcard v2om-oscard" onclick="omOsAbrir('${esc(o.id)}')">
+              <div class="t"><div><b>${esc(o.cliente || '—')}</b><small>${esc(o.numero || 'OS')} · ${esc(o.tipo_servico || '—')}</small></div>${v2Prio(o)}</div>
+              <div class="meta"><span><i data-lucide="calendar-clock"></i>${esc(fmtDateTime(o.agendado_para))}</span>${o.cidade ? `<span><i data-lucide="map-pin"></i>${esc(o.cidade)}</span>` : ''}</div>
+              <div>${v2Chip(o)}</div></article>`).join('') : '<div class="v2-drop">Nenhuma OS</div>'}
+          ${extra > 0 ? `<div class="v2om-mais"><i data-lucide="search"></i>+${extra} nesta coluna · use a busca</div>` : ''}</div>`;
+      }).join('');
+      return `<div class="v2-kanban">${cols}</div>`;
+    }
+    let r = rows;
+    if (listFilter !== 'todas') r = r.filter(o => STATUS_GRUPO[o.status] === listFilter);
+    r = listOrdena(r);
+    if (!r.length) return `<div class="v2-card v2-empty">Nenhuma OS encontrada com esses filtros.</div>`;
+    return `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+      <thead><tr><th>Cliente e serviço</th><th class="hide-m">Agendada para</th><th class="hide-m">Status</th><th></th></tr></thead>
+      <tbody>${r.map(o => `<tr onclick="omOsAbrir('${esc(o.id)}')">
+        <td><div class="v2-who"><i class="v2-ini" title="${esc(o.tipo_servico || '')}"><i data-lucide="${v2Ic(o.tipo_servico)}"></i></i><div class="v2om-tx"><span class="v2-nm">${esc(o.cliente || '—')}</span><small>${esc(o.numero || 'OS')} · ${esc(o.tipo_servico || '—')}${o.cidade ? ' · ' + esc(o.cidade) : ''}</small>
+          <span class="show-m v2-mline">${v2Chip(o)}${v2Prio(o)}<span class="v2om-minfo"><i data-lucide="calendar-clock"></i>${esc(fmtDateTime(o.agendado_para))}</span></span></div></div></td>
+        <td class="hide-m">${esc(fmtDateTime(o.agendado_para))}</td>
+        <td class="hide-m"><span class="v2om-sts">${v2Chip(o)}${v2Prio(o)}</span></td>
+        <td><div class="v2-acts"><button class="v2-sq" title="Abrir OS" onclick="event.stopPropagation(); omOsAbrir('${esc(o.id)}')"><i data-lucide="chevron-right"></i></button></div></td></tr>`).join('')}</tbody></table></div></div>
+      <div class="v2-fim"><div class="m"><span><i data-lucide="circle-check"></i>Fim da lista · <b>${r.length} OS</b></span></div></div>`;
   }
 
   function vazioFiltrado() {
@@ -385,6 +457,10 @@
     const st = STATUS[os.status] || STATUS.agendada;
     const pr = PRIO[os.prioridade];
     const stChip = (typeof omChip === 'function') ? omChip(st.label, st.tone) : esc(st.label);
+    if (isV2()) { // barra de cima mostra a OS aberta, não o resumo da lista
+      window.uiV2PageMeta = { key: 'om:os', title: os.numero || 'Ordem de serviço', sub: [os.tipo_servico, d.cliente && d.cliente.nome].filter(Boolean).join(' · ') };
+      if (window.uiV2Shell) window.uiV2Shell.refresh();
+    }
 
     const sections = { resumo: secResumo, checklist: secChecklist, fotos: secFotos, problemas: secProblemas };
     const tabs = [
@@ -406,7 +482,7 @@
         <div class="flex items-center gap-2 mb-3">
           <button onclick="omOsVoltar()" class="px-3 py-2 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 font-black text-[10px] uppercase tracking-widest inline-flex items-center gap-2">
             <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>Voltar</button>
-          <div class="text-sm font-black text-white">${esc(os.numero || 'OS')}</div>
+          ${isV2() ? '' : `<div class="text-sm font-black text-white">${esc(os.numero || 'OS')}</div>`}
           ${pr ? `<span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 border ${pr.cls}">${pr.label}</span>` : ''}
           <div class="ml-auto flex items-center gap-2">
             <button onclick="omOsImprimir()" title="Imprimir OS / salvar PDF" class="px-3 py-2 bg-neutral-900 border border-neutral-800 hover:border-blue-500/40 text-neutral-300 font-black text-[10px] uppercase tracking-widest inline-flex items-center gap-2">
@@ -415,7 +491,7 @@
           </div>
         </div>
 
-        <div class="text-[13px] text-neutral-400 mb-3">${esc(os.tipo_servico || '')}</div>
+        ${isV2() ? '' : `<div class="text-[13px] text-neutral-400 mb-3">${esc(os.tipo_servico || '')}</div>`}
 
         ${finalizeOpen
           ? finalizePanelHTML()
