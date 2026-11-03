@@ -2375,9 +2375,155 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
     return `<div class="rd eg">
       ${ps.map((p) => `<div class="rd-card rd-mb eg-fproj" onclick="EV.abrir('${p.id}')"><div class="rd-ch"><div><b>${pnum(p)} · ${esc(kitCurto(p))}</b><div class="rd-muted">Enviado em ${dataBR(p.created_at)} por ${esc(p.enviado_por_nome || '—')} · ${dias(p.status_desde)} dia(s) neste status</div></div><div style="display:flex;gap:6px;flex-wrap:wrap">${stPill(p)}${compPill(p)}</div></div>
         <div class="eg-steps mini">${LINHA.map((sid) => { const n = NIVEL[sid], nv = NIVEL[p.status]; return `<div class="${n < nv ? 'done' : n === nv ? (ST[p.status].tone === 'bad' ? 'bad' : 'cur') : ''}"><i></i></div>`; }).join('')}</div></div>${correcaoHTML(p, 'fx')}`).join('')}
-      ${livres.length ? `<div class="rd-card"><h3>${ic('send')}Enviar à engenharia</h3><p class="rd-sub">${livres.length} venda(s) ainda não enviada(s).</p>
-          ${pode ? `<button class="rd-btn pri" onclick="EV.envioModal('${client.id}')">${ic('send')}Enviar à engenharia</button>` : '<div class="rd-muted">Quem envia é o gestor da franquia.</div>'}</div>`
+      ${livres.length ? envioPainel(client, livres, pode)
         : ps.length ? '' : `<div class="rd-card rd-empty"><div class="ic">${ic('ruler')}</div><b>Nada na engenharia</b>Registre a venda e anexe os documentos (aba Arquivos) para enviar o projeto.</div>`}
+    </div>`;
+  }
+
+  // ---- painel "antes do envio": venda, documentos, kit e dados da instalação
+  // Documentos: as linhas da aba Arquivos (já carregadas na ficha) ou uma busca própria.
+  // Kit: mesma conferência da janela de envio (foto da proposta ou vínculo do catálogo).
+  E._pront = {};
+  function rerenderEngFicha(clienteId) {
+    if (typeof _crm360Tab !== 'undefined' && _crm360Tab === 'engenharia' && typeof _crm360ClientId !== 'undefined' && _crm360ClientId === clienteId && typeof renderCrm360 === 'function') renderCrm360();
+  }
+  function prontidao(client, vendas) {
+    const chave = vendas.map((v) => v.id).join(',');
+    let p = E._pront[client.id];
+    if (!p || p.chave !== chave) {
+      p = E._pront[client.id] = { chave, kits: null, rows: null };
+      const nomes = [...new Set(vendas.map((v) => v.kit_nome).filter(Boolean))];
+      const props = vendas.map((v) => (state.propostas || []).find((x) => x.id === v.proposta_id)).filter(Boolean);
+      const ids = props.map((x) => x.source_product_id).filter(Boolean);
+      const sel = 'id, name, modulo_id, inversor_id, modulo_qtd, inversor_qtd';
+      Promise.all([
+        nomes.length ? sb().from('produtos').select(sel).in('name', nomes) : { data: [] },
+        ids.length ? sb().from('produtos').select(sel).in('id', ids) : { data: [] },
+      ]).then(([a, b]) => { p.kits = (a.data || []).concat((b.data || []).filter((k) => !(a.data || []).some((x) => x.id === k.id))); })
+        .catch((e) => { console.warn('[eng] kit da ficha', e); p.kits = []; })
+        .then(() => rerenderEngFicha(client.id));
+    }
+    // documentos: preferir as linhas vivas da aba Arquivos (atualizam ao anexar)
+    const arq = typeof _crmArq !== 'undefined' && _crmArq.clienteId === client.id && !_crmArq.loading && !_crmArq.erro ? _crmArq.rows : null;
+    if (!arq && !p.rows && !p.buscandoDocs) {
+      p.buscandoDocs = true;
+      sb().from('cliente_arquivos').select('tipo, slot').eq('cliente_id', client.id)
+        .then((r) => { p.rows = r.data || []; }, () => { p.rows = []; })
+        .then(() => { p.buscandoDocs = false; rerenderEngFicha(client.id); });
+    }
+    return { kits: p.kits, rows: arq || p.rows };
+  }
+  // mesma regra de envioKit (janela de envio)
+  function kitConferido(v, kits) {
+    const prop = v && v.proposta_id ? (state.propostas || []).find((x) => x.id === v.proposta_id) : null;
+    const foto = prop && prop.kit_snapshot;
+    if (foto && foto.tipo === 'kit' && foto.modulo && foto.modulo.id && foto.inversor && foto.inversor.id) return { tom: 'ok', b: 'Kit ligado ao catálogo', s: 'Módulo e inversor da proposta vendida reconhecidos: a engenharia recebe o dimensionamento automático.' };
+    if (!kits) return { tom: 'load', b: 'Kit', s: 'Conferindo o kit...' };
+    const pid = prop && prop.source_product_id;
+    const k = kits.find((x) => x.id === pid) || kits.find((x) => String(x.name).trim().toUpperCase() === String(v.kit_nome || '').trim().toUpperCase());
+    if (!k) return { tom: 'at', b: 'Kit fora do catálogo', s: 'A engenharia escolhe os equipamentos e o projeto fica para revisão.' };
+    if (k.modulo_id && k.inversor_id) return { tom: 'ok', b: 'Kit ligado ao catálogo', s: `${k.modulo_qtd}× módulo + ${k.inversor_qtd}× inversor reconhecidos: a engenharia recebe o dimensionamento automático.` };
+    return { tom: 'at', b: 'Kit sem vínculo técnico', s: 'A engenharia dimensiona na mão. Funciona, só demora um pouco mais.' };
+  }
+  function envioPainel(client, vendas, pode) {
+    const v = vendas[0];
+    const pr = prontidao(client, vendas);
+    const resumo = typeof vendaKitResumo === 'function' ? vendaKitResumo(v) : { nome: v.kit_nome || 'Venda', kwp: Number(v.kit_power) || 0, equipamentos: [] };
+    const prop = v.proposta_id ? (state.propostas || []).find((x) => x.id === v.proposta_id) : null;
+    const valor = Number(v.kit_price) || 0;
+    const ger = Number(prop && prop.geracao_estimada) || 0;
+    const vendedor = v.vendedor_nome || v.vendedor_email || '';
+    const icEq = { modulo: 'grid-3x3', inversor: 'zap' };
+    const eqs = (resumo.equipamentos || []).map((e) => `<span class="eg-env-eq">${ic(icEq[e.tipo] || 'box')}${e.qtd}× ${esc(e.label)}</span>`).join('');
+
+    // documentos
+    const rows = pr.rows;
+    let docs = null;
+    if (rows && typeof _crmArqItens === 'function') {
+      const itens = _crmArqItens(client, rows).map((i) => ({ label: DOC_OBRIG.find(([t]) => t === i.tipo)?.[1] || (CRM_DOCS_PJ.find((x) => x.tipo === i.tipo) ? i.label.replace(/ \/ estatuto$/, '') : i.label), ok: _crmArqItemFeito(i, rows, client) }));
+      const feitos = itens.filter((i) => i.ok).length;
+      docs = { itens, feitos, total: itens.length, algum: rows.length > 0 };
+    }
+    const docTom = !docs ? 'load' : docs.feitos === docs.total ? 'ok' : docs.algum ? 'at' : 'bad';
+    const docTxt = !docs ? 'Conferindo os documentos...'
+      : docTom === 'ok' ? 'Todos os obrigatórios anexados.'
+      : docTom === 'at' ? `Faltam ${docs.total - docs.feitos}. Dá para enviar assim: a engenharia recebe o aviso e pode devolver pedindo o que falta.`
+      : 'Nenhum documento anexado. Anexe pelo menos um na aba Arquivos para liberar o envio.';
+
+    const kit = kitConferido(v, pr.kits);
+
+    // dados da instalação (os mesmos que a janela de envio preenche)
+    const inst = (client.documentos_dados && client.documentos_dados.instalacao) || {};
+    const ligCurta = { mono_127: 'Mono 127 V', mono_220: 'Mono 220 V', bi_220: 'Bifásico 220 V', tri_220: 'Tri 220 V', tri_380: 'Tri 380 V' };
+    const dados = [['Ligação', ligCurta[client.tipo_ligacao] || ''], ['UC', inst.numero_instalacao], ['Concessionária', inst.concessionaria], ['Telhado', inst.telhado]];
+    const dadosOk = dados.every(([, x]) => String(x || '').trim());
+    const dadosTom = dadosOk ? 'ok' : 'at';
+
+    const tons = [docTom, kit.tom, dadosTom];
+    const nOk = tons.filter((t) => t === 'ok').length;
+    const bloqueado = docTom === 'bad';
+    const carregando = tons.includes('load');
+    const geral = bloqueado ? 'bad' : nOk === 3 ? 'ok' : 'at';
+    const [rt, rs] = carregando ? ['Conferindo...', 'Só um instante'] : bloqueado ? ['Envio bloqueado', 'Falta anexar documentos'] : nOk === 3 ? ['Pronto para enviar', 'Tudo conferido'] : ['Pode enviar', 'Com pendências, a engenharia é avisada'];
+    const btnTxt = bloqueado ? 'Anexe os documentos' : nOk === 3 ? 'Enviar à engenharia' : 'Enviar mesmo assim';
+    const stIc = (t) => ic({ ok: 'check', at: 'triangle-alert', bad: 'x', load: 'loader-2' }[t]);
+    const trilha = [['validacao', 'Validação', 'Engenharia confere docs e kit'], ['elaborar_projeto', 'Elaborar projeto', 'Unifilar, memorial e ART'], ['projeto_enviado', 'Concessionária', 'Análise do projeto'], ['projeto_aprovado', 'Liberado para obra', 'Instalação e vistoria']];
+
+    return `<div class="eg-env">
+      <div class="eg-env-cab"><div class="eg-env-ico">${ic('send')}</div><div><h3>Enviar projeto à engenharia</h3><p>Confira os 3 itens abaixo. A engenharia valida em até ${ST.validacao.sla} dias úteis.</p></div></div>
+      <div class="eg-env-grid">
+        <div class="eg-env-col">
+          <div class="rd-card eg-env-card">
+            <h4>${ic('trophy')}Venda que vai para o projeto</h4>
+            <div class="eg-env-venda">
+              <div class="eg-env-kit"><b>${esc(resumo.nome)}</b><span>Fechada em ${dataBR(v.created_at)}${vendedor ? ' por ' + esc(vendedor) : ''}${vendas.length > 1 ? ` · +${vendas.length - 1} outra(s) venda(s), escolha na hora de enviar` : ''}</span></div>
+              <div class="eg-env-nums">
+                ${resumo.kwp ? `<div><small>Potência</small><b>${nf(resumo.kwp, 2)} kWp</b></div>` : ''}
+                ${ger ? `<div><small>Geração</small><b>~${nf(ger)} kWh/mês</b></div>` : ''}
+                ${valor ? `<div><small>Valor</small><b>${valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</b></div>` : ''}
+              </div>
+            </div>
+            ${eqs ? `<div class="eg-env-eqs">${eqs}</div>` : ''}
+          </div>
+          <div class="rd-card eg-env-card">
+            <h4>${ic('list-checks')}Antes de enviar</h4>
+            <div class="eg-env-ck ${docTom}">
+              <div class="st">${stIc(docTom)}</div>
+              <div class="tx"><b>Documentos${docs ? ` <span class="cnt">${docs.feitos} de ${docs.total}</span>` : ''}</b><span>${docTxt}</span>
+                ${docs ? `<div class="eg-env-prog"><i style="width:${Math.round((docs.feitos / (docs.total || 1)) * 100)}%"></i></div>
+                <div class="eg-env-docs">${docs.itens.map((d) => `<span class="${d.ok ? 'tem' : ''}">${ic(d.ok ? 'check' : 'circle-dashed')}${esc(d.label)}</span>`).join('')}</div>` : ''}
+              </div>
+              ${docs && docTom !== 'ok' ? `<div class="acao"><button class="rd-btn sm" onclick="crmSet360Tab('arquivos')">${ic('paperclip')}Abrir Arquivos</button></div>` : ''}
+            </div>
+            <div class="eg-env-ck ${kit.tom}">
+              <div class="st">${stIc(kit.tom)}</div>
+              <div class="tx"><b>${kit.b}</b><span>${kit.s}</span></div>
+            </div>
+            <div class="eg-env-ck ${dadosTom}">
+              <div class="st">${ic(dadosOk ? 'check' : 'pencil')}</div>
+              <div class="tx"><b>Dados da instalação</b><span>${dadosOk ? 'Tudo preenchido na ficha.' : 'Vieram da ficha. O que estiver em branco você completa na hora de enviar.'}</span>
+                <div class="eg-env-dados">${dados.map(([l, x]) => `<div class="${String(x || '').trim() ? '' : 'vazio'}"><small>${l}</small><b>${esc(String(x || '').trim() || 'a preencher')}</b></div>`).join('')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="eg-env-col">
+          <div class="rd-card eg-env-card eg-env-cta">
+            <div class="eg-env-pronto"><div class="anel ${carregando ? 'load' : geral}">${carregando ? ic('loader-2') : nOk + '/3'}</div><div><b>${rt}</b><span>${rs}</span></div></div>
+            ${pode ? `<button class="rd-btn pri eg-env-btn" ${bloqueado || carregando ? 'disabled' : ''} onclick="EV.envioModal('${client.id}')">${ic('send')}${btnTxt}</button>
+              <div class="eg-env-lock">${ic('lock')}Depois do envio, documentos e kit ficam congelados. Mudanças chegam para a engenharia como alerta.</div>`
+              : `<div class="eg-env-sem">${ic('user-lock')}Quem envia é o gestor da franquia. Deixe os documentos prontos para ele.</div>`}
+          </div>
+          <div class="rd-card eg-env-card">
+            <h4>${ic('route')}Depois do envio</h4>
+            <ol class="eg-env-trilha">
+              <li class="aqui"><div class="b">${ic('send')}</div><div><b>Envio</b><span>Você está aqui</span></div></li>
+              ${trilha.map(([sid, n, d], i) => `<li><div class="b">${i + 1}</div><div><b>${n}${ST[sid].sla && sid !== 'projeto_aprovado' ? ` <em>${sid === 'projeto_enviado' ? '~' + ST[sid].sla + ' dias' : 'até ' + ST[sid].sla + ' dias'}</em>` : ''}</b><span>${d}</span></div></li>`).join('')}
+              <li><div class="b">${ic('flag')}</div><div><b>Projeto concluído</b><span>Sistema homologado</span></div></li>
+            </ol>
+          </div>
+        </div>
+      </div>
     </div>`;
   }
 
