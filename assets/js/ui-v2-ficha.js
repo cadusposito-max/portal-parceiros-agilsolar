@@ -585,6 +585,41 @@
     }
     return _renderCrm360.apply(this, arguments);
   };
+
+  // Troca de aba suave: o sublinhado desliza da aba antiga para a nova e o
+  // conteúdo entra deslizando do lado da aba clicada. A ficha é redesenhada
+  // inteira, então guarda onde estava o sublinhado antes e anima depois.
+  const semMovimento = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const _crmSet360Tab = crmSet360Tab;
+  crmSet360Tab = function (tab) {
+    const ativa = () => document.querySelector('#crm360-overlay .v2f-tabs button.on');
+    const antes = window.uiV2.isActive() && !semMovimento() ? ativa() : null;
+    const de = antes ? antes.getBoundingClientRect() : null;
+    const ordem = antes ? [...antes.parentNode.children].indexOf(antes) : -1;
+    const tabAntes = typeof _crm360Tab !== 'undefined' ? _crm360Tab : null;
+    const r = _crmSet360Tab.apply(this, arguments);
+    if (!de || tab === tabAntes || typeof _crm360Tab === 'undefined' || _crm360Tab !== tab) return r;
+    const nova = ativa();
+    if (nova) {
+      const para = nova.getBoundingClientRect();
+      // o sublinhado tem 10px de folga de cada lado (ficha.css)
+      if (para.width > 20) {
+        nova.style.setProperty('--tab-dx', `${de.left - para.left}px`);
+        nova.style.setProperty('--tab-sx', String(Math.max(de.width - 20, 1) / (para.width - 20)));
+        nova.classList.add('desliza');
+        nova.addEventListener('animationend', () => nova.classList.remove('desliza'), { once: true });
+      }
+    }
+    const corpo = document.querySelector('#crm360-scroll > .v2f-grid, #crm360-scroll > .v2f-dadosaba');
+    if (corpo) {
+      const lado = nova && ordem >= 0 && [...nova.parentNode.children].indexOf(nova) < ordem ? 'esq' : 'dir';
+      corpo.classList.add('v2f-entra', lado);
+      // sem transform parado no fim: menus "fixed" lá dentro voltam a se posicionar certo
+      const fim = (e) => { if (e.target !== corpo) return; corpo.classList.remove('v2f-entra', 'esq', 'dir'); corpo.removeEventListener('animationend', fim); };
+      corpo.addEventListener('animationend', fim);
+    }
+    return r;
+  };
   // trocar o visual com a ficha aberta: redesenha na versão certa
   document.addEventListener('uiv2:change', () => {
     const o = document.getElementById('crm360-overlay');

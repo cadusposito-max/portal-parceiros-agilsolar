@@ -106,6 +106,25 @@ html[data-ui="v2"] .v2c-comp { display: grid; gap: 8px; margin: 2px 0 10px; }
 html[data-ui="v2"] .v2c-comp .v2c-row > small { width: 112px; }
 html[data-ui="v2"] .v2c-dica { margin: 0; font-size: 12px; font-weight: 600; color: var(--v2-gray); }
 
+/* abrir/fechar suave (crm-contatos.js põe a classe por um instante e anima a altura) */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ui="v2"] .v2c.abrindo .v2c-chev { animation: v2c-gira-abre .32s cubic-bezier(.22, 1, .36, 1); }
+  html[data-ui="v2"] .v2c.fechando .v2c-chev { animation: v2c-gira-fecha .32s cubic-bezier(.22, 1, .36, 1); }
+  html[data-ui="v2"] .v2c.abrindo .v2c-pt, html[data-ui="v2"] .v2c.abrindo .v2c-li { animation: v2c-surge .34s cubic-bezier(.22, 1, .36, 1) backwards; }
+  html[data-ui="v2"] .v2c.abrindo :is(.v2c-pt, .v2c-li):nth-child(2) { animation-delay: .04s; }
+  html[data-ui="v2"] .v2c.abrindo :is(.v2c-pt, .v2c-li):nth-child(3) { animation-delay: .08s; }
+  html[data-ui="v2"] .v2c.abrindo :is(.v2c-pt, .v2c-li):nth-child(4) { animation-delay: .12s; }
+  html[data-ui="v2"] .v2c.abrindo :is(.v2c-pt, .v2c-li):nth-child(n+5) { animation-delay: .16s; }
+  html[data-ui="v2"] .v2c.fechando .v2c-mini, html[data-ui="v2"] .v2c.fechando .v2c-resumo { animation: v2c-aparece .3s ease backwards; }
+  html[data-ui="v2"] :is(.v2c.abrindo, .v2c.formando) .v2c-form { animation: v2c-surge .3s cubic-bezier(.22, 1, .36, 1) backwards .05s; }
+  html[data-ui="v2"] .v2c-op, html[data-ui="v2"] .v2c-b, html[data-ui="v2"] .v2c-reg { transition: background-color .15s, border-color .15s, color .15s, transform .1s, filter .15s; }
+  html[data-ui="v2"] .v2c-op:active, html[data-ui="v2"] .v2c-b:active, html[data-ui="v2"] .v2c-reg:active { transform: scale(.96); }
+}
+@keyframes v2c-gira-abre { from { transform: rotate(0); } to { transform: rotate(180deg); } }
+@keyframes v2c-gira-fecha { from { transform: rotate(180deg); } to { transform: rotate(0); } }
+@keyframes v2c-surge { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes v2c-aparece { from { opacity: 0; } to { opacity: 1; } }
+
 /* a faixa some quando o cabeçalho vira uma linha (celular rolando) */
 html[data-ui="v2"] .v2f.minimo .v2c { display: none; }
 
@@ -158,3 +177,13 @@ html[data-ui="v2"] .v2-kcont-l { margin-top: 5px; }
   html[data-ui="v2"] .v2c-fim input { flex: 1 1 100%; height: 42px; }
   html[data-ui="v2"] .v2c-fim .v2c-b { flex: 1; height: 42px; }
 }
+/* celular: a gaveta sobe de baixo e desce ao cancelar */
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  html[data-ui="v2"] :is(.v2c.abrindo, .v2c.formando) .v2c-form { animation: v2c-gaveta-sobe .32s cubic-bezier(.22, 1, .36, 1); }
+  html[data-ui="v2"] :is(.v2c.abrindo, .v2c.formando) .v2c-fundo { animation: v2c-aparece .25s ease; }
+  html[data-ui="v2"] .v2c.saindo .v2c-form { animation: v2c-gaveta-desce .2s ease-in forwards; }
+  html[data-ui="v2"] .v2c.saindo .v2c-fundo { animation: v2c-some .2s ease-in forwards; }
+}
+@keyframes v2c-gaveta-sobe { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes v2c-gaveta-desce { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes v2c-some { to { opacity: 0; } }

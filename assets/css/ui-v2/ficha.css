@@ -72,6 +72,18 @@ html[data-ui="v2"] .v2f-tabs button.on::after { content: ""; position: absolute;
 html[data-ui="v2"] .v2f-tabs button.on em { background: var(--v2-blue-50); color: var(--v2-blue-text); }
 html[data-ui="v2"] .v2f-tabs button.acc { color: var(--v2-orange-text); }
 html[data-ui="v2"] .v2f-tabs button.acc.on::after { background: var(--v2-orange); }
+/* troca de aba suave (ui-v2-ficha.js): sublinhado desliza da aba antiga, conteúdo entra do lado clicado */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-ui="v2"] .v2f-tabs button.on.desliza::after { transform-origin: left center; animation: v2f-tab-desliza .32s cubic-bezier(.22, 1, .36, 1); }
+  html[data-ui="v2"] .v2f-tabs button.on.desliza { animation: v2f-tab-cor .32s ease; }
+  html[data-ui="v2"] .v2f-entra { animation: v2f-entra-dir .3s cubic-bezier(.22, 1, .36, 1); }
+  html[data-ui="v2"] .v2f-entra.esq { animation-name: v2f-entra-esq; }
+  html[data-ui="v2"] .v2f-body:has(> .v2f-entra) { overflow-x: hidden; }
+}
+@keyframes v2f-tab-desliza { from { transform: translateX(var(--tab-dx, 0)) scaleX(var(--tab-sx, 1)); } to { transform: none; } }
+@keyframes v2f-tab-cor { from { color: var(--v2-gray); } }
+@keyframes v2f-entra-dir { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes v2f-entra-esq { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
 html[data-ui="v2"] .v2f-body { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
 html[data-ui="v2"] .v2f-grid { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
 html[data-ui="v2"] .v2f-grid.larga { grid-template-columns: minmax(0, 1fr); }

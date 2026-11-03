@@ -186,15 +186,38 @@
   }
 
   // redesenha só a faixa (não perde o que está digitado na timeline)
-  function repintar() {
+  // anim: 'abrir' | 'fechar' | 'form' — a faixa cresce/encolhe suave em vez de pular
+  const semMovimento = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ehCelular = () => window.matchMedia('(max-width: 760px)').matches;
+  function repintar(anim) {
     const el = document.getElementById('v2c-faixa');
     const client = cliente();
     if (!el || !client) return;
+    const mover = anim && !semMovimento();
+    const h0 = mover ? el.offsetHeight : 0;
     el.outerHTML = faixaHTML(client);
     if (window.lucide) window.lucide.createIcons();
+    if (mover) {
+      const novo = document.getElementById('v2c-faixa');
+      const cls = anim === 'abrir' ? 'abrindo' : anim === 'fechar' ? 'fechando' : 'formando';
+      novo.classList.add(cls);
+      const h1 = novo.offsetHeight;
+      if (h1 !== h0) {
+        novo.style.height = `${h0}px`;
+        novo.style.overflow = 'hidden';
+        void novo.offsetHeight;
+        novo.style.transition = 'height .32s cubic-bezier(.22, 1, .36, 1)';
+        novo.style.height = `${h1}px`;
+      }
+      // a gaveta do celular é fixed: overflow hidden não a corta (o pai não tem transform)
+      setTimeout(() => {
+        novo.classList.remove(cls);
+        novo.style.height = ''; novo.style.overflow = ''; novo.style.transition = '';
+      }, 360);
+    }
     if (reg) {
       const obs = document.getElementById('v2c-obs');
-      if (obs && !window.matchMedia('(max-width: 760px)').matches) obs.focus({ preventScroll: true });
+      if (obs && !ehCelular()) obs.focus({ preventScroll: true });
     }
   }
   const guardarObs = () => { const o = document.getElementById('v2c-obs'); if (o && reg) reg.obs = o.value; };
@@ -246,14 +269,27 @@
       guardarObs();
       aberto = !aberto;
       if (!aberto) reg = null;
-      repintar();
+      repintar(aberto ? 'abrir' : 'fechar');
     },
     registrar() {
+      const jaAberto = aberto;
       aberto = true;
       reg = { canal: 'ligacao', res: null, prox: null, obs: '' };
-      repintar();
+      repintar(jaAberto ? 'form' : 'abrir');
     },
-    cancelar() { reg = null; repintar(); },
+    cancelar() {
+      // celular: a gaveta desce antes de sumir
+      const form = document.querySelector('#v2c-faixa .v2c-form');
+      if (form && ehCelular() && !semMovimento()) {
+        const faixa = document.getElementById('v2c-faixa');
+        if (faixa.classList.contains('saindo')) return;
+        faixa.classList.add('saindo');
+        setTimeout(() => { reg = null; repintar(); }, 200);
+        return;
+      }
+      reg = null;
+      repintar('form');
+    },
     set(campo, valor) {
       if (!reg) return;
       guardarObs();
