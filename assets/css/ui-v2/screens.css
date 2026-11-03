@@ -703,7 +703,9 @@ html[data-ui="v2"] .v2s .pv-jr-f { margin-left: auto; font-size: 12px; font-weig
 html[data-ui="v2"] .v2s .pv-jr-f b { font-weight: 800; color: var(--v2-blue-text); }
 html[data-ui="v2"] .v2s .pv-jr-f.late b { color: var(--jr-rt); }
 html[data-ui="v2"] .v2s .pv-jr-f.ok b { color: var(--jr-gt); }
-html[data-ui="v2"] .v2s .pv-jr-trk { display: grid; grid-template-columns: repeat(5, minmax(116px, 1fr)); margin-top: 10px; overflow-x: auto; scrollbar-width: thin; }
+/* a trilha rola de lado (overflow corta em cima também): folga de 12px pro anel do pulso
+   (cresce ~14px além do círculo) sem mudar a posição — margin-top era 10px */
+html[data-ui="v2"] .v2s .pv-jr-trk { display: grid; grid-template-columns: repeat(5, minmax(116px, 1fr)); margin-top: -2px; padding-top: 12px; overflow-x: auto; scrollbar-width: thin; }
 html[data-ui="v2"] .v2s .pv-jr-s { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 4px 6px 6px; border: 0; border-radius: 14px; background: transparent; font: inherit; color: inherit; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 /* hover sem fundo na etapa (o fundo cobria a linha da etapa anterior): o círculo cresce no lugar e o nome fica azul */
 html[data-ui="v2"] .v2s .pv-jr-s:hover .pv-jr-n { color: var(--v2-blue-text); }
