@@ -136,7 +136,7 @@ function atualizarCarrossel() {
   VIDEOS_YOUTUBE.forEach((_, index) => {
     const dot      = document.createElement('button');
     const isActive = index === videoAtual;
-    dot.className  = `h-2.5 rounded-full transition-all duration-300 ${isActive ? 'bg-orange-500 w-8' : 'bg-neutral-600 hover:bg-neutral-400 w-2.5'}`;
+    dot.className  = `h-2.5 rounded-full transition-all duration-300 ${isActive ? 'bg-azul w-8' : 'bg-linha hover:bg-azul-medio w-2.5'}`;
     dot.onclick = () => { videoAtual = index; atualizarCarrossel(); };
     dotsContainer.appendChild(dot);
   });
@@ -186,8 +186,8 @@ function gerarOpcoesParcelamento(valorBase, taxasCartao) {
 
   propostaParcelasCartao(valorBase, taxasCartao).forEach(({ n, parcela }) => {
     const row       = document.createElement('div');
-    row.className   = 'flex justify-center items-center p-3 rounded-lg border border-neutral-800 bg-black/40 hover:bg-neutral-800/80 transition-colors';
-    row.innerHTML   = `<span class="text-white font-bold text-sm md:text-base">${n}x de ${formatter.format(parcela)}</span>`;
+    row.className   = 'flex justify-center items-center p-3 rounded-xl border border-linha bg-fundo';
+    row.innerHTML   = `<span class="text-tinta font-bold text-sm md:text-base"><span class="text-azul-txt font-extrabold">${n}x</span> de ${formatter.format(parcela)}</span>`;
     installmentsContainer.appendChild(row);
   });
 }
@@ -243,14 +243,12 @@ let _geracaoMensalValores = null;
 function renderGeracaoWeb() {
   const el = document.getElementById('gen-chart');
   if (!el || !_geracaoMensalValores) return;
-  const isLight  = document.body.classList.contains('theme-light');
+  const isLight  = !document.documentElement.classList.contains('dark');
   const compacto = el.clientWidth > 0 && el.clientWidth < 520;
   const chave    = (isLight ? 'l' : 'd') + (compacto ? 'c' : 'w');
   if (el.dataset.render === chave) return;
   el.dataset.render = chave;
-  el.innerHTML = renderGeracaoChartSVG(_geracaoMensalValores, { tema: isLight ? 'light' : 'dark', compacto });
-  const legenda = document.getElementById('gen-legend-avg');
-  if (legenda) legenda.className = 'inline-block w-4 border-t-2 border-dashed ' + (isLight ? 'border-slate-900' : 'border-yellow-400');
+  el.innerHTML = renderGeracaoChartSVG(_geracaoMensalValores, { tema: isLight ? 'marca' : 'marca-escuro', compacto });
 }
 
 function renderData(data) {
@@ -271,7 +269,8 @@ function renderData(data) {
   const arvoresPlantadas = num.arvores;
   const textoPayback     = num.payback;
 
-  const clientePrimeiroNome = (data.cliente_nome || 'Cliente').trim().split(' ')[0] || 'Cliente';
+  const primeiroNomeBruto   = (data.cliente_nome || 'Cliente').trim().split(' ')[0] || 'Cliente';
+  const clientePrimeiroNome = primeiroNomeBruto.charAt(0).toUpperCase() + primeiroNomeBruto.slice(1).toLowerCase();
 
   document.getElementById('client-name').innerText    = clientePrimeiroNome;
   document.getElementById('kit-brand').innerText      = displayBrand;
@@ -283,7 +282,7 @@ function renderData(data) {
     const linhaEst = { standard: 'Standard', flex: 'Flex', smart: 'Smart' }[data.estrutura_linha] || '';
     const est = document.createElement('p');
     est.id = 'kit-estrutura';
-    est.className = 'text-neutral-400 text-xs font-bold uppercase tracking-widest -mt-4 mb-6';
+    est.className = 'text-suave text-xs font-semibold -mt-4 mb-6';
     est.textContent = 'Estrutura: ' + data.estrutura_nome + (linhaEst ? ' · ' + linhaEst : '');
     document.getElementById('kit-estrutura')?.remove();
     document.getElementById('kit-name').insertAdjacentElement('afterend', est);
@@ -291,7 +290,7 @@ function renderData(data) {
 
   // Para EQUIPAMENTOS: oculta potência e geração apenas se não houver dados de sistema
   const powerGenGrid = document.querySelector('#kit-power')?.closest('.grid');
-  const idealBillRow = document.querySelector('#kit-ideal-bill')?.closest('.mb-8');
+  const idealBillRow = document.querySelector('#kit-ideal-bill')?.closest('.linha-fatura');
   if (isCustomMode && displayPower <= 0) {
     if (powerGenGrid) powerGenGrid.classList.add('hidden');
     if (idealBillRow) idealBillRow.classList.add('hidden');
@@ -316,11 +315,11 @@ function renderData(data) {
 
   const priceParts = formatter.format(displayPrice).split(',');
   document.getElementById('kit-price').innerHTML = `
-    <span class="text-xl align-top text-neutral-500 mr-1">R$</span>${priceParts[0].replace('R$', '').trim()}<span class="text-xl align-top text-neutral-500">,${priceParts[1]}</span>
+    <span class="text-xl align-top opacity-80 mr-1">R$</span>${priceParts[0].replace('R$', '').trim()}<span class="text-xl align-top opacity-80">,${priceParts[1]}</span>
   `;
 
   // Oculta seção ambiental e de economia/ROI para EQUIPAMENTOS sem dados de potência
-  const ecoSection = document.querySelector('#eco-month')?.closest('.bg-neutral-900.border');
+  const ecoSection = document.querySelector('#eco-month')?.closest('.card');
   const envSection = document.querySelector('#env-trees')?.closest('.flex.flex-col.md\\:flex-row');
   if (isCustomMode && estGeneration <= 0) {
     if (ecoSection) ecoSection.classList.add('hidden');
@@ -394,7 +393,7 @@ function renderData(data) {
   const vendorAvatarEl = document.getElementById('vendor-avatar');
   const vendorNameEl   = document.getElementById('vendor-name');
   if (vendorAvatarEl) vendorAvatarEl.innerText = vendorNome.charAt(0).toUpperCase();
-  if (vendorNameEl)   vendorNameEl.innerText   = vendorNome.toUpperCase();
+  if (vendorNameEl)   vendorNameEl.innerText   = vendorNome;
   if (vendorCard)     vendorCard.classList.remove('hidden');
 
   // --- Custom notes for PERSONALIZADA and EQUIPAMENTOS ---

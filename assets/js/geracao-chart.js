@@ -80,15 +80,20 @@ function _geracaoEixoMax(max) {
   return passo * base;
 }
 
-// tema: 'light' (PDF / tema claro) | 'dark' (proposta web escura)
+// tema: 'light' | 'dark' (paleta antiga, laranja) | 'marca' / 'marca-escuro'
+// (proposta web na identidade nova: barras azuis, média laranja).
 // compacto: true em telas estreitas — viewBox menor, fonte maior e sem rótulo
 // em cima das barras (senão o texto fica ilegível no celular).
+const GERACAO_CHART_TEMAS = {
+  light:          { fundo: '#ffffff', grid: '#f1f5f9', base: '#cbd5e1', eixo: '#94a3b8', mes: '#64748b', rotulo: '#334155', barra: '#f97316', barraBaixa: '#fdba74', media: '#0f172a' },
+  dark:           { fundo: '#000000', grid: '#262626', base: '#404040', eixo: '#737373', mes: '#a3a3a3', rotulo: '#e5e5e5', barra: '#f97316', barraBaixa: '#9a3412', media: '#facc15' },
+  marca:          { fundo: '#ffffff', grid: '#EEF2F5', base: '#C9D3DC', eixo: '#8A97A2', mes: '#5E6B76', rotulo: '#0F2533', barra: '#008FD4', barraBaixa: '#8ACDEE', media: '#FAA519' },
+  'marca-escuro': { fundo: '#111B25', grid: '#22303D', base: '#33414E', eixo: '#8A97A2', mes: '#8A97A2', rotulo: '#E6ECF1', barra: '#008FD4', barraBaixa: '#0E5A80', media: '#FAA519' },
+};
 function renderGeracaoChartSVG(valores, opts) {
   const tema     = (opts && opts.tema) || 'light';
   const compacto = !!(opts && opts.compacto);
-  const c = tema === 'dark'
-    ? { fundo: '#000000', grid: '#262626', base: '#404040', eixo: '#737373', mes: '#a3a3a3', rotulo: '#e5e5e5', barra: '#f97316', barraBaixa: '#9a3412', media: '#facc15' }
-    : { fundo: '#ffffff', grid: '#f1f5f9', base: '#cbd5e1', eixo: '#94a3b8', mes: '#64748b', rotulo: '#334155', barra: '#f97316', barraBaixa: '#fdba74', media: '#0f172a' };
+  const c = GERACAO_CHART_TEMAS[tema] || GERACAO_CHART_TEMAS.light;
 
   const W  = compacto ? 340 : 570;
   const H  = compacto ? 200 : 196;
