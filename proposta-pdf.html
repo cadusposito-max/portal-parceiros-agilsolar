@@ -45,6 +45,9 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0}
+/* Celular: na captura do PDF a folha volta a 1123px numa tela estreita e o
+   navegador "infla" sozinho os textos largos (aviso e rodapé saíam gigantes). */
+html{-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:100%}
 body{background:#C9D3DC;font-family:var(--f-texto);color:var(--texto);font-size:10pt;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding-bottom:90px}
 h1,h2,h3{font-family:var(--f-marca);color:var(--tinta);margin:0;letter-spacing:-.01em}
 p{margin:0}
