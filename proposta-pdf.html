@@ -377,6 +377,10 @@ body.is-loading #doc,body.is-error #doc{display:none}
 #pdf-overlay .pdf-btn{justify-content:center;width:100%}
 #pdf-overlay .pdf-btn-ghost{background:#f1f5f9;color:var(--tinta)}
 body.is-capturing #pdf-action-bar{display:none}
+/* Celular: a página fica escondida atrás de uma tela lisa; só aparecem as caixas do PDF */
+body.modo-direto #pdf-action-bar{display:none!important}
+body.modo-direto #pdf-overlay{background:#f4f7fa;backdrop-filter:none}
+body.modo-direto #pdf-overlay .box{box-shadow:0 10px 30px rgba(15,37,51,.12)}
 /* o html2canvas pinta a sombra por cima da folha inteira (fica cinza): sem sombras na captura */
 body.is-capturing *{box-shadow:none!important}
 
@@ -892,13 +896,17 @@ body.is-capturing *{box-shadow:none!important}
       D = montarDados(resp.data);
       arquivoPdf = 'Proposta-' + slug(D.numero || 'Agil-Solar') + '-' + slug(D.primeiro) + '.pdf';
       document.getElementById('doc').innerHTML = montarPaginas();
-      document.body.classList.remove('is-loading');
-      document.title = 'Proposta ' + (D.numero || '') + ' - ' + D.primeiro;
+      // Celular: a página não aparece; as folhas ficam montadas por trás e o PDF já sai direto.
+      if (DIRETO) document.body.classList.add('modo-direto');
       injetarActionBar();
       injetarOverlay();
+      if (DIRETO) overlay(htmlGerando());
+      document.body.classList.remove('is-loading');
+      document.title = 'Proposta ' + (D.numero || '') + ' - ' + D.primeiro;
       qrPronto = gerarQrs();
       ajustarZoom();
       window.addEventListener('resize', ajustarZoom);
+      if (DIRETO) gerarPdf();
     } catch (err) {
       console.error('[proposta-pdf]', err);
       showError();
@@ -948,6 +956,21 @@ body.is-capturing *{box-shadow:none!important}
     document.documentElement.style.setProperty('--page-zoom', z.toFixed(4));
   }
   function isMobile() { return window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 768; }
+  var DIRETO = isMobile();
+  function voltar() { if (window.history.length > 1) window.history.back(); else window.close(); }
+  function htmlGerando() { return '<div class="spinner"></div><h2>Gerando PDF…</h2><p>Isso leva alguns segundos.</p>'; }
+  // Último botão das caixas: no celular não tem página atrás, então ele volta.
+  function botaoSair() {
+    return '<button type="button" class="pdf-btn pdf-btn-ghost" id="pdf-close">' + (DIRETO ? ICON_BACK + '<span>Voltar</span>' : 'Fechar') + '</button>';
+  }
+  function ligarSair() { document.getElementById('pdf-close').onclick = DIRETO ? voltar : fecharOverlay; }
+  // Espera as fotos da proposta (casa, equipamentos, marcas) antes de capturar.
+  function imagensProntas() {
+    return Promise.all(Array.prototype.map.call(document.querySelectorAll('#doc img'), function (im) {
+      if (im.complete) return null;
+      return new Promise(function (ok) { im.addEventListener('load', ok, { once: true }); im.addEventListener('error', ok, { once: true }); });
+    }));
+  }
 
   var ICON_BACK  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
   var ICON_DOWN  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
@@ -961,9 +984,7 @@ body.is-capturing *{box-shadow:none!important}
       + (isMobile() ? '' : '<button id="pdf-print-btn" type="button" class="pdf-btn pdf-btn-ghost">' + ICON_PRINT + '<span>Imprimir</span></button>')
       + '<button id="pdf-save-btn" type="button" class="pdf-btn pdf-btn-primary">' + ICON_DOWN + '<span>Baixar PDF</span></button>';
     document.body.appendChild(bar);
-    document.getElementById('pdf-back-btn').addEventListener('click', function () {
-      if (window.history.length > 1) window.history.back(); else window.close();
-    });
+    document.getElementById('pdf-back-btn').addEventListener('click', voltar);
     var printBtn = document.getElementById('pdf-print-btn');
     if (printBtn) printBtn.addEventListener('click', async function () {
       try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
@@ -978,7 +999,7 @@ body.is-capturing *{box-shadow:none!important}
     ov.id = 'pdf-overlay';
     ov.innerHTML = '<div class="box" id="pdf-overlay-box"></div>';
     document.body.appendChild(ov);
-    ov.addEventListener('click', function (e) { if (e.target === ov) fecharOverlay(); });
+    ov.addEventListener('click', function (e) { if (e.target === ov && !DIRETO) fecharOverlay(); });
   }
   function overlay(html) {
     document.getElementById('pdf-overlay-box').innerHTML = html;
@@ -1000,7 +1021,7 @@ body.is-capturing *{box-shadow:none!important}
 
   async function gerarPdf() {
     if (pdfGerado) { mostrarPronto(); return; }
-    overlay('<div class="spinner"></div><h2>Gerando PDF…</h2><p>Isso leva alguns segundos.</p>');
+    overlay(htmlGerando());
     try {
       await Promise.all([
         carregarScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', function () { return !!window.html2canvas; }),
@@ -1008,6 +1029,7 @@ body.is-capturing *{box-shadow:none!important}
       ]);
       try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
       await qrPronto;
+      await imagensProntas();
       fixarCorIcones();
 
       // Captura no tamanho real (sem o zoom do celular). Folha A4 deitada: 297 × 210 mm.
@@ -1035,9 +1057,9 @@ body.is-capturing *{box-shadow:none!important}
       overlay('<h2>Não foi possível gerar o PDF</h2>'
         + '<p>Verifique sua conexão e tente novamente.' + (isMobile() ? '' : ' Você também pode usar o botão Imprimir e escolher "Salvar como PDF".') + '</p>'
         + '<div class="actions"><button type="button" class="pdf-btn pdf-btn-primary" id="pdf-retry">Tentar de novo</button>'
-        + '<button type="button" class="pdf-btn pdf-btn-ghost" id="pdf-close">Fechar</button></div>');
+        + botaoSair() + '</div>');
       document.getElementById('pdf-retry').onclick = gerarPdf;
-      document.getElementById('pdf-close').onclick = fecharOverlay;
+      ligarSair();
     }
   }
 
@@ -1052,7 +1074,7 @@ body.is-capturing *{box-shadow:none!important}
     overlay('<h2>PDF pronto</h2><p>' + esc(arquivoPdf) + '</p><div class="actions">'
       + (share ? '<button type="button" class="pdf-btn pdf-btn-wa" id="pdf-share">' + ICON_SHARE + '<span>Compartilhar</span></button>' : '')
       + '<button type="button" class="pdf-btn ' + (share ? 'pdf-btn-ghost' : 'pdf-btn-primary') + '" id="pdf-download">' + ICON_DOWN + '<span>Salvar no aparelho</span></button>'
-      + '<button type="button" class="pdf-btn pdf-btn-ghost" id="pdf-close">Fechar</button></div>');
+      + botaoSair() + '</div>');
     if (share) {
       document.getElementById('pdf-share').onclick = async function () {
         try { await navigator.share({ files: [pdfGerado.file], title: 'Proposta Ágil Solar' }); }
@@ -1060,7 +1082,7 @@ body.is-capturing *{box-shadow:none!important}
       };
     }
     document.getElementById('pdf-download').onclick = baixarPdf;
-    document.getElementById('pdf-close').onclick = fecharOverlay;
+    ligarSair();
   }
 
   function baixarPdf() {
