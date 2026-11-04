@@ -409,6 +409,16 @@
   const prioPedida = (p) => !!(p.prioridade && p.prioridade.status === 'pedida');
   const prioPill = (p) => (prioPedida(p) ? `<span class="rd-pill rd-at" title="${esc([p.prioridade.motivo, p.prioridade.texto].filter(Boolean).join(' · '))}">Prioridade pedida</span>` : '');
   const alertaPill = (p) => (p.alerta && central() ? `<span class="eg-alerta" title="Algo mudou depois do envio">${ic('triangle-alert')}</span>` : '');
+  // Conta de luz (UC) em nome de outra pessoa: marcado pelo comercial em "Contrato e procuração"
+  // (documentos.js, documentos_dados.titular). É esse titular que vai na procuração e no projeto.
+  const titularUC = (cli) => { const t = cli && cli.documentos_dados && cli.documentos_dados.titular; return t && t.outro_titular ? t : null; };
+  const titularPill = (p) => {
+    const t = titularUC(p.cliente_id ? E.cli[p.cliente_id] : null);
+    if (!t) return '';
+    const nome = String(t.nome || '').trim();
+    const curto = t.tipo_pessoa === 'PJ' ? nome : nome.split(/\s+/)[0];
+    return `<span class="rd-pill rd-at eg-titpill" title="Conta de luz em nome de ${esc(nome || 'outra pessoa')}: ver aba Dados">${ic('zap')}UC em nome de ${esc(curto || 'outra pessoa')}</span>`;
+  };
   const kitCurto = (p) => String((p.snapshot && p.snapshot.venda && p.snapshot.venda.kit_nome) || '').replace(/^KIT\s+/i, '');
 
   // semChips: ignora os filtros rápidos do funil (para contar cada um)
@@ -1224,7 +1234,7 @@
         <div class="eg-top">
           <i class="eg-av">${ic('sun')}</i>
           <div class="eg-tx">
-            <h2><span class="eg-nome">${esc(p.cliente_nome || 'Cliente')}</span>${stChip(p, eng)}${compPill(p)}${alertaPill(p)}</h2>
+            <h2><span class="eg-nome">${esc(p.cliente_nome || 'Cliente')}</span>${stChip(p, eng)}${compPill(p)}${titularPill(p)}${alertaPill(p)}</h2>
             <div class="eg-sub">
               <span class="eg-sub-n">${ic('hash')}${pnum(p).slice(2)}</span>
               <span>${ic('store')}${esc(nomeFranquia(p))}</span>
@@ -1474,7 +1484,7 @@
     const civ = typeof CRM360_ESTADOS_CIVIS !== 'undefined' ? CRM360_ESTADOS_CIVIS : [];
     const pj = String(c.documento || '').replace(/\D/g, '').length === 14;
     const rep = pj ? (((c.documentos_dados || {}).cliente || {}).representante || null) : null;
-    const rg = (r, o) => [r, o].filter((x) => !vazio(x)).join(' · ');
+    const tit = titularUC(vivo || c);
     const cidade = c.cidade && (String(c.cidade).includes('/') || !c.uf) ? c.cidade : [c.cidade, c.uf].filter(Boolean).join('/');
     const temGps = Number.isFinite(num(c.latitude)) && Number.isFinite(num(c.longitude)) && num(c.latitude) !== 0;
     const gps = temGps ? `${num(c.latitude).toFixed(6)}, ${num(c.longitude).toFixed(6)}` : '';
@@ -1490,15 +1500,45 @@
       ? `${campoRO('Razão social', c.nome, 's2', true)}${campoRO('CNPJ', c.documento, '', true)}${campoRO('Telefone', c.telefone, '', true)}
          ${campoRO('E-mail', c.email, 's2', true)}
          ${rep ? `<div class="eg-secl">Representante legal</div>
-         ${campoRO('Nome', rep.nome, 's2', true)}${campoRO('CPF', rep.cpf, '', true)}${campoRO('RG', rg(rep.rg, rep.rg_orgao), '', true)}
-         ${campoRO('Estado civil', op(civ, rep.estado_civil))}${campoRO('Nacionalidade', rep.nacionalidade)}${campoRO('Profissão', rep.profissao, 's2')}` : ''}`
-      : `${campoRO('Nome', c.nome, 's2', true)}${campoRO('CPF', c.documento, '', true)}${campoRO('RG', rg(c.rg, c.rg_orgao), '', true)}
-         ${campoRO('Telefone', c.telefone, '', true)}${campoRO('E-mail', c.email, 's2', true)}${campoRO('Gênero', op(gen, c.genero))}
-         ${campoRO('Estado civil', op(civ, c.estado_civil))}${campoRO('Nacionalidade', c.nacionalidade)}${campoRO('Profissão', c.profissao, 's2')}`;
+         ${campoRO('Nome', rep.nome, 's2', true)}${campoRO('CPF', rep.cpf, '', true)}${campoRO('RG', rep.rg, '', true)}
+         ${campoRO('Órgão emissor', rep.rg_orgao)}${campoRO('Estado civil', op(civ, rep.estado_civil))}${campoRO('Nacionalidade', rep.nacionalidade)}${campoRO('Profissão', rep.profissao)}` : ''}`
+      : `${campoRO('Nome', c.nome, 's2', true)}${campoRO('CPF', c.documento, '', true)}${campoRO('Telefone', c.telefone, '', true)}
+         ${campoRO('RG', c.rg, '', true)}${campoRO('Órgão emissor', c.rg_orgao)}${campoRO('E-mail', c.email, 's2', true)}
+         ${campoRO('Gênero', op(gen, c.genero))}${campoRO('Estado civil', op(civ, c.estado_civil))}${campoRO('Nacionalidade', c.nacionalidade)}${campoRO('Profissão', c.profissao)}`;
+
+    // Titular da UC diferente do cliente: vem primeiro, é quem vai na procuração e no projeto
+    let titCard = '';
+    if (tit) {
+      const tpj = tit.tipo_pessoa === 'PJ', te = tit.endereco || {}, tr = tit.representante || {};
+      const tcid = [te.cidade, te.uf].filter((x) => !vazio(x)).join('/');
+      const tnome = String(tit.nome || '').trim();
+      const tpess = tpj
+        ? `${campoRO('Razão social', tnome, 's2', true)}${campoRO('CNPJ', tit.cpf, '', true)}${campoRO('Tipo', 'Empresa')}
+           <div class="eg-secl">Representante legal</div>
+           ${campoRO('Nome', tr.nome, 's2', true)}${campoRO('CPF', tr.cpf, '', true)}${campoRO('Profissão', tr.profissao)}`
+        : `${campoRO('Nome', tnome, 's2', true)}${campoRO('CPF', tit.cpf, '', true)}${campoRO('Tipo', 'Pessoa física')}
+           ${campoRO('RG', tit.rg, 's2', true)}${campoRO('Órgão emissor', tit.rg_orgao, 's2')}`;
+      titCard = `<div class="eg-card eg-tit"><h3>${ic('zap')}Titular da UC<span class="eg-h3sub">vai no projeto e na procuração</span></h3>
+        <div class="eg-tit-aviso">${ic('triangle-alert')}<span>${tnome
+          ? `Conta de luz em nome de ${esc(tnome)}, não do cliente do contrato. Use estes dados na concessionária.`
+          : 'A conta de luz está em nome de outra pessoa, mas o comercial ainda não preencheu os dados do titular. Peça pela Timeline.'}</span></div>
+        <div class="eg-fl">
+          ${tpess}
+          <div class="eg-secl">Endereço do titular</div>
+          ${campoRO('CEP', te.cep, '', true)}${campoRO('Endereço', te.logradouro, 's2', true)}${campoRO('Número', te.numero)}
+          ${campoRO('Complemento', te.complemento)}${campoRO('Bairro', te.bairro)}${campoRO('Cidade/UF', tcid, 's2')}
+          ${campoRO('UC', p.uc || inst.numero_instalacao, '', true)}${campoRO('Concessionária', p.concessionaria || inst.concessionaria, 's2')}
+        </div>
+      </div>`;
+    }
+    const titLinha = tit
+      ? campoRO('Titular da UC', [String(tit.nome || '').trim() || 'outra pessoa (dados não preenchidos)', tit.cpf].filter((x) => !vazio(x)).join(' · '), 'full')
+      : `<div class="full"><label>Titular da UC</label><div class="eg-ro"><span class="eg-mesmo">${ic('check')}O próprio cliente</span></div></div>`;
 
     return `<div class="eg-dados">
       <div class="eg-roaviso">${ic('lock')}<span>${eng ? 'Somente leitura. Os dados do cliente são do comercial: se algo estiver errado, peça a correção pela Timeline.' : 'Dados do cadastro do cliente. Para corrigir, edite na ficha do cliente.'}</span>${fichaBtn}</div>
-      <div class="eg-card"><h3>${ic(pj ? 'building-2' : 'user')}Cliente<span class="eg-h3sub">${pj ? 'Empresa' : 'Pessoa física'}</span></h3>
+      ${titCard}
+      <div class="eg-card"><h3>${ic(pj ? 'building-2' : 'user')}${tit ? 'Contratante' : 'Cliente'}<span class="eg-h3sub">${tit ? 'assina o contrato · não é o titular da UC' : pj ? 'Empresa' : 'Pessoa física'}</span></h3>
         <div class="eg-fl">
           ${pessoa}
           <div class="eg-secl">Endereço</div>
@@ -1514,6 +1554,7 @@
           <div class="eg-fl c2">
             ${campoRO('Ligação', LIG[inst.tipo_ligacao])}${campoRO('UC', p.uc || inst.numero_instalacao, '', true)}
             ${campoRO('Concessionária', p.concessionaria || inst.concessionaria)}${campoRO('Telhado', inst.telhado)}
+            ${titLinha}
             ${campoRO('Distância módulos → inversor', inst.distancia_m ? nf(inst.distancia_m, 0) + ' m' : '')}${campoRO('Localização do padrão', c.padrao_localizacao)}
             ${campoRO('Localização (GPS)', gps, 'full', true, mapa)}
             ${inst.obs ? campoRO('Observação da franquia', inst.obs, 'full') : ''}
