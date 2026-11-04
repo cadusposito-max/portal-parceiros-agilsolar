@@ -21,7 +21,7 @@
 
   <link rel="icon" type="image/png" href="/assets/img/icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="theme-color" content="#070707">
+  <meta name="theme-color" content="#008FD4">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -32,7 +32,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/posthog-js@1.364.2/dist/array.js"></script>
 
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/proposta-om.premium.css?v=20260616-vendedor">
   <link rel="stylesheet" href="/assets/css/proposta-om.layout.css?v=20260616-vendedor">
 
@@ -118,6 +118,22 @@
     .aceite-confirm svg { width: 15px; height: 15px; }
     .aceite-confirm:disabled { opacity: .4; cursor: not-allowed; }
   </style>
+  <!-- identidade nova (mesmo conteúdo, só o visual) + modo claro/escuro salvo na aba -->
+  <link rel="stylesheet" href="/assets/css/proposta-om.identidade.css?v=20261104-identidade">
+  <script>
+    try { if (sessionStorage.getItem("proposalTheme") === "dark") document.documentElement.classList.add("dark"); } catch (_) {}
+    // abriu já no escuro: o botão mostra o sol
+    document.addEventListener("DOMContentLoaded", () => {
+      const b = document.getElementById("tema-btn");
+      if (b && document.documentElement.classList.contains("dark")) { b.innerHTML = `<i data-lucide="sun"></i>`; if (window.lucide) lucide.createIcons(); }
+    });
+    function trocarTema() {
+      const dark = document.documentElement.classList.toggle("dark");
+      try { sessionStorage.setItem("proposalTheme", dark ? "dark" : "light"); } catch (_) {}
+      const b = document.getElementById("tema-btn");
+      if (b) { b.innerHTML = `<i data-lucide="${dark ? "sun" : "moon"}"></i>`; if (window.lucide) lucide.createIcons(); }
+    }
+  </script>
 </head>
 <body class="proposta">
 
@@ -164,8 +180,8 @@
     <!-- Cabeçalho / saudação (desktop + mobile) -->
     <div class="blk2 m-intro" id="m-intro">
       <div class="m-intro-top">
-        <img src="/assets/img/logo.png" alt="Ágil Solar" onerror="this.style.display='none'">
-        <span class="chip"><span class="dot"></span><span id="status-label">—</span></span>
+        <img src="/assets/img/proposta/logo-branco.png" alt="Ágil Solar" onerror="this.style.display='none'">
+        <span class="acoes"><span class="chip"><span class="dot"></span><span id="status-label">—</span></span><button type="button" class="tema-btn" id="tema-btn" onclick="trocarTema()" title="Modo claro/escuro" aria-label="Alternar modo claro e escuro"><i data-lucide="moon"></i></button></span>
       </div>
       <div class="m-eyebrow">Proposta de reparo</div>
       <h1 class="m-greet">Olá, <span class="grad" id="m-greet-name">Cliente</span>!</h1>

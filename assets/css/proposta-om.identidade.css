@@ -1,0 +1,201 @@
+/* ============================================================
+   PROPOSTA O&M (preventiva e corretiva) — IDENTIDADE NOVA
+   Mesmo HTML, mesmos blocos e textos; só o visual, igual ao link da
+   proposta do Comercial (proposta.html): fundo claro, cartões brancos,
+   azul e laranja oficiais, Montserrat + Plus Jakarta, topo azul com o
+   logo branco/laranja e modo escuro "azul-noite" (html.dark).
+   Carrega DEPOIS de proposta-om.premium.css, layout.css e do <style> da página
+   (proposta-om.html e proposta-corretiva.html).
+   ============================================================ */
+
+:root{
+  --fundo:243 246 249;--superficie:255 255 255;--tinta:15 37 51;--texto:58 71 83;--suave:94 107 118;--linha:226 232 238;
+  --azul-claro:229 243 251;--azul-txt:0 114 170;--laranja-claro:255 243 220;--laranja-txt:138 86 0;
+  --azul:#008FD4;--laranja:#FAA519;--laranja-cta:#3D2600;--verde:#1FA971;
+  /* tokens antigos da página apontando para a marca */
+  --bg:rgb(var(--fundo));--ink:rgb(var(--tinta));--muted:rgb(var(--texto));--dim:rgb(var(--suave));
+  --line:rgb(var(--linha));--line-2:rgb(var(--linha));
+  --amber:rgb(var(--azul-txt));--amber-2:rgb(var(--azul-txt));--orange:var(--laranja);--orange-d:var(--laranja);
+  --grad:var(--laranja);--grad-soft:rgb(var(--azul-claro));--glow:none;
+  --sombra:0 6px 24px rgba(15,37,51,.06);
+}
+html.dark{
+  --fundo:10 17 24;--superficie:17 27 37;--tinta:242 246 249;--texto:201 211 220;--suave:138 151 162;--linha:34 48 61;
+  --azul-claro:14 42 61;--azul-txt:94 194 242;--laranja-claro:58 42 14;--laranja-txt:255 200 103;
+  color-scheme:dark;
+}
+
+html,body.proposta{background:rgb(var(--fundo))!important}
+body.proposta{color:rgb(var(--texto));font-family:'Plus Jakarta Sans',system-ui,sans-serif;transition:background .2s}
+body.proposta::before{display:none}
+.proposta h1,.proposta h2,.proposta h3,.proposta h4,
+.m-greet,.price .val,.about .pg .it .n,.step .no,.scope-head,.par-hd h3,.aceite-hd h2,.cover2-title{font-family:Montserrat,sans-serif;letter-spacing:-.015em}
+
+/* ---------- cartões ---------- */
+.c-card,.stat,.about,.resp-card,.m-validade{
+  background:rgb(var(--superficie))!important;border:0!important;border-radius:24px!important;box-shadow:var(--sombra)!important;
+}
+html.dark :is(.c-card,.stat,.about,.resp-card){box-shadow:none!important;border:1px solid rgb(var(--linha))!important}
+.c-card{padding:22px!important}
+
+/* olho das seções = .olho do Comercial (barrinha laranja + azul) */
+.eyebrow,.section-eyebrow{font-size:11px;font-weight:800;letter-spacing:.16em;color:rgb(var(--azul-txt));margin-bottom:14px}
+.eyebrow .bar{width:22px;height:5px;border-radius:3px;background:var(--laranja);opacity:1}
+
+/* ---------- topo azul (saudação) ---------- */
+#m-intro{
+  position:relative;overflow:hidden;background:var(--azul)!important;border-radius:28px;padding:26px 24px 28px!important;color:#fff;
+  box-shadow:0 14px 34px -18px rgba(0,143,212,.55);
+}
+#m-intro::after{
+  content:"";position:absolute;right:-64px;top:-48px;width:240px;height:176px;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 250 190'%3E%3Cpath d='M30 0 L250 0 L250 150 L190 150 Q160 150 145 125 Z' fill='%23FAA519'/%3E%3Cpath d='M80 0 L250 0 L250 120 L205 120 Q182 120 170 100 Z' fill='%23FBB743' opacity='.6'/%3E%3C/svg%3E") no-repeat center/contain;
+}
+#m-intro > *{position:relative;z-index:1}
+#m-intro .m-intro-top img{height:auto!important;width:150px}
+.m-intro-top .chip{background:rgba(255,255,255,.18);color:#fff;border:0;font-size:11px;letter-spacing:.06em;text-transform:none;font-weight:800}
+.m-intro-top .acoes{display:flex;align-items:center;gap:8px}
+.tema-btn{width:38px;height:38px;border-radius:50%;border:0;cursor:pointer;background:#fff;color:#0072AA;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.tema-btn svg{width:16px;height:16px}
+.m-eyebrow{color:rgba(255,255,255,.9);font-size:11px;font-weight:800;letter-spacing:.16em}
+.m-greet{color:#fff;font-weight:800}
+.m-greet .grad{background:none;-webkit-background-clip:initial;background-clip:initial;color:#fff;text-decoration:underline;text-decoration-color:var(--laranja);text-decoration-thickness:5px;text-underline-offset:7px}
+.m-greet-sub{color:rgba(255,255,255,.92);font-size:14.5px}
+.m-meta{color:rgba(255,255,255,.92);font-weight:600}
+.m-meta svg{color:#fff}
+#m-intro .m-validade{background:rgba(255,255,255,.14)!important;box-shadow:none!important;border-radius:18px!important}
+.m-validade-ic{background:var(--laranja);color:var(--laranja-cta)}
+.m-validade-k{color:rgba(255,255,255,.8);letter-spacing:.12em}
+.m-validade-v{color:#fff}
+.m-validade-v b{color:#fff}
+.m-num{color:rgba(255,255,255,.8);font-weight:600;letter-spacing:.02em}
+.m-num b{color:#fff}
+
+/* ---------- por que vale a pena ---------- */
+.stat{padding:18px 16px!important}
+.stat .ic{width:42px;height:42px;border-radius:12px;background:rgb(var(--azul-claro));color:var(--azul)}
+.stat .ic svg{width:20px;height:20px}
+.stat .k{font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;color:rgb(var(--suave))}
+.stat .v{font-size:14.5px;color:rgb(var(--tinta))}
+.stat .v b{color:rgb(var(--azul-txt))}
+#bloco-beneficios{background:none!important;box-shadow:none!important;border:0!important;padding:0!important}
+
+/* ---------- escopo ---------- */
+.scope-head{font-size:15px;font-weight:800;letter-spacing:0;text-transform:none;color:rgb(var(--tinta))!important;margin-bottom:14px}
+.scope-in .scope-head svg{color:var(--verde)}
+.scope-out .scope-head svg{color:rgb(var(--suave))}
+.scope-list li{color:rgb(var(--texto));font-size:13.5px}
+.scope-in li svg{color:var(--verde)}
+.scope-out li{color:rgb(var(--suave))}
+.scope-out li svg{color:rgb(var(--suave))}
+#service-desc,.cm-text{color:rgb(var(--texto))!important;border-top-color:rgb(var(--linha))!important}
+#bloco-problema .scope-head svg{color:#D14343}
+#bloco-diagnostico .scope-head svg{color:var(--azul)}
+
+/* ---------- dados do sistema ---------- */
+.sys-grid{background:transparent;border:0;gap:10px}
+.sys-cell{background:rgb(var(--fundo));border-radius:16px}
+.sys-cell .k{font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;color:rgb(var(--suave))}
+.sys-cell .k svg{color:var(--azul)}
+.sys-cell .v{color:rgb(var(--tinta))}
+.sys-empty{color:rgb(var(--suave))}
+
+/* ---------- como funciona ---------- */
+.step:not(:last-child){border-bottom-color:rgb(var(--linha))}
+.step .no{background:rgb(var(--azul-claro));color:rgb(var(--azul-txt));border:0;font-weight:800}
+.step .tx h4{color:rgb(var(--tinta))}
+.step .tx p{color:rgb(var(--suave))}
+
+/* ---------- sobre ---------- */
+.about h3{color:rgb(var(--tinta));font-weight:800}
+.about p{color:rgb(var(--texto))}
+.about .pg .it{background:rgb(var(--azul-claro));border-radius:16px;padding:14px}
+.about .pg .it .n{color:rgb(var(--azul-txt));font-weight:800}
+.about .pg .it .n .suf{color:rgb(var(--azul-txt))}
+.about .pg .it .l{color:rgb(var(--texto))}
+
+/* ---------- investimento (bloco azul, como no Comercial) ---------- */
+.price{background:var(--azul)!important;border:0!important;border-radius:24px!important;box-shadow:0 14px 34px -18px rgba(0,143,212,.55)!important}
+.price .lab{color:rgba(255,255,255,.9);letter-spacing:.14em;font-weight:800}
+.price .val{color:#fff;font-weight:800}
+.price .terms{color:rgba(255,255,255,.92)}
+.price .terms svg{color:#fff}
+.price .terms b{color:#fff}
+.price .divider{background:rgba(255,255,255,.25)}
+.price-parcelas{background:#fff;color:#0072AA;box-shadow:none;font-weight:800}
+.price-parcelas::before,.price-parcelas::after{display:none}
+.price-parcelas svg{color:#0072AA}
+.price .approve{background:var(--laranja);color:var(--laranja-cta);box-shadow:0 8px 20px -8px rgba(0,0,0,.35);letter-spacing:0;text-transform:none;font-family:Montserrat,sans-serif;font-weight:800;font-size:15px}
+.price .wa{text-decoration:none;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.4);color:#fff;letter-spacing:0;text-transform:none;font-size:13.5px;font-weight:700}
+.price .wa svg{color:#fff}
+.price .reject-link{color:rgba(255,255,255,.75);letter-spacing:0;text-transform:none;font-size:12.5px;font-weight:700}
+.price .reject-link:hover{color:#fff}
+.approved-state .ok{background:#fff;color:var(--verde);box-shadow:none}
+.approved-state h4{color:#fff}
+.approved-state p{color:rgba(255,255,255,.9)}
+.price .banner,#price-final.banner{background:rgba(255,255,255,.14)!important;border:0!important;color:#fff!important;border-radius:14px}
+
+/* ---------- vendedor ---------- */
+.resp-card .resp-ic{background:var(--azul);color:#fff;border-radius:50%}
+.resp-card .resp-k{font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;color:rgb(var(--suave))}
+.resp-card .resp-v{color:rgb(var(--tinta));font-family:Montserrat,sans-serif}
+
+.foot{color:rgb(var(--suave));font-size:12px}
+
+/* ---------- barra fixa de aprovar (celular) ---------- */
+.m-cta-bar{background:linear-gradient(to top,rgb(var(--fundo)) 45%,rgb(var(--fundo) / .9) 72%,transparent)}
+.m-cta-approve{background:var(--laranja);color:var(--laranja-cta);font-family:Montserrat,sans-serif;font-weight:800;box-shadow:0 10px 26px rgba(15,37,51,.18)}
+
+/* ---------- carregando / erro ---------- */
+.loader{background:rgb(var(--fundo))}
+.loader-logo{filter:none}
+.loader-bar{background:rgb(var(--linha))}
+.loader-bar i{background:var(--azul);box-shadow:none}
+.loader-text{color:rgb(var(--azul-txt));letter-spacing:.12em}
+.loader-sub{color:rgb(var(--suave))}
+.errstate svg{color:var(--laranja)}
+.errstate h1{color:rgb(var(--tinta));text-transform:none;font-weight:800}
+.errstate p{color:rgb(var(--suave))}
+
+/* ---------- janelas (parcelas e aceite) ---------- */
+.par-modal,.aceite-modal{background:rgba(15,37,51,.7)}
+.par-box,.aceite-box{background:rgb(var(--superficie));border:0;border-radius:24px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+.par-hd,.aceite-hd{background:transparent;border-bottom-color:rgb(var(--linha))}
+.par-hd-ic{background:rgb(var(--azul-claro));color:var(--azul);border-radius:12px}
+.par-hd h3,.aceite-hd h2{color:rgb(var(--tinta));text-transform:none;letter-spacing:0;font-weight:800;font-size:17px}
+.par-x,.aceite-x{color:rgb(var(--suave))}
+.par-row{background:rgb(var(--fundo));border:0;color:rgb(var(--tinta));border-radius:14px}
+.par-ft,.aceite-ft{background:rgb(var(--fundo));border-top-color:rgb(var(--linha));color:rgb(var(--suave))}
+.aceite-lbl{color:rgb(var(--azul-txt));letter-spacing:.1em}
+.aceite-termo{background:rgb(var(--fundo));border:0;color:rgb(var(--texto));border-radius:14px}
+.aceite-input{background:rgb(var(--superficie));border:1px solid rgb(var(--linha));color:rgb(var(--tinta));border-radius:12px}
+.aceite-input:focus{border-color:var(--azul);box-shadow:0 0 0 3px rgb(var(--azul-claro))}
+.aceite-canvas{border-color:rgb(var(--linha));border-radius:14px}
+.aceite-hint,.aceite-check-row span{color:rgb(var(--suave))}
+.aceite-check-row input{accent-color:var(--azul)}
+.aceite-clear{color:rgb(var(--azul-txt));letter-spacing:0;text-transform:none;font-size:12px}
+.aceite-cancel{background:rgb(var(--superficie));border:1px solid rgb(var(--linha));color:rgb(var(--tinta));letter-spacing:0;text-transform:none;font-size:13px;border-radius:12px}
+.aceite-confirm{background:var(--laranja);color:var(--laranja-cta);letter-spacing:0;text-transform:none;font-size:13.5px;font-weight:800;border-radius:12px}
+
+/* ---------- capa (não aparece no fluxo atual, mas fica no tom da marca) ---------- */
+.cover2{background:var(--azul)}
+.cover2-over,.cover2-year,.cover2-foot .meta{color:rgba(255,255,255,.85)}
+.cover2-title,.cover2-foot .cli{color:#fff;text-transform:none}
+.cover2-sub{color:rgba(255,255,255,.9)}
+.cover2-cta{background:var(--laranja);color:var(--laranja-cta);box-shadow:none;letter-spacing:0;text-transform:none}
+
+/* ---------- celular ---------- */
+@media (max-width:899px){
+  .doc-desktop{padding-top:0!important}
+  #m-intro{margin:0 -16px;border-radius:0 0 28px 28px;padding:24px 20px 26px!important}
+  /* por que vale a pena: 3 apertados quebravam palavra no celular; um embaixo do outro */
+  .stat3{grid-template-columns:1fr!important}
+  .stat{display:grid!important;grid-template-columns:42px 1fr;column-gap:12px;align-items:center}
+  .stat .ic{margin-bottom:0;grid-row:span 2}
+  .stat .k{margin-bottom:1px;align-self:end}
+  .stat .v{align-self:start}
+}
+@media (min-width:900px){
+  .doc-desktop > #m-intro{padding:30px 32px!important}
+  .doc-desktop > #m-intro .m-intro-top{max-width:none}
+}
