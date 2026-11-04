@@ -350,6 +350,7 @@ async function openCrm360(clientId, initialTab) {
 
   _crm360ClientId = clientId;
   _crm360Tab = typeof initialTab === 'string' && initialTab ? initialTab : 'timeline';
+  if (state.isParceiro && !FICHA_TABS_PARCEIRO.includes(_crm360Tab)) _crm360Tab = 'timeline';
   _crm360Atividades = [];
   _crm360EngTL = null;
   _crm360OmDetalhe = null;
@@ -459,6 +460,10 @@ function renderCrm360() {
     tabs.push({ id: 'arquivos', label: `ARQUIVOS <span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`, icon: 'paperclip' });
   }
   if (omFlag) tabs.push({ id: 'om', label: 'O&M', icon: 'wrench' });
+  // parceiro: só as abas dele
+  if (state.isParceiro) {
+    for (let i = tabs.length - 1; i >= 0; i--) if (!FICHA_TABS_PARCEIRO.includes(tabs[i].id)) tabs.splice(i, 1);
+  }
 
   // O innerHTML recria o container rolável: sem isto, cada re-render (timeline
   // e O&M chegam async) jogava a ficha de volta pro topo. Só mantém a rolagem
@@ -504,7 +509,7 @@ function renderCrm360() {
             ${telDigits ? `<a href="tel:+55${telDigits}" class="btn btn-secondary btn-sm"><i data-lucide="phone"></i> Ligar</a>` : ''}
             ${podeProposta ? `<button onclick="openProposalBuilder('${client.id}')" class="btn btn-secondary btn-sm"><i data-lucide="file-plus-2"></i> Nova proposta</button>` : ''}
             ${_crm360DocsAtivo() ? `<button onclick="abrirDocumentosCliente('${client.id}')" title="Gerar contrato e procuração" class="btn btn-secondary btn-sm"><i data-lucide="file-signature"></i> Documentos</button>` : ''}
-            <button onclick="openFechaVenda('${client.id}')" class="btn btn-success btn-sm"><i data-lucide="trophy"></i> Venda</button>
+            <button onclick="openFechaVenda('${client.id}')" class="btn btn-success btn-sm"><i data-lucide="trophy"></i> ${state.isParceiro ? 'Cliente fechou' : 'Venda'}</button>
           </div>
         </div>
 
@@ -749,6 +754,7 @@ function crmSet360Tab(tab) {
     if (_crm360ClientId) openProposalBuilder(_crm360ClientId);
     return;
   }
+  if (state.isParceiro && !FICHA_TABS_PARCEIRO.includes(tab)) return;
   _crm360Tab = tab;
   renderCrm360();
 }
@@ -851,6 +857,8 @@ function crmPropostaCartaoHTML(p, client) {
   if (state.isAdmin || state.isGestor) interno.push(['calculator', 'Precificação', `openOrcamentoDre('${p.id}')`]);
   if (podeAjustarGeracao() && window.uiV2Geracao) interno.push(['sun', 'Ajustar geração', `uiV2Geracao.abrir('${p.id}')`]);
   if (st === 'ACEITA' && crmPodeGerirVenda(p)) interno.push(['undo-2', 'Desfazer aceite', `crmDesfazerAceite('${p.id}')`, true]);
+  // parceiro: avisa a unidade que o cliente fechou esta proposta (parceiro.js)
+  if (state.isParceiro && st !== 'ACEITA' && client) interno.push(['trophy', 'Cliente fechou esta', `parceiroAvisarFechamento('${client.id}', '${p.id}')`]);
 
   return `
     <div class="crm-pa ${st.toLowerCase()}">

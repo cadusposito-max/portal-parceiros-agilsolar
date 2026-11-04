@@ -468,6 +468,8 @@ const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
 function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
+  // Parceiro: só o Comercial, e só Clientes e Propostas.
+  if (state.isParceiro) return TABS.filter((t) => TABS_PARCEIRO.includes(t.id));
   if (state.environment === 'rede' && state.isAdmin) return REDE_TABS;
   if (state.environment === 'rede' && state.isFranqueado) return REDE_TABS_FRANQUEADO;
   if (state.environment === 'engenharia' && state.canEng) return ENG_TABS;
@@ -493,6 +495,7 @@ function papelUsuarioLabel() {
   if (state.isFranqueado) return 'Franqueado';
   if (state.isGestor) return 'Gestor';
   if (state.isTecnico) return 'Técnico';
+  if (state.isParceiro) return 'Parceiro';
   if (state.isCoordenador) return 'Coordenador técnico';
   if (state.role === 'engenheiro') return 'Engenheiro';
   return 'Vendedor';
@@ -602,8 +605,8 @@ function renderEnvSwitcher() {
   const desktop = document.getElementById('env-switcher');
   const section = document.getElementById('menu-section');
 
-  // Técnico não troca de ambiente — esconde o seletor por completo.
-  if (state.isTecnico) {
+  // Técnico e parceiro não trocam de ambiente — esconde o seletor por completo.
+  if (state.isTecnico || state.isParceiro) {
     if (desktop) desktop.style.display = 'none';
     if (section) section.style.display = 'none';
     return;
@@ -860,6 +863,7 @@ function closeOmMoreMenuOnOutside(ev) {
 
 function setEnvironment(env) {
   if (state.isTecnico) return; // técnico não troca de ambiente
+  if (state.isParceiro && env !== 'comercial') return; // parceiro só no Comercial
   if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede') return;
   if (env === 'rede' && !podeRede()) return; // Rede: admin ou franqueado
   if (env === 'om' && !state.canOM) return; // sem acesso ao O&M
@@ -885,7 +889,7 @@ function setEnvironment(env) {
 
 // O launcher só aparece quando há escolha real (2+ ambientes). Hoje isso equivale
 function launcherShouldShow() {
-  if (state.isTecnico) return false;
+  if (state.isTecnico || state.isParceiro) return false;
   return !!state.canOM || !!state.canFin || !!state.canVis || !!state.canEng;
 }
 
@@ -975,6 +979,7 @@ function launcherGuardarUltimoEnv(env) {
 // ambiente já é o atual — caso do Comercial, que é o default).
 function enterEnvironment(env) {
   if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede') return;
+  if (state.isParceiro && env !== 'comercial') return;
   if (env === 'rede' && !podeRede()) return;
   if (env === 'om' && !state.canOM) return;
   if (env === 'financeiro' && !state.canFin) return;
@@ -1001,6 +1006,7 @@ function enterEnvironment(env) {
 
 function setTab(tabId) {
   if (state.isTecnico && tabId !== 'os') return; // técnico só acessa a aba OS
+  if (state.isParceiro && !TABS_PARCEIRO.includes(tabId)) return; // parceiro: só Clientes e Propostas
 
   // Admin é destino global (overlay), não uma aba de ambiente. Qualquer chamada
   // remanescente a setTab('admin') é redirecionada para o overlay.
@@ -1143,6 +1149,7 @@ function appRouteParse(rawHash) {
   if (env === 'rede' && !state.isAdmin && !REDE_TABS_FRANQUEADO.some((t) => t.id === tab)) return null;
   if (!tabsByEnv[env].includes(tab)) return null;
   if (env === 'comercial' && TABS_GESTAO.includes(tab) && !(state.isAdmin || state.isGestor)) return null;
+  if (state.isParceiro && (env !== 'comercial' || !TABS_PARCEIRO.includes(tab))) return null;
 
   return { env, tab };
 }
@@ -1807,6 +1814,9 @@ function _renderContentImpl() {
 
   // Saindo do O&M: para clock interno do módulo
   if (typeof stopOmClock === 'function') stopOmClock();
+
+  // Parceiro: qualquer aba fora das dele (estado velho, atalho) cai em Clientes.
+  if (state.isParceiro && !TABS_PARCEIRO.includes(state.activeTab)) state.activeTab = TABS_PARCEIRO[0];
 
   if (state.activeTab === 'dashboard') {
     mainToolbar.classList.add('hidden');

@@ -30,6 +30,7 @@
   const TIPOS = {
     lead_novo: ['megaphone', 'or'],
     proposta_vista: ['eye', 'bl'],
+    parceiro_fechou: ['trophy', 'gr'], // parceiro avisou que o cliente fechou: registrar a venda
     eng: ['hard-hat', 'pu'],
     eng_enviado: ['inbox', 'pu'],
     os: ['wrench', 'gr'],
@@ -43,7 +44,7 @@
     mencao: ['at-sign', 'bl'],
   };
   // menção é para a pessoa: aparece em destaque como os urgentes
-  const EM_DESTAQUE = new Set(['proposta_vista', 'os', 'mencao']);
+  const EM_DESTAQUE = new Set(['proposta_vista', 'parceiro_fechou', 'os', 'mencao']);
 
   const N = { lista: [], pronto: false, semTabela: false, aba: 'nl', canal: null, uid: null };
 

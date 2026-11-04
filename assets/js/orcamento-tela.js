@@ -104,6 +104,8 @@ function orcamentoVerFicha() {
 
 // Seletor do topo: as duas linhas de kits + a Personalizada (admin e franqueado).
 function _orcamentoLinhasHTML() {
+  // parceiro só tem os promocionais: sem seletor
+  if (state.isParceiro) return '';
   const opcoes = [
     ['promocional', 'tag', 'Promocionais'],
     ['catalogo', 'layout-grid', 'Catálogo completo'],
@@ -119,7 +121,7 @@ function _orcamentoLinhaAtual() {
 }
 
 function orcamentoEscolherLinha(v) {
-  if (_orcamentoGerando || v === _orcamentoLinhaAtual()) return;
+  if (_orcamentoGerando || v === _orcamentoLinhaAtual() || state.isParceiro) return;
   if (v === 'personalizada') {
     setPBProposalMode(PB_PROPOSAL_MODES.PERSONALIZADA);
     return;

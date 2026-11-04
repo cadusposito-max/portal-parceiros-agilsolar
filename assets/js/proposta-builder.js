@@ -1471,6 +1471,12 @@ function openFechaVenda(clientId) {
     return;
   }
 
+  // Parceiro não registra venda: avisa a unidade e o gestor registra (parceiro.js).
+  if (state.isParceiro) {
+    if (typeof parceiroAvisarFechamento === 'function') parceiroAvisarFechamento(client.id);
+    return;
+  }
+
   _fechaVendaClientId = client.id;
   document.getElementById('fv-client-name').innerText = [client.nome, client.cidade].filter(Boolean).join(' · ');
   document.getElementById('fv-error').classList.add('hidden');

@@ -836,7 +836,8 @@
     abrirPainel();
   }
 
-  window.tarefasDisponivel = () => !TF.semTabela;
+  // parceiro: acesso enxuto, sem tarefas internas da equipe
+  window.tarefasDisponivel = () => !TF.semTabela && !state.isParceiro;
   window.tarefasContagem = contagem;
   window.tarefasToggle = () => { if (painelAberto()) fecharPainel(); else abrirPainel(); };
   window.tarefasAbrir = (id) => { pendente = id; abrirPendente(); };
@@ -846,7 +847,7 @@
   window.tarefasEditar = (id) => { const t = TF.lista.find((x) => x.id === id); if (t) abrirModal({ tarefa: t }); };
   // timeline da ficha (crm.js): cartões das tarefas e a opção "Tarefa" na caixa de registrar
   window.tarefasTimeline = {
-    pronta: () => TF.pronto && !TF.semTabela,
+    pronta: () => TF.pronto && !TF.semTabela && !state.isParceiro,
     agrupar: tlAgrupar,
     cartaoHTML: tlCartaoHTML,
     caixaHTML: cxHTML,

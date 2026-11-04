@@ -183,6 +183,7 @@ let state = {
   isFranqueado: false,      // gestor com acesso extra na própria unidade (franqRefreshAccess)
   isGestor: false,
   isTecnico: false,
+  isParceiro: false,        // parceiro: só clientes/propostas dele e kits promocionais (ver TABS_PARCEIRO)
 
   // Admin
   adminSection: 'usuarios', // kits migraram p/ aba PRODUTOS do Comercial (14/07/2026)
@@ -260,6 +261,12 @@ const TABS = [
 // PRODUTOS = gestão de catálogo; ANÁLISE = leitura do time inteiro;
 // OBRAS = agenda das instalações, material e OS (obras.js).
 const TABS_GESTAO = ['produtos', 'analise', 'obras'];
+
+// Perfil Parceiro: acesso bem limitado — só o Comercial, com estas abas. Na ficha
+// do cliente, só estas abas. O banco confere à parte (is_parceiro: só kits
+// promocionais, sem vendas/metas/engenharia, sem cotação nas distribuidoras).
+const TABS_PARCEIRO = ['clientes', 'propostas'];
+const FICHA_TABS_PARCEIRO = ['dados', 'timeline', 'propostas', 'financiamento'];
 
 // --- CRM: origem do lead -------------------------------------------------
 // Lista única para o cadastro (index.html) e a ficha 360 (crm.js), que antes

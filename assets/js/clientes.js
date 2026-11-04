@@ -350,7 +350,7 @@ function renderClientActions(client, compact = false) {
           <i data-lucide="maximize-2"></i><span>Abrir ficha</span>
         </button>
         <button onclick="event.stopPropagation(); openFechaVenda('${client.id}')" class="btn btn-success btn-sm w-full col-span-2">
-          <i data-lucide="trophy"></i><span>Fechar venda</span>
+          <i data-lucide="trophy"></i><span>${state.isParceiro ? 'Cliente fechou' : 'Fechar venda'}</span>
         </button>
       </div>
     `;

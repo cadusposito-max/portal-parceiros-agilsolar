@@ -409,6 +409,13 @@
     if (has('renderCrmArquivosTab')) tabs.push(['arquivos', 'paperclip', 'Arquivos', `<span id="crm360-arq-count">${crmArquivosTabContador(client.id)}</span>`]);
     if (has('renderEngFichaTab')) tabs.push(['engenharia', 'ruler', 'Engenharia']);
     if (omFlag) tabs.push(['om', 'wrench', 'O&M']);
+    // parceiro: só as abas dele (sem vendas, pós-venda, arquivos, engenharia, O&M)
+    if (state.isParceiro) {
+      for (let i = tabs.length - 1; i >= 0; i--) if (!FICHA_TABS_PARCEIRO.includes(tabs[i][0])) tabs.splice(i, 1);
+    }
+    // parceiro não registra venda: o troféu avisa a unidade (openFechaVenda → parceiro.js)
+    const vendaRot = state.isParceiro ? 'Cliente fechou' : 'Registrar venda';
+    const tarefaOk = tarefaBtn && !state.isParceiro;
 
     // barra de etapas: clicar usa crmSetClientStatus (Perdido pede motivo; Fechado abre a venda)
     const seq = CLIENT_STATUS_SEQUENCE;
@@ -509,14 +516,14 @@
               ${waLink ? `<a class="v2f-wa" href="${esc(waLink)}" target="_blank" rel="noopener noreferrer">${ic('message-circle')}WhatsApp</a>` : ''}
               ${tel ? `<a class="v2-sq" href="tel:+55${tel}" title="Ligar">${ic('phone')}</a>` : ''}
               ${docs ? `<button class="v2-sq v2f-dsk" onclick="abrirDocumentosCliente('${esc(client.id)}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}
-              <button class="v2-sq v2f-dsk" onclick="openFechaVenda('${esc(client.id)}')" title="Registrar venda">${ic('trophy')}</button>
-              ${tarefaBtn ? `<button class="v2-sq v2f-dsk" onclick="${tarefaBtn}" title="Criar tarefa sobre este cliente">${ic('list-plus')}</button>` : ''}
+              <button class="v2-sq v2f-dsk" onclick="openFechaVenda('${esc(client.id)}')" title="${vendaRot}">${ic('trophy')}</button>
+              ${tarefaOk ? `<button class="v2-sq v2f-dsk" onclick="${tarefaBtn}" title="Criar tarefa sobre este cliente">${ic('list-plus')}</button>` : ''}
               <div class="crm-menu v2f-mob">
                 <button type="button" class="v2-sq" title="Mais ações" onclick="crmMenuToggle(event, this)">${ic('ellipsis')}</button>
                 <div class="crm-menu-pop">
                   ${docs ? `<button type="button" onclick="crmMenuFechar(); abrirDocumentosCliente('${esc(client.id)}')">${ic('file-signature')}Contrato e procuração</button>` : ''}
-                  <button type="button" onclick="crmMenuFechar(); openFechaVenda('${esc(client.id)}')">${ic('trophy')}Registrar venda</button>
-                  ${tarefaBtn ? `<button type="button" onclick="crmMenuFechar(); ${tarefaBtn}">${ic('list-plus')}Criar tarefa</button>` : ''}
+                  <button type="button" onclick="crmMenuFechar(); openFechaVenda('${esc(client.id)}')">${ic('trophy')}${vendaRot}</button>
+                  ${tarefaOk ? `<button type="button" onclick="crmMenuFechar(); ${tarefaBtn}">${ic('list-plus')}Criar tarefa</button>` : ''}
                 </div>
               </div>
               <button class="v2-sq v2f-exp" onclick="uiV2Ficha.cheia()" title="${full ? 'Voltar ao painel lateral' : 'Abrir em tela cheia'}">${ic(full ? 'minimize-2' : 'maximize-2')}</button>

@@ -42,6 +42,7 @@
   };
   function envAllowed(k) {
     if (state.isTecnico) return k === 'om';
+    if (state.isParceiro) return k === 'comercial';
     if (k === 'comercial') return true;
     if (k === 'om') return !!state.canOM;
     if (k === 'financeiro') return !!state.canFin;
@@ -207,7 +208,8 @@
     // celular: início · 2 abas · + · mais
     const MOB = { comercial: ['clientes', 'propostas'], om: ['os', 'clientes'], financeiro: ['recebiveis', 'pagamentos'], vistoria: ['agenda', 'os'], engenharia: ['funil', 'os'], rede: ['unidades', 'dre'] };
     const pref = (MOB[k] || []).map((id) => T.find((t) => t.id === id)).filter(Boolean);
-    const home = T[0], picks = (pref.length === 2 ? pref : T.slice(1, 3)), inBar = [home, ...picks].filter(Boolean).map((t) => t.id);
+    // (parceiro só tem Clientes e Propostas: Clientes já é o Início, então não repete)
+    const home = T[0], picks = (pref.length === 2 ? pref : T.slice(1, 3)).filter((t) => t !== home), inBar = [home, ...picks].filter(Boolean).map((t) => t.id);
     const mBtn = (t, label) => t ? `<button class="${t.id === cur ? 'on' : ''}" data-v2="tab" data-tab="${t.id}">${ic(t.icon || 'circle')}${esc(label || shortLabel(t.label))}</button>` : '';
     $('#v2-mnav').innerHTML = `${mBtn(home, 'Início')}${mBtn(picks[0])}
       ${cta ? `<button class="plus" data-v2="cta" title="${cta[0]}">${ic('plus')}</button>` : ''}

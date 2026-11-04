@@ -701,6 +701,9 @@ function _roleBadge(role) {
   if (normalized === 'engenheiro') {
     return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-sky-300 border-sky-700 bg-sky-900/30">ENGENHEIRO</span>';
   }
+  if (normalized === 'parceiro') {
+    return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-green-300 border-green-700 bg-green-900/30">PARCEIRO</span>';
+  }
   if (normalized === 'tecnico' || normalized === 'coordenador_tecnico') {
     return '<span class="px-2 py-0.5 text-[8px] font-black uppercase border text-orange-300 border-orange-700 bg-orange-900/30">TÉCNICO</span>';
   }
@@ -897,6 +900,7 @@ async function renderAdminUsuarios(container, { useCache = false } = {}) {
         <option value="gestor" ${roleFilter === 'gestor' ? 'selected' : ''}>GESTOR</option>
         <option value="franqueado" ${roleFilter === 'franqueado' ? 'selected' : ''}>FRANQUEADO</option>
         <option value="vendedor" ${roleFilter === 'vendedor' ? 'selected' : ''}>VENDEDOR</option>
+        <option value="parceiro" ${roleFilter === 'parceiro' ? 'selected' : ''}>PARCEIRO</option>
         <option value="tecnico" ${roleFilter === 'tecnico' ? 'selected' : ''}>TÉCNICO</option>
         <option value="engenheiro" ${roleFilter === 'engenheiro' ? 'selected' : ''}>ENGENHEIRO</option>
       </select>
@@ -999,6 +1003,7 @@ async function openAdminUsuarioForm(userId) {
       <div><label class="${_labelCls}">Perfil *</label>
         <select id="au-role" class="${_selectCls}">
           <option value="vendedor" ${defaultRole === 'vendedor' ? 'selected' : ''}>VENDEDOR</option>
+          <option value="parceiro" ${defaultRole === 'parceiro' ? 'selected' : ''}>PARCEIRO (só kits promocionais)</option>
           <option value="gestor" ${defaultRole === 'gestor' ? 'selected' : ''}>GESTOR</option>
           <option value="franqueado" ${defaultRole === 'franqueado' ? 'selected' : ''}>FRANQUEADO (gestor + DRE e preço)</option>
           <option value="admin" ${defaultRole === 'admin' ? 'selected' : ''}>ADMIN</option>
@@ -1011,6 +1016,10 @@ async function openAdminUsuarioForm(userId) {
         <input type="checkbox" id="au-ativo" ${current?.ativo === false ? '' : 'checked'} class="w-4 h-4 accent-red-500">
         <span class="text-white font-bold text-sm uppercase">Usuario ativo</span>
       </label>
+      <div id="au-parceiro-info" class="col-span-2 bg-green-900/30 border border-green-700 p-3 ${defaultRole === 'parceiro' ? '' : 'hidden'}">
+        <p class="text-green-300 text-[10px] font-bold">Parceiro: ve so os clientes e propostas dele, cota so com kits promocionais e nao ve vendas. Quando o cliente fecha, ele avisa a unidade e o gestor registra a venda. Sem chat, O&amp;M e Financeiro.</p>
+      </div>
+      <div id="au-acessos-extra" class="col-span-2 grid grid-cols-2 gap-4 ${defaultRole === 'parceiro' ? 'hidden' : ''}">
       <label class="col-span-2 flex items-center gap-3 cursor-pointer">
         <input type="checkbox" id="au-chat-enabled" ${defaultChatEnabled ? 'checked' : ''} class="w-4 h-4 accent-cyan-500">
         <span class="text-white font-bold text-sm uppercase">Permitir uso do chat (chat_enabled)</span>
@@ -1032,6 +1041,7 @@ async function openAdminUsuarioForm(userId) {
       <div class="col-span-2 bg-teal-950/20 border border-teal-700/30 p-3">
         <p class="text-teal-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente Financeiro na plataforma. Admin sempre ve, independente desta opcao.</p>
       </div>
+      </div>
       <div id="au-gestor-wrap" class="col-span-2 ${defaultRole === 'vendedor' ? '' : 'hidden'}">
         <label class="${_labelCls}">Gestor vinculado (apenas vendedor)</label>
         <select id="au-gestor-user-id" class="${_selectCls}">
@@ -1047,9 +1057,11 @@ async function openAdminUsuarioForm(userId) {
     // só mexe na marca quando há franqueado no caminho (agora ou antes)
     const mexeFranqueado = papel === 'franqueado' || current?.franqueado === true;
     const setFranqueado = (uid) => supabaseClient.rpc('admin_set_user_franqueado', { p_user_id: uid, p_franqueado: papel === 'franqueado' });
-    const chatEnabled = document.getElementById('au-chat-enabled').checked;
-    const omEnabled = document.getElementById('au-om-enabled').checked;
-    const finEnabled = document.getElementById('au-fin-enabled').checked;
+    // parceiro nunca tem chat, O&M nem Financeiro (o banco também força isso)
+    const ehParceiro = papel === 'parceiro';
+    const chatEnabled = !ehParceiro && document.getElementById('au-chat-enabled').checked;
+    const omEnabled = !ehParceiro && document.getElementById('au-om-enabled').checked;
+    const finEnabled = !ehParceiro && document.getElementById('au-fin-enabled').checked;
     const gestorUserId = roleValue === 'vendedor'
       ? (document.getElementById('au-gestor-user-id')?.value || null)
       : null;
@@ -1104,9 +1116,9 @@ async function openAdminUsuarioForm(userId) {
           email,
           password,
           nome: payload.p_nome,
-          // a função de criação ainda não conhece 'engenheiro': cria como vendedor e o
-          // admin_update_user logo abaixo grava o perfil certo
-          role: payload.p_role === 'engenheiro' ? 'vendedor' : payload.p_role,
+          // a função de criação ainda não conhece 'engenheiro' nem 'parceiro': cria como
+          // vendedor e o admin_update_user logo abaixo grava o perfil certo
+          role: ['engenheiro', 'parceiro'].includes(payload.p_role) ? 'vendedor' : payload.p_role,
           franquia_id: payload.p_franquia_id,
           ativo: payload.p_ativo,
         });
@@ -1173,6 +1185,10 @@ async function openAdminUsuarioForm(userId) {
 
   const syncGestorField = () => {
     if (!roleSelect || !franquiaSelect || !gestorWrap || !gestorSelect) return;
+
+    const ehParceiro = _normalizeAdminRole(roleSelect.value) === 'parceiro';
+    document.getElementById('au-acessos-extra')?.classList.toggle('hidden', ehParceiro);
+    document.getElementById('au-parceiro-info')?.classList.toggle('hidden', !ehParceiro);
 
     const isVendedor = _normalizeAdminRole(roleSelect.value) === 'vendedor';
     const franquiaId = franquiaSelect.value || null;

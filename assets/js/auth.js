@@ -231,10 +231,13 @@ async function checkAuth() {
       state.isGestor    = appMeta.role === 'gestor';
       state.isTecnico   = appMeta.role === 'tecnico';
       state.isCoordenador = appMeta.role === 'coordenador_tecnico';
+      state.isParceiro  = appMeta.role === 'parceiro';
       state.role        = appMeta.role || 'vendedor';
       state.franquiaId  = appMeta.franquia_id || null;
       // Técnico fica preso ao ambiente O&M, aba OS.
       if (state.isTecnico) { state.environment = 'om'; state.omActiveTab = 'os'; }
+      // Parceiro fica preso ao Comercial, nas abas dele.
+      if (state.isParceiro) { state.environment = 'comercial'; if (!TABS_PARCEIRO.includes(state.activeTab)) state.activeTab = TABS_PARCEIRO[0]; }
       state.adminPrefsLoaded = false;
       if (state.isAdmin && state.franquiaId && !state.adminKitsFranquia) {
         state.adminKitsFranquia = state.franquiaId;
@@ -617,10 +620,13 @@ async function _finishLogin(user, email) {
   state.isGestor    = appMeta.role === 'gestor';
   state.isTecnico   = appMeta.role === 'tecnico';
   state.isCoordenador = appMeta.role === 'coordenador_tecnico';
+  state.isParceiro  = appMeta.role === 'parceiro';
   state.role        = appMeta.role || 'vendedor';
   state.franquiaId  = appMeta.franquia_id || null;
   // Técnico fica preso ao ambiente O&M, aba OS.
   if (state.isTecnico) { state.environment = 'om'; state.omActiveTab = 'os'; }
+  // Parceiro fica preso ao Comercial, nas abas dele.
+  if (state.isParceiro) { state.environment = 'comercial'; if (!TABS_PARCEIRO.includes(state.activeTab)) state.activeTab = TABS_PARCEIRO[0]; }
   state.adminPrefsLoaded = false;
   if (state.isAdmin && state.franquiaId && !state.adminKitsFranquia) {
     state.adminKitsFranquia = state.franquiaId;

@@ -104,6 +104,8 @@ const PB_LINHAS = {
 };
 
 function pbLinhaAtual() {
+  // parceiro só cota com os promocionais (sem catálogo, híbrido, kit montado ou distribuidora)
+  if (state.isParceiro) return 'promocional';
   return state.pbLinha === 'catalogo' ? 'catalogo' : 'promocional';
 }
 
@@ -114,7 +116,7 @@ function pbKitDaLinha(kit) {
 function pbLinhaRender() {
   const box = document.getElementById('pb-linha');
   if (!box) return;
-  box.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL');
+  box.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || Boolean(state.isParceiro));
   box.querySelectorAll('[data-pb-linha]').forEach((b) => {
     const on = b.dataset.pbLinha === pbLinhaAtual();
     b.classList.toggle('on', on);
@@ -127,7 +129,7 @@ function pbLinhaRender() {
 }
 
 function pbLinhaEscolher(linha) {
-  if (!PB_LINHAS[linha] || linha === pbLinhaAtual()) return;
+  if (!PB_LINHAS[linha] || linha === pbLinhaAtual() || state.isParceiro) return;
   if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) return;
   state.pbLinha = linha;
   // Filtros de marca/distribuidora só existem no catálogo: trocar de linha começa do zero.
