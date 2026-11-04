@@ -762,6 +762,15 @@ html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-n { font-size: 13px; }
 html[data-ui="v2"] .v2s .pv-jr-pts { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
 html[data-ui="v2"] .v2s .pv-jr-pts i { width: 6px; height: 6px; border-radius: 6px; background: var(--v2-line-strong); transition: width .2s, background-color .2s; }
 html[data-ui="v2"] .v2s .pv-jr-pts i.on { width: 16px; background: var(--v2-blue); }
+/* computador: arrastar a faixa com o mouse (vendas-andamento.js > arrastavel) e clicar nas bolinhas */
+@media (hover: hover) and (pointer: fine) {
+  html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-trk { cursor: grab; }
+  html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-trk.arrastando { cursor: grabbing; scroll-snap-type: none; user-select: none; }
+  html[data-ui="v2"] .v2s .pv-jr-cp .pv-jr-trk.arrastando .pv-jr-s { pointer-events: none; }
+  html[data-ui="v2"] .v2s .pv-jr-pts i { position: relative; cursor: pointer; }
+  html[data-ui="v2"] .v2s .pv-jr-pts i::before { content: ''; position: absolute; inset: -7px -3px; }
+  html[data-ui="v2"] .v2s .pv-jr-pts i:not(.on):hover { background: var(--v2-ink-2); }
+}
 html[data-ui="v2"] .v2s .pv-jr-agora { min-height: 50px; margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: var(--v2-soft); font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--v2-ink-2); }
 html[data-ui="v2"] .v2s .pv-jr-agora b { color: var(--v2-ink); font-weight: 800; }
 

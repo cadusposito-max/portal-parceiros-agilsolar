@@ -290,19 +290,65 @@
     alvo.classList.toggle('dica', !!mostrar);
   }
   // centraliza a fase atual na faixa que rola e acende a bolinha da etapa visível
+  const posDe = (t, el) => el.offsetLeft - t.offsetLeft - (t.clientWidth - el.clientWidth) / 2;
   function centrar() {
     document.querySelectorAll('.pv-jr-cp .pv-jr-trk:not([data-ok])').forEach((t) => {
       t.dataset.ok = '1';
       const el = t.children[Number(t.dataset.foco) || 0];
-      if (el) t.scrollLeft = el.offsetLeft - t.offsetLeft - (t.clientWidth - el.clientWidth) / 2;
+      if (el) t.scrollLeft = posDe(t, el);
       const pts = t.closest('.pv-jr').querySelectorAll('.pv-jr-pts i');
+      // acende a etapa mais perto do centro; nas pontas, a primeira/última
       t.addEventListener('scroll', () => {
+        const filhos = [...t.children];
         const meio = t.scrollLeft + t.clientWidth / 2;
-        let k = 0;
-        [...t.children].forEach((c, i) => { if (c.offsetLeft - t.offsetLeft <= meio) k = i; });
+        let k = 0, menor = Infinity;
+        filhos.forEach((c, i) => { const dist = Math.abs(c.offsetLeft - t.offsetLeft + c.clientWidth / 2 - meio); if (dist < menor) { menor = dist; k = i; } });
+        if (t.scrollLeft <= 2) k = 0;
+        else if (t.scrollLeft >= t.scrollWidth - t.clientWidth - 2) k = filhos.length - 1;
         pts.forEach((p, i) => p.classList.toggle('on', i === k));
       }, { passive: true });
+      // bolinhas: clique leva até a etapa
+      pts.forEach((p, i) => p.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const alvo = t.children[i];
+        if (!alvo) return;
+        pts.forEach((p, k) => p.classList.toggle('on', k === i));
+        const de = t.scrollLeft, para = posDe(t, alvo);
+        t.scrollTo({ left: para, behavior: 'smooth' });
+        // aba em segundo plano / movimento reduzido: a rolagem suave pode não andar
+        setTimeout(() => { if (t.scrollLeft === de) t.scrollLeft = para; }, 450);
+      }));
+      arrastavel(t);
     });
+  }
+  // No computador o mouse não "desliza" a faixa: arrastar com o botão segurado rola
+  // (toque e trackpad já rolam sozinhos). Depois de arrastar, o clique não abre a etapa.
+  function arrastavel(t) {
+    let ini = null, moveu = false;
+    t.addEventListener('pointerdown', (ev) => {
+      if (ev.pointerType !== 'mouse' || ev.button !== 0) return;
+      ini = { x: ev.clientX, left: t.scrollLeft, id: ev.pointerId };
+      moveu = false;
+    });
+    t.addEventListener('pointermove', (ev) => {
+      if (!ini || ev.pointerId !== ini.id) return;
+      const dx = ev.clientX - ini.x;
+      if (!moveu && Math.abs(dx) < 5) return;
+      if (!moveu) { moveu = true; t.classList.add('arrastando'); try { t.setPointerCapture(ini.id); } catch (e) { /* sem captura, segue igual */ } }
+      t.scrollLeft = ini.left - dx;
+    });
+    const soltar = () => {
+      if (!ini) return;
+      ini = null;
+      if (moveu) {
+        t.classList.remove('arrastando'); // volta o encaixe: para centrado numa etapa
+        setTimeout(() => { moveu = false; }, 0);
+      }
+    };
+    t.addEventListener('pointerup', soltar);
+    t.addEventListener('pointercancel', soltar);
+    t.addEventListener('click', (ev) => { if (moveu) { ev.stopPropagation(); ev.preventDefault(); } }, true);
+    t.addEventListener('dragstart', (ev) => ev.preventDefault());
   }
 
   // Vista em lista: a jornada inteira embaixo da linha da venda.
