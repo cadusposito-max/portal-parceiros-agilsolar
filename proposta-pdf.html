@@ -51,7 +51,9 @@ html{-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:1
 body{background:#C9D3DC;font-family:var(--f-texto);color:var(--texto);font-size:10pt;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding-bottom:90px}
 h1,h2,h3{font-family:var(--f-marca);color:var(--tinta);margin:0;letter-spacing:-.01em}
 p{margin:0}
-.num{font-family:var(--f-marca);font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--tinta)}
+/* sem tabular-nums: com letter-spacing o html2canvas desenha letra a letra e,
+   no celular, o "1" estreito ficava num espaço largo ("1 .1 49") */
+.num{font-family:var(--f-marca);font-weight:800;white-space:nowrap;letter-spacing:-.02em;color:var(--tinta)}
 .num small{font-size:.5em;font-weight:700;letter-spacing:0;margin-left:.15em;color:var(--suave)}
 .num .rs{font-size:.5em;font-weight:700;letter-spacing:0;margin-right:.2em;vertical-align:.55em;color:inherit}
 
