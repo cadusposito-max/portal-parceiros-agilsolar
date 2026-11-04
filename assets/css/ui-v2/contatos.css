@@ -49,7 +49,9 @@ html[data-ui="v2"] .v2c-dot.prox { border: 2.5px solid var(--v2-orange); color: 
 /* aberta (computador): trilha com detalhes */
 html[data-ui="v2"] .v2c-trilha, html[data-ui="v2"] .v2c-lista { display: none; }
 html[data-ui="v2"] .v2c.aberto .v2c-mini { display: none; }
-html[data-ui="v2"] .v2c.aberto .v2c-trilha { display: flex; align-items: flex-start; margin-top: 12px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+/* a trilha rola de lado (overflow corta em cima também): folga de 6px pro halo de 4px da bolinha "próximo"
+   sem mudar a posição — margin-top era 12px */
+html[data-ui="v2"] .v2c.aberto .v2c-trilha { display: flex; align-items: flex-start; margin-top: 6px; padding-top: 6px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
 html[data-ui="v2"] .v2c-pt { flex: 1; min-width: 116px; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
 html[data-ui="v2"] .v2c-pt::before { content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 3px; background: var(--v2-line); z-index: 0; }
 html[data-ui="v2"] .v2c-pt:first-child::before { display: none; }
