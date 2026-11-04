@@ -162,3 +162,6 @@ html[data-ui="v2"] .om-env [ondragstart] { border-radius: 7px !important; }
 
 /* etiqueta nunca quebra em duas linhas */
 html[data-ui="v2"] .om-chip { white-space: nowrap; }
+
+/* caixas com fundo e contorno dentro das janelas do O&M (avisos, listas) */
+html[data-ui="v2"] body #om-modal-root > div > div:not(:first-child):not(:last-child) div[class*="border"][class*="bg-"]:not([class*="rounded"]) { border-radius: 14px !important; }
