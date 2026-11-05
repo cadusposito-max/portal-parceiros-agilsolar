@@ -369,7 +369,7 @@
 
   async function renderRec(filter) {
     // no visual novo a lista de títulos é a do ui-v2-fin.js (as janelas daqui chamam renderRec ao salvar)
-    if (!document.getElementById('rec-table') && window.uiV2Fin && window.uiV2Fin.recAberta()) return window.uiV2Fin.recRecarregar();
+    if (!document.getElementById('rec-table') && window.uiV2Fin && window.uiV2Fin.recDelegar()) return;
     if (filter) state.finFilters.recebiveis.f = filter;
     filter = state.finFilters.recebiveis.f || 'todos';
     try { finTitulos = await finRpc('list_fin_titulos', { p_filter: filter }) || []; } catch (_) { finTitulos = []; }

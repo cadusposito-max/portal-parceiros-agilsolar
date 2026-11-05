@@ -183,6 +183,67 @@ html[data-ui="v2"] #vfin-dlg .vfin-check input { width: 18px; height: 18px; acce
 html[data-ui="v2"] #vfin-dlg .vfin-dlg-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 html[data-ui="v2"] #vfin-dlg .vfin-dlg-acts .v2-btnp[disabled] { opacity: .6; cursor: wait; }
 
+/* ==========================================================================
+   Parcelamentos (A receber), próximos vencimentos e pedido anexado — 05/11/2026
+   ========================================================================== */
+html[data-ui="v2"] .v2s .vfin-seg-box { display: flex; }
+html[data-ui="v2"] .v2s .vfin-parc-body { display: flex; flex-direction: column; gap: 14px; }
+html[data-ui="v2"] .v2s .vfin-kit.vfin-kit-curto { max-width: 250px; }
+html[data-ui="v2"] .v2s .vfin-parc-chip { display: inline-flex !important; align-items: center; gap: 5px; margin-top: 4px; font-size: 12px !important; font-weight: 700 !important; color: var(--v2-blue-text) !important; background: var(--v2-blue-50); border-radius: 99px; padding: 2px 9px; }
+html[data-ui="v2"] .v2s .vfin-parc-chip svg, html[data-ui="v2"] .v2s .vfin-mini { width: 12px !important; height: 12px !important; display: inline-block !important; vertical-align: -2px; margin-right: 3px; }
+html[data-ui="v2"] .v2s tr.vfin-aberto > td { border-bottom-color: transparent; }
+html[data-ui="v2"] .v2s tr.vfin-parc-det { cursor: default; }
+html[data-ui="v2"] .v2s tr.vfin-parc-det:hover > td { background: none; }
+html[data-ui="v2"] .v2s tr.vfin-parc-det > td { padding-top: 0; }
+/* width:0 + min-width:100% = a grade ocupa a linha toda sem alargar a tabela */
+html[data-ui="v2"] .v2s .vfin-parcs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding: 4px 0 8px; width: 0; min-width: 100%; }
+html[data-ui="v2"] .v2s .vfin-pc { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--v2-bg); border: 1.5px solid transparent; }
+html[data-ui="v2"] .v2s .vfin-pc b { font-size: 13px; font-weight: 800; }
+html[data-ui="v2"] .v2s .vfin-pc span { font-size: 12.5px; font-weight: 600; color: var(--v2-ink-2); }
+html[data-ui="v2"] .v2s .vfin-pc small { font-size: 12px; font-weight: 700; color: var(--v2-gray); }
+html[data-ui="v2"] .v2s .vfin-pc.ok small { color: #12764E; }
+html[data-ui="v2"][data-theme="dark"] .v2s .vfin-pc.ok small { color: #4FD49A; }
+html[data-ui="v2"] .v2s .vfin-pc.ok { opacity: .75; }
+html[data-ui="v2"] .v2s .vfin-pc.late { border-color: rgba(209,67,67,.45); }
+html[data-ui="v2"] .v2s .vfin-pc.late small { color: #D14343; }
+html[data-ui="v2"] .v2s .vfin-pc.prox { border-color: var(--v2-blue); }
+html[data-ui="v2"] .v2s .vfin-pc.prox small { color: var(--v2-blue-text); }
+html[data-ui="v2"] .v2s .vfin-pc .v2-btn2 { height: 32px; margin-top: 6px; justify-content: center; }
+
+/* próximos vencimentos (Visão geral) */
+html[data-ui="v2"] .v2s .vfin-prox .v2-lst { gap: 12px; }
+html[data-ui="v2"] .v2s .vfin-prox .v2-lst small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2s .vfin-prox-v { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+html[data-ui="v2"] .v2s .vfin-receber-sm { height: 34px; padding: 0 12px; }
+
+/* janelas: duas colunas, prévia do plano, anexo */
+html[data-ui="v2"] #vfin-dlg .vfin-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+html[data-ui="v2"] #vfin-dlg input[type="date"] { height: 44px; border-radius: 12px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-bg); color: var(--v2-ink); padding: 0 12px; font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; }
+html[data-ui="v2"] #vfin-dlg .vfin-previa { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--v2-blue-50); color: var(--v2-blue-text); font-size: 13px; font-weight: 600; }
+html[data-ui="v2"] #vfin-dlg .vfin-previa:empty { display: none; }
+html[data-ui="v2"] #vfin-dlg .vfin-previa svg { width: 17px; height: 17px; flex-shrink: 0; }
+html[data-ui="v2"] #vfin-dlg .vfin-previa b { color: var(--v2-ink); }
+html[data-ui="v2"] #vfin-dlg .vfin-campo em { font-style: normal; font-weight: 600; color: var(--v2-gray); margin-left: 4px; }
+html[data-ui="v2"] .vfin-anexo { position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 14px; border-radius: 12px; border: 1.5px dashed var(--v2-line-strong); background: var(--v2-bg); color: var(--v2-ink-2); font-size: 14px; font-weight: 600; cursor: pointer; }
+html[data-ui="v2"] .vfin-anexo:hover { border-color: var(--v2-blue); color: var(--v2-blue-text); }
+html[data-ui="v2"] .vfin-anexo.on { border-style: solid; border-color: var(--v2-blue); color: var(--v2-ink); }
+html[data-ui="v2"] .vfin-anexo input, html[data-ui="v2"] .vfin-pedido.add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+html[data-ui="v2"] .vfin-anexo svg { width: 17px; height: 17px; flex-shrink: 0; }
+html[data-ui="v2"] .vfin-anexo .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* pedidos anexados na ficha da venda */
+html[data-ui="v2"] #vfin-ficha .vfin-pedidos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+html[data-ui="v2"] #vfin-ficha .vfin-pedido { position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 32px; padding: 0 12px; border-radius: 10px; background: var(--v2-bg); color: var(--v2-ink); font-size: 12.5px; font-weight: 700; text-decoration: none; cursor: pointer; }
+html[data-ui="v2"] #vfin-ficha .vfin-pedido span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+html[data-ui="v2"] #vfin-ficha .vfin-pedido svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--v2-blue-text); }
+html[data-ui="v2"] #vfin-ficha .vfin-pedido.add { border: 1.5px dashed var(--v2-line-strong); background: none; color: var(--v2-ink-2); }
+html[data-ui="v2"] #vfin-ficha .vfin-pedido.enviando { opacity: .6; pointer-events: none; }
+
+@media (max-width: 760px) {
+  html[data-ui="v2"] .v2s .vfin-parcs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html[data-ui="v2"] #vfin-dlg .vfin-grid2 { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 760px) {
   html[data-ui="v2"] .v2s .vfin-et { min-width: 150px; }
   html[data-ui="v2"] .v2s .vfin-seg { display: flex; align-self: stretch; }

@@ -50,6 +50,8 @@ const CRM_DOCS_PJ = [
 const CRM_ARQ_PASTAS_EXTRAS = [
   { tipo: 'engenharia', label: 'Engenharia', icon: 'hard-hat', dica: 'ART, parecer de acesso e outros documentos técnicos.' },
   { tipo: 'inspecao', label: 'Inspeção do sistema', icon: 'scan-search', dica: 'Fotos e registros depois da instalação.' },
+  // preenchida sozinha quando o Financeiro registra a compra do kit com o pedido anexado (ui-v2-fin.js)
+  { tipo: 'pedido_compra', label: 'Pedido de compra do kit', icon: 'package', dica: 'Pedido ou nota da distribuidora. Entra sozinho quando o Financeiro registra a compra.' },
   { tipo: 'outros', label: 'Outros', icon: 'folder', dica: 'Qualquer outro arquivo do cliente.' },
 ];
 
