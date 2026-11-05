@@ -333,23 +333,19 @@ const OM_TABS = [
   { id: 'tecnicos',   label: 'TÉCNICOS',      icon: 'hard-hat',       secondary: true }
 ];
 
-// Tabs do ambiente Financeiro (15 áreas). Todas funcionais e únicas.
-// Abas do Financeiro reagrupadas (15 áreas → 9 abas-pai). Subáreas viram
-// sub-abas dentro do pai (ver FIN_SUBGROUPS em financeiro.js):
-//   RECEBÍVEIS = Títulos · Parcelamentos
-//   PAGAMENTOS = Conferência · Comissões
-//   COMPRAS    = Orçamentos · Ordem de Compra
-//   MARGEM     = Precificação · Custos · DRE
-//   AÇÕES      = Pendências · Aprovações
+// Abas do Financeiro, pelo caminho do dinheiro (05/11/2026; telas em ui-v2-fin.js):
+//   VISÃO GERAL = "Precisa de você", números, andamento das vendas, resultado
+//   VENDAS      = funil automático (cada venda anda sozinha) + ficha da venda
+//   A RECEBER   = Títulos · Parcelamentos
+//   A PAGAR     = Compra dos kits · Comissões
+//   CONFIG      = percentuais, acessos, centro de custo
+// Os nomes antigos (funil, pagamentos, compras, margem, ações, relatórios...)
+// são redirecionados por finResolveTab (financeiro.js).
 const FIN_TABS = [
   { id: 'visao',      label: 'VISÃO GERAL', icon: 'layout-dashboard' },
-  { id: 'funil',      label: 'FUNIL',       icon: 'git-merge' },
-  { id: 'recebiveis', label: 'A RECEBER',   icon: 'receipt' },
-  { id: 'pagamentos', label: 'PAGAMENTOS',  icon: 'credit-card' },
-  { id: 'compras',    label: 'COMPRAS',     icon: 'shopping-cart' },
-  { id: 'margem',     label: 'MARGEM',      icon: 'bar-chart-3' },
-  { id: 'acoes',      label: 'AÇÕES',       icon: 'badge-check' },
-  { id: 'relatorios', label: 'RELATÓRIOS',  icon: 'pie-chart' },
+  { id: 'vendas',     label: 'VENDAS',      icon: 'git-merge' },
+  { id: 'recebiveis', label: 'A RECEBER',   icon: 'arrow-down-left' },
+  { id: 'apagar',     label: 'A PAGAR',     icon: 'arrow-up-right' },
   { id: 'config',     label: 'CONFIG',      icon: 'settings' }
 ];
 

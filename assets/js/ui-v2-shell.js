@@ -34,7 +34,7 @@
   const ENVS = {
     comercial: { n: 'Comercial', i: 'trending-up', d: 'Propostas, clientes e vendas', cta: ['Nova proposta', 'openNovaPropostaPicker'] },
     om: { n: 'O&M', i: 'wrench', d: 'Manutenção e ordens de serviço', cta: ['Nova proposta O&M', 'omOpenCreateProposta'] },
-    financeiro: { n: 'Financeiro', i: 'wallet', d: 'Recebíveis, pagamentos e margem', cta: null },
+    financeiro: { n: 'Financeiro', i: 'wallet', d: 'Vendas, a receber e a pagar', cta: null },
     vistoria: { n: 'Vistoria', i: 'clipboard-check', d: 'Agenda, checklists e laudos', cta: ['Nova vistoria', 'visNovaVistoria'] },
     engenharia: { n: 'Engenharia', i: 'ruler', d: 'Projetos, OS e catálogo técnico', cta: null },
     // franqueado entra no mesmo ambiente, só com a unidade dele
@@ -206,7 +206,7 @@
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
     // celular: início · 2 abas · + · mais
-    const MOB = { comercial: ['clientes', 'propostas'], om: ['os', 'clientes'], financeiro: ['recebiveis', 'pagamentos'], vistoria: ['agenda', 'os'], engenharia: ['funil', 'os'], rede: ['unidades', 'dre'] };
+    const MOB = { comercial: ['clientes', 'propostas'], om: ['os', 'clientes'], financeiro: ['vendas', 'recebiveis'], vistoria: ['agenda', 'os'], engenharia: ['funil', 'os'], rede: ['unidades', 'dre'] };
     const pref = (MOB[k] || []).map((id) => T.find((t) => t.id === id)).filter(Boolean);
     // (parceiro só tem Clientes e Propostas: Clientes já é o Início, então não repete)
     const home = T[0], picks = (pref.length === 2 ? pref : T.slice(1, 3)).filter((t) => t !== home), inBar = [home, ...picks].filter(Boolean).map((t) => t.id);

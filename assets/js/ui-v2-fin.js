@@ -6,7 +6,13 @@
 // Os dados saem das mesmas RPCs (window.finRpc, com o guardado de 20s) e as
 // ações abrem as mesmas janelas do financeiro.js (finTitBaixar, finTitReneg...).
 // Carregado sob demanda junto com o financeiro.js (ver carregarFinanceiro).
-// Telas prontas: A receber (sub-aba Títulos de Recebíveis).
+//
+// O Financeiro é organizado pelo caminho do dinheiro (aprovado em 05/11/2026):
+//   Visão geral · Vendas (funil automático) · A receber · A pagar · Config
+// Vendas: cada venda anda sozinha por 5 etapas (Aguardando pagamento → Recebendo
+// → Comprar kit → Kit comprado → Finalizada), calculadas aqui a partir do que a
+// RPC list_fin_vendas devolve (título, compra do kit e comissão). Ninguém arrasta.
+// Config continua sendo a tela do financeiro.js.
 // ==========================================
 
 (function () {
@@ -181,11 +187,472 @@
   window.addEventListener('scroll', fecharMenu, true);
   window.addEventListener('resize', fecharMenu);
 
+  // ==================== VENDAS (funil automático) ====================
+  const ETAPAS = [
+    { n: 'Aguardando pagamento', i: 'hourglass', d: 'Nada recebido ainda', tom: 't-gray' },
+    { n: 'Recebendo', i: 'coins', d: 'Já entrou uma parte', tom: 't-blue' },
+    { n: 'Comprar kit', i: 'shopping-cart', d: 'Cliente pagou, falta comprar', tom: 't-orange' },
+    { n: 'Kit comprado', i: 'package-check', d: 'Falta pagar a comissão', tom: 't-blue' },
+    { n: 'Finalizada', i: 'circle-check', d: 'Tudo certo', tom: 't-green' },
+  ];
+  const KIT_ST = { a_comprar: ['A comprar', 't-orange'], comprado: ['Comprado', 't-blue'], entregue: ['Entregue', 't-green'] };
+  const COM_ST = { a_liberar: ['A liberar', 't-orange'], liberar: ['A liberar', 't-orange'], liberado: ['Liberada', 't-blue'], pago: ['Paga', 't-green'] };
+  const FORMAS = { avista: 'À vista', cartao: 'Cartão de crédito', boleto: 'Boleto parcelado', financiamento: 'Financiamento', entrada_financiamento: 'Entrada + financiamento', outra: 'Outra forma' };
+  const FONTE = { compra: 'valor da compra', lancado: 'lançado no Financeiro', catalogo: 'estimado pelo catálogo' };
+  const VEN = { rows: [], ok: false, margemMin: 15 };
+  const venEstado = () => (state.finVenV2 = state.finVenV2 || { f: null, q: '', vend: 'Todos', per: 'tudo' });
+  const nomeVend = (s) => { s = String(s || '—'); return s.includes('@') ? s.split('@')[0] : s; };
+  const pct = (v) => (v == null ? '—' : (Math.round(v * 10) / 10).toLocaleString('pt-BR') + '%');
+
+  // completa cada venda com o que a tela precisa (etapa, situação, margem)
+  function prepVenda(v) {
+    const tit = v.tit || {}, oc = v.oc, com = v.com;
+    const valor = Number(v.valor) || 0;
+    const titValor = Number(tit.valor) || 0, pago = Number(tit.pago) || 0, saldo = Number(tit.saldo) || 0;
+    const recebido = titValor > 0 && saldo <= 0.005;
+    const kitSt = oc && oc.status === 'entregue' ? 'entregue' : oc && oc.status === 'comprado' ? 'comprado' : 'a_comprar';
+    const comprado = kitSt !== 'a_comprar';
+    const comPaga = !com || com.status === 'pago';
+    const etapa = !recebido ? (pago > 0 ? 1 : 0) : !comprado ? 2 : !comPaga ? 3 : 4;
+    const d = diasAte(tit.venc_iso);
+    const lucro = v.lucro == null ? null : Number(v.lucro);
+    return { ...v, valor, pago, saldo, titValor, recebido, kitSt, comprado, comPaga, etapa,
+      vencido: !recebido && d != null && d < 0, diasVenc: d, lucro,
+      margem: lucro != null && valor > 0 ? (lucro / valor) * 100 : null, vend: nomeVend(v.vendedor) };
+  }
+  // o que a venda está esperando (aviso na linha e no "Precisa de você")
+  function avisoVenda(v) {
+    if (v.vencido) return [`Título vencido há ${plural(-v.diasVenc, 'dia', 'dias')}`, 'r'];
+    if (v.etapa === 2) return ['Cliente já pagou: comprar o kit', 'o'];
+    if (v.etapa === 3 && v.com && v.com.status === 'liberado') return ['Comissão liberada: pagar', 'o'];
+    if (v.margem != null && v.margem < VEN.margemMin) return [`Margem baixa (${pct(v.margem)})`, 'o'];
+    return null;
+  }
+  function checks(v) {
+    const c = (ok, icone, txt) => `<span class="vfin-ck ${ok ? 'ok' : ''}" title="${esc(txt)}">${ic(ok ? 'check' : icone)}</span>`;
+    return `<span class="vfin-cks">${c(v.recebido, 'wallet', v.recebido ? 'Recebido' : 'Falta receber ' + brl(v.saldo))}${c(v.comprado, 'package', v.comprado ? 'Kit comprado' : 'Kit a comprar')}${c(v.comPaga, 'user', v.comPaga ? 'Comissão paga' : 'Comissão a pagar')}</span>`;
+  }
+  const tracos = (etapa) => `<span class="vfin-dots">${ETAPAS.map((_, j) => `<i class="${j <= etapa ? 'on' : ''}"></i>`).join('')}</span>`;
+  function trilho(lista, ativo, clicar) {
+    return `<div class="vfin-trilho">${ETAPAS.map((e, i) => {
+      const vs = lista.filter((v) => v.etapa === i);
+      const alerta = vs.filter((v) => avisoVenda(v)).length;
+      return `<button class="vfin-et ${ativo === i ? 'on' : ''} ${i === 4 ? 'fim' : ''}" onclick="${clicar}(${i})">
+        <span class="h"><i class="v2-ini">${ic(e.i)}</i><em>${vs.length}</em></span>
+        <b>${e.n}</b><small>${vs.length ? curto(vs.reduce((s, v) => s + v.valor, 0)) : '—'}</small>
+        ${alerta ? `<span class="vfin-al">${ic('triangle-alert')}${alerta} ${alerta === 1 ? 'pede' : 'pedem'} atenção</span>` : `<span class="vfin-al ok">${e.d}</span>`}
+      </button>`;
+    }).join(ic('chevron-right', 'class="vfin-seta"'))}</div>`;
+  }
+  async function carregarVendas() {
+    const [rows, prec] = await Promise.all([
+      window.finRpc('list_fin_vendas').catch(() => null),
+      window.finRpc('get_fin_precificacao').catch(() => null),
+    ]);
+    if (prec && prec.margem_min != null) VEN.margemMin = Number(prec.margem_min) || 15;
+    if (rows) { VEN.rows = rows.map(prepVenda); VEN.ok = true; }
+    return VEN.rows;
+  }
+  const naTela = (tab, marca) => { const b = box(); return !!(b && b.querySelector(marca) && state.environment === 'financeiro' && state.finActiveTab === tab); };
+  function porPeriodo(v, per) {
+    if (per === 'tudo' || !v.data) return true;
+    const d = new Date(v.data + 'T12:00:00'), h = hoje();
+    if (per === 'mes') return d.getMonth() === h.getMonth() && d.getFullYear() === h.getFullYear();
+    if (per === 'ano') return d.getFullYear() === h.getFullYear();
+    if (per === '3m') { const x = new Date(h); x.setMonth(x.getMonth() - 3); return d >= x; }
+    return true;
+  }
+
+  async function renderVendas(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'fin-vendas';
+    setPageMeta('fin:vendas', 'Vendas', VEN.ok ? resumoVendas() : 'Carregando…');
+    container.innerHTML = `<div class="vfin-ven"><div class="v2-card v2-empty">Carregando vendas…</div></div>`;
+    if (VEN.ok) pintarVendas();
+    await carregarVendas();
+    if (!naTela('vendas', '.vfin-ven')) return;
+    setPageMeta('fin:vendas', 'Vendas', resumoVendas());
+    pintarVendas();
+  }
+  function resumoVendas() {
+    const vs = VEN.rows, fin = vs.filter((v) => v.etapa === 4).length;
+    return `${plural(vs.length, 'venda', 'vendas')} · ${curto(vs.reduce((s, v) => s + v.valor, 0))} vendido · ${plural(fin, 'finalizada', 'finalizadas')}`;
+  }
+  function pintarVendas() {
+    const b = box(); const wrap = b && b.querySelector('.vfin-ven'); if (!wrap) return;
+    const st = venEstado();
+    const vends = [...new Set(VEN.rows.map((v) => v.vend))].sort();
+    const opt = (val, txt, cur) => `<option value="${esc(val)}" ${val === cur ? 'selected' : ''}>${esc(txt)}</option>`;
+    wrap.innerHTML = `
+      <div class="v2-toolbar">
+        <label class="v2-sbox">${ic('search')}<input id="vfin-ven-q" type="text" value="${esc(st.q)}" oninput="uiV2Fin.venSet('q', this.value)" placeholder="Buscar por cliente ou kit" autocomplete="off"></label>
+        <select class="v2-select ${st.vend !== 'Todos' ? 'on' : ''}" onchange="uiV2Fin.venSet('vend', this.value)">${opt('Todos', 'Todos os vendedores', st.vend)}${vends.map((n) => opt(n, n, st.vend)).join('')}</select>
+        <select class="v2-select ${st.per !== 'tudo' ? 'on' : ''}" onchange="uiV2Fin.venSet('per', this.value)">${opt('tudo', 'Todo o período', st.per)}${opt('mes', 'Este mês', st.per)}${opt('3m', 'Últimos 3 meses', st.per)}${opt('ano', 'Este ano', st.per)}</select>
+        <div class="v2-grow"></div>
+        <button class="v2-btn2" style="height:44px" onclick="uiV2Fin.venExportar()">${ic('download')}Exportar</button>
+      </div>
+      <div class="vfin-ven-trilho"></div>
+      <div class="vfin-ven-lista"></div>`;
+    pintarVendasCorpo();
+  }
+  function vendasFiltradas() {
+    const st = venEstado(), q = String(st.q || '').trim().toLowerCase();
+    return VEN.rows.filter((v) => (!q || `${v.cli} ${v.kit} ${v.vend}`.toLowerCase().includes(q)) && (st.vend === 'Todos' || v.vend === st.vend) && porPeriodo(v, st.per));
+  }
+  function pintarVendasCorpo() {
+    const b = box(); if (!b) return;
+    const st = venEstado();
+    const base = vendasFiltradas();
+    const tb = b.querySelector('.vfin-ven-trilho'); if (tb) tb.innerHTML = trilho(base, st.f, 'uiV2Fin.venEtapa');
+    const host = b.querySelector('.vfin-ven-lista'); if (!host) return;
+    const lista = base.filter((v) => st.f == null || v.etapa === st.f)
+      .sort((x, y) => !!avisoVenda(y) - !!avisoVenda(x) || String(y.data || '').localeCompare(String(x.data || '')));
+    const et = st.f == null ? null : ETAPAS[st.f];
+    const linhas = lista.map((v) => {
+      const e = ETAPAS[v.etapa], a = avisoVenda(v), id = esc(v.id);
+      return `<tr onclick="uiV2Fin.ficha('${id}')">
+        <td><div class="v2-who">${avatar(v.cli)}<div style="min-width:0"><span class="v2-nmrow"><span class="v2-nm">${esc(v.cli)}</span><b class="v2-mval">${curto(v.valor)}</b></span><small class="vfin-kit">${esc(v.kit)} · ${esc(v.vend)}</small>${a ? `<small class="vfin-aviso ${a[1]}">${ic('triangle-alert')}${esc(a[0])}</small>` : ''}<span class="show-m v2-mline"><span class="v2-chip dot ${e.tom}">${e.n}</span>${checks(v)}</span></div></div></td>
+        <td class="hide-m"><span class="v2-chip dot ${e.tom}">${e.n}</span>${tracos(v.etapa)}</td>
+        <td class="hide-m"><b class="vfin-v">${brl(v.valor)}</b><small class="vfin-s">${v.data ? 'vendido em ' + dataBR(v.data) : ''}</small></td>
+        <td class="hide-m">${checks(v)}</td>
+        <td class="hide-m">${v.margem == null ? '<span class="vfin-mg sem" title="Custo do kit ainda não lançado. Registre a compra em A pagar.">—</span>' : `<b class="vfin-mg ${v.margem < VEN.margemMin ? 'baixa' : ''}">${pct(v.margem)}</b>`}</td>
+        <td><div class="v2-acts"><button class="v2-sq" title="Abrir a venda" onclick="event.stopPropagation(); uiV2Fin.ficha('${id}')">${ic('chevron-right')}</button></div></td></tr>`;
+    }).join('');
+    host.innerHTML = `<div class="v2-card v2-lista" style="padding:14px 16px">
+      <div class="v2-ch" style="margin-bottom:6px"><div><h3>${et ? et.n : 'Todas as vendas'}</h3><small>${et ? et.d + ' · ' : ''}${plural(lista.length, 'venda', 'vendas')}</small></div>
+        ${st.f != null ? `<button class="v2-btn2" onclick="uiV2Fin.venEtapa(null)">Ver todas${ic('arrow-right')}</button>` : ''}</div>
+      ${lista.length ? `<div class="v2-tscroll"><table class="v2-table">
+        <thead><tr><th>Cliente e kit</th><th class="hide-m">Etapa</th><th class="hide-m">Vendido</th><th class="hide-m">Andamento</th><th class="hide-m">Margem</th><th></th></tr></thead>
+        <tbody>${linhas}</tbody></table></div>`
+        : `<div class="v2-empty">${VEN.rows.length ? 'Nenhuma venda com esses filtros.' : 'Nenhuma venda ainda. Elas aparecem aqui quando o Comercial registra uma venda.'}</div>`}</div>`;
+    icons();
+  }
+  async function venExportar() {
+    if (typeof exportToXLSX !== 'function') return;
+    const rows = vendasFiltradas();
+    await exportToXLSX(rows, [
+      { header: 'Cliente', value: (v) => v.cli }, { header: 'Kit', value: (v) => v.kit }, { header: 'Vendedor', value: (v) => v.vend },
+      { header: 'Data da venda', value: (v) => (v.data ? dataBR(v.data) : '') }, { header: 'Etapa', value: (v) => ETAPAS[v.etapa].n },
+      { header: 'Vendido (R$)', value: (v) => v.valor }, { header: 'Recebido (R$)', value: (v) => v.pago }, { header: 'Falta receber (R$)', value: (v) => v.saldo },
+      { header: 'Kit', value: (v) => KIT_ST[v.kitSt][0] }, { header: 'Custo do kit (R$)', value: (v) => (v.custo_kit == null ? '' : Number(v.custo_kit)) },
+      { header: 'Comissão (R$)', value: (v) => (v.com ? Number(v.com.valor) : '') }, { header: 'Comissão', value: (v) => (v.com ? (COM_ST[v.com.status] || [v.com.status])[0] : '') },
+      { header: 'Margem (%)', value: (v) => (v.margem == null ? '' : Math.round(v.margem * 10) / 10) },
+    ], 'financeiro-vendas');
+  }
+
+  // ficha financeira da venda (painel lateral)
+  function fecharFicha() { const d = document.getElementById('vfin-ficha'); if (d) d.remove(); }
+  function ficha(id) {
+    const v = VEN.rows.find((x) => x.id === id); if (!v) return;
+    const e = ETAPAS[v.etapa], vid = esc(v.id);
+    const passo = (ok, meio, icone, titulo, linha, acao) => `<div class="vfin-p ${ok ? 'ok' : meio ? 'meio' : ''}"><i class="b">${ic(ok ? 'check' : icone)}</i><div class="tx"><b>${titulo}</b><small>${linha}</small>${acao || ''}</div></div>`;
+    const kit = KIT_ST[v.kitSt], com = v.com, comSt = com ? (COM_ST[com.status] || [com.status, 't-gray']) : null;
+    const forma = FORMAS[v.forma_pagamento] || '';
+    const linhaReceb = v.recebido ? `${brl(v.titValor)} recebido${forma ? ' · ' + forma : ''}`
+      : `${brl(v.pago)} de ${brl(v.titValor)}${v.tit && v.tit.venc_iso ? ' · vence ' + dataBR(v.tit.venc_iso) : ''}${v.vencido ? ' (vencido)' : ''}${forma ? ' · ' + forma : ''}`;
+    const linhaKit = v.oc
+      ? `${esc(v.oc.fornecedor || 'Fornecedor não informado')} · ${v.oc.valor ? brl(v.oc.valor) : 'sem valor'} · <span class="v2-chip ${kit[1]}">${v.kitSt === 'a_comprar' ? 'Orçamento, ainda não comprado' : kit[0]}</span>`
+      : `Ainda não registrada${v.custo_kit != null ? ' · custo estimado ' + brl(v.custo_kit) : ''}`;
+    const res = [['Vendido', v.valor]];
+    if (v.custo_kit != null) res.push([`Custo do kit <em>${FONTE[v.custo_fonte] || ''}</em>`, -Number(v.custo_kit)]);
+    if (Number(v.outros) > 0) res.push(['Outros custos lançados', -Number(v.outros)]);
+    // o imposto incide sobre (venda − kit): sem o custo do kit ele sairia errado, então fica de fora
+    if (v.custo_kit != null) res.push(['Impostos', -Number(v.imposto || 0)]);
+    res.push(['Comissão', -Number(com ? com.valor : 0)], ['Royalties e fundo', -Number(v.royalties || 0)]);
+    if (Number(v.deducoes) > 0) res.push(['Deduções', -Number(v.deducoes)]);
+    const d = document.createElement('div');
+    d.id = 'vfin-ficha';
+    d.innerHTML = `<div class="sc" onclick="uiV2Fin.fecharFicha()"></div><aside class="v2s" role="dialog" aria-label="Venda de ${esc(v.cli)}">
+      <header><div><small>Venda${v.data ? ' · ' + dataBR(v.data) : ''} · ${esc(v.vend)}</small><h3>${esc(v.cli)}</h3><span>${esc(v.kit)}</span></div><button class="v2-sq" title="Fechar" onclick="uiV2Fin.fecharFicha()">${ic('x')}</button></header>
+      <div class="vfin-fe"><span class="v2-chip dot ${e.tom}">${e.n}</span>${tracos(v.etapa)}</div>
+      <div class="vfin-passos">
+        ${passo(v.recebido, v.pago > 0, 'wallet', 'Recebimento', linhaReceb,
+          v.recebido ? '' : `<button class="v2-btn2" onclick="uiV2Fin.verTitulos('${vid}')">${ic('arrow-down-left')}Ver em A receber</button>`)}
+        ${passo(v.comprado, !!v.oc, 'package', 'Compra do kit', linhaKit,
+          v.kitSt === 'a_comprar' ? `<button class="v2-btn2" onclick="uiV2Fin.compra('${vid}')">${ic('shopping-cart')}Registrar compra</button>`
+            : v.kitSt === 'comprado' ? `<button class="v2-btn2" onclick="uiV2Fin.chegou('${vid}')">${ic('truck')}Kit chegou</button>` : '')}
+        ${com ? passo(v.comPaga, com.status === 'liberado', 'user', 'Comissão', `${esc(v.vend)} · ${pct(Number(com.pct))} · ${brl(com.valor)} · <span class="v2-chip ${comSt[1]}">${comSt[0]}</span>`,
+          com.status === 'a_liberar' ? `<button class="v2-btn2" onclick="uiV2Fin.comAcao('${esc(com.id)}','liberado')">${ic('unlock')}Liberar comissão</button>`
+            : com.status === 'liberado' ? `<button class="v2-btn2" onclick="uiV2Fin.comAcao('${esc(com.id)}','pago')">${ic('check')}Marcar como paga</button>` : '')
+          : passo(true, false, 'user', 'Comissão', 'Esta venda não tem comissão', '')}
+      </div>
+      <div class="v2-card vfin-resv"><div class="v2-ch" style="margin-bottom:6px"><div><h3>Resultado da venda</h3><small>Quanto sobra depois de tudo pago</small></div>${v.margem == null ? '' : `<span class="v2-chip ${v.margem < VEN.margemMin ? 't-red' : 't-green'}">Margem ${pct(v.margem)}</span>`}</div>
+        <div class="vfin-res">${res.map((l) => `<div><span>${l[0]}</span><b>${l[1] < 0 ? '− ' : ''}${brl(Math.abs(l[1]))}</b></div>`).join('')}
+          ${v.lucro == null ? `<div class="res"><span>Sobrou</span><b class="sem">—</b></div>` : `<div class="res"><span>Sobrou</span><b>${brl(v.lucro)}</b></div>`}</div>
+        ${v.custo_kit == null ? `<div class="vfin-nota">${ic('info')}Falta o custo do kit para calcular a margem. Ele entra quando a compra for registrada.</div>` : ''}
+      </div>
+      ${typeof openCrm360 === 'function' && v.cliente_id ? `<button class="v2-btn2" style="width:100%;justify-content:center;height:42px" onclick="uiV2Fin.fecharFicha(); openCrm360('${esc(v.cliente_id)}')">${ic('external-link')}Abrir a ficha do cliente</button>` : ''}
+    </aside>`;
+    fecharFicha();
+    document.body.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('in'));
+    icons();
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { fecharFicha(); fecharDlg(); } });
+  function verTitulos(id) {
+    const v = VEN.rows.find((x) => x.id === id); if (!v) return;
+    fecharFicha();
+    state.finFoco = { cliente_id: v.cliente_id, nome: v.cli, sub: 'titulos', grupo: 'recebiveis' };
+    state.finSub = state.finSub || {}; state.finSub.recebiveis = 'titulos';
+    setTab('recebiveis'); window.scrollTo(0, 0);
+  }
+  // depois de qualquer ação: relê e redesenha a tela aberta (e a ficha, se estava aberta)
+  async function depoisDaAcao(fichaId) {
+    await carregarVendas();
+    const t = state.finActiveTab;
+    if (t === 'vendas' && naTela('vendas', '.vfin-ven')) { setPageMeta('fin:vendas', 'Vendas', resumoVendas()); pintarVendas(); }
+    else if (t === 'apagar' && naTela('apagar', '.vfin-pag')) await pintarAPagar();
+    else if (t === 'visao' && naTela('visao', '.vfin-visao')) renderContent();
+    if (fichaId && document.getElementById('vfin-ficha')) ficha(fichaId);
+  }
+
+  // ---- janela simples (registrar compra) ----
+  function fecharDlg() { const d = document.getElementById('vfin-dlg'); if (d) d.remove(); }
+  function abrirDlg(html) {
+    fecharDlg();
+    const d = document.createElement('div');
+    d.id = 'vfin-dlg';
+    d.innerHTML = `<div class="sc" onclick="uiV2Fin.fecharDlg()"></div><div class="card v2s" role="dialog">${html}</div>`;
+    document.body.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('in'));
+    icons();
+    const f = d.querySelector('input, select'); if (f) f.focus();
+  }
+  function compra(id) {
+    const v = VEN.rows.find((x) => x.id === id); if (!v) return;
+    const forn = ['Helte', 'Belenus', 'AVT'];
+    const ocForn = v.oc && v.oc.fornecedor;
+    abrirDlg(`
+      <header><div><small>Registrar compra do kit</small><h3>${esc(v.cli)}</h3><span>${esc(v.kit)}</span></div><button class="v2-sq" title="Fechar" onclick="uiV2Fin.fecharDlg()">${ic('x')}</button></header>
+      ${v.oc ? `<div class="vfin-nota" style="margin:0">${ic('info')}Já existe um orçamento de compra (${esc(ocForn || 'sem fornecedor')}${v.oc.valor ? ', ' + brl(v.oc.valor) : ''}). Confirmar marca ele como comprado.</div>` : `
+      <label class="vfin-campo"><span>Distribuidora</span><select id="vfin-c-forn" onchange="document.getElementById('vfin-c-outro').hidden = this.value !== 'Outra'">${forn.map((f) => `<option>${f}</option>`).join('')}<option>Outra</option></select></label>
+      <label class="vfin-campo" id="vfin-c-outro" hidden><span>Nome da distribuidora</span><input id="vfin-c-outro-nome" type="text" autocomplete="off"></label>
+      <label class="vfin-campo"><span>Valor pago pelo kit (R$)</span><input id="vfin-c-valor" type="number" step="0.01" min="0" inputmode="decimal" value="${v.custo_kit != null ? Math.round(Number(v.custo_kit) * 100) / 100 : ''}" placeholder="Ex.: 8500"></label>
+      ${v.custo_kit != null && v.custo_fonte === 'catalogo' ? `<small class="vfin-dica">Preenchido com o custo do catálogo. Troque pelo valor real da nota.</small>` : ''}`}
+      <label class="vfin-check"><input id="vfin-c-chegou" type="checkbox"><span>O kit já chegou</span></label>
+      <div class="vfin-dlg-acts"><button class="v2-btn2" onclick="uiV2Fin.fecharDlg()">Cancelar</button><button class="v2-btnp" id="vfin-c-ok" onclick="uiV2Fin.compraSalvar('${esc(v.id)}')">${ic('check')}Registrar compra</button></div>`);
+  }
+  async function compraSalvar(id) {
+    const v = VEN.rows.find((x) => x.id === id); if (!v) return;
+    const btn = document.getElementById('vfin-c-ok'); if (btn) btn.disabled = true;
+    const chegou = !!(document.getElementById('vfin-c-chegou') || {}).checked;
+    try {
+      let ocId = v.oc && v.oc.id;
+      if (!ocId) {
+        const sel = (document.getElementById('vfin-c-forn') || {}).value || '';
+        const forn = sel === 'Outra' ? String((document.getElementById('vfin-c-outro-nome') || {}).value || '').trim() : sel;
+        const valor = parseFloat(String((document.getElementById('vfin-c-valor') || {}).value || '').replace(',', '.'));
+        if (!(valor > 0)) { if (window.finToast) finToast('Informe o valor pago pelo kit', 'warn'); if (btn) btn.disabled = false; return; }
+        const r = await window.finRpc('create_fin_oc', { p_fin_projeto_id: v.id, p_fornecedor: forn, p_valor: valor, p_modulos: '', p_inversor: '', p_potencia: '', p_validade: null });
+        ocId = r && r.id;
+      }
+      await window.finRpc('set_fin_oc_status', { p_id: ocId, p_status: chegou ? 'entregue' : 'comprado' });
+    } catch (_) { if (btn) btn.disabled = false; return; }
+    fecharDlg();
+    if (window.finToast) finToast(chegou ? 'Compra registrada: kit entregue' : 'Compra registrada', 'ok');
+    await depoisDaAcao(document.getElementById('vfin-ficha') ? id : null);
+  }
+  async function chegou(id) {
+    const v = VEN.rows.find((x) => x.id === id); if (!v || !v.oc) return;
+    if (!confirm(`Confirmar que o kit de ${v.cli} chegou?`)) return;
+    try { await window.finRpc('set_fin_oc_status', { p_id: v.oc.id, p_status: 'entregue' }); } catch (_) { return; }
+    if (window.finToast) finToast('Kit entregue', 'ok');
+    await depoisDaAcao(document.getElementById('vfin-ficha') ? id : null);
+  }
+  async function comAcao(comId, status) {
+    try { await window.finRpc('set_fin_comissao_status', { p_id: comId, p_status: status }); } catch (_) { return; }
+    if (window.finToast) finToast(status === 'pago' ? 'Comissão paga' : 'Comissão liberada', 'ok');
+    const v = VEN.rows.find((x) => x.com && x.com.id === comId);
+    await depoisDaAcao(v && document.getElementById('vfin-ficha') ? v.id : null);
+  }
+
+  // ==================== A PAGAR (compra dos kits + comissões) ====================
+  const PAG = { com: [] };
+  const pagEstado = () => (state.finPagV2 = state.finPagV2 || { cmp: 'todos', com: 'todos' });
+  const pagSub = () => ((state.finSub && state.finSub.apagar) === 'comissoes' ? 'comissoes' : 'compras');
+  async function renderAPagar(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'fin-apagar';
+    setPageMeta('fin:apagar', 'A pagar', 'Carregando…');
+    container.innerHTML = `<div class="vfin-pag"><div class="v2-card v2-empty">Carregando…</div></div>`;
+    await pintarAPagar(true);
+  }
+  async function pintarAPagar(buscar = true) {
+    if (buscar) {
+      const [, com] = await Promise.all([carregarVendas(), window.finRpc('list_fin_comissoes', { p_filter: 'todos' }).catch(() => null)]);
+      if (com) { PAG.com = com; window.finUsarComissoes(com); }
+    }
+    if (!naTela('apagar', '.vfin-pag')) return;
+    const b = box(), wrap = b.querySelector('.vfin-pag');
+    const aComprar = VEN.rows.filter((v) => v.kitSt === 'a_comprar');
+    const comAP = PAG.com.filter((x) => x.st !== 'pago');
+    const semCusto = aComprar.filter((v) => v.custo_kit == null).length;
+    setPageMeta('fin:apagar', 'A pagar', `${plural(aComprar.length, 'kit a comprar', 'kits a comprar')} · ${curto(comAP.reduce((s, x) => s + (Number(x.valor) || 0), 0))} em comissões`);
+    const sub = pagSub();
+    const seg = (id, lbl, icone, n) => `<button class="${sub === id ? 'on' : ''}" onclick="uiV2Fin.pagSeg('${id}')">${ic(icone)}${lbl}<em>${n}</em></button>`;
+    wrap.innerHTML = `<div class="v2-seg vfin-seg">${seg('compras', 'Compra dos kits', 'package', aComprar.length)}${seg('comissoes', 'Comissões', 'hand-coins', comAP.length)}</div>
+      <div class="vfin-pag-body"></div>`;
+    if (sub === 'compras') pintarCompras(semCusto); else pintarComissoes();
+  }
+  function pintarCompras() {
+    const host = box().querySelector('.vfin-pag-body'); if (!host) return;
+    const st = pagEstado();
+    let base = VEN.rows;
+    const foco = state.finFoco && state.finFoco.sub === 'ordemcompra' ? state.finFoco : null;
+    if (foco) base = base.filter((v) => (foco.cliente_id ? v.cliente_id === foco.cliente_id : v.cli.toLowerCase() === String(foco.nome || '').toLowerCase()));
+    const cnt = { todos: base.length }; base.forEach((v) => { cnt[v.kitSt] = (cnt[v.kitSt] || 0) + 1; });
+    const lista = base.filter((v) => st.cmp === 'todos' || v.kitSt === st.cmp)
+      .sort((x, y) => (x.kitSt !== 'a_comprar') - (y.kitSt !== 'a_comprar') || y.recebido - x.recebido || y.pago - x.pago);
+    const pill = (lbl, val) => `<button class="${st.cmp === val ? 'on' : ''}" onclick="uiV2Fin.pagSet('cmp','${val}')">${lbl}<em>${cnt[val] || 0}</em></button>`;
+    const pagou = (v) => (v.recebido ? '<span class="v2-chip dot t-green">Sim</span>' : v.pago > 0 ? '<span class="v2-chip dot t-blue">Em parte</span>' : '<span class="v2-chip dot t-gray">Ainda não</span>');
+    host.innerHTML = `
+      ${foco ? `<div class="v2-card vfin-foco">${ic('filter')}<span>Mostrando só <b>${esc(foco.nome || 'o cliente')}</b>, vindo da aba Vendas</span><div class="v2-grow"></div>
+        <button class="v2-btn2" onclick="uiV2Fin.focoLimpar()">${ic('filter-x')}Ver todos</button><button class="v2-btn2" onclick="finFocoVoltar()">${ic('arrow-left')}Voltar para Vendas</button></div>` : ''}
+      <div class="v2-pills">${pill('Todas', 'todos')}${pill('A comprar', 'a_comprar')}${pill('Compradas', 'comprado')}${pill('Entregues', 'entregue')}</div>
+      ${lista.length ? `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+        <thead><tr><th>Cliente e kit</th><th class="hide-m">Distribuidora</th><th class="hide-m">Custo do kit</th><th class="hide-m">Cliente pagou?</th><th class="hide-m">Situação</th><th></th></tr></thead>
+        <tbody>${lista.map((v) => {
+          const s = KIT_ST[v.kitSt], prio = v.kitSt === 'a_comprar' && v.recebido, id = esc(v.id);
+          const custo = v.comprado ? brl(v.custo_kit) : v.custo_kit != null ? `${brl(v.custo_kit)}<small class="vfin-s">estimado</small>` : '<span class="vfin-mg sem">—</span>';
+          const forn = v.oc && v.oc.fornecedor ? esc(v.oc.fornecedor) : '<span class="muted">—</span>';
+          const acao = v.kitSt === 'a_comprar' ? `<button class="v2-btnp vfin-acao" onclick="event.stopPropagation(); uiV2Fin.compra('${id}')">${ic('shopping-cart')}<span class="hide-m">Registrar compra</span></button>`
+            : v.kitSt === 'comprado' ? `<button class="v2-btn2" onclick="event.stopPropagation(); uiV2Fin.chegou('${id}')">${ic('truck')}<span class="hide-m">Chegou</span></button>` : '';
+          return `<tr onclick="uiV2Fin.ficha('${id}')">
+            <td><div class="v2-who">${avatar(v.cli)}<div style="min-width:0"><span class="v2-nmrow"><span class="v2-nm">${esc(v.cli)}</span>${v.custo_kit != null ? `<b class="v2-mval">${curto(v.custo_kit)}</b>` : ''}</span><small class="vfin-kit">${esc(v.kit)}</small>${prio ? `<small class="vfin-aviso o">${ic('triangle-alert')}Cliente já pagou: comprar</small>` : ''}<span class="show-m v2-mline"><span class="v2-chip dot ${s[1]}">${s[0]}</span></span></div></div></td>
+            <td class="hide-m">${forn}</td>
+            <td class="hide-m" style="font-weight:800">${custo}</td>
+            <td class="hide-m">${pagou(v)}</td>
+            <td class="hide-m"><span class="v2-chip dot ${s[1]}">${v.kitSt === 'a_comprar' && v.oc ? 'Orçamento' : s[0]}</span></td>
+            <td><div class="v2-acts">${acao}</div></td></tr>`;
+        }).join('')}</tbody></table></div></div>`
+        : `<div class="v2-card v2-empty">${VEN.rows.length ? 'Nenhuma compra com esse filtro.' : 'Nenhuma venda ainda.'}</div>`}`;
+    icons();
+  }
+  function pintarComissoes() {
+    const host = box().querySelector('.vfin-pag-body'); if (!host) return;
+    const st = pagEstado(), rows = PAG.com.map((x) => ({ ...x, vend: nomeVend(x.vendedor) }));
+    // cartões só de quem tem algo a receber (a liberar ou liberado), maior valor primeiro
+    const porVend = {};
+    rows.forEach((x) => { const p = (porVend[x.vend] = porVend[x.vend] || { n: 0, liberar: 0, liberado: 0, pago: 0, ids: [] }); p.n++; p[x.st] = (p[x.st] || 0) + (Number(x.valor) || 0); if (x.st === 'liberado') p.ids.push(x.id); });
+    const cards = Object.entries(porVend).filter(([, p]) => p.liberar + p.liberado > 0).sort((a, b) => (b[1].liberar + b[1].liberado) - (a[1].liberar + a[1].liberado));
+    const card = ([nome, p]) => `<div class="v2-card vfin-vend">
+        <div class="v2-who" style="margin-bottom:14px"><i class="v2-ini round">${esc(nome.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase())}</i><div><span class="v2-nm">${esc(nome)}</span><small>${plural(p.n, 'venda', 'vendas')}</small></div></div>
+        <div class="vfin-vt"><div><small>A liberar</small><b>${brl(p.liberar)}</b></div><div><small>Liberada</small><b>${brl(p.liberado)}</b></div><div><small>Paga</small><b class="g">${brl(p.pago)}</b></div></div>
+        <button class="v2-btn2" style="width:100%;justify-content:center;margin-top:14px" ${p.liberado ? '' : 'disabled'} onclick="uiV2Fin.pagarLiberadas('${esc(nome)}')">${ic('check-check')}Pagar o que está liberado</button>
+      </div>`;
+    const cnt = { todos: rows.length }; rows.forEach((x) => { cnt[x.st] = (cnt[x.st] || 0) + 1; });
+    const lista = rows.filter((x) => st.com === 'todos' || x.st === st.com);
+    const pill = (lbl, val) => `<button class="${st.com === val ? 'on' : ''}" onclick="uiV2Fin.pagSet('com','${val}')">${lbl}<em>${cnt[val] || 0}</em></button>`;
+    const acts = (x) => x.st === 'pago' ? '' : `${x.st === 'liberar' ? `<button class="v2-btn2" onclick="event.stopPropagation(); finComLiberar('${esc(x.id)}')">${ic('unlock')}Liberar</button>` : `<button class="v2-btnp vfin-acao" onclick="event.stopPropagation(); finComPagar('${esc(x.id)}')">${ic('check')}<span class="hide-m">Marcar paga</span></button>`}<button class="v2-sq hide-m" title="Ajustar %" onclick="event.stopPropagation(); finComAjustar('${esc(x.id)}', ${Number(x.pct) || 0})">${ic('percent')}</button>`;
+    host.innerHTML = `
+      ${cards.length ? `<div class="vfin-vends">${cards.map(card).join('')}</div>` : ''}
+      <div class="v2-pills">${pill('Todas', 'todos')}${pill('A liberar', 'liberar')}${pill('Liberadas', 'liberado')}${pill('Pagas', 'pago')}</div>
+      ${lista.length ? `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+        <thead><tr><th>Vendedor e cliente</th><th class="hide-m">Venda</th><th class="hide-m">%</th><th class="hide-m">Comissão</th><th class="hide-m">Situação</th><th></th></tr></thead>
+        <tbody>${lista.map((x) => { const s = COM_ST[x.st] || [x.st, 't-gray']; return `<tr>
+          <td><div class="v2-who"><i class="v2-ini round">${esc(x.vend.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase())}</i><div style="min-width:0"><span class="v2-nmrow"><span class="v2-nm">${esc(x.vend)}</span><b class="v2-mval">${brl(x.valor)}</b></span><small>${esc(x.cliente)}</small><span class="show-m v2-mline"><span class="v2-chip dot ${s[1]}">${s[0]}</span><span class="v2-minfo" style="color:var(--v2-gray)">${pct(Number(x.pct))} de ${curto(x.base)}</span></span></div></div></td>
+          <td class="hide-m muted">${brl(x.base)}</td><td class="hide-m muted">${pct(Number(x.pct))}</td>
+          <td class="hide-m" style="font-weight:800">${brl(x.valor)}</td>
+          <td class="hide-m"><span class="v2-chip dot ${s[1]}">${s[0]}</span></td>
+          <td><div class="v2-acts">${acts(x)}</div></td></tr>`; }).join('')}</tbody></table></div></div>`
+        : `<div class="v2-card v2-empty">${rows.length ? 'Nenhuma comissão com esse filtro.' : 'Nenhuma comissão ainda.'}</div>`}`;
+    icons();
+  }
+  async function pagarLiberadas(nome) {
+    const ids = PAG.com.filter((x) => nomeVend(x.vendedor) === nome && x.st === 'liberado');
+    if (!ids.length) return;
+    const total = ids.reduce((s, x) => s + (Number(x.valor) || 0), 0);
+    if (!confirm(`Marcar como pagas ${plural(ids.length, 'comissão', 'comissões')} de ${nome} (${brl(total)})?`)) return;
+    try { for (const x of ids) await window.finRpc('set_fin_comissao_status', { p_id: x.id, p_status: 'pago' }); } catch (_) { /* o erro já apareceu */ }
+    if (window.finToast) finToast('Comissões pagas', 'ok');
+    await depoisDaAcao(null);
+  }
+  function pagAberta() { return naTela('apagar', '.vfin-pag'); }
+
+  // ==================== VISÃO GERAL ====================
+  const FAT_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  async function renderVisao(container) {
+    container.className = 'v2s';
+    document.body.dataset.v2screen = 'fin-visao';
+    const mes = hoje().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    setPageMeta('fin:visao', 'Financeiro', `${mes.charAt(0).toUpperCase() + mes.slice(1)} · o que entra, o que falta receber e o que pagar`);
+    container.innerHTML = `<div class="vfin-visao"><div class="v2-card v2-empty">Carregando o resumo…</div></div>`;
+    const rpc = (n, a) => window.finRpc(n, a).catch(() => null);
+    const [k, ag, serie, tits, com] = await Promise.all([
+      rpc('get_fin_kpis_overview'), rpc('get_fin_aging'), rpc('get_fin_faturamento_series', { p_months: 24 }),
+      rpc('list_fin_titulos', { p_filter: 'todos' }), rpc('list_fin_comissoes', { p_filter: 'todos' }), carregarVendas(),
+    ]);
+    if (!naTela('visao', '.vfin-visao')) return;
+    pintarVisao(container.querySelector('.vfin-visao'), { k: k || {}, ag: ag || {}, serie: serie || {}, tits: tits || [], com: com || [] });
+  }
+  function pintarVisao(wrap, { k, ag, serie, tits, com }) {
+    const vs = VEN.rows;
+    const soma = (a, f) => a.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+    const vencidos = tits.filter((t) => t.st === 'vencido');
+    const semana = tits.filter((t) => t.st !== 'pago' && t.st !== 'vencido' && diasAte(t.venc_iso) != null && diasAte(t.venc_iso) <= 7);
+    const comprar = vs.filter((v) => v.etapa === 2);
+    const liberadas = com.filter((x) => x.st === 'liberado');
+    const aLiberar = com.filter((x) => x.st === 'liberar');
+    const nomes = (a, f) => { const n = [...new Set(a.map(f))]; return n.slice(0, 3).join(' · ') + (n.length > 3 ? ` e mais ${n.length - 3}` : ''); };
+    const need = [
+      vencidos.length && { tom: 'r', icon: 'triangle-alert', t: plural(vencidos.length, 'título vencido', 'títulos vencidos'), s: nomes(vencidos, (x) => x.cli), v: soma(vencidos, (x) => x.saldo), btn: 'Cobrar', run: "uiV2Fin.irRec('vencido')" },
+      comprar.length && { tom: 'o', icon: 'shopping-cart', t: `${plural(comprar.length, 'kit', 'kits')} para comprar (cliente já pagou)`, s: nomes(comprar, (x) => x.cli), v: soma(comprar, (x) => x.custo_kit), btn: 'Comprar', run: "uiV2Fin.irPag('compras')" },
+      semana.length && { tom: 'o', icon: 'calendar-clock', t: `${semana.length} ${semana.length === 1 ? 'vence' : 'vencem'} nos próximos 7 dias`, s: nomes(semana, (x) => x.cli), v: soma(semana, (x) => x.saldo), btn: 'Ver', run: "uiV2Fin.irRec('semana')" },
+      liberadas.length && { tom: 'b', icon: 'hand-coins', t: `${plural(liberadas.length, 'comissão liberada', 'comissões liberadas')} para pagar`, s: nomes(liberadas, (x) => nomeVend(x.vendedor)), v: soma(liberadas, (x) => x.valor), btn: 'Pagar', run: "uiV2Fin.irPag('comissoes','liberado')" },
+      aLiberar.length && { tom: 'b', icon: 'unlock', t: `${plural(aLiberar.length, 'comissão esperando', 'comissões esperando')} liberação`, s: nomes(aLiberar, (x) => nomeVend(x.vendedor)), v: soma(aLiberar, (x) => x.valor), btn: 'Liberar', run: "uiV2Fin.irPag('comissoes','liberar')" },
+    ].filter(Boolean);
+    const needCard = `<div class="v2-card vfin-need">
+      <div class="v2-ch"><div><h3>Precisa de você</h3><small>${need.length ? 'Em ordem de urgência' : 'Nada pendente'}</small></div></div>
+      ${need.length ? need.map((n) => `<div class="v2-lst click" onclick="${n.run}"><i class="v2-ini vfin-${n.tom}">${ic(n.icon)}</i><div class="tx"><b>${n.t}</b><small>${esc(n.s)}</small></div>${n.v ? `<span class="val hide-m">${brl(n.v)}</span>` : ''}<button class="v2-btn2" onclick="event.stopPropagation(); ${n.run}">${n.btn}${ic('arrow-right')}</button></div>`).join('') : '<div class="v2-empty">Tudo em dia 🎉</div>'}
+    </div>`;
+
+    const kpi = (o) => `<div class="v2-card v2-kpi ${o.hero ? 'hero' : ''}" onclick="${o.run}"><div class="h"><span>${o.label}</span><div class="ic" style="background:${o.cor}1F;color:${o.cor}">${ic(o.icon)}</div></div><div class="v">${o.v}</div><div class="foot"><span>${o.sub}</span></div></div>`;
+    const kitsAC = vs.filter((v) => v.kitSt === 'a_comprar');
+    const kitsVal = soma(kitsAC, (v) => v.custo_kit), kitsSem = kitsAC.filter((v) => v.custo_kit == null).length;
+    const aPagar = kitsVal + (Number(k.comissoes_a_pagar) || 0);
+    const kpis = `<div class="v2-kpis">
+      ${kpi({ hero: 1, label: 'A receber', v: curto(k.saldo_a_receber), icon: 'arrow-down-left', cor: '#008FD4', sub: plural(Number(k.titulos_abertos) || 0, 'título em aberto', 'títulos em aberto'), run: "uiV2Fin.irRec('todos')" })}
+      ${kpi({ label: 'Recebido no mês', v: curto(k.recebido_mes), icon: 'circle-check', cor: '#1FA971', sub: 'baixas registradas neste mês', run: "uiV2Fin.irRec('pago')" })}
+      ${kpi({ label: 'Vencido', v: curto(k.vencido), icon: 'triangle-alert', cor: '#D14343', sub: Number(k.vencido_count) ? plural(Number(k.vencido_count), 'título em atraso', 'títulos em atraso') : 'nada em atraso', run: "uiV2Fin.irRec('vencido')" })}
+      ${kpi({ label: 'A pagar', v: curto(aPagar), icon: 'arrow-up-right', cor: '#FAA519', sub: `${plural(kitsAC.length, 'kit a comprar', 'kits a comprar')}${kitsSem ? ` (${kitsSem} sem custo)` : ''} + comissões`, run: "uiV2Fin.irPag('compras')" })}
+    </div>`;
+
+    const andamento = `<div class="v2-card"><div class="v2-ch"><div><h3>Andamento das vendas</h3><small>Cada venda anda sozinha conforme recebe, compra o kit e paga a comissão</small></div><button class="v2-btn2" onclick="uiV2Fin.irVendas()">Ver vendas${ic('arrow-right')}</button></div>${trilho(vs, null, 'uiV2Fin.irVendas')}</div>`;
+
+    // faturamento: últimos 12 meses da série (os 'proj' últimos são previsão)
+    const todos = (serie.valores || []).map((x) => Number(x) || 0);
+    const proj = Number(serie.proj) || 0;
+    const vals = todos.slice(-12), off = todos.length - vals.length;
+    const endY = Number(serie.end_y) || hoje().getFullYear(), endM = Number(serie.end_m) || 0;
+    const rotulo = (i) => { const back = todos.length - 1 - (off + i); const d = new Date(endY, endM - back, 1); return FAT_MES[d.getMonth()]; };
+    const mx = Math.max(1, ...vals);
+    const atual = vals.length - 1 - proj;
+    const fat = `<div class="v2-card"><div class="v2-ch"><div><h3>Faturamento</h3><small>Últimos 12 meses${proj ? ' · os últimos são previsão (títulos a vencer)' : ''}</small></div><span class="v2-chip t-gray">${curto(vals.slice(0, vals.length - proj).reduce((a, b2) => a + b2, 0))} no período</span></div>
+      ${vals.length ? `<div class="v2-bars">${vals.map((v, i) => `<div class="v2-bar ${i === atual ? 'last' : ''} ${i > atual ? 'vfin-proj' : ''}"><div class="b" data-v="${brlC(v)}${i > atual ? ' previsto' : ''}" style="height:${Math.max(3, (v / mx) * 100)}%"></div><span>${rotulo(i)}</span></div>`).join('')}</div>
+      <div class="vfin-leg"><span><i class="f"></i>Mês atual</span><span><i></i>Meses anteriores</span>${proj ? '<span><i class="p"></i>Previsto</span>' : ''}</div>` : '<div class="v2-empty">Sem faturamento registrado ainda.</div>'}</div>`;
+
+    // resultado: só das vendas com custo do kit conhecido
+    const comCusto = vs.filter((v) => v.lucro != null), sem = vs.length - comCusto.length;
+    const r = { rec: soma(comCusto, (v) => v.valor), kit: soma(comCusto, (v) => v.custo_kit), out: soma(comCusto, (v) => v.outros), imp: soma(comCusto, (v) => v.imposto), com: soma(comCusto, (v) => (v.com ? v.com.valor : 0)), roy: soma(comCusto, (v) => Number(v.royalties) + Number(v.deducoes || 0)), luc: soma(comCusto, (v) => v.lucro) };
+    const lin = [['Vendido', r.rec], ['Custo dos kits', -r.kit], ...(r.out ? [['Outros custos', -r.out]] : []), ['Impostos', -r.imp], ['Comissões', -r.com], ['Royalties e fundo', -r.roy]];
+    const agL = [['Vence em mais de 7 dias', ag.a_vencer_7mais, 'var(--v2-blue)'], ['Vence nos próximos 7 dias', ag.vence_7d, '#FAA519'], ['Vencido até 30 dias', ag.vencido_30d, '#E0723A'], ['Mais de 30 dias (inadimplente)', ag.inadimplente, '#D14343']].map((a) => [a[0], Number(a[1]) || 0, a[2]]);
+    const agMx = Math.max(1, ...agL.map((a) => a[1]));
+    const resultado = `<div class="v2-card"><div class="v2-ch"><div><h3>Resultado</h3><small>${comCusto.length ? `${plural(comCusto.length, 'venda', 'vendas')} com custo do kit conhecido` : 'Vendas com custo do kit conhecido'}</small></div>${comCusto.length && r.rec ? `<span class="v2-chip ${r.luc / r.rec * 100 < VEN.margemMin ? 't-red' : 't-green'}">Margem ${pct(r.luc / r.rec * 100)}</span>` : ''}</div>
+      ${comCusto.length ? `<div class="vfin-res">${lin.map((l) => `<div><span>${l[0]}</span><b>${l[1] < 0 ? '− ' : ''}${brl(Math.abs(l[1]))}</b></div>`).join('')}<div class="res"><span>Sobrou</span><b>${brl(r.luc)}</b></div></div>` : '<div class="v2-empty" style="padding:14px 0">Ainda não dá pra calcular: nenhuma venda tem o custo do kit.</div>'}
+      ${sem ? `<div class="vfin-nota">${ic('info')}${plural(sem, 'venda ainda sem', 'vendas ainda sem')} custo do kit: ${sem === 1 ? 'entra' : 'entram'} quando a compra for registrada em A pagar.</div>` : ''}
+      <h4 class="vfin-sub">Vencimentos do que falta receber</h4>
+      <div class="vfin-aging">${agL.map((a) => `<div><div class="l"><span>${a[0]}</span><b>${brl(a[1])}</b></div><div class="t"><i style="width:${(a[1] / agMx) * 100}%;background:${a[2]}"></i></div></div>`).join('')}</div></div>`;
+
+    wrap.innerHTML = `${needCard}${kpis}${andamento}<div class="v2-row">${fat}${resultado}</div>`;
+    icons();
+  }
+
   // ==================== ligação com o financeiro.js ====================
-  // [aba, sub-aba] com tela nova. Sub-aba null = a aba inteira.
-  const TELAS = { recebiveis: { titulos: renderReceber } };
+  // Aba → tela nova. Recebíveis tem sub-abas: só Títulos é nova (Parcelamentos segue a antiga).
+  const TELAS = { visao: renderVisao, vendas: renderVendas, apagar: renderAPagar, recebiveis: { titulos: renderReceber } };
   function telaDe(tab) {
     const t = TELAS[tab]; if (!t) return null;
+    if (typeof t === 'function') return t;
     const sub = (state.finSub && state.finSub[tab]) || Object.keys(t)[0];
     return t[sub] || null;
   }
@@ -196,21 +663,39 @@
       if (!v2on()) return false;
       const fn = telaDe(tab);
       if (!fn) return false;
-      fecharMenu();
+      fecharMenu(); fecharFicha(); fecharDlg();
       try { fn(container); return true; } catch (err) { console.warn('[ui-v2-fin] tela nova falhou, usando a antiga', err); return false; }
     },
     // tela antiga vai desenhar: tira o .v2s e o título desta
     sair(container) {
-      fecharMenu();
+      fecharMenu(); fecharFicha(); fecharDlg();
       if (container) container.classList.remove('v2s');
       if (window.uiV2PageMeta && String(window.uiV2PageMeta.key || '').startsWith('fin:') && !(state.finActiveTab === 'recebiveis')) {
         window.uiV2PageMeta = null;
         if (window.uiV2Shell) window.uiV2Shell.refresh();
       }
     },
-    temTela(tab, sub) { return v2on() && !!(TELAS[tab] && TELAS[tab][sub]); },
+    temTela(tab, sub) { const t = TELAS[tab]; return v2on() && !!t && typeof t !== 'function' && !!t[sub]; },
     recAberta,
     recRecarregar,
+    // vendas
+    venSet(k, v) {
+      venEstado()[k] = v;
+      if (k === 'q') pintarVendasCorpo(); else pintarVendas();
+    },
+    venEtapa(i) { const st = venEstado(); st.f = st.f === i ? null : i; pintarVendasCorpo(); },
+    venExportar,
+    ficha, fecharFicha, verTitulos, compra, compraSalvar, chegou, comAcao, fecharDlg,
+    // a pagar
+    pagAberta,
+    pagRecarregar: () => pintarAPagar(true),
+    pagSeg(id) { state.finSub = state.finSub || {}; state.finSub.apagar = id; pintarAPagar(false); },
+    pagSet(k, v) { pagEstado()[k] = v; if (pagSub() === 'compras') pintarCompras(); else pintarComissoes(); },
+    pagarLiberadas,
+    // atalhos (Visão geral)
+    irRec(f) { state.finRecV2 = { f: f || 'todos', q: '' }; state.finFoco = null; state.finSub = state.finSub || {}; state.finSub.recebiveis = 'titulos'; setTab('recebiveis'); window.scrollTo(0, 0); },
+    irPag(sub, filtro) { fecharFicha(); state.finFoco = null; state.finSub = state.finSub || {}; state.finSub.apagar = sub; if (filtro && sub === 'comissoes') pagEstado().com = filtro; setTab('apagar'); window.scrollTo(0, 0); },
+    irVendas(i) { const st = venEstado(); st.f = i == null ? null : i; setTab('vendas'); window.scrollTo(0, 0); },
     recSet(k, v) {
       recEstado()[k] = v;
       if (k === 'q') {

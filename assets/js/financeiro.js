@@ -690,6 +690,8 @@
   let finComRows = [];
   const finComById = id => finComRows.find(c => c.id === id);
   async function renderCom() {
+    // no visual novo as comissões ficam em A pagar (ui-v2-fin.js); as janelas daqui chamam renderCom ao salvar
+    if (!document.getElementById('com-table') && window.uiV2Fin && window.uiV2Fin.pagAberta()) return window.uiV2Fin.pagRecarregar();
     let rows = [];
     try { rows = await finRpc('list_fin_comissoes', { p_filter: 'todos' }) || []; } catch (_) {}
     finComRows = rows;
@@ -2619,22 +2621,23 @@
     ]},
   };
   // Mapa subárea → aba-pai (pra resolver setTab antigos e atalhos).
+  // 05/11/2026: o Financeiro passou a ter 5 abas (Visão geral, Vendas, A receber,
+  // A pagar, Config — ver ui-v2-fin.js). Os nomes antigos (atalhos, links salvos,
+  // aba Vendas do Comercial) caem na aba nova certa.
   const FIN_CHILD_TO_GROUP = {
-    parcelamentos: 'recebiveis',
-    orcamentos: 'compras', ordemcompra: 'compras',
-    precificacao: 'margem', custos: 'margem', dre: 'margem',
-    pendencias: 'acoes', aprovacoes: 'acoes',
-    comissoes: 'pagamentos',
+    titulos: 'recebiveis', parcelamentos: 'recebiveis',
+    funil: 'vendas', custos: 'vendas',
+    pagamentos: 'apagar', comissoes: 'apagar', conferencia: 'apagar',
+    compras: 'apagar', orcamentos: 'apagar', ordemcompra: 'apagar',
+    margem: 'visao', precificacao: 'visao', dre: 'visao',
+    acoes: 'visao', pendencias: 'visao', aprovacoes: 'visao', relatorios: 'visao',
   };
   function finResolveTab(tabId) {
     const grp = FIN_CHILD_TO_GROUP[tabId];
     if (!grp) return tabId;
-    if (grp === 'pagamentos') {
-      state.finPagSub = (tabId === 'comissoes') ? 'comissoes' : (state.finPagSub || 'conferencia');
-    } else {
-      state.finSub = state.finSub || {};
-      state.finSub[grp] = tabId;
-    }
+    state.finSub = state.finSub || {};
+    if (grp === 'apagar') state.finSub.apagar = (tabId === 'comissoes' || tabId === 'pagamentos') ? 'comissoes' : 'compras';
+    else if (grp === 'recebiveis') state.finSub.recebiveis = tabId === 'parcelamentos' ? 'parcelamentos' : 'titulos';
     return grp;
   }
   // Precificação interna é só de admin: some da barra para os demais perfis.
@@ -2772,7 +2775,7 @@
       if (state.environment === 'financeiro') state.finActiveTab = _grp;
     }
 
-    if (state.finFoco && state.finFoco.grupo !== tabId) state.finFoco = null;
+    if (state.finFoco && (FIN_CHILD_TO_GROUP[state.finFoco.grupo] || state.finFoco.grupo) !== tabId) state.finFoco = null;
 
     // Visual novo: as telas já refeitas (ui-v2-fin.js) assumem; as demais seguem aqui.
     if (window.uiV2Fin && window.uiV2Fin.render(container, tabId)) { if (window.lucide) lucide.createIcons(); return; }
@@ -2790,10 +2793,11 @@
   /* ----------------------------------------------- EXPOSE (window) */
   // usado pelo ui-v2-fin.js: mesma busca (com guardado) e a lista que as janelas de título consultam
   function finUsarTitulos(rows) { finTitulos = Array.isArray(rows) ? rows : []; }
+  function finUsarComissoes(rows) { finComRows = Array.isArray(rows) ? rows : []; }
 
   Object.assign(window, {
     renderFinRoute,
-    finRpc, finUsarTitulos,
+    finRpc, finUsarTitulos, finUsarComissoes,
     finResolveTab,
     finToast,
     // recebíveis (ações + lançamento + edição)
