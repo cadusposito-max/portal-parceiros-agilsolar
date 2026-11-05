@@ -41,9 +41,6 @@ html[data-ui="v2"] .v2s .v2om-info span { display: flex; align-items: center; ga
 html[data-ui="v2"] .v2s .v2om-info svg { width: 15px !important; height: 15px !important; color: var(--v2-gray); }
 
 /* Central: pendências em até 2 linhas */
-html[data-ui="v2"] .v2s .v2om-pend .v2-lst { align-items: flex-start; }
-html[data-ui="v2"] .v2s .v2om-pend .v2-lst b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-html[data-ui="v2"] .v2s .v2om-pend .v2-ini svg { width: 16px; height: 16px; }
 html[data-ui="v2"] .v2s .v2-ini.v2om-r { background: rgba(209,67,67,.12); color: #D14343; }
 
 /* Central: progresso do mês */

@@ -152,10 +152,10 @@
     setPageMeta('om:central', titulo, sub);
     container.innerHTML = `<div class="v2-card v2-empty">Carregando a central…</div>`;
 
-    const nomes = ['get_om_kpis_central', 'get_om_weekly_activity', 'list_om_os', 'list_om_propostas', 'list_om_pendencias', 'list_om_tecnicos'];
+    const nomes = ['get_om_kpis_central', 'get_om_weekly_activity', 'list_om_os', 'list_om_propostas', 'list_om_tecnicos'];
     const res = await Promise.all(nomes.map((n) => supabaseClient.rpc(n).then((r) => r, (e) => ({ error: e }))));
     if (state.environment !== 'om' || state.omActiveTab !== 'central') return; // trocou de tela no meio
-    const [kRaw, sem, os, props, pend, tecs] = res.map((r, i) => (r && !r.error && r.data) || (i === 0 ? {} : []));
+    const [kRaw, sem, os, props, tecs] = res.map((r, i) => (r && !r.error && r.data) || (i === 0 ? {} : []));
     const k = kRaw || {};
     setPageMeta('om:central', titulo, sub); // o render do shell pode ter limpado durante a espera
 
@@ -196,11 +196,6 @@
         ${ult.map((p) => { const st = pst(p.status); return `<tr onclick="omOpenPropostaDetail('${esc(p.id)}')"><td><div class="v2-who">${avServico(p.tipo_servico)}<div class="v2om-tx">${esc(p.cliente || 'Sem cliente')}<small>#${esc(p.numero || '—')} · ${esc(p.tipo_servico || 'Serviço')}</small></div></div></td><td style="text-align:right"><b class="v2om-val">${brl(p.valor_final)}</b><span class="v2-chip dot ${st[2]}">${st[0]}</span></td></tr>`; }).join('')}
       </tbody></table></div>` : '<div class="v2-empty">Nenhuma proposta ainda.</div>'}</div>`;
 
-    const crit = pend.filter((p) => ['alta', 'critica'].includes(p.criticidade) && !['resolvida', 'ignorada'].includes(p.status)).slice(0, 4);
-    const pendCard = `<div class="v2-card v2om-pend">
-      <div class="v2-ch"><div><h3>Pendências críticas</h3><small>${crit.length ? plural(crit.length, 'esperando solução', 'esperando solução') : 'Tudo em dia'}</small></div></div>
-      ${crit.length ? crit.map((p) => { const c = CRIT[p.criticidade] || CRIT.media; return `<div class="v2-lst"><i class="v2-ini ${p.criticidade === 'critica' ? 'v2om-r' : 'o'}">${ic('triangle-alert')}</i><div class="tx"><b>${esc(p.descricao || '—')}</b><small>${esc(p.cliente || '—')}${p.os_numero ? ' · ' + esc(p.os_numero) : ''}</small></div><span class="v2-chip dot ${c[1]}">${c[0]}</span></div>`; }).join('') : '<div class="v2-empty">Nenhuma pendência crítica.</div>'}</div>`;
-
     const equipe = `<div class="v2-card">
       <div class="v2-ch"><div><h3>Equipe em campo</h3><small>${plural(tecs.length, 'técnico', 'técnicos')}</small></div><button class="v2-btn2" onclick="setTab('agenda')">Agenda${ic('arrow-right')}</button></div>
       ${tecs.length ? tecs.map((t) => {
@@ -226,7 +221,7 @@
       </div>
       ${kpis}
       <div class="v2-row">${semana}${proxima}</div>
-      <div class="v2-row">${propsCard}${pendCard}</div>
+      ${propsCard}
       <div class="v2-row">${equipe}${progresso}</div>`;
     icons();
   }
