@@ -525,13 +525,42 @@ async function omRefreshAccess() {
 // Lê no backend se o usuário corrente pode ver o ambiente Financeiro.
 // Admin sempre pode; demais dependem da flag fin_enabled. (Espelha omRefreshAccess.)
 async function finRefreshAccess() {
-  if (state.isAdmin) { state.canFin = true; return; }
-  try {
-    const { data, error } = await supabaseClient.rpc('fin_can_use_current_user');
-    state.canFin = !error && data === true;
-  } catch (_) {
-    state.canFin = false;
+  if (state.isAdmin) { state.canFin = true; }
+  else {
+    try {
+      const { data, error } = await supabaseClient.rpc('fin_can_use_current_user');
+      state.canFin = !error && data === true;
+    } catch (_) {
+      state.canFin = false;
+    }
   }
+  // quem tem acesso já baixa o módulo em segundo plano (abrir fica instantâneo)
+  if (state.canFin) {
+    const cedo = () => carregarFinanceiro().catch(() => {});
+    if ('requestIdleCallback' in window) requestIdleCallback(cedo, { timeout: 4000 }); else setTimeout(cedo, 1500);
+  }
+}
+
+// O módulo Financeiro (financeiro.js + ui-v2-fin.js, ~230 KB) não vem no
+// carregamento da página: só quem tem acesso baixa. Os endereços (com ?v=)
+// ficam no index.html, em window.__scriptsSobDemanda.financeiro.
+let _finCarregando = null;
+function carregarFinanceiro() {
+  if (typeof renderFinRoute === 'function') return Promise.resolve();
+  if (_finCarregando) return _finCarregando;
+  const srcs = (window.__scriptsSobDemanda && window.__scriptsSobDemanda.financeiro) || [];
+  const um = (src) => new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = false; // na ordem: ui-v2-fin.js usa o que o financeiro.js expõe
+    s.onload = resolve;
+    s.onerror = () => { s.remove(); reject(new Error('Falha ao carregar ' + src)); };
+    document.head.appendChild(s);
+  });
+  _finCarregando = Promise.all(srcs.map(um))
+    .then(() => { if (typeof renderFinRoute !== 'function') throw new Error('Módulo Financeiro não inicializou'); })
+    .catch((err) => { _finCarregando = null; throw err; });
+  return _finCarregando;
 }
 
 // Lê se o usuário corrente pode ver o ambiente Vistoria.
@@ -1758,7 +1787,14 @@ function _renderContentImpl() {
     if (typeof renderFinRoute === 'function') {
       renderFinRoute(container, state.finActiveTab);
     } else {
-      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Financeiro não carregado.</div>';
+      // primeiro acesso antes do download em segundo plano terminar
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Carregando o Financeiro…</div>';
+      carregarFinanceiro()
+        .then(() => { if (state.environment === 'financeiro') renderContent(); })
+        .catch(() => {
+          if (state.environment !== 'financeiro') return;
+          container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Não foi possível carregar o Financeiro. Verifique a internet e tente de novo.</div>';
+        });
     }
     queueAppLucideCreateIcons();
     return;

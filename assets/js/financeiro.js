@@ -2,9 +2,9 @@
 // MÓDULO FINANCEIRO — 3º ambiente do Portal Parceiros (acento teal/verde-água)
 // Espelha o padrão do om.js (ambiente próprio com abas + roteador).
 //
-// FASE A: porta o protótipo (claude-design/financeiro) para o app real com
-// DADOS DE EXEMPLO, deixando todas as 15 abas navegáveis. As fases seguintes
-// trocam os dados de exemplo por RPCs (fin_*) e ligam as ações de verdade.
+// Todos os dados vêm das RPCs fin_* (finRpc, com 20s de guardado nas leituras).
+// O arquivo só é baixado por quem tem acesso ao Financeiro (ver carregarFinanceiro
+// em app.js). No visual novo, as telas já refeitas ficam em ui-v2-fin.js.
 //
 // Tudo encapsulado em IIFE; só os símbolos usados pela app (renderFinRoute) e
 // pelos handlers inline (onclick) são expostos em window no final.
@@ -13,52 +13,12 @@
   'use strict';
 
   /* ---------------------------------------------------------------- DADOS */
-  const recebiveis = [
-    { cli:'Solar Vale Ltda',     proj:'Usina 84 kWp',   doc:'NF 1042', emi:'02/05', venc:'17/05', val:'R$ 18.400', st:'pago' },
-    { cli:'EcoEnergia ME',       proj:'Telhado 22 kWp', doc:'NF 1041', emi:'28/04', venc:'28/05', val:'R$ 32.900', st:'avencer' },
-    { cli:'Construtora Sol',     proj:'Galpão 60 kWp',  doc:'NF 1039', emi:'15/04', venc:'10/05', val:'R$ 9.750',  st:'vencido' },
-    { cli:'Mercado Central',     proj:'32 kWp',         doc:'NF 1045', emi:'06/05', venc:'20/05', val:'R$ 14.200', st:'avencer' },
-    { cli:'Usina Boa Vista',     proj:'84 kWp',         doc:'NF 1031', emi:'02/04', venc:'29/04', val:'R$ 27.600', st:'vencido' },
-    { cli:'Residencial Aurora',  proj:'12 kWp',         doc:'NF 1047', emi:'09/05', venc:'08/06', val:'R$ 7.480',  st:'avencer' },
-    { cli:'AgroLuz Cooperativa', proj:'140 kWp',        doc:'NF 1044', emi:'04/05', venc:'14/05', val:'R$ 41.300', st:'pago' },
-  ];
   const stMap = {
     pago:    { l:'Pago',     c:'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' },
     avencer: { l:'A vencer', c:'bg-yellow-500/10 text-yellow-400 border-yellow-500/25' },
     vencido: { l:'Vencido',  c:'bg-red-500/10 text-red-400 border-red-500/25' },
   };
   const pill = (st) => `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 border text-[9px] font-black uppercase tracking-widest ${stMap[st].c}"><span class="w-1 h-1 bg-current"></span>${stMap[st].l}</span>`;
-
-  const comissoes = [
-    { p:'João Mendes',    proj:4, base:'R$ 184.000', pc:'5,0%', com:'R$ 9.200', st:'liberar' },
-    { p:'Marina Costa',   proj:3, base:'R$ 142.500', pc:'4,5%', com:'R$ 6.412', st:'liberar' },
-    { p:'Pedro Almeida',  proj:2, base:'R$ 98.000',  pc:'5,0%', com:'R$ 4.900', st:'pago' },
-    { p:'Ana Ribeiro',    proj:5, base:'R$ 210.300', pc:'4,0%', com:'R$ 8.412', st:'pago' },
-    { p:'Carlos Tavares', proj:1, base:'R$ 47.600',  pc:'5,0%', com:'R$ 2.380', st:'liberar' },
-  ];
-  const comSt = { liberar:{l:'A liberar',c:'fin-acc-chip border border-[color:var(--fin-border-30)]'}, pago:{l:'Pago',c:'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'} };
-
-  const orcamentos = [
-    { cli:'Indústria Metalsol',  kwp:'180 kWp', val:'R$ 642.000', cst:'R$ 498.000', mg:22, st:'ok' },
-    { cli:'Fazenda São Jorge',   kwp:'96 kWp',  val:'R$ 318.000', cst:'R$ 251.000', mg:21, st:'ok' },
-    { cli:'Condomínio Sol Nasc.',kwp:'48 kWp',  val:'R$ 162.000', cst:'R$ 152.300', mg:6,  st:'baixa' },
-    { cli:'Loja Center Norte',   kwp:'28 kWp',  val:'R$ 104.000', cst:'R$ 79.000',  mg:24, st:'ok' },
-    { cli:'Clínica Vida',        kwp:'18 kWp',  val:'R$ 71.000',  cst:'R$ 57.800',  mg:19, st:'ok' },
-    { cli:'Posto Avenida',       kwp:'40 kWp',  val:'R$ 138.000', cst:'R$ 131.000', mg:5,  st:'baixa' },
-  ];
-  const precificacao = [
-    { k:'Kit 5,5 kWp · Inversor',  cst:'R$ 14.200', mk:'1,42×', pr:'R$ 20.160', mg:22 },
-    { k:'Kit 8,2 kWp · Microinv.', cst:'R$ 22.800', mk:'1,40×', pr:'R$ 31.920', mg:21 },
-    { k:'Kit 12 kWp · Trifásico',  cst:'R$ 31.500', mk:'1,38×', pr:'R$ 43.470', mg:20 },
-    { k:'Estrutura solo · 30 kWp', cst:'R$ 9.800',  mk:'1,55×', pr:'R$ 15.190', mg:27 },
-    { k:'Serviço instalação',      cst:'R$ 3.200',  mk:'1,60×', pr:'R$ 5.120',  mg:30 },
-  ];
-  const parcelamentos = [
-    { cli:'Solar Vale Ltda',    tot:'R$ 184.000', n:12, pg:5, prox:'05/06', st:'em_dia' },
-    { cli:'AgroLuz Coop.',      tot:'R$ 240.000', n:24, pg:9, prox:'10/06', st:'em_dia' },
-    { cli:'Construtora Sol',    tot:'R$ 96.000',  n:10, pg:3, prox:'01/06', st:'atraso' },
-    { cli:'Residencial Aurora', tot:'R$ 48.000',  n:6,  pg:2, prox:'08/06', st:'em_dia' },
-  ];
   // DRE: dados reais via RPC get_fin_dre (ver renderDre / renderDreInline). Sem mock.
   let finDrePeriod = 'tudo';
 
@@ -98,10 +58,31 @@
   const brMoney = n => 'R$ ' + Math.round(Number(n) || 0).toLocaleString('pt-BR');
 
   // Chamador de RPC com tratamento de erro padrão.
+  // Leituras (get_/list_/search_) ficam guardadas por 20s: trocar de aba e voltar
+  // não busca tudo de novo, e duas partes da tela pedindo a mesma coisa juntas
+  // dividem a mesma busca. Qualquer gravação (baixar, liberar, criar...) limpa
+  // o guardado, então a tela seguinte já vem com o dado novo.
+  const FIN_CACHE_MS = 20000;
+  const finCache = new Map();
+  const finEhLeitura = (name) => /^(get|list|search)_/.test(name);
+  function finCacheLimpar() { finCache.clear(); }
   async function finRpc(name, args) {
-    const { data, error } = await supabaseClient.rpc(name, args || {});
-    if (error) { console.error('[financeiro] ' + name, error); finToast('Erro: ' + (error.message || name), 'err'); throw error; }
-    return data;
+    const leitura = finEhLeitura(name);
+    const chave = leitura ? name + ':' + JSON.stringify(args || {}) : null;
+    if (leitura) {
+      const c = finCache.get(chave);
+      if (c && Date.now() - c.t < FIN_CACHE_MS) return c.p;
+    } else {
+      finCacheLimpar();
+    }
+    const p = (async () => {
+      const { data, error } = await supabaseClient.rpc(name, args || {});
+      if (error) { console.error('[financeiro] ' + name, error); finToast('Erro: ' + (error.message || name), 'err'); throw error; }
+      return data;
+    })();
+    if (leitura) { finCache.set(chave, { t: Date.now(), p }); p.catch(() => finCache.delete(chave)); }
+    else p.then(finCacheLimpar, finCacheLimpar); // o que foi lido durante a gravação também sai
+    return p;
   }
 
   /* -------------------------------------------- GRÁFICO DE FATURAMENTO */
@@ -281,8 +262,12 @@
   }
   // Agregados extras do dashboard: ação, projeção de caixa, sparklines, margem, DRE inline, risco.
   async function finLoadDashboardExtras() {
-    let d = null;
-    try { d = await finRpc('get_fin_dashboard'); } catch (_) {}
+    // as três buscas saem juntas (antes era uma depois da outra)
+    const riscoP = renderRiscoBox();
+    const [d, dre] = await Promise.all([
+      finRpc('get_fin_dashboard').catch(() => null),
+      finRpc('get_fin_dre', { p_period: 'tudo' }).catch(() => null),
+    ]);
     const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
     if (d) {
       const a = d.acao || {}, cx = d.caixa || {};
@@ -302,11 +287,9 @@
       } else if (dEl) { dEl.textContent = ''; }
     } else { renderSparklines(null); }
     // Margem + DRE inline numa única chamada compartilhada
-    let dre = null;
-    try { dre = await finRpc('get_fin_dre', { p_period: 'tudo' }); } catch (_) {}
     renderDreInline(dre);
     renderMargemGauge(dre);
-    renderRiscoBox();
+    await riscoP;
   }
   function renderMargemGauge(dre) {
     const val = document.getElementById('fin-margem-val');
@@ -648,9 +631,10 @@
   // Dashboard: KPIs (saldo/recebido/a vencer/vencido) + aging reais.
   const FIN_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   async function finLoadDashboard() {
-    let k = null, ag = null;
-    try { k = await finRpc('get_fin_kpis_overview'); } catch (_) {}
-    try { ag = await finRpc('get_fin_aging'); } catch (_) {}
+    const [k, ag] = await Promise.all([
+      finRpc('get_fin_kpis_overview').catch(() => null),
+      finRpc('get_fin_aging').catch(() => null),
+    ]);
     const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
     const now = new Date();
     set('fin-period-chip', FIN_MESES[now.getMonth()] + ' · ' + now.getFullYear());
@@ -1892,33 +1876,6 @@
     closeFinModal(); finToast('Custo atualizado', 'ok'); renderCustos();
   }
 
-  /* ----------------------------------- PAINÉIS ESTRUTURAIS (fases) */
-  const phasePanels = {}; // todas as abas viraram funcionais
-  function phasePanelHTML(key) {
-    const p = phasePanels[key];
-    return `
-      <div class="mb-5 flex items-start justify-between gap-3">
-        <div>
-          <div class="text-[10px] font-black uppercase tracking-[0.25em] fin-acc-strong mb-1">Financeiro · ${p.title}</div>
-          <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">${p.title}</h1>
-          <p class="text-neutral-500 text-sm font-medium mt-1 max-w-xl">${p.desc}</p>
-        </div>
-        <span class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest fin-acc-chip border border-[color:var(--fin-border-30)]"><i data-lucide="hammer" class="w-3 h-3"></i>${p.ph}</span>
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div class="metric-card p-5">
-          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300 mb-4">Subdivisões / status</div>
-          <div class="flex flex-wrap gap-2">${p.sub.map(s=>`<span class="px-3 py-1.5 text-[10px] font-bold bg-neutral-950 border border-neutral-800 text-neutral-400">${s}</span>`).join('')}</div>
-        </div>
-        <div class="metric-card p-5">
-          <div class="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300 mb-4">Ações principais</div>
-          <ul class="space-y-2">${p.acoes.map(a=>`<li class="flex items-start gap-2 text-sm text-neutral-300 font-medium"><i data-lucide="check" class="w-4 h-4 fin-acc shrink-0 mt-0.5"></i>${a}</li>`).join('')}</ul>
-        </div>
-      </div>
-      <div class="mt-3 p-4 border border-dashed border-neutral-800 bg-neutral-900/20 text-center">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-neutral-600">Estrutura definida · interface detalhada prevista para a ${p.ph}</p>
-      </div>`;
-  }
 
   /* ====================================================== PANEL HTML */
   function visaoHTML() {
@@ -2815,7 +2772,6 @@
 
     let inner;
     if (PANEL_BUILDERS[tabId]) inner = PANEL_BUILDERS[tabId]();
-    else if (phasePanels[tabId]) inner = phasePanelHTML(tabId);
     else inner = visaoHTML(), tabId = 'visao';
 
     container.innerHTML = `<div class="fin-env"><div class="max-w-[2560px] mx-auto px-4 py-6 md:py-8" data-fin-panel="${tabId}">${inner}</div></div>`;

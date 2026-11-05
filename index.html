@@ -1226,6 +1226,11 @@
   }
   function w(src)            { document.write('<script src="' + src + '"><\/script>'); }
   function local(file, ver)  { w('assets/js/' + file + '?v=' + ver + bust); }
+  // não carrega agora: só guarda o endereço (com a versão) para baixar quando precisar
+  function sobDemanda(grupo, file, ver) {
+    var m = window.__scriptsSobDemanda = window.__scriptsSobDemanda || {};
+    (m[grupo] = m[grupo] || []).push('assets/js/' + file + '?v=' + ver + bust);
+  }
 
   local('treino.js',           '20261007-treino');
   local('config.js',           '20261104-parceiro');
@@ -1266,14 +1271,15 @@
   local('chat.js',             '20260925-layout-c');
   local('om.js',               '20261103-om-fase3');
   local('om-os.js',            '20261103-om-fase3');
-  local('financeiro.js',       '20261019-andamento');
+  // Financeiro: baixado sob demanda (só quem tem acesso) — ver carregarFinanceiro() em app.js
+  sobDemanda('financeiro', 'financeiro.js', '20261105-fin1');
   local('vistoria.js',         '20260929-p22');
   local('vistoria-os.js',      '20260930-leve');
   local('engenharia.js',       '20261001-eng');
   local('eng-v2.js',           '20261104-titular-uc');
   local('proposta-calc.js',    '20261027-pdf-paisagem');
   local('rede.js',             '20261013-franq');
-  local('app.js',              '20261104-parceiro');
+  local('app.js',              '20261105-fin1');
   local('ui-v2.js',            '20260929-rel6');
   local('ui-v2-shell.js',      '20261104-parceiro');
   local('ui-v2-screens.js',    '20261030-kit-1linha');
