@@ -72,6 +72,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/tarefas.css?v=20261028-tarefa2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/contatos.css?v=20261104-halo" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/om.css?v=20261104-om-avisos" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/fin.css?v=20261105-fin2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/mobile.css?v=20261021-vendedor" data-ui-v2 media="not all">
   <!-- Launcher (escolha de ambiente): carrega sempre, usa os tokens do v2 com fallback claro -->
   <link rel="stylesheet" href="assets/css/ui-v2/launcher.css?v=20261006-lch">
@@ -1233,7 +1234,7 @@
   }
 
   local('treino.js',           '20261007-treino');
-  local('config.js',           '20261104-parceiro');
+  local('config.js',           '20261105-fin2');
   local('analytics.js',        '20260615-om-central-propostas');
   local('utils.js',            '20261029-cep');
   local('scroll-x.js',         '20261007-sx');
@@ -1272,7 +1273,8 @@
   local('om.js',               '20261103-om-fase3');
   local('om-os.js',            '20261103-om-fase3');
   // Financeiro: baixado sob demanda (só quem tem acesso) — ver carregarFinanceiro() em app.js
-  sobDemanda('financeiro', 'financeiro.js', '20261105-fin1');
+  sobDemanda('financeiro', 'financeiro.js', '20261105-fin2');
+  sobDemanda('financeiro', 'ui-v2-fin.js',  '20261105-fin2');
   local('vistoria.js',         '20260929-p22');
   local('vistoria-os.js',      '20260930-leve');
   local('engenharia.js',       '20261001-eng');

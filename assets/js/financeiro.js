@@ -368,6 +368,8 @@
   }
 
   async function renderRec(filter) {
+    // no visual novo a lista de títulos é a do ui-v2-fin.js (as janelas daqui chamam renderRec ao salvar)
+    if (!document.getElementById('rec-table') && window.uiV2Fin && window.uiV2Fin.recAberta()) return window.uiV2Fin.recRecarregar();
     if (filter) state.finFilters.recebiveis.f = filter;
     filter = state.finFilters.recebiveis.f || 'todos';
     try { finTitulos = await finRpc('list_fin_titulos', { p_filter: filter }) || []; } catch (_) { finTitulos = []; }
@@ -2651,6 +2653,8 @@
   function renderFinSub(groupId, sub) {
     const g = FIN_SUBGROUPS[groupId]; if (!g) return;
     state.finSub = state.finSub || {};
+    // sub-aba que tem tela nova (ex.: Títulos): redesenha a aba inteira pelo ui-v2-fin.js
+    if (sub && window.uiV2Fin && window.uiV2Fin.temTela(groupId, sub)) { state.finSub[groupId] = sub; renderContent(); return; }
     const subs = finSubsVisiveis(g);
     sub = sub || state.finSub[groupId] || subs[0].id;
     if (!subs.some(s => s.id === sub)) sub = subs[0].id;
@@ -2770,6 +2774,10 @@
 
     if (state.finFoco && state.finFoco.grupo !== tabId) state.finFoco = null;
 
+    // Visual novo: as telas já refeitas (ui-v2-fin.js) assumem; as demais seguem aqui.
+    if (window.uiV2Fin && window.uiV2Fin.render(container, tabId)) { if (window.lucide) lucide.createIcons(); return; }
+    if (window.uiV2Fin) window.uiV2Fin.sair(container);
+
     let inner;
     if (PANEL_BUILDERS[tabId]) inner = PANEL_BUILDERS[tabId]();
     else inner = visaoHTML(), tabId = 'visao';
@@ -2780,8 +2788,12 @@
   }
 
   /* ----------------------------------------------- EXPOSE (window) */
+  // usado pelo ui-v2-fin.js: mesma busca (com guardado) e a lista que as janelas de título consultam
+  function finUsarTitulos(rows) { finTitulos = Array.isArray(rows) ? rows : []; }
+
   Object.assign(window, {
     renderFinRoute,
+    finRpc, finUsarTitulos,
     finResolveTab,
     finToast,
     // recebíveis (ações + lançamento + edição)

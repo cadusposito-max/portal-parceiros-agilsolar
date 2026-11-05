@@ -344,7 +344,7 @@ const OM_TABS = [
 const FIN_TABS = [
   { id: 'visao',      label: 'VISÃO GERAL', icon: 'layout-dashboard' },
   { id: 'funil',      label: 'FUNIL',       icon: 'git-merge' },
-  { id: 'recebiveis', label: 'RECEBÍVEIS',  icon: 'receipt' },
+  { id: 'recebiveis', label: 'A RECEBER',   icon: 'receipt' },
   { id: 'pagamentos', label: 'PAGAMENTOS',  icon: 'credit-card' },
   { id: 'compras',    label: 'COMPRAS',     icon: 'shopping-cart' },
   { id: 'margem',     label: 'MARGEM',      icon: 'bar-chart-3' },
