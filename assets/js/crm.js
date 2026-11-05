@@ -533,6 +533,7 @@ function renderCrm360() {
               ${crm360Field('Número', `<input id="crm360-numero" value="${escapeHTML(client.numero || '')}" class="crm360-input">`)}
               ${crm360Field('Bairro', `<input id="crm360-bairro" value="${escapeHTML(client.bairro || '')}" class="crm360-input">`)}
               ${crm360Field('Nome da mãe', `<input id="crm360-nome-mae" value="${escapeHTML(client.nome_mae || '')}" class="crm360-input uppercase">`, 'sm:col-span-2')}
+              ${crm360Field('Data de nascimento', `<input id="crm360-nascimento" type="date" value="${escapeHTML(client.data_nascimento || '')}" class="crm360-input">`)}
               ${crm360CamposDocumentosHTML(client)}
               ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="2" class="crm360-input">${escapeHTML(client.observacoes || '')}</textarea>`, 'sm:col-span-2')}
             </div>
@@ -1379,7 +1380,7 @@ async function crmSubmitAtividade() {
 
 // Campos do cadastro que entram no registro da timeline (rótulo legível)
 const CRM_CAMPOS_CADASTRO = {
-  nome: 'nome', nome_mae: 'nome da mãe', telefone: 'telefone', email: 'e-mail', cidade: 'cidade', documento: 'CPF/CNPJ',
+  nome: 'nome', nome_mae: 'nome da mãe', data_nascimento: 'data de nascimento', telefone: 'telefone', email: 'e-mail', cidade: 'cidade', documento: 'CPF/CNPJ',
   cep: 'CEP', endereco: 'endereço', numero: 'número', complemento: 'complemento', bairro: 'bairro',
   origem: 'origem', observacoes: 'observações', rg: 'RG', rg_orgao: 'órgão emissor', genero: 'gênero',
   estado_civil: 'estado civil', nacionalidade: 'nacionalidade', profissao: 'profissão',
@@ -1393,6 +1394,7 @@ function crmMudancasCadastro(antes, depois) {
   const norm = (v) => { const s = String(v ?? '').trim(); return s === vazia ? '' : s; };
   const legivel = (k, v) => {
     const s = norm(v);
+    if (k === 'data_nascimento' && /^\d{4}-\d{2}-\d{2}$/.test(s)) return s.split('-').reverse().join('/');
     if (k === 'origem' && s) {
       const o = typeof CLIENT_ORIGENS !== 'undefined' ? CLIENT_ORIGENS.find((x) => x.v === s) : null;
       const t = (o ? o.l : s).toLocaleLowerCase('pt-BR');
@@ -1453,6 +1455,7 @@ async function crmSaveClient360() {
   const payload = {
     nome: document.getElementById('crm360-nome').value.toUpperCase().trim(),
     nome_mae: document.getElementById('crm360-nome-mae')?.value.toUpperCase().trim() || null,
+    data_nascimento: document.getElementById('crm360-nascimento')?.value || null,
     telefone: document.getElementById('crm360-telefone').value.trim(),
     email: document.getElementById('crm360-email').value.trim() || null,
     documento: document.getElementById('crm360-documento').value.trim() || null,

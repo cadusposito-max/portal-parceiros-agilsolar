@@ -470,6 +470,7 @@
                   ${crm360Field('Número', `<input id="crm360-numero" value="${esc(client.numero || '')}" class="crm360-input">`)}
                   ${crm360Field('Bairro', `<input id="crm360-bairro" value="${esc(client.bairro || '')}" class="crm360-input">`)}
                   ${crm360Field('Nome da mãe', `<input id="crm360-nome-mae" value="${esc(client.nome_mae || '')}" class="crm360-input">`, 'span2')}
+                  ${crm360Field('Data de nascimento', `<input id="crm360-nascimento" type="date" value="${esc(client.data_nascimento || '')}" class="crm360-input">`)}
                   ${crm360CamposDocumentosHTML(client)}
                   ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="3" class="crm360-input">${esc(client.observacoes || '')}</textarea>`, 'full')}`;
     const cardProx = `
