@@ -328,9 +328,8 @@ const OM_TABS = [
   { id: 'clientes',   label: 'CLIENTES',      icon: 'users',          secondary: true },
   { id: 'os',         label: 'OS',            icon: 'clipboard-list', secondary: true },
   { id: 'agenda',     label: 'AGENDA',        icon: 'calendar-days',  secondary: true },
-  { id: 'pendencias', label: 'PENDÊNCIAS',    icon: 'alert-triangle', secondary: true },
-  { id: 'relatorios', label: 'RELATÓRIOS',    icon: 'file-text',      secondary: true },
-  { id: 'tecnicos',   label: 'TÉCNICOS',      icon: 'hard-hat',       secondary: true }
+  { id: 'relatorios', label: 'RELATÓRIOS',    icon: 'file-text',      secondary: true }
+  // Pendências e Técnicos saíram do menu em 05/11/2026 (não são mais usados).
 ];
 
 // Abas do Financeiro, pelo caminho do dinheiro (05/11/2026; telas em ui-v2-fin.js):

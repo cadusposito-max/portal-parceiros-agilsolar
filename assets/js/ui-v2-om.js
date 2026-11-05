@@ -160,11 +160,12 @@
     setPageMeta('om:central', titulo, sub); // o render do shell pode ter limpado durante a espera
 
     const sla = k.sla_min == null ? '—' : k.sla_min < 60 ? Math.round(k.sla_min) + ' min' : (k.sla_min / 60).toFixed(1).replace('.', ',') + 'h';
-    const kpi = (o) => `<div class="v2-card v2-kpi ${o.hero ? 'hero' : ''}" onclick="setTab('${o.tab}')"><div class="h"><span>${o.label}</span><div class="ic" style="background:${o.cor}1F;color:${o.cor}">${ic(o.icon)}</div></div><div class="v">${o.v}</div><div class="foot"><span>${o.sub}</span></div></div>`;
+    state.omTecCache = { tecnicos: tecs, oss: os, at: Date.now() }; // agenda do técnico abre direto da Central (aba Técnicos saiu)
+    const kpi = (o) => `<div class="v2-card v2-kpi ${o.hero ? 'hero' : ''}" ${o.tab ? `onclick="setTab('${o.tab}')"` : 'style="cursor:default"'}><div class="h"><span>${o.label}</span><div class="ic" style="background:${o.cor}1F;color:${o.cor}">${ic(o.icon)}</div></div><div class="v">${o.v}</div><div class="foot"><span>${o.sub}</span></div></div>`;
     const kpis = `<div class="v2-kpis">
       ${kpi({ hero: 1, label: 'Atendimentos abertos', v: k.abertas || 0, icon: 'activity', cor: '#008FD4', sub: k.abertas ? `${k.abertas} em aberto` : 'nenhuma em aberto', tab: 'os' })}
       ${kpi({ label: 'OS em campo', v: k.em_campo || 0, icon: 'route', cor: '#FAA519', sub: `distribuídas em ${plural(k.tec_em_os || 0, 'técnico', 'técnicos')}`, tab: 'os' })}
-      ${kpi({ label: 'Técnicos ativos', v: k.tec_total || 0, icon: 'hard-hat', cor: '#1FA971', sub: `${k.tec_em_os || 0} em atendimento`, tab: 'tecnicos' })}
+      ${kpi({ label: 'Técnicos ativos', v: k.tec_total || 0, icon: 'hard-hat', cor: '#1FA971', sub: `${k.tec_em_os || 0} em atendimento`, tab: 'agenda' })}
       ${kpi({ label: 'SLA médio', v: sla, icon: 'timer', cor: '#808284', sub: k.sla_min != null ? 'tempo médio (30 dias)' : 'sem dados no período', tab: 'relatorios' })}
     </div>`;
 
@@ -197,15 +198,15 @@
 
     const crit = pend.filter((p) => ['alta', 'critica'].includes(p.criticidade) && !['resolvida', 'ignorada'].includes(p.status)).slice(0, 4);
     const pendCard = `<div class="v2-card v2om-pend">
-      <div class="v2-ch"><div><h3>Pendências críticas</h3><small>${crit.length ? plural(crit.length, 'esperando solução', 'esperando solução') : 'Tudo em dia'}</small></div><button class="v2-btn2" onclick="setTab('pendencias')">Ver todas${ic('arrow-right')}</button></div>
-      ${crit.length ? crit.map((p) => { const c = CRIT[p.criticidade] || CRIT.media; return `<div class="v2-lst click" onclick="setTab('pendencias')"><i class="v2-ini ${p.criticidade === 'critica' ? 'v2om-r' : 'o'}">${ic('triangle-alert')}</i><div class="tx"><b>${esc(p.descricao || '—')}</b><small>${esc(p.cliente || '—')}${p.os_numero ? ' · ' + esc(p.os_numero) : ''}</small></div><span class="v2-chip dot ${c[1]}">${c[0]}</span></div>`; }).join('') : '<div class="v2-empty">Nenhuma pendência crítica.</div>'}</div>`;
+      <div class="v2-ch"><div><h3>Pendências críticas</h3><small>${crit.length ? plural(crit.length, 'esperando solução', 'esperando solução') : 'Tudo em dia'}</small></div></div>
+      ${crit.length ? crit.map((p) => { const c = CRIT[p.criticidade] || CRIT.media; return `<div class="v2-lst"><i class="v2-ini ${p.criticidade === 'critica' ? 'v2om-r' : 'o'}">${ic('triangle-alert')}</i><div class="tx"><b>${esc(p.descricao || '—')}</b><small>${esc(p.cliente || '—')}${p.os_numero ? ' · ' + esc(p.os_numero) : ''}</small></div><span class="v2-chip dot ${c[1]}">${c[0]}</span></div>`; }).join('') : '<div class="v2-empty">Nenhuma pendência crítica.</div>'}</div>`;
 
     const equipe = `<div class="v2-card">
-      <div class="v2-ch"><div><h3>Equipe em campo</h3><small>${plural(tecs.length, 'técnico', 'técnicos')}</small></div><button class="v2-btn2" onclick="setTab('tecnicos')">Ver todos${ic('arrow-right')}</button></div>
+      <div class="v2-ch"><div><h3>Equipe em campo</h3><small>${plural(tecs.length, 'técnico', 'técnicos')}</small></div><button class="v2-btn2" onclick="setTab('agenda')">Agenda${ic('arrow-right')}</button></div>
       ${tecs.length ? tecs.map((t) => {
         const d = has('omTecDerived') ? omTecDerived(t, os) : { proxima: '—', osHoje: 0, status: 'Disponível' };
         const ini = (t.nome || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-        return `<div class="v2-lst click" onclick="${has('omOpenAgendaTecnico') ? `omOpenAgendaTecnico('${esc(t.id)}')` : "setTab('tecnicos')"}"><i class="v2-ini round">${esc(ini)}</i><div class="tx"><b>${esc(t.nome || t.email || '—')}</b><small>${d.proxima !== '—' ? 'Próxima: ' + esc(d.proxima) : 'Sem próxima OS'} · ${d.osHoje} OS hoje</small></div><span class="v2-chip dot ${TEC_ST[d.status] || 't-green'}">${esc(d.status)}</span></div>`;
+        return `<div class="v2-lst click" onclick="${has('omOpenAgendaTecnico') ? `omOpenAgendaTecnico('${esc(t.id)}')` : "setTab('agenda')"}"><i class="v2-ini round">${esc(ini)}</i><div class="tx"><b>${esc(t.nome || t.email || '—')}</b><small>${d.proxima !== '—' ? 'Próxima: ' + esc(d.proxima) : 'Sem próxima OS'} · ${d.osHoje} OS hoje</small></div><span class="v2-chip dot ${TEC_ST[d.status] || 't-green'}">${esc(d.status)}</span></div>`;
       }).join('') : '<div class="v2-empty">Nenhum técnico ativo.</div>'}</div>`;
 
     const tot = k.tot_mes || 0, fin = k.fin_mes || 0;

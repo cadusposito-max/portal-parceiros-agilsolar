@@ -3223,6 +3223,8 @@ async function omSubmitCreateTecnico() {
 function renderOMRoute(container, tabId) {
   // Compat: rota antiga `atend` agora vira `propostas`.
   if (tabId === 'atend') { state.omActiveTab = 'propostas'; tabId = 'propostas'; }
+  // Pendências e Técnicos saíram do menu (05/11/2026): link ou aba guardada cai na Central.
+  if (tabId === 'pendencias' || tabId === 'tecnicos') { state.omActiveTab = 'central'; tabId = 'central'; }
 
   // Sair de detalhes ao trocar de rota
   if (tabId !== 'os' && state.omOsDetailId) state.omOsDetailId = null;
