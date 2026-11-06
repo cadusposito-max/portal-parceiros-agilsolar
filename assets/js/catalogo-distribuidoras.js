@@ -459,7 +459,11 @@ function pbFornecimentoRender() {
   const integrada = typeof pbIntegracaoAtual === 'function' ? pbIntegracaoAtual() : null;
   // Só oferece módulo/marca que está em algum kit ativo do tipo escolhido
   // (inversor ou micro): escolher uma opção nunca deixa a lista vazia à toa.
-  const kitsTipo = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false && Number(k.price) > 0 && pbKitDaLinha(k));
+  // Com distribuidora escolhida, só os kits dela contam: o mesmo inversor pode
+  // estar em kit de outra distribuidora (HYXIPOWER é kit na AVT, não na Helte).
+  const distEscolhida = _pbFornecimento.distribuidora;
+  const kitsTipo = (state.data || []).filter((k) => k.categoria === state.pbCategory && k.ativo !== false && Number(k.price) > 0 && pbKitDaLinha(k)
+    && (!distEscolhida || !k.distribuidora_id || String(k.distribuidora_id) === distEscolhida));
   const emKits = new Set(kitsTipo.flatMap((k) => [String(k.modulo_id), String(k.inversor_id)]));
   const usados = kitsTipo.length ? disponiveis.filter((e) => emKits.has(String(e.id))) : disponiveis;
   // Distribuidora integrada: os dois campos mostram o que ELA tem (buscado no servidor).
