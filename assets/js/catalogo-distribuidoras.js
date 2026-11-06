@@ -146,7 +146,10 @@ function pbLinhaEscolher(linha) {
 // vale no orçamento (pbKitsOrcamento); state.data continua com o preço da unidade.
 const PB_ESTRUTURA_PADRAO = { telhado: 'ceramico', linha: 'standard' };
 const PB_ESTRUTURA_LINHAS = { standard: 'Standard', flex: 'Flex', smart: 'Smart', pratyc: 'Pratyc' };
-let _pbEstrutura = { ...PB_ESTRUTURA_PADRAO, opcoes: null, precos: null, precosChave: '', carregandoChave: '', erro: '' };
+// erroChave: telhado/unidade que deu erro; não pede de novo sozinho (antes pedia a cada desenho da tela,
+// sem parar, e o banco ficava ainda mais lento). Tenta de novo quando o vendedor toca em "Tentar de novo"
+// ou troca o telhado.
+let _pbEstrutura = { ...PB_ESTRUTURA_PADRAO, opcoes: null, precos: null, precosChave: '', carregandoChave: '', erro: '', erroChave: '' };
 let _pbKitsOrcCache = { data: null, chave: '', lista: [] };
 
 function pbEstruturaPadrao() {
@@ -189,12 +192,14 @@ async function pbEstruturaCarregarOpcoes() {
   return _pbEstrutura.opcoes;
 }
 
-async function pbEstruturaCarregarPrecos() {
+async function pbEstruturaCarregarPrecos(forcar = false) {
   if (pbEstruturaPadrao()) return;
   const chave = pbEstruturaChave();
   if (_pbEstrutura.precosChave === chave || _pbEstrutura.carregandoChave === chave) return;
+  if (!forcar && _pbEstrutura.erroChave === chave) return;
   _pbEstrutura.carregandoChave = chave;
   _pbEstrutura.erro = '';
+  _pbEstrutura.erroChave = '';
   const args = { p_telhado: _pbEstrutura.telhado, p_linha: _pbEstrutura.linha };
   if (pbEstruturaUnidade()) args.p_franquia_id = pbEstruturaUnidade();
   // Lista inteira numa resposta só ([produto, estrutura, preço, De]): o servidor corta em 1000 linhas.
@@ -205,7 +210,8 @@ async function pbEstruturaCarregarPrecos() {
   _pbEstrutura.carregandoChave = '';
   if (error) {
     console.warn('[estrutura] preços', error);
-    _pbEstrutura.erro = 'Não foi possível calcular os preços com essa estrutura. Tente de novo.';
+    _pbEstrutura.erro = 'Não foi possível calcular os preços com essa estrutura.';
+    _pbEstrutura.erroChave = chave;
   } else {
     _pbEstrutura.precos = new Map((data || []).map((r) => [String(r.produto_id),
       { price: Number(r.price), list_price: Number(r.list_price), estrutura_id: r.estrutura_id }]));
@@ -224,7 +230,12 @@ function pbEstruturaEscolher(campo, valor) {
   }
   if (typeof _pbd !== 'undefined' && _pbd) _pbd.verMais = false;
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
-  pbEstruturaCarregarPrecos();
+  pbEstruturaCarregarPrecos(true);
+  pbFornecimentoSync();
+}
+
+function pbEstruturaTentarDeNovo() {
+  pbEstruturaCarregarPrecos(true);
   pbFornecimentoSync();
 }
 
@@ -283,7 +294,7 @@ function pbEstruturaEscolherValor(valor) {
   _pbEstrutura.linha = linha;
   if (typeof _pbd !== 'undefined' && _pbd) _pbd.verMais = false;
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
-  pbEstruturaCarregarPrecos();
+  pbEstruturaCarregarPrecos(true);
   pbFornecimentoSync();
 }
 
@@ -321,12 +332,14 @@ function pbEstruturaRender() {
   const hint = document.getElementById('pb-estrutura-hint');
   if (hint) {
     const nomeDist = integrada ? (INTEGRACOES_INFO[integrada]?.nome || integrada) : '';
+    const comErro = !integrada && !!_pbEstrutura.erro && !pbEstruturaPadrao();
     hint.textContent = integrada
       ? (pbIntegracaoTelhadoOk(integrada, _pbEstrutura.telhado) ? `A cotação na ${nomeDist} sai com a estrutura dela pra esse telhado.` : `A ${nomeDist} não tem estrutura pra esse telhado. Escolha outro pra cotar.`)
-      : _pbEstrutura.erro ? _pbEstrutura.erro
+      : comErro ? _pbEstrutura.erro
       : pbEstruturaPadrao() ? ''
       : _pbEstrutura.carregandoChave ? 'Calculando os preços com a estrutura escolhida...'
       : 'Preços com a estrutura desse telhado. Kits com módulo de 710 W usam a linha Smart.';
+    if (comErro) hint.insertAdjacentHTML('beforeend', ' <button type="button" class="btn btn-ghost btn-sm" onclick="pbEstruturaTentarDeNovo()">Tentar de novo</button>');
     hint.classList.toggle('hidden', !hint.textContent);
   }
 }
@@ -359,6 +372,7 @@ function pbMotivoSemKit(categoria, serve = () => true) {
   const f = _pbFornecimento;
   if (pbEstruturaAtiva()) {
     if (_pbEstrutura.carregandoChave) return 'Calculando os preços com a estrutura escolhida...';
+    if (_pbEstrutura.erroChave === pbEstruturaChave()) return `${_pbEstrutura.erro} Toque em "Tentar de novo" no cartão Telhado do cliente.`;
     const comEstrutura = pbKitsOrcamento().some((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0 && pbKitCompativel(k) && serve(k));
     const semFiltroEstrutura = (state.data || []).some((k) => k.categoria === categoria && k.ativo !== false && Number(k.price) > 0 && pbKitCompativel(k) && serve(k));
     if (!comEstrutura && semFiltroEstrutura) return 'A distribuidora não tem estrutura desse telhado para os kits desta seleção. Troque o telhado ou o módulo.';
