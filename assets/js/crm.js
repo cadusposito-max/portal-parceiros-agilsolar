@@ -335,8 +335,75 @@ function pbParkEmbeddedPanel() {
   if (panel && parking && panel.parentElement !== parking) parking.appendChild(panel);
 }
 
+// Ficha sempre fresca: a lista da plataforma é carregada no login, então o que
+// outro usuário fez depois (proposta nova, venda, mudança de status) não estaria
+// no cache. Ao abrir a ficha, busca SÓ aquele cliente + propostas/vendas dele
+// (3 consultas pequenas, em paralelo), troca no cache e redesenha a ficha só se
+// algo mudou. Falha silenciosa: sem rede, a ficha segue com o que já tinha.
+async function crmAtualizarClienteFresco(clientId) {
+  if (!clientId || !state.currentUser) return;
+  try {
+    const qProp = supabaseClient.from('propostas').select('*').eq('cliente_id', clientId);
+    const qVend = supabaseClient.from('vendas').select('*').eq('cliente_id', clientId);
+    applyOperationalScopeToQuery(qProp);
+    applyOperationalScopeToQuery(qVend);
+    const [cli, prop, vend] = await Promise.all([
+      supabaseClient.from('clientes').select('*').eq('id', clientId).maybeSingle(),
+      qProp,
+      qVend,
+    ]);
+
+    const antes = JSON.stringify(_crm360Snapshot(clientId));
+    const porData = (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
+
+    if (!cli.error && cli.data) {
+      const lista = Array.isArray(state.clientes) ? state.clientes : (state.clientes = []);
+      const i = lista.findIndex((c) => c.id === clientId);
+      if (i >= 0) lista[i] = { ...lista[i], ...cli.data };
+      else lista.unshift(cli.data);
+    }
+    if (!prop.error) {
+      state.propostas = (state.propostas || []).filter((p) => p.cliente_id !== clientId)
+        .concat(prop.data || []).sort(porData);
+    }
+    if (!vend.error) {
+      state.vendas = (state.vendas || []).filter((v) => v.cliente_id !== clientId)
+        .concat(vend.data || []).sort(porData);
+    }
+
+    if (_crm360ClientId !== clientId) return;
+    if (JSON.stringify(_crm360Snapshot(clientId)) === antes) return;
+    // redesenha sem perder a anotação que está sendo escrita
+    const ids = ['crm360-composer-text', 'tf-cx-tit', 'tf-cx-det'];
+    const v = ids.map((id) => (document.getElementById(id) || {}).value || '');
+    renderCrm360();
+    ids.forEach((id, k) => { const n = document.getElementById(id); if (n && v[k]) n.value = v[k]; });
+  } catch (err) {
+    console.warn('[crm360] atualização fresca do cliente falhou (segue com o cache).', err);
+  }
+}
+
+function _crm360Snapshot(clientId) {
+  return {
+    c: (state.clientes || []).find((c) => c.id === clientId) || null,
+    p: (state.propostas || []).filter((p) => p.cliente_id === clientId),
+    v: (state.vendas || []).filter((x) => x.cliente_id === clientId),
+  };
+}
+
 async function openCrm360(clientId, initialTab) {
-  const client = (state.clientes || []).find((c) => c.id === clientId);
+  let client = (state.clientes || []).find((c) => c.id === clientId);
+  if (!client && clientId && state.currentUser) {
+    // cliente criado por outra pessoa depois do login: busca antes de desistir
+    try {
+      const { data } = await supabaseClient.from('clientes').select('*').eq('id', clientId).maybeSingle();
+      if (data) {
+        if (!Array.isArray(state.clientes)) state.clientes = [];
+        state.clientes.unshift(data);
+        client = data;
+      }
+    } catch (_) { /* segue o fluxo antigo */ }
+  }
   if (!client) return;
 
   // Compatibilidade com atalhos antigos: orçamento agora tem tela própria.
@@ -365,7 +432,8 @@ async function openCrm360(clientId, initialTab) {
   if (typeof crmArquivosCarregar === 'function') crmArquivosCarregar(clientId);
   renderCrm360();
 
-  // Carregamentos async (timeline + O&M) — re-renderizam ao chegar
+  // Carregamentos async (dados frescos + timeline + O&M) — re-renderizam ao chegar
+  crmAtualizarClienteFresco(clientId);
   crmFetchAtividades(clientId);
   if (state.omFlags && state.omFlags[clientId]) {
     supabaseClient.rpc('get_cliente_om_detalhe', { p_cliente_id: clientId })
