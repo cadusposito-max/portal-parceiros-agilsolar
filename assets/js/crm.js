@@ -854,23 +854,38 @@ function crmPropostaCartaoHTML(p, client) {
   const chip = {
     GERADA: ['file', 'Gerada'], ENVIADA: ['send', 'Enviada'], VISTA: ['eye', 'Cliente abriu'], ACEITA: ['check', 'Aceita'],
   }[st];
-  const interno = [];
+  // Enviar ao cliente saiu da tela (poluía o cartão): copiar link / WhatsApp ficam no ⋯ e seguem marcando como enviada
+  const interno = [
+    ['copy', 'Copiar link', `crmPropostaEnviar('${p.id}', 'link')`],
+    ['message-circle', 'Mandar no WhatsApp', `crmPropostaEnviar('${p.id}', 'whatsapp')`],
+  ];
   if (state.isAdmin || state.isGestor) interno.push(['calculator', 'Precificação', `openOrcamentoDre('${p.id}')`]);
   if (podeAjustarGeracao() && window.uiV2Geracao) interno.push(['sun', 'Ajustar geração', `uiV2Geracao.abrir('${p.id}')`]);
   if (st === 'ACEITA' && crmPodeGerirVenda(p)) interno.push(['undo-2', 'Desfazer aceite', `crmDesfazerAceite('${p.id}')`, true]);
   // parceiro: avisa a unidade que o cliente fechou esta proposta (parceiro.js)
   if (state.isParceiro && st !== 'ACEITA' && client) interno.push(['trophy', 'Cliente fechou esta', `parceiroAvisarFechamento('${client.id}', '${p.id}')`]);
 
+  const vezes = Number(p.vista_count) || 1;
+  const chipCurto = st === 'VISTA' ? `Abriu ${vezes}x` : chip[1];
+  const aberta = _crmPaAbertas.has(String(p.id));
+
+  // Recolhido (padrão): nome + potência/valor + status + Abrir. A setinha mostra números, trilha, PDF e ⋯.
   return `
-    <div class="crm-pa ${st.toLowerCase()}">
-      <div class="crm-pa-top">
+    <div class="crm-pa ${st.toLowerCase()} ${aberta ? 'aberta' : ''}" data-pa="${p.id}">
+      <div class="crm-pa-top" onclick="if (!event.target.closest('a, button')) crmPropostaExpandir('${p.id}')">
         <div class="crm-pa-ico ${tipo === 'Híbrido' ? 'hib' : ''}"><i data-lucide="${tipo === 'Híbrido' ? 'battery-charging' : 'sun'}"></i></div>
         <div class="crm-pa-tit">
           <b>${escapeHTML(crmPropostaTitulo(p.kit_nome))}</b>
           <small>${tipo} · criada em ${formatDate(p.created_at)}${autor ? ` por ${escapeHTML(autor)}` : ''}</small>
         </div>
-        <span class="crm-pa-chip ${st.toLowerCase()}"><i data-lucide="${chip[0]}"></i>${chip[1]}</span>
+        <div class="crm-pa-lado">
+          <span class="crm-pa-resumo">${kwp ? kwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kWp · ' : ''}<b>${formatCurrency(preco || 0)}</b></span>
+          <span class="crm-pa-chip ${st.toLowerCase()}"><i data-lucide="${chip[0]}"></i><span class="crm-pa-chip-full">${chip[1]}</span><span class="crm-pa-chip-curto">${chipCurto}</span></span>
+        </div>
+        <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Ver como o cliente vê" class="btn btn-secondary btn-sm crm-pa-abrir"><i data-lucide="external-link"></i><span class="crm-pa-txt">Abrir</span></a>
+        <button type="button" class="btn btn-secondary btn-icon crm-pa-seta" title="Ver detalhes" aria-expanded="${aberta}" onclick="crmPropostaExpandir('${p.id}')"><i data-lucide="chevron-down"></i></button>
       </div>
+      <div class="crm-pa-corpo">
       <div class="crm-pa-num">
         <div><span>Potência</span><strong>${kwp ? kwp.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kWp' : '—'}</strong></div>
         <div><span>Geração ${ajustada ? `<em title="${escapeHTML(dicaGer)}">ajustada</em>` : ''}</span><strong>${geracao ? `~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês` : '—'}</strong></div>
@@ -879,20 +894,25 @@ function crmPropostaCartaoHTML(p, client) {
       <div class="crm-pa-pe">
         ${crmPropostaTrilha(p, st)}
         <div class="crm-pa-acoes">
-          <div class="crm-menu">
-            <button type="button" class="btn btn-sm crm-pa-enviar" onclick="crmMenuToggle(event, this)"><i data-lucide="send"></i> Enviar ao cliente</button>
-            <div class="crm-menu-pop">
-              <button type="button" onclick="crmMenuFechar(); crmPropostaEnviar('${p.id}', 'link')"><i data-lucide="copy"></i>Copiar link</button>
-              <button type="button" onclick="crmMenuFechar(); crmPropostaEnviar('${p.id}', 'whatsapp')"><i data-lucide="message-circle"></i>Mandar no WhatsApp</button>
-            </div>
-          </div>
-          <a href="proposta.html?id=${p.id}" target="_blank" rel="noopener" title="Ver como o cliente vê" class="btn btn-secondary btn-sm"><i data-lucide="external-link"></i><span class="crm-pa-txt">Abrir</span></a>
           <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
           <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-sm"><i data-lucide="file-down"></i><span class="crm-pa-txt">PDF</span></a>
-          ${interno.length ? crmMenuHTML(interno) : ''}
+          ${crmMenuHTML(interno)}
         </div>
       </div>
+      </div>
     </div>`;
+}
+
+// Quais cartões estão abertos: sobrevive ao redesenho da ficha (ex.: depois de ajustar geração)
+const _crmPaAbertas = new Set();
+function crmPropostaExpandir(id) {
+  const k = String(id);
+  const aberta = !_crmPaAbertas.has(k);
+  if (aberta) _crmPaAbertas.add(k); else _crmPaAbertas.delete(k);
+  const el = document.querySelector(`.crm-pa[data-pa="${CSS.escape(k)}"]`);
+  if (!el) return;
+  el.classList.toggle('aberta', aberta);
+  el.querySelector('.crm-pa-seta')?.setAttribute('aria-expanded', String(aberta));
 }
 
 function renderCrm360TabContent(client, propostas, vendas) {

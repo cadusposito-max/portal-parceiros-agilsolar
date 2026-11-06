@@ -504,17 +504,33 @@ html[data-ui="v2"][data-theme="dark"] .crm-pa-info.aceita { color: #4fd39b; }
 html[data-ui="v2"] .crm-pa-acoes { display: flex; gap: 6px; align-items: center; margin-left: auto; }
 html[data-ui="v2"] .crm-pa-acoes .btn { height: 36px; }
 html[data-ui="v2"] .crm-pa-acoes .btn svg { width: 15px; height: 15px; }
-html[data-ui="v2"] body .crm-pa-enviar { background: var(--v2-blue) !important; border-color: var(--v2-blue) !important; color: #fff !important; }
-html[data-ui="v2"] body .crm-pa-enviar:hover { background: var(--v2-blue-hover) !important; }
 html[data-ui="v2"] .crm-pa-num span em { text-transform: none; letter-spacing: 0; }
 html[data-ui="v2"] .crm-pa-passos { display: inline-flex; align-items: center; white-space: nowrap; }
-/* o "Enviar ao cliente" fica à esquerda do grupo: o menu abre para a direita */
-html[data-ui="v2"] .crm-pa-acoes > .crm-menu:first-child .crm-menu-pop { left: 0; right: auto; }
+/* recolhido (padrão): só a linha de cima com potência · valor, status, Abrir e a setinha */
+html[data-ui="v2"] .crm-pa-top { align-items: center; padding: 12px 14px; cursor: pointer; }
+html[data-ui="v2"] .crm-pa-lado { display: flex; align-items: center; gap: 10px; flex: none; }
+html[data-ui="v2"] .crm-pa-resumo { font-size: 13px; font-weight: 700; color: var(--v2-ink-2); white-space: nowrap; }
+html[data-ui="v2"] .crm-pa-resumo b { font-size: 14.5px; font-weight: 800; color: var(--v2-green); }
+html[data-ui="v2"] .crm-pa-chip-full { display: none; }
+html[data-ui="v2"] .crm-pa-top > .btn { height: 36px; flex: none; }
+html[data-ui="v2"] .crm-pa-top > .btn svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .crm-pa-seta { width: 36px; padding: 0; justify-content: center; }
+html[data-ui="v2"] .crm-pa-seta svg { transition: transform .18s ease; }
+html[data-ui="v2"] .crm-pa-corpo { display: none; }
+/* aberto: números + trilha + PDF/⋯ (o resumo some porque os números já mostram) */
+html[data-ui="v2"] .crm-pa.aberta .crm-pa-corpo { display: block; }
+html[data-ui="v2"] .crm-pa.aberta .crm-pa-top { padding-bottom: 0; }
+html[data-ui="v2"] .crm-pa.aberta .crm-pa-resumo { display: none; }
+html[data-ui="v2"] .crm-pa.aberta .crm-pa-chip-full { display: inline; }
+html[data-ui="v2"] .crm-pa.aberta .crm-pa-chip-curto { display: none; }
+html[data-ui="v2"] .crm-pa.aberta .crm-pa-seta svg { transform: rotate(180deg); }
 @media (max-width: 760px) {
   html[data-ui="v2"] .crm-pa-cab > .btn { width: 100%; justify-content: center; }
-  /* o selo do topo repete o que o selo da trilha já diz: no celular dá a largura toda pro nome */
-  html[data-ui="v2"] .crm-pa-chip { display: none; }
-  html[data-ui="v2"] .crm-pa-top { padding: 12px 12px 0; }
+  /* recolhido no celular: nome + Abrir + seta em cima; potência · valor e status numa linha embaixo */
+  html[data-ui="v2"] .crm-pa-top { flex-wrap: wrap; row-gap: 8px; padding: 12px; }
+  html[data-ui="v2"] .crm-pa-lado { order: 5; flex: 1 1 100%; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 1px solid var(--v2-line); }
+  /* aberto: o selo do topo repete o selo da trilha, então some e o nome fica com a largura toda */
+  html[data-ui="v2"] .crm-pa.aberta .crm-pa-lado { display: none; }
   html[data-ui="v2"] .crm-pa-ico { width: 34px; height: 34px; border-radius: 10px; }
   html[data-ui="v2"] .crm-pa-tit b { font-size: 14.5px; }
   /* números viram linhas "rótulo ........ valor": nada quebra em tela estreita */
@@ -533,8 +549,8 @@ html[data-ui="v2"] .crm-pa-acoes > .crm-menu:first-child .crm-menu-pop { left: 0
   html[data-ui="v2"] .crm-pa-info { display: flex; margin: 8px 0 0; padding: 7px 12px; border-radius: 12px; }
   html[data-ui="v2"] .crm-pa-acoes { margin-left: 0; }
   html[data-ui="v2"] .crm-pa-acoes .btn { height: 42px; }
-  html[data-ui="v2"] .crm-pa-acoes .btn.btn-icon, html[data-ui="v2"] .crm-pa-acoes > a.btn { width: 42px; padding: 0; justify-content: center; flex: none; }
-  html[data-ui="v2"] .crm-pa-acoes > .crm-menu:first-child { flex: 1; min-width: 0; }
-  html[data-ui="v2"] .crm-pa-acoes > .crm-menu:first-child .btn { width: 100%; justify-content: center; }
-  html[data-ui="v2"] .crm-pa-txt { display: none; }
+  html[data-ui="v2"] .crm-pa-acoes .btn.btn-icon { width: 42px; padding: 0; justify-content: center; flex: none; }
+  html[data-ui="v2"] .crm-pa-acoes > a.btn { flex: 1; justify-content: center; }
+  html[data-ui="v2"] .crm-pa-top .crm-pa-txt { display: none; }
+  html[data-ui="v2"] .crm-pa-top > a.btn { width: 36px; padding: 0; justify-content: center; }
 }
