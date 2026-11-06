@@ -18,7 +18,6 @@ const ADMIN_CLIENT_PRESETS = [
   { v: 'month', l: 'Mês atual' },
   { v: '30d', l: 'Últimos 30 dias' },
   { v: 'no_sale', l: 'Sem venda' },
-  { v: 'top_performers', l: 'Top desempenhos' },
 ];
 const CLIENT_STATUS_STYLE = {
   NOVO: { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/30' },
@@ -171,19 +170,6 @@ function hasSaleForClient(client, sales) {
   });
 }
 
-function getTopSellerEmailsFromSales(sales, limit = 3) {
-  const totals = new Map();
-  (Array.isArray(sales) ? sales : []).forEach((sale) => {
-    const email = String(sale?.vendedor_email || '').trim().toLowerCase();
-    if (!email) return;
-    totals.set(email, (totals.get(email) || 0) + 1);
-  });
-
-  return [...totals.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([email]) => email);
-}
 function applyAdminClientePreset(rows, preset, scopedSales) {
   const list = Array.isArray(rows) ? rows : [];
   const key = String(preset || 'all');
@@ -204,12 +190,6 @@ function applyAdminClientePreset(rows, preset, scopedSales) {
 
   if (key === 'no_sale') {
     return list.filter((item) => !hasSaleForClient(item, scopedSales));
-  }
-
-  if (key === 'top_performers') {
-    const topEmails = new Set(getTopSellerEmailsFromSales(scopedSales, 3));
-    if (topEmails.size === 0) return [];
-    return list.filter((item) => topEmails.has(String(item?.vendedor_email || '').trim().toLowerCase()));
   }
 
   return list;

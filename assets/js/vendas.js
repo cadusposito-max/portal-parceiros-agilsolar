@@ -9,7 +9,6 @@ const ADMIN_SALES_PRESETS = [
   { v: 'month', l: 'Mês atual' },
   { v: '30d', l: 'Últimos 30 dias' },
   { v: 'no_sale', l: 'Sem venda' },
-  { v: 'top_performers', l: 'Top desempenhos' },
 ];
 
 const SALES_SORT_OPTIONS = [
@@ -227,25 +226,6 @@ function applyAdminSalesPreset(rows, preset) {
 
   if (key === 'no_sale') {
     return list.filter((item) => getSaleValue(item) <= 0);
-  }
-
-  if (key === 'top_performers') {
-    const sellerTotals = new Map();
-    list.forEach((item) => {
-      const email = String(item?.vendedor_email || '').trim().toLowerCase();
-      if (!email) return;
-      sellerTotals.set(email, (sellerTotals.get(email) || 0) + getSaleValue(item));
-    });
-
-    const top = new Set(
-      [...sellerTotals.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([email]) => email)
-    );
-
-    if (top.size === 0) return [];
-    return list.filter((item) => top.has(String(item?.vendedor_email || '').trim().toLowerCase()));
   }
 
   if (key === 'today' || key === 'month' || key === '30d') {
