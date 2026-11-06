@@ -32,7 +32,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="/assets/img/icon.png">
     <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#008FD4">
+    <meta name="theme-color" content="#FFFFFF">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -68,7 +68,9 @@
         .vid-nav-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.92);color:#0F2533;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2)}
         .custom-scrollbar::-webkit-scrollbar{width:6px}
         .custom-scrollbar::-webkit-scrollbar-thumb{background:rgb(var(--linha));border-radius:4px}
-        .tema-btn{position:absolute;top:14px;right:14px;z-index:2;width:38px;height:38px;border-radius:50%;background:#fff;color:#0072AA;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+        .tema-btn{position:absolute;top:18px;right:14px;z-index:2;width:38px;height:38px;border-radius:50%;background:rgb(var(--fundo));color:rgb(var(--azul-txt));display:flex;align-items:center;justify-content:center}
+        .topo{box-shadow:0 6px 24px rgba(15,37,51,.06)}
+        html.dark .topo{box-shadow:none;border:1px solid rgb(var(--linha))}
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center relative font-sans">
@@ -112,18 +114,19 @@
 <!-- Main Proposal Content -->
 <div id="proposal-content" class="hidden w-full max-w-3xl px-4 pb-12 flex flex-col gap-6">
 
-    <!-- Header / Logo + Greeting (faixa azul da marca) -->
-    <div class="-mx-4 md:mx-0 md:mt-6 bg-azul md:rounded-[28px] rounded-b-[28px] px-6 pt-7 pb-8 text-center relative overflow-hidden">
-        <svg class="absolute -right-16 -top-12 w-60 h-44 pointer-events-none" viewBox="0 0 250 190" aria-hidden="true"><path d="M30 0 L250 0 L250 150 L190 150 Q160 150 145 125 Z" fill="#FAA519"/><path d="M80 0 L250 0 L250 120 L205 120 Q182 120 170 100 Z" fill="#FBB743" opacity=".6"/></svg>
+    <!-- Header / Logo + Greeting (topo branco, azul só na linha de cima e no botão) -->
+    <div class="topo -mx-4 md:mx-0 md:mt-6 bg-superficie md:rounded-[28px] rounded-b-[28px] px-6 pt-8 pb-8 text-center relative overflow-hidden">
+        <div class="absolute inset-x-0 top-0 h-1.5 bg-azul" aria-hidden="true"></div>
         <button type="button" class="tema-btn" id="tema-btn" onclick="trocarTema()" title="Modo claro/escuro" aria-label="Alternar modo claro e escuro"><i data-lucide="moon" class="w-4 h-4"></i></button>
-        <img src="/assets/img/proposta/logo-branco.png" alt="Ágil Solar" class="w-44 md:w-56 h-auto mx-auto relative">
-        <p class="text-white/90 font-extrabold uppercase tracking-[.16em] text-[11px] md:text-xs mt-7 mb-2 relative">Proposta Ágil Solar</p>
-        <h1 class="text-3xl md:text-4xl font-extrabold text-white leading-tight relative">
-            Olá, <span id="client-name" class="text-white underline decoration-laranja decoration-[5px] underline-offset-[7px]">...</span>!
+        <img src="/assets/img/proposta/logo-cor.png" alt="Ágil Solar" class="w-44 md:w-56 h-auto mx-auto relative dark:hidden">
+        <img src="/assets/img/proposta/logo-branco.png" alt="Ágil Solar" class="w-44 md:w-56 h-auto mx-auto relative hidden dark:block">
+        <p class="text-azul-txt font-extrabold uppercase tracking-[.16em] text-[11px] md:text-xs mt-7 mb-2 relative">Proposta Ágil Solar</p>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-tinta leading-tight relative">
+            Olá, <span id="client-name" class="text-tinta underline decoration-laranja decoration-[5px] underline-offset-[7px]">...</span>!
         </h1>
-        <p class="text-white/90 mt-3 text-sm md:text-base max-w-lg mx-auto relative">Aqui está a proposta ideal para você economizar com energia solar nas melhores condições.</p>
+        <p class="text-suave mt-3 text-sm md:text-base max-w-lg mx-auto relative">Aqui está a proposta ideal para você economizar com energia solar nas melhores condições.</p>
         <a id="btn-download-pdf" href="#" target="_blank" rel="noopener"
-            class="hidden relative mt-6 inline-flex items-center justify-center gap-2 bg-white hover:bg-[#E5F3FB] text-[#0072AA] font-marca font-extrabold text-sm py-3.5 px-6 rounded-2xl shadow-[0_6px_18px_rgba(0,0,0,0.15)] transition-colors">
+            class="hidden relative mt-6 inline-flex items-center justify-center gap-2 bg-azul hover:bg-[#0072AA] text-white font-marca font-extrabold text-sm py-3.5 px-6 rounded-2xl shadow-[0_6px_18px_rgba(0,143,212,0.25)] transition-colors">
             <i data-lucide="file-down" class="w-5 h-5"></i> Baixar proposta em PDF
         </a>
     </div>
@@ -167,11 +170,11 @@
                 <span class="text-xs md:text-sm font-semibold text-texto">Ideal para faturas em torno de <span id="kit-ideal-bill" class="text-tinta font-marca font-extrabold text-base">...</span> /mês</span>
             </div>
 
-            <div class="bg-azul p-6 rounded-2xl text-center relative overflow-hidden">
+            <div class="bg-azul-claro p-6 rounded-2xl text-center relative overflow-hidden">
                 <div class="absolute -right-8 top-4 bg-laranja text-laranja-cta text-[10px] font-extrabold px-10 py-1 rotate-45 hidden" id="badge-discount">DESCONTO ATIVO</div>
-                <p class="text-white/80 text-xs font-bold mb-2 line-through" id="kit-list-price">De: ...</p>
-                <p class="text-sm text-white font-extrabold uppercase tracking-widest mb-1">Investimento</p>
-                <div class="text-4xl md:text-5xl font-marca font-extrabold text-white tracking-tight" id="kit-price">...</div>
+                <p class="text-suave text-xs font-bold mb-2 line-through" id="kit-list-price">De: ...</p>
+                <p class="text-sm text-azul-txt font-extrabold uppercase tracking-widest mb-1">Investimento</p>
+                <div class="text-4xl md:text-5xl font-marca font-extrabold text-azul-txt tracking-tight" id="kit-price">...</div>
             </div>
 
             <!-- BLOCO DE PAGAMENTO E FINANCIAMENTO -->
@@ -266,9 +269,9 @@
                 <p class="text-[10px] text-suave font-bold uppercase tracking-widest mb-1">Em 1 ano</p>
                 <p class="text-2xl font-marca font-extrabold text-azul-txt" id="eco-year">...</p>
             </div>
-            <div class="bg-azul p-4 rounded-2xl text-center">
-                <p class="text-[10px] text-white/85 font-bold uppercase tracking-widest mb-1">Em 25 anos (vida útil)</p>
-                <p class="text-2xl font-marca font-extrabold text-white" id="eco-25years">...</p>
+            <div class="bg-azul-claro p-4 rounded-2xl text-center">
+                <p class="text-[10px] text-azul-txt font-bold uppercase tracking-widest mb-1">Em 25 anos (vida útil)</p>
+                <p class="text-2xl font-marca font-extrabold text-azul-txt" id="eco-25years">...</p>
             </div>
         </div>
 
@@ -285,9 +288,9 @@
 
     <!-- 4. QUEM SOMOS E VALIDAÇÃO DA EMPRESA -->
     <div class="card overflow-hidden">
-        <div class="p-6 md:p-8 text-center bg-azul">
-            <h3 class="text-2xl md:text-3xl font-extrabold text-white mb-4">Quem somos</h3>
-            <p class="text-white/90 text-sm md:text-base leading-relaxed max-w-4xl mx-auto">
+        <div class="p-6 md:p-8 text-center border-b border-linha">
+            <h3 class="text-2xl md:text-3xl font-extrabold text-tinta mb-4">Quem somos</h3>
+            <p class="text-texto text-sm md:text-base leading-relaxed max-w-4xl mx-auto">
                 Somos a Ágil Solar, uma empresa especializada em soluções inteligentes em energia. Desde 2020, já atendemos milhares de clientes em todo o Brasil, oferecendo economia, eficiência e segurança por meio de projetos personalizados, tecnologia de ponta e equipe altamente capacitada. Muito além de transformar o sol em energia, nós transformamos vidas: gerando lucros de verdade para os nossos clientes e sustentabilidade para o planeta.
             </p>
         </div>
