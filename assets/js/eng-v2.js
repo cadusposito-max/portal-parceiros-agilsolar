@@ -2305,7 +2305,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--blue:#008FD4;--orange:#FAA519;--ink:#0F1B26;--ink2:#4A5561;--gray:#808284;--line:#D9E0E6;--soft:#F4F7FA}
-*{box-sizing:border-box}body{margin:0;background:#DDE3E9;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-size:10.5px;line-height:1.45}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}*{box-sizing:border-box}body{margin:0;background:#DDE3E9;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);font-size:10.5px;line-height:1.45}
 .bar{position:sticky;top:0;z-index:5;background:#0F1B26;color:#fff;padding:10px 18px;display:flex;gap:12px;align-items:center;font-size:13px}.bar button{margin-left:auto;background:var(--orange);color:#3D2600;border:0;border-radius:10px;padding:8px 14px;font:inherit;font-weight:800;cursor:pointer}
 .page{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:11mm 14mm 9mm;box-shadow:0 8px 30px rgba(15,27,38,.15);display:flex;flex-direction:column}
 .hd{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:3px solid var(--blue)}
@@ -2331,12 +2331,19 @@ td{padding:4px 7px;border-bottom:1px solid var(--line);vertical-align:top}td.n{t
 .line{border-bottom:1px solid #9FB0BF;height:17px}.note{background:#FEF4E3;border:1px solid #F6D9A5;border-radius:8px;padding:7px 10px;color:#6B4300;font-size:9.5px;margin-top:6px}
 .ft{margin-top:auto;padding-top:8px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-size:8.5px;color:var(--gray)}
 @media print{body{background:#fff}.bar{display:none}.page{margin:0;box-shadow:none;height:296mm;min-height:0;overflow:hidden}.page+.page{break-before:page}@page{size:A4;margin:0}}
+html.mob .page{width:180mm;min-height:0;padding:5mm 6mm}html.mob .ft{margin-top:10px}
+@media print{html.mob .page{height:auto;overflow:visible;margin:0 auto}}
 </style>
 <script>
+// celular (iPhone/Android) ignora a margem zero da folha e põe a margem dele: folha com altura fixa de A4
+// transborda e cada uma vira 2 páginas (a 2ª em branco). Lá a folha é mais estreita, sem altura fixa, e o
+// conteúdo é ajustado para caber numa área bem menor que a A4.
+var MOB=(matchMedia&&matchMedia('(pointer:coarse)').matches)||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+if(MOB)document.documentElement.classList.add('mob');
 // cada folha cabe numa A4: se o conteúdo passar, reduz a folha (senão o excesso vira uma página quase em branco)
-function caber(){var r=document.createElement('div');r.style.height='296mm';document.body.appendChild(r);var a4=r.getBoundingClientRect().height;r.remove();
+function caber(){var r=document.createElement('div');r.style.height=MOB?'250mm':'296mm';document.body.appendChild(r);var a4=r.getBoundingClientRect().height;r.remove();
 document.querySelectorAll('.page').forEach(function(p){var k=[].slice.call(p.children),z=1;k.forEach(function(x){x.style.zoom=''});p.style.minHeight='0';p.style.height='auto';
-while(p.scrollHeight>a4&&z>.7){z-=.02;k.forEach(function(x){x.style.zoom=z})}p.style.minHeight='';p.style.height=''})}
+while(p.scrollHeight>a4&&z>(MOB?.55:.7)){z-=.02;k.forEach(function(x){x.style.zoom=z})}p.style.minHeight='';p.style.height=''})}
 addEventListener('load',function(){caber();if(document.fonts)document.fonts.ready.then(caber)});addEventListener('beforeprint',caber);
 </script></head><body>
 <div class="bar"><b>${esc(os.numero)}${rev}</b> · ${esc(c.nome || '')}<button onclick="print()">Imprimir / salvar PDF</button></div>
