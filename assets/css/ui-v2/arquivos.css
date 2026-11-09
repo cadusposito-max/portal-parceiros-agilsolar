@@ -1,0 +1,121 @@
+/* ==========================================
+   ABA ARQUIVOS DO CLIENTE (crm-arquivos.js) — visual novo
+   Aparece na ficha do cliente e no card da obra (mesmo HTML).
+   ========================================== */
+
+.arq { display: flex; flex-direction: column; gap: 8px; }
+.arq svg.lucide { width: 16px; height: 16px; flex: none; }
+.arq-spin { animation: arq-gira 1s linear infinite; }
+@keyframes arq-gira { to { transform: rotate(360deg); } }
+
+.arq-vazio { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 16px; color: var(--v2-ink-2); font-size: 13px; text-align: center; }
+.arq-vazio > svg.lucide { width: 26px; height: 26px; color: var(--v2-gray); }
+.arq-vazio.erro > svg.lucide { color: var(--v2-red); }
+
+/* topo: progresso */
+.arq-topo { background: var(--v2-soft); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.arq-th3 { display: flex; align-items: center; gap: 9px; }
+.arq-th3 > svg.lucide { width: 19px; height: 19px; color: var(--v2-blue-text); }
+.arq-th3 b { font-size: 15px; font-weight: 700; color: var(--v2-ink); }
+.arq-pill { margin-left: auto; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 10px; background: var(--v2-hover); color: var(--v2-ink-2); white-space: nowrap; }
+.arq-pill.ok { background: rgba(31,169,113,.14); color: var(--v2-green); }
+.arq-bar { height: 8px; border-radius: 99px; background: var(--v2-line-strong); overflow: hidden; }
+.arq-bar > div { height: 100%; border-radius: 99px; background: var(--v2-blue); transition: width .3s; }
+.arq-topo.ok .arq-bar > div { background: var(--v2-green); }
+.arq-falta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--v2-ink-2); }
+.arq-topo.ok .arq-falta { color: var(--v2-green); font-weight: 700; gap: 7px; }
+.arq-chip { border: 0; border-radius: 999px; padding: 4px 11px; font: inherit; font-size: 12px; font-weight: 700; background: var(--v2-orange-50); color: var(--v2-orange-text); cursor: pointer; }
+.arq-chip:hover { box-shadow: inset 0 0 0 1.5px var(--v2-orange); }
+.arq-dica0 { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--v2-gray); }
+.arq-dica0 svg.lucide { width: 14px; height: 14px; }
+
+/* grupos */
+.arq-gh { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--v2-ink-2); margin: 14px 4px 2px; }
+.arq-gh .arq-pill { margin-left: 2px; }
+
+/* item do checklist */
+.arq-item { background: var(--v2-soft); border-radius: 16px; border: 1.5px solid transparent; transition: border-color .15s, background .15s; min-width: 0; }
+.arq-item.dr, .arq-pasta.dr { border-color: var(--v2-blue) !important; border-style: dashed !important; background: var(--v2-blue-50) !important; }
+.arq-ih { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; user-select: none; min-width: 0; }
+.arq-st { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--v2-hover); color: var(--v2-gray); }
+.arq-st.ok { background: rgba(31,169,113,.14); color: var(--v2-green); }
+.arq-st.pa { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+.arq-st.rep { background: rgba(209,67,67,.13); color: var(--v2-red); }
+.arq-tx { flex: 1; min-width: 0; }
+.arq-tx b { display: block; font-size: 14px; font-weight: 700; color: var(--v2-ink); }
+.arq-tx small { display: block; font-size: 12px; color: var(--v2-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.arq-cv { color: var(--v2-gray); transition: transform .2s; }
+.arq-item.ab .arq-cv { transform: rotate(180deg); }
+.arq-item.ab .arq-cv.lucide-x { transform: none; }
+.arq-bd { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.arq-dica { margin: 0; font-size: 12.5px; color: var(--v2-ink-2); }
+.arq-nota { margin: 0; font-size: 12px; color: var(--v2-gray); }
+.arq-aviso { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; padding: 8px 12px; border-radius: 12px; background: var(--v2-orange-50); color: var(--v2-orange-text); }
+
+/* botões */
+.arq-btn { height: 34px; border-radius: 11px; border: 1px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 12.5px; font-weight: 700; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; flex: none; white-space: nowrap; }
+.arq-btn:hover { border-color: var(--v2-blue); color: var(--v2-blue-text); }
+.arq-btn:disabled { opacity: .6; cursor: default; }
+.arq-btn.pri { background: var(--v2-blue); border-color: var(--v2-blue); color: #fff; }
+.arq-btn.pri:hover { background: var(--v2-blue-hover); color: #fff; }
+.arq-btn svg.lucide { width: 15px; height: 15px; }
+
+/* grade de miniaturas */
+.arq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 10px; }
+.arq-th { position: relative; background: var(--v2-card); border-radius: 14px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--v2-line); display: flex; flex-direction: column; min-width: 0; }
+.arq-pv { height: 92px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: var(--v2-hover); color: var(--v2-gray); text-decoration: none; }
+.arq-pv.pdf { color: var(--v2-red); }
+.arq-pv svg.lucide { width: 26px; height: 26px; }
+.arq-pv span { font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+.arq-pv.img { background: #0B121A; }
+.arq-pv img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.arq-slot { position: absolute; top: 63px; left: 7px; max-width: calc(100% - 14px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(15,27,38,.72); color: #fff; }
+.arq-ac { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.arq-th:hover .arq-ac, .arq-th:focus-within .arq-ac { opacity: 1; }
+@media (hover: none) { .arq-ac { opacity: 1; } }
+.arq-ac a, .arq-ac button { width: 30px; height: 30px; border-radius: 9px; border: 0; background: var(--v2-card); color: var(--v2-ink); display: grid; place-items: center; cursor: pointer; padding: 0; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.arq-ac a:hover, .arq-ac button:hover { color: var(--v2-blue-text); }
+.arq-ac button.x:hover { color: var(--v2-red); }
+.arq-ac svg.lucide { width: 15px; height: 15px; }
+.arq-ft { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.arq-quem { display: flex; align-items: center; gap: 6px; min-height: 26px; border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--v2-ink); cursor: pointer; text-align: left; min-width: 0; }
+.arq-quem span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arq-quem svg.lucide { width: 14px; height: 14px; color: var(--v2-gray); }
+.arq-quem.vz { color: var(--v2-blue-text); font-weight: 600; }
+.arq-quem.vz svg.lucide { color: var(--v2-blue-text); }
+.arq-quem:hover span { text-decoration: underline; }
+html[data-ui="v2"] body .arq-in { width: 100%; height: 28px; font: inherit; font-size: 12.5px; background: var(--v2-card) !important; color: var(--v2-ink) !important; border: 1.5px solid var(--v2-blue) !important; border-radius: 8px !important; padding: 0 8px; outline: 0; }
+.arq-mt { font-size: 11px; color: var(--v2-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arq-sg { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.arq-sg button { flex: 1 1 74px; min-width: 0; height: 28px; font: inherit; font-size: 11px; font-weight: 600; border-radius: 8px; border: 1px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink-2); cursor: pointer; padding: 0 4px; }
+.arq-sg button[aria-pressed="true"] { background: var(--v2-blue-50); border-color: var(--v2-blue); color: var(--v2-blue-text); font-weight: 800; }
+.arq-sg button:disabled { opacity: .6; cursor: default; }
+.arq-add { min-height: 150px; border: 1.5px dashed var(--v2-line-strong); border-radius: 14px; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--v2-ink-2); cursor: pointer; padding: 10px; }
+.arq-add:hover { border-color: var(--v2-blue); color: var(--v2-blue-text); }
+.arq-add svg.lucide { width: 20px; height: 20px; }
+.arq-add small { font-size: 11px; font-weight: 500; color: var(--v2-gray); }
+
+/* localização do padrão */
+.arq-loc { display: flex; gap: 8px; flex-wrap: wrap; }
+html[data-ui="v2"] body .arq-input { flex: 1; min-width: 200px; height: 36px; font: inherit; font-size: 13px; background: var(--v2-card) !important; color: var(--v2-ink) !important; border: 1px solid var(--v2-line-strong) !important; border-radius: 11px !important; padding: 0 12px; outline: 0; }
+html[data-ui="v2"] body .arq-input:focus { border-color: var(--v2-blue) !important; }
+
+/* outras pastas */
+.arq-pastas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.arq-pasta { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 16px; border: 1.5px solid transparent; background: var(--v2-soft); font: inherit; color: var(--v2-ink); cursor: pointer; text-align: left; min-width: 0; }
+.arq-pasta:hover { border-color: var(--v2-line-strong); }
+.arq-pasta.on { border-color: var(--v2-blue); background: var(--v2-blue-50); }
+.arq-pasta > svg.lucide { width: 20px; height: 20px; color: var(--v2-blue-text); }
+.arq-pasta span { min-width: 0; }
+.arq-pasta b { display: block; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arq-pasta small { display: block; font-size: 11.5px; color: var(--v2-gray); }
+
+@media (max-width: 560px) {
+  .arq-topo { padding: 14px; }
+  .arq-ih { padding: 10px 12px; gap: 10px; }
+  .arq-ih .arq-btn span { display: none; }
+  .arq-ih .arq-btn { width: 34px; padding: 0; justify-content: center; }
+  .arq-bd { padding: 0 12px 12px; }
+  .arq-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .arq-pastas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

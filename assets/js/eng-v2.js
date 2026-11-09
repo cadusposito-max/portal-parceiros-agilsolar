@@ -1638,9 +1638,9 @@
 
   // lista do projeto: documentos do envio + os que chegaram depois, já numerados e com nome de arquivo
   function docsProjeto(p) {
-    // O conteúdo permanece congelado; a identificação das contas acompanha o cadastro.
-    const contasAtuais = new Map(((E.docsNovos || {})[p.id] || []).filter((a) => a.tipo === 'conta_energia').map((a) => [a.id, a.slot]));
-    const snap = ((p.snapshot && p.snapshot.docs) || []).map((a) => ({ ...a, ...(a.tipo === 'conta_energia' && contasAtuais.has(a.id) ? { slot: contasAtuais.get(a.id) } : {}), novo: false }));
+    // O conteúdo permanece congelado; a identificação das contas e o "De quem é?" acompanham o cadastro.
+    const atuais = new Map(((E.docsNovos || {})[p.id] || []).map((a) => [a.id, a]));
+    const snap = ((p.snapshot && p.snapshot.docs) || []).map((a) => { const at = atuais.get(a.id); return { ...a, ...(at && a.tipo === 'conta_energia' ? { slot: at.slot } : {}), ...(at ? { quem: at.quem } : {}), novo: false }; });
     const ids = new Set(snap.map((a) => a.id));
     const novos = ((E.docsNovos || {})[p.id] || []).filter((a) => !ids.has(a.id) && !ehTec(a)).map((a) => ({ ...a, novo: true }));
     const ord = (a) => { const i = DOC_ORDEM.indexOf(a.tipo); return i < 0 ? 99 : i; };
@@ -1652,8 +1652,10 @@
       vistos[a.tipo] = (vistos[a.tipo] || 0) + 1;
       const conta = a.tipo === 'conta_energia';
       const base = conta ? (a.slot === 'geradora' ? 'Conta geradora' : a.slot === 'compensacao' ? 'Conta de compensação' : 'Conta de energia · a identificar') : DOC_LABEL[a.tipo] || a.tipo;
-      const sufixo = conta ? (porTipo[a.tipo] > 1 ? ' ' + vistos[a.tipo] : '') : a.slot ? ' ' + (SLOT_LABEL[a.slot] || a.slot) : (porTipo[a.tipo] > 1 ? ' ' + vistos[a.tipo] : '');
-      const rotulo = base + sufixo;
+      // "De quem é?" (aba Arquivos) entra no fim e dispensa o número de ordem
+      const quem = a.quem ? ' - ' + String(a.quem).slice(0, 40) : '';
+      const sufixo = conta ? (porTipo[a.tipo] > 1 && !quem ? ' ' + vistos[a.tipo] : '') : a.slot ? ' ' + (SLOT_LABEL[a.slot] || a.slot) : (porTipo[a.tipo] > 1 && !quem ? ' ' + vistos[a.tipo] : '');
+      const rotulo = base + sufixo + quem;
       return { ...a, n: i + 1, rotulo, arquivo: nomeArq(String(i + 1).padStart(2, '0') + ' ' + rotulo + (a.novo ? ' (depois do envio)' : '')) + '.' + extDe(a) };
     });
   }
@@ -1731,8 +1733,8 @@
     let mudou = false;
     if (p.cliente_id && E.docsNovos[p.id] === undefined) {
       E.docsNovos[p.id] = [];
-      const { data, error } = await sb().from('cliente_arquivos').select('id, tipo, slot, storage_path, nome_original, mime, created_at, uploaded_by_nome').eq('cliente_id', p.cliente_id).order('created_at');
-      if (!error) { E.docsNovos[p.id] = (data || []).map((a) => ({ id: a.id, tipo: a.tipo, slot: a.slot, storage_path: a.storage_path, nome: a.nome_original, mime: a.mime, em: a.created_at, autor: a.uploaded_by_nome })); mudou = true; }
+      const { data, error } = await sb().from('cliente_arquivos').select('id, tipo, slot, storage_path, nome_original, mime, created_at, uploaded_by_nome, identificacao').eq('cliente_id', p.cliente_id).order('created_at');
+      if (!error) { E.docsNovos[p.id] = (data || []).map((a) => ({ id: a.id, tipo: a.tipo, slot: a.slot, storage_path: a.storage_path, nome: a.nome_original, mime: a.mime, em: a.created_at, autor: a.uploaded_by_nome, quem: a.identificacao || null })); mudou = true; }
     }
     const velho = Date.now() - 50 * 60000;
     const falta = docsProjeto(p).concat(anexosProjeto(p)).map((a) => a.storage_path).filter((x) => x && (!E.urls[x] || E.urlsEm[x] < velho));
