@@ -47,7 +47,7 @@
     vista: ['agenda', 'quadro', 'lista'].includes(lsGet('obras_vista')) ? lsGet('obras_vista') : 'agenda',
     filtro: '', q: '', eq: '', semana: 0, mEtapa: '',
     aberta: null, aba: 'resumo', cheia: lsGet('obras_cheia') === '1', fsNosso: false,
-    tl: {}, el: {}, conf: null, container: null, celular: null,
+    tl: {}, el: {}, arqCli: {}, conf: null, container: null, celular: null,
   };
 
   const sb = () => supabaseClient;
@@ -415,6 +415,7 @@
   }
   function fechar() {
     O.aberta = null; O.conf = null;
+    if (typeof crmArqHostSet === 'function') crmArqHostSet(null);
     const d = document.getElementById('ob-drawer'); if (d) d.remove();
     const c = document.getElementById('ob-conf'); if (c) c.remove();
     document.body.classList.remove('eg-lock');
@@ -476,8 +477,13 @@
     const cls = `eg-panel rd eg ob-panel t-${O.aba}${O.cheia ? ' cheia' : ''}${criou || novo ? ' entra' : ''}`;
     if (!o) { d.innerHTML = `<div class="${cls}"><div class="rd-loading">${ic('loader-2')}Abrindo a obra...</div></div>`; icons(); return; }
     const I = info(o);
-    const abas = [['resumo', 'layout-list', 'Resumo'], ['material', 'truck', 'Material', I.k.late], ['eletrica', 'plug-zap', 'Elétrica', I.e.falta || (!I.e.ok && I.etapa !== 'concluida')], ['os', 'clipboard-list', 'OS'], ['agenda', 'calendar-days', 'Agenda'], ['timeline', 'history', 'Timeline']];
-    const corpo = ({ resumo: abaResumo, material: abaMaterial, eletrica: abaEletrica, os: abaOS, agenda: abaAgenda, timeline: abaTimeline })[O.aba] || abaResumo;
+    const temArq = !!(o.cliente_id && typeof renderCrmArquivosTab === 'function');
+    if (O.aba === 'arquivos' && !temArq) O.aba = 'resumo';
+    const abas = [['resumo', 'layout-list', 'Resumo'], ['material', 'truck', 'Material', I.k.late], ['eletrica', 'plug-zap', 'Elétrica', I.e.falta || (!I.e.ok && I.etapa !== 'concluida')], ['os', 'clipboard-list', 'OS'], ['agenda', 'calendar-days', 'Agenda']];
+    if (temArq) abas.push(['arquivos', 'paperclip', `Arquivos <span id="ob-arq-count">${esc(crmArqContagem(O.arqCli[o.cliente_id]))}</span>`]);
+    abas.push(['timeline', 'history', 'Timeline']);
+    if (O.aba !== 'arquivos' && typeof crmArqHostSet === 'function') crmArqHostSet(null);
+    const corpo = ({ resumo: abaResumo, material: abaMaterial, eletrica: abaEletrica, os: abaOS, agenda: abaAgenda, arquivos: abaArquivos, timeline: abaTimeline })[O.aba] || abaResumo;
     const lado = O.aba === 'resumo' ? '' : proximoHTML(o, I);
     d.innerHTML = `<div class="${cls}" role="dialog" aria-modal="true" aria-label="Obra de ${esc(o.cliente_nome || 'cliente')}">
       <div class="eg-ph">
@@ -736,6 +742,37 @@
     if (!l.length) return `<p class="ob-nota">${ic('info')}<span>Nada registrado ainda.</span></p>`;
     return `<div class="ob-tl">${l.slice(0, max || l.length).map((x) => `<div class="${x.eng ? 'eng' : ''}"><span>${esc(x.t)}<small>${esc(quando(x.em))} · ${esc(x.quem)}</small></span></div>`).join('')}</div>`;
   }
+  // Arquivos: a mesma aba da ficha do cliente (crm-arquivos.js), desenhada dentro do card.
+  // O cadastro do cliente vem fresco do banco (PJ, localização do padrão, franquia).
+  async function carregarClienteArq(cid) {
+    let cli = null;
+    try {
+      const { data, error } = await sb().from('clientes').select('*').eq('id', cid).maybeSingle();
+      if (error) throw error;
+      cli = data;
+    } catch (e) { console.warn('[obras] cliente p/ arquivos', e); }
+    O.arqCli[cid] = cli || (state.clientes || []).find((c) => c.id === cid) || { id: cid, erro: true };
+    if (!O.arqCli[cid].erro) crmArquivosCarregar(cid); // URLs assinadas valem 1 h: lista de novo ao abrir, igual à ficha
+    const o = achar(O.aberta);
+    if (o && o.cliente_id === cid && O.aba === 'arquivos') pintarPainel();
+  }
+  function abaArquivos(o) {
+    const cid = o.cliente_id;
+    const cli = O.arqCli[cid];
+    if (!cli) {
+      if (cli !== false) { O.arqCli[cid] = false; carregarClienteArq(cid); }
+      return `<div class="rd-card"><div class="rd-loading">${ic('loader-2')}Carregando arquivos...</div></div>`;
+    }
+    if (cli.erro) return `<div class="rd-card"><p class="ob-nota">${ic('triangle-alert')}<span>Não deu para abrir o cadastro do cliente. <button class="eg-link" onclick="obras.arqRecarregar()">Tentar de novo</button></span></p></div>`;
+    crmArqHostSet({
+      client: cli,
+      el: () => document.getElementById('ob-arq-box'),
+      onRender: () => { const c = document.getElementById('ob-arq-count'); if (c) c.textContent = crmArqContagem(cli); },
+      irEngenharia: "obras.ficha('engenharia')",
+    });
+    return `<div class="rd-card ob-arq"><div id="ob-arq-box">${renderCrmArquivosTab(cli)}</div></div>`;
+  }
+
   const abaTimeline = (o) => `<div class="rd-card"><h3>${ic('history')}Timeline da obra<span class="r">o que mudou, de → para</span></h3><div style="margin-top:12px">${timelineHTML(o)}</div></div>`;
 
   // ------------------------------------------------------------ gravar
@@ -1058,7 +1095,12 @@
   window.renderObras = render;
   window.obras = {
     render, carregar, abrir, fechar, fecharModal,
-    aba: (k) => { O.aba = k; pintarPainel(); },
+    aba: (k) => {
+      const o = achar(O.aberta);
+      if (k === 'arquivos' && O.aba !== 'arquivos' && o && o.cliente_id) delete O.arqCli[o.cliente_id];
+      O.aba = k; pintarPainel();
+    },
+    arqRecarregar: () => { const o = achar(O.aberta); if (o && o.cliente_id) { delete O.arqCli[o.cliente_id]; pintarPainel(); } },
     cheia: () => { O.cheia = !O.cheia; lsSet('obras_cheia', O.cheia ? '1' : '0'); telaCheia(O.cheia); pintarPainel(); },
     vista: (v) => { O.vista = v; lsSet('obras_vista', v); render(O.container); },
     filtrar: (k) => { O.filtro = O.filtro === k ? '' : k; if (O.filtro && O.vista === 'agenda') { O.vista = 'lista'; lsSet('obras_vista', 'lista'); } render(O.container); },

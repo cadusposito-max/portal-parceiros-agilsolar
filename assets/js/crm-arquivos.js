@@ -61,6 +61,29 @@ let _crmArqRep = {}; // tipo -> { trocado, rotulos } da reprovação da engenhar
 const CRM_CONTA_FUNCOES = { geradora: 'Geradora', compensacao: 'Compensação' };
 let _crmArqClassificando = null;
 
+// A mesma aba também aparece fora da ficha (card da obra, obras.js). O painel se
+// registra aqui: { client, el: () => HTMLElement, onRender?, irEngenharia? }.
+// Só vale enquanto o elemento dele está na tela; senão volta a ser a ficha.
+let _crmArqHost = null;
+function crmArqHostSet(host) { _crmArqHost = host || null; }
+function _crmArqHostAtivo() {
+  const h = _crmArqHost;
+  if (!h || !h.client || h.client.id !== _crmArq.clienteId) return null;
+  const el = h.el && h.el();
+  return el && el.isConnected ? h : null;
+}
+function _crmArqCliente() {
+  const h = _crmArqHostAtivo();
+  if (h) return h.client;
+  return typeof _crm360Client === 'function' ? _crm360Client() : null;
+}
+// "(7/12)" para o rótulo da aba de quem hospeda; vazio enquanto carrega.
+function crmArqContagem(client) {
+  if (!client || _crmArq.clienteId !== client.id || _crmArq.loading || _crmArq.erro) return '';
+  const p = _crmArqProgresso(_crmArq.rows, client);
+  return `(${p.feitos}/${p.total})`;
+}
+
 function _crmArqContasResumo(rows) {
   const contas = rows.filter((r) => r.tipo === 'conta_energia');
   const geradoras = contas.filter((r) => r.slot === 'geradora').length;
@@ -163,12 +186,19 @@ function crmArquivosTabContador(clienteId) {
 // Atualiza só o miolo da aba (sem re-render da ficha inteira — preserva o
 // formulário "Dados do cliente" que o usuário pode estar editando).
 function crmArqRender() {
+  const host = _crmArqHostAtivo();
+  if (host) {
+    host.el().innerHTML = renderCrmArquivosTab(host.client);
+    if (window.lucide) lucide.createIcons();
+    if (typeof host.onRender === 'function') host.onRender();
+    return;
+  }
   if (typeof _crm360ClientId === 'undefined' || _crm360ClientId !== _crmArq.clienteId) return;
   const cont = document.getElementById('crm360-arq-count');
   if (cont) cont.textContent = crmArquivosTabContador(_crmArq.clienteId);
   if (_crm360Tab !== 'arquivos') return;
   const slot = document.getElementById('crm360-tab-content');
-  const client = typeof _crm360Client === 'function' ? _crm360Client() : null;
+  const client = _crmArqCliente();
   if (!slot || !client) return;
   slot.innerHTML = renderCrmArquivosTab(client);
   if (window.lucide) lucide.createIcons();
@@ -225,7 +255,7 @@ function renderCrmArquivosTab(client) {
           <div><b>${faltaTrocar.length ? 'A engenharia devolveu arquivos deste cliente' : 'Arquivos trocados: falta reenviar à engenharia'}</b>
           <span>${escapeHTML(new Date(rep.em).toLocaleDateString('pt-BR'))}${rep.autor ? ' · ' + escapeHTML(rep.autor) : ''}${rep.docs.length ? '' : ' · ' + escapeHTML(rep.motivo || '')}</span></div></div>
         ${rep.docs.length ? `<div class="l">${rep.docs.map((d) => `<span class="${d.trocado ? 'ok' : ''}"><i data-lucide="${d.trocado ? 'check' : 'x'}"></i>${escapeHTML(d.rotulo)}<em>${d.trocado ? 'trocado' : 'trocar'}</em></span>`).join('')}</div>` : ''}
-        <button class="crm-arq-rep-go" onclick="crmSet360Tab('engenharia')"><i data-lucide="send"></i>${faltaTrocar.length ? 'Ver na aba Engenharia' : 'Reenviar à engenharia'}</button>
+        <button class="crm-arq-rep-go" onclick="${(_crmArqHostAtivo() && _crmArqHost.irEngenharia) || "crmSet360Tab('engenharia')"}"><i data-lucide="send"></i>${faltaTrocar.length ? 'Ver na aba Engenharia' : 'Reenviar à engenharia'}</button>
       </div>`;
   return `
     <div class="space-y-5">
@@ -372,7 +402,7 @@ function _crmArqContasHTML(rows) {
 }
 
 async function crmArqClassificarConta(id, funcao) {
-  const client = typeof _crm360Client === 'function' ? _crm360Client() : null;
+  const client = _crmArqCliente();
   const row = _crmArq.rows.find((r) => r.id === id && r.tipo === 'conta_energia');
   if (!client || _crmArq.clienteId !== client.id || !row || !CRM_CONTA_FUNCOES[funcao] || row.slot === funcao || _crmArqClassificando) return;
   const context = _crmArq;
@@ -544,7 +574,7 @@ async function _crmArqUploadUm(client, file, tipo, slot) {
 }
 
 async function crmArqEnviar(files, tipo, slot) {
-  const client = typeof _crm360Client === 'function' ? _crm360Client() : null;
+  const client = _crmArqCliente();
   if (!client || _crmArq.clienteId !== client.id) return;
   let lista = Array.from(files || []);
   if (!lista.length) return;
@@ -604,7 +634,7 @@ function crmArqExcluir(id) {
   const row = _crmArq.rows.find((r) => r.id === id);
   if (!row) return;
   showConfirmModal(`Excluir "${row.nome_original || 'arquivo'}" de ${_crmArqLabel(row.tipo)}?`, async () => {
-    const client = typeof _crm360Client === 'function' ? _crm360Client() : null;
+    const client = _crmArqCliente();
     if (!(await _crmArqRemover(row, false))) return;
     crmArqRender();
     showToast('Arquivo excluído.');
@@ -616,7 +646,7 @@ function crmArqExcluir(id) {
 }
 
 function crmArqUsarCoordenadas() {
-  const client = typeof _crm360Client === 'function' ? _crm360Client() : null;
+  const client = _crmArqCliente();
   const input = document.getElementById('crm-arq-localizacao');
   if (!client || !input || client.latitude == null || client.longitude == null) return;
   input.value = `${Number(client.latitude).toFixed(6)}, ${Number(client.longitude).toFixed(6)}`;
@@ -624,7 +654,7 @@ function crmArqUsarCoordenadas() {
 }
 
 async function crmArqSalvarLocalizacao() {
-  const client = typeof _crm360Client === 'function' ? _crm360Client() : null;
+  const client = _crmArqCliente();
   const input = document.getElementById('crm-arq-localizacao');
   if (!client || !input) return;
   const valor = input.value.trim() || null;
