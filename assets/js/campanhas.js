@@ -345,7 +345,8 @@
     const camp = ed && ed.id && Campanhas.lista.find((x) => x.id === ed.id);
     if (!camp) { toast('Salve o rascunho da campanha antes de escolher os kits.'); return; }
     if (ed.linha !== camp.linha) { toast('O código dos kits mudou: salve a campanha antes de escolher os kits.'); return; }
-    kp = { camp, fonte: 'promocional', tipo: '', busca: '', deModo: 'hoje', pct: DESCONTO_PADRAO, fontes: [], copias: new Map(), sel: new Map(), carregando: true, salvando: false };
+    kp = { camp, fonte: 'promocional', tipo: '', busca: '', dist: '', modulo: '', inversor: '', deModo: 'hoje', pct: DESCONTO_PADRAO,
+      fontes: [], copias: new Map(), sel: new Map(), carregando: true, salvando: false, progresso: 0 };
     kpMontar();
     try {
       await kpCarregar();
@@ -362,15 +363,31 @@
 
   async function kpCarregar() {
     const fid = typeof FRANQUIA_MATRIZ_ID !== 'undefined' ? FRANQUIA_MATRIZ_ID : state.franquiaId;
-    const { data, error } = await selectProdutosDaUnidade(fid);
+    // equipamentos e distribuidoras: os mesmos filtros do Catálogo completo do orçamento
+    const temCatalogo = typeof carregarCatalogoDistribuidoras === 'function';
+    const [{ data, error }] = await Promise.all([
+      selectProdutosDaUnidade(fid),
+      temCatalogo ? carregarCatalogoDistribuidoras().catch(() => null) : null,
+    ]);
     if (error) throw error;
     if (!kp) return; // fechou enquanto carregava
+    const cd = temCatalogo && typeof _catalogoDistrib !== 'undefined' ? _catalogoDistrib : { equipamentos: [], distribuidoras: [] };
+    const equip = new Map((cd.equipamentos || []).map((e) => [String(e.id), e]));
+    const marca = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLocaleUpperCase('pt-BR');
+    const descModulo = (e) => {
+      if (!e || !marca(e.marca)) return '';
+      const w = Number(e.potencia_wp);
+      return w > 0 ? `${marca(e.marca)} · ${w.toLocaleString('pt-BR', { maximumFractionDigits: 20 })} W` : marca(e.marca);
+    };
+    kp.distNomes = new Map((cd.distribuidoras || []).map((d) => [String(d.id), d.nome]));
     const linha = kp.camp.linha;
     const promo = new Map();
     const cat = new Map();
     (data || []).forEach((p) => {
       const pr = typeof resolveProductPrices === 'function' ? resolveProductPrices(p) : p;
-      const k = { ...p, hoje: Number(pr.price) || 0, de: Number(pr.list_price) || 0, chave: chaveKit(p), tipo: tipoKit(p) };
+      const k = { ...p, hoje: Number(pr.price) || 0, de: Number(pr.list_price) || 0, chave: chaveKit(p), tipo: tipoKit(p),
+        fDist: p.distribuidora_id ? String(p.distribuidora_id) : '', fModulo: descModulo(equip.get(String(p.modulo_id))),
+        fInversor: marca(equip.get(String(p.inversor_id))?.marca) };
       const l = p.linha || 'catalogo';
       // cópias inativas também entram: marcar de novo reativa em vez de duplicar
       if (l === linha) { kp.copias.set(k.chave, k); return; }
@@ -413,10 +430,40 @@
 
   const precoGeral = (k) => r2(k.hoje * (1 - kp.pct / 100));
 
-  function kpVisiveis() {
+  // filtros: aba (promocionais/catálogo), Inversor/Micro, distribuidora, módulo, marca do inversor e busca.
+  // `sem` deixa um filtro de fora (para montar as opções daquele campo sem ele mesmo).
+  function kpFiltrar(sem = '') {
     const q = nrm(kp.busca).replace(/mod\./g, 'mod').split(' ').filter(Boolean);
     return kp.fontes.filter((k) => (k.linha === kp.fonte) && (!kp.tipo || k.tipo === kp.tipo)
+      && (sem === 'dist' || !kp.dist || k.fDist === kp.dist)
+      && (sem === 'modulo' || !kp.modulo || k.fModulo === kp.modulo)
+      && (sem === 'inversor' || !kp.inversor || k.fInversor === kp.inversor)
       && q.every((w) => `${nrm(k.name).replace(/mod\./g, 'mod')} ${nrm(k.brand)} ${k.modulo_qtd || ''} mod`.includes(w)));
+  }
+  const kpVisiveis = () => kpFiltrar();
+
+  // só oferece opção que tem kit com os outros filtros (escolher nunca esvazia a lista à toa)
+  function kpOpcoes(campo) {
+    const prop = { dist: 'fDist', modulo: 'fModulo', inversor: 'fInversor' }[campo];
+    const vals = [...new Set(kpFiltrar(campo).map((k) => k[prop]).filter(Boolean))];
+    if (kp[campo] && !vals.includes(kp[campo])) vals.push(kp[campo]);
+    const nome = (v) => (campo === 'dist' ? kp.distNomes.get(v) || 'Distribuidora' : v);
+    return vals.map((v) => [v, nome(v)]).sort((a, b) => a[1].localeCompare(b[1], 'pt-BR', { numeric: true }));
+  }
+
+  function kpPintarFiltros() {
+    const el = document.getElementById('ckp');
+    if (!el || !kp) return;
+    [['dist', 'Todas as distribuidoras'], ['modulo', 'Todos os módulos'], ['inversor', 'Todas as marcas']].forEach(([campo, todos]) => {
+      const s = el.querySelector(`[data-kp-filtro="${campo}"]`);
+      if (!s) return;
+      s.innerHTML = `<option value="">${todos}</option>` + kpOpcoes(campo).map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('');
+      s.value = kp[campo];
+      s.disabled = kp.carregando;
+      s.closest('.ckp-filtro').classList.toggle('on', Boolean(kp[campo]));
+    });
+    const limpar = el.querySelector('[data-kp="limpar"]');
+    if (limpar) limpar.hidden = !(kp.dist || kp.modulo || kp.inversor || kp.tipo || kp.busca);
   }
 
   function kpRowHTML(k) {
@@ -452,6 +499,12 @@
         <button type="button" class="ckp-chip" data-kp-tipo="inv">Inversor</button>
         <button type="button" class="ckp-chip" data-kp-tipo="micro">Micro</button>
         <button type="button" class="btn btn-secondary ckp-sm" data-kp="todos">Marcar todos</button>
+      </div>
+      <div class="ckp-filtros">
+        <label class="ckp-filtro"><i data-lucide="warehouse"></i><span>Distribuidora</span><select data-kp-filtro="dist" aria-label="Distribuidora"></select></label>
+        <label class="ckp-filtro"><i data-lucide="solar-panel"></i><span>Módulo / painel</span><select data-kp-filtro="modulo" aria-label="Módulo / painel"></select></label>
+        <label class="ckp-filtro"><i data-lucide="zap"></i><span>Inversor / micro</span><select data-kp-filtro="inversor" aria-label="Marca do inversor / microinversor"></select></label>
+        <button type="button" class="ckp-link" data-kp="limpar" hidden>Limpar filtros</button>
       </div>
       <div class="ckp-geral">
         <b><i data-lucide="badge-percent"></i>Desconto geral</b>
@@ -507,6 +560,13 @@
       + (mostra.length ? mostra.map(kpRowHTML).join('') : `<p class="ckp-vazio">${kp.fontes.length ? 'Nenhum kit com esse filtro.' : 'Nenhum kit com preço na Matriz.'}</p>`)
       + (v.length > mostra.length ? `<p class="ckp-vazio">Mostrando ${mostra.length} de ${v.length}. Busque para achar os outros.</p>` : '');
     lst.scrollTop = top;
+    const todos = document.querySelector('#ckp [data-kp="todos"]');
+    if (todos) {
+      const tudo = v.length && v.every((k) => kp.sel.get(k.chave)?.src === k);
+      todos.textContent = `${tudo ? 'Desmarcar' : 'Marcar'} todos (${v.length.toLocaleString('pt-BR')})`;
+      todos.disabled = !v.length;
+    }
+    kpPintarFiltros();
     kpPintarRodape();
     if (window.lucide) lucide.createIcons();
   }
@@ -524,7 +584,7 @@
       ? `<b>${arr.length} kit${arr.length > 1 ? 's' : ''} marcado${arr.length > 1 ? 's' : ''}</b><small>Desconto médio ${pctTxt(Math.round(media * 10) / 10)}%${proprios ? ` · ${proprios} com preço próprio` : ''}${saem ? ` · ${saem} sai${saem > 1 ? 'em' : ''} da campanha` : ''}</small>`
       : `<b>Nenhum kit marcado</b><small>${ativas ? `Os ${ativas} kits saem da campanha ao salvar` : 'Marque na lista ou use “Marcar todos”'}</small>`;
     btn.disabled = kp.salvando || kp.carregando || (!arr.length && !ativas);
-    btn.innerHTML = kp.salvando ? 'Salvando…' : `<i data-lucide="check"></i>${ativas ? 'Salvar alterações' : `Salvar ${arr.length || ''} kit${arr.length === 1 ? '' : 's'}`.replace(/\s+/g, ' ')}`;
+    btn.innerHTML = kp.salvando ? `Salvando… ${kp.progresso || 0}%` : `<i data-lucide="check"></i>${ativas ? 'Salvar alterações' : `Salvar ${arr.length || ''} kit${arr.length === 1 ? '' : 's'}`.replace(/\s+/g, ' ')}`;
     if (window.lucide) lucide.createIcons();
   }
 
@@ -568,13 +628,19 @@
       return;
     }
     if (acao === 'aplicar') { kpAplicarGeral(); return; }
+    if (acao === 'limpar') {
+      kp.dist = ''; kp.modulo = ''; kp.inversor = ''; kp.tipo = ''; kp.busca = '';
+      const b = document.querySelector('#ckp [data-kp-busca]'); if (b) b.value = '';
+      kpPintar();
+      return;
+    }
     if (acao === 'zerar') {
       kp.sel.forEach((s) => { s.proprio = false; s.preco = precoGeral(s.src); });
       kpPintarLista();
       return;
     }
     const f = e.target.closest('[data-kp-fonte]');
-    if (f) { kp.fonte = f.dataset.kpFonte; kpPintar(); document.getElementById('ckp-lst').scrollTop = 0; return; }
+    if (f) { kp.fonte = f.dataset.kpFonte; kp.dist = ''; kp.modulo = ''; kp.inversor = ''; kpPintar(); document.getElementById('ckp-lst').scrollTop = 0; return; }
     const t = e.target.closest('[data-kp-tipo]');
     if (t) { kp.tipo = kp.tipo === t.dataset.kpTipo ? '' : t.dataset.kpTipo; kpPintar(); return; }
     const d = e.target.closest('[data-kp-de]');
@@ -583,6 +649,13 @@
 
   // % recalcula o R$ e o R$ recalcula o % (ao sair do campo). Mexer num kit desmarcado já marca.
   function kpMudou(e) {
+    const filtro = e.target.closest('[data-kp-filtro]');
+    if (filtro && kp) {
+      kp[filtro.dataset.kpFiltro] = filtro.value;
+      kpPintarLista();
+      const lst = document.getElementById('ckp-lst'); if (lst) lst.scrollTop = 0;
+      return;
+    }
     const inp = e.target.closest('[data-kp-in]');
     if (!inp || !kp) return;
     const ch = inp.closest('[data-ch]').dataset.ch;
@@ -621,28 +694,43 @@
         if (c) velhos.push({ id: c.id, ...row }); else novos.push(row);
       });
 
+      // Em lotes: a plataforma inteira passa de 4 mil kits × 8 unidades, e cada
+      // pedido ao banco tem 8 s. O botão mostra o andamento.
+      const sair = [...kp.copias.entries()].filter(([ch, c]) => c.ativo !== false && !kp.sel.has(ch)).map(([, c]) => c.id);
+      const lotes = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
+      const L_PROD = 300;
+      const L_PRECO = 1000;
+      const L_IDS = 150; // o filtro de ids vai na URL
+      const total = Math.ceil(novos.length / L_PROD) + Math.ceil(velhos.length / L_PROD)
+        + Math.ceil((novos.length + velhos.length) * unidades.length / L_PRECO) + Math.ceil(sair.length / L_IDS);
+      let feitos = 0;
+      const passo = () => { feitos++; kp.progresso = total ? Math.min(99, Math.round(feitos / total * 100)) : 0; kpPintarRodape(); };
+
       const gravados = [];
-      if (novos.length) {
-        const { data, error } = await supabaseClient.from('produtos').insert(novos).select('id, price, list_price');
+      for (const lote of lotes(novos, L_PROD)) {
+        const { data, error } = await supabaseClient.from('produtos').insert(lote).select('id, price, list_price');
         if (error) throw error;
         gravados.push(...(data || []));
+        passo();
       }
-      if (velhos.length) {
-        const { error } = await supabaseClient.from('produtos').upsert(velhos, { onConflict: 'id' });
+      for (const lote of lotes(velhos, L_PROD)) {
+        const { error } = await supabaseClient.from('produtos').upsert(lote, { onConflict: 'id' });
         if (error) throw error;
-        gravados.push(...velhos.map((x) => ({ id: x.id, price: x.price, list_price: x.list_price })));
+        gravados.push(...lote.map((x) => ({ id: x.id, price: x.price, list_price: x.list_price })));
+        passo();
       }
       // mesmo preço em todas as unidades ativas (é o que o orçamento e o banco usam)
       const precos = [];
       gravados.forEach((p) => unidades.forEach((f) => precos.push({ produto_id: p.id, franquia_id: f, price: p.price, list_price: p.list_price })));
-      for (let i = 0; i < precos.length; i += 500) {
-        const { error } = await supabaseClient.from('precos_franquia').upsert(precos.slice(i, i + 500), { onConflict: 'produto_id,franquia_id' });
+      for (const lote of lotes(precos, L_PRECO)) {
+        const { error } = await supabaseClient.from('precos_franquia').upsert(lote, { onConflict: 'produto_id,franquia_id' });
         if (error) throw error;
+        passo();
       }
-      const sair = [...kp.copias.entries()].filter(([ch, c]) => c.ativo !== false && !kp.sel.has(ch)).map(([, c]) => c.id);
-      if (sair.length) {
-        const { error } = await supabaseClient.from('produtos').update({ ativo: false }).in('id', sair);
+      for (const lote of lotes(sair, L_IDS)) {
+        const { error } = await supabaseClient.from('produtos').update({ ativo: false }).in('id', lote);
         if (error) throw error;
+        passo();
       }
 
       const primeira = ![...kp.copias.values()].some((c) => c.ativo !== false);
@@ -656,8 +744,11 @@
       if (typeof fetchProducts === 'function') fetchProducts().catch(() => {});
     } catch (err) {
       console.warn('[campanhas] Falha ao salvar os kits.', err);
-      if (kp) { kp.salvando = false; kpPintarRodape(); }
-      toast(`Não foi possível salvar os kits: ${String(err?.message || err)}`);
+      const parte = kp && kp.progresso > 0;
+      if (kp) { kp.salvando = false; kp.progresso = 0; kpPintarRodape(); }
+      toast(parte
+        ? `O salvamento parou no meio (${String(err?.message || err)}). Feche, abra "Editar kits" de novo e salve para completar.`
+        : `Não foi possível salvar os kits: ${String(err?.message || err)}`);
     }
   }
 

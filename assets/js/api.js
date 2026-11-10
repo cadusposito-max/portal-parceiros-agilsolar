@@ -162,8 +162,21 @@ async function selectProdutosDaUnidade(franquiaId) {
     id, categoria, name, brand, power, type, description, tag, ativo, created_at, price, list_price, franquia_id, linha,
     modulo_id, modulo_qtd, inversor_id, inversor_qtd, distribuidora_id,
     precos_franquia!inner(price, list_price${extra})`;
-  const consulta = (extra) => supabaseClient.from('produtos').select(cols(extra))
-    .eq('precos_franquia.franquia_id', franquiaId).order('power', { ascending: true });
+  // A API entrega no máximo 1.000 linhas por consulta: busca em páginas até acabar
+  // (a Matriz passa de 5 mil kits; sem isso o catálogo parava nos ~13 kWp).
+  const PAGINA = 1000;
+  const consulta = async (extra) => {
+    const tudo = [];
+    for (let de = 0; ; de += PAGINA) {
+      const r = await supabaseClient.from('produtos').select(cols(extra))
+        .eq('precos_franquia.franquia_id', franquiaId)
+        .order('power', { ascending: true }).order('id', { ascending: true })
+        .range(de, de + PAGINA - 1);
+      if (r.error) return r;
+      tudo.push(...(r.data || []));
+      if (!r.data || r.data.length < PAGINA) return { data: tudo, error: null };
+    }
+  };
   const r = await consulta(', price_custos, list_price_custos');
   if (r.error && /price_custos|list_price_custos/.test(String(r.error.message || ''))) return consulta('');
   return r;
