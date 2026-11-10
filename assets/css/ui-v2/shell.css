@@ -210,14 +210,23 @@ html[data-ui="v2"] .v2-msearch { display: none !important; }
   html[data-ui="v2"] .v2-mtop .ui-v2-logo .wm { display: flex !important; }
   html[data-ui="v2"] .v2-mtop .ui-v2-logo .wm b { font-size: 19px; }
   html[data-ui="v2"] .v2-mtop .ui-v2-logo .wm small { display: none; }
-  /* com troca de ambiente só cabe o símbolo do logo (a pílula e o sininho ocupam o resto) */
-  html[data-ui="v2"] .v2-mtop.multi .ui-v2-logo .wm { display: none !important; }
-  html[data-ui="v2"] .v2-mtop .v2-envbtn { width: auto; height: 44px; padding: 6px 10px 6px 6px; border-radius: 999px; background: var(--v2-card); box-shadow: var(--v2-shadow); }
+  /* com troca de ambiente o logo sai do topo: a pílula (com o nome inteiro), o Atualizar,
+     tarefas, sininho e foto ocupam a largura toda */
+  html[data-ui="v2"] .v2-mtop { gap: 6px; }
+  html[data-ui="v2"] .v2-mtop.multi .ui-v2-logo { display: none !important; }
+  /* #app-content: ganha da regra do menu recolhido (≤1180px), que também pega esta pílula */
+  html[data-ui="v2"] #app-content .v2-mtop .v2-envbtn { width: auto; min-width: 0; height: 40px; padding: 4px 6px 4px 4px; gap: 4px; border-radius: 999px; background: var(--v2-card); box-shadow: var(--v2-shadow); }
+  html[data-ui="v2"] .v2-mtop .v2-envbtn .chev { width: 14px; height: 14px; }
+  /* o espaçador não conta espaço extra ("Minha unidade" cabe inteiro em 375px) */
+  html[data-ui="v2"] .v2-mtop .v2-grow { margin-left: -6px; }
   html[data-ui="v2"] .v2-mtop .v2-envbtn .v2-envic { width: 32px; height: 32px; border-radius: 50%; }
   html[data-ui="v2"] .v2-mtop .v2-envbtn .tx small { display: none; }
-  html[data-ui="v2"] .v2-mtop .v2-envbtn b { font-size: 13px; }
-  html[data-ui="v2"] .v2-mtop .v2-icb { width: 44px; height: 44px; }
-  html[data-ui="v2"] .v2-mtop .v2-av { width: 44px; height: 44px; }
+  html[data-ui="v2"] .v2-mtop .v2-envbtn b { font-size: 13px; letter-spacing: -.01em; display: block; overflow: hidden; text-overflow: ellipsis; }
+  html[data-ui="v2"] .v2-mtop .v2-icb { width: 40px; height: 40px; }
+  html[data-ui="v2"] .v2-mtop .v2-av { width: 40px; height: 40px; }
+  /* Atualizar: gira enquanto recarrega */
+  html[data-ui="v2"] .v2-mtop .v2-reload.girando { color: var(--v2-blue); pointer-events: none; }
+  html[data-ui="v2"] .v2-mtop .v2-reload.girando svg { animation: v2-gira .7s linear infinite; }
   html[data-ui="v2"] body #app-content > main { padding: 6px 0 0 !important; }
   html[data-ui="v2"] .v2-top { margin: 4px 0 14px; gap: 8px; }
   html[data-ui="v2"] .v2-top > div:first-child { flex: 1; min-width: 0; }
@@ -330,6 +339,7 @@ html[data-ui="v2"] .v2-navind {
   transition: transform .28s cubic-bezier(.2,.8,.2,1), height .28s cubic-bezier(.2,.8,.2,1);
 }
 /* ---------- troca de aba: conteúdo entra subindo de leve, em cascata ---------- */
+@keyframes v2-gira { to { transform: rotate(360deg); } }
 @keyframes v2-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 html[data-ui="v2"] #main-container.v2-enter > * { animation: v2-enter .26s cubic-bezier(.2,.8,.2,1) backwards; }
 html[data-ui="v2"] #main-container.v2-enter > :nth-child(2) { animation-delay: .03s; }

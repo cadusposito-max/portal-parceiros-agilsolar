@@ -191,7 +191,8 @@
     $('#v2-mtop').classList.toggle('multi', multiEnv);
     $('#v2-mtop').innerHTML = `${LOGO}
       ${multiEnv ? `<button class="v2-envbtn" data-v2="sheet" data-target="v2-sheet-env"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${ic('chevron-down', 'class="chev"')}</button>` : ''}
-      <span class="v2-grow"></span>${tarefasHTML}${sinoHTML}
+      <span class="v2-grow"></span>
+      <button class="v2-icb v2-reload" data-v2="reload" title="Atualizar" aria-label="Atualizar a plataforma">${ic('rotate-cw')}</button>${tarefasHTML}${sinoHTML}
       <button class="v2-av" data-v2="sheet" data-target="v2-sheet-user" aria-label="Menu da conta">${u.avatar}</button>`;
 
     $('#v2-top').innerHTML = `
@@ -432,6 +433,23 @@
     else if (e.key === 'Tab') { e.preventDefault(); const S = SCOPES(); const i = S.findIndex((s) => s[0] === P.scope); P.scope = S[(i + (e.shiftKey ? -1 : 1) + S.length) % S.length][0]; P.idx = 0; paintPalette(); }
   }
 
+  // ---------- botão Atualizar (celular) ----------
+  // Instalada como app não há barra do navegador para recarregar. Pede ao
+  // navegador a versão nova do service worker (sem esperar mais de 2 s) e recarrega.
+  let recarregando = false;
+  async function atualizarPlataforma(btn) {
+    if (recarregando) return;
+    recarregando = true;
+    if (btn) { btn.classList.add('girando'); btn.setAttribute('aria-busy', 'true'); }
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) await Promise.race([reg.update(), new Promise((r) => setTimeout(r, 2000))]);
+      }
+    } catch (_) { /* sem service worker: só recarrega */ }
+    window.location.reload();
+  }
+
   // ---------- cliques ----------
   document.addEventListener('click', (e) => {
     if (!window.uiV2.isActive() || !mounted) return;
@@ -460,6 +478,7 @@
       case 'notif': if (has('notifAbrir')) notifAbrir(t); break;
       case 'tarefas': if (has('tarefasToggle')) tarefasToggle(); break;
       case 'logout': if (has('handleLogout')) handleLogout(); break;
+      case 'reload': atualizarPlataforma(t); break;
       case 'palette': openPalette(); break;
       case 'palclose': closePalette(); break;
       case 'scope-pal': P.scope = t.dataset.scope; P.idx = 0; paintPalette(); $('#v2-palq').focus(); break;
