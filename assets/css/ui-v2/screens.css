@@ -828,6 +828,11 @@ html[data-ui="v2"] .pv-bt2 { flex: none; height: 38px; padding: 0 14px; border-r
 html[data-ui="v2"] .pv-bt2:hover { border-color: var(--v2-blue); color: var(--v2-blue-text); }
 html[data-ui="v2"] .pv-bt2 svg { width: 15px; height: 15px; flex: none; }
 html[data-ui="v2"] .pv-bt2.edit { border-style: dashed; }
+/* Liberar para obra: botão cheio (é a ação que destrava a obra) */
+html[data-ui="v2"] .pv-bt2.pri { background: var(--v2-blue); border-color: var(--v2-blue); color: #fff; }
+html[data-ui="v2"] .pv-bt2.pri:hover { background: var(--v2-blue-hover); color: #fff; }
+html[data-ui="v2"] .pv-bt2.ghost { border-color: transparent; background: none; color: var(--v2-ink-2); }
+html[data-ui="v2"] .pv-bts { display: flex; gap: 6px; flex: none; flex-wrap: wrap; }
 html[data-ui="v2"] .pva .pv-form { margin: 0; }
 @media (max-width: 760px) {
   html[data-ui="v2"] .v2f-steps.pv-steps .v2f-step:not(.cur):not(.pvlate) small { display: none; }
@@ -836,6 +841,9 @@ html[data-ui="v2"] .pva .pv-form { margin: 0; }
   html[data-ui="v2"] .pva-row > .pv-d { margin-top: 2px; }
   html[data-ui="v2"] .pva-row .tx { flex-basis: calc(100% - 40px); }
   html[data-ui="v2"] .pva-row .pv-bt2 { width: 100%; height: 42px; }
+  html[data-ui="v2"] .pva-row .pv-bts { width: 100%; }
+  html[data-ui="v2"] .pva-row .pv-bts .pv-bt2:not(.ghost) { flex: 1; width: auto; }
+  html[data-ui="v2"] .pva-row .pv-bts .pv-bt2.ghost { width: auto; }
 }
 /* "!" da etapa com atenção (bolinhas do trilho, do topo da ficha e da aba) */
 html[data-ui="v2"] .pv-ex { font-style: normal; font-weight: 900; font-size: 12px; line-height: 1; color: #fff; }

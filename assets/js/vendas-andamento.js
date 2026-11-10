@@ -82,6 +82,29 @@
     });
   }
 
+  // ------------------------------------------------------------ liberação para obra
+  // A venda só vira obra quando a gestão libera (financiamento aprovado, entrada
+  // recebida...). O botão fica aqui no card da venda; a janela é a de obras.js.
+  const posDe_ = (v) => (A.mapa && A.mapa[v.id] && A.mapa[v.id].pos) || {};
+  const OBRA_ANDANDO = ['agendada', 'em_andamento', 'concluida'];
+  function aguardaLiberacao(v) {
+    if (A.semRpc || !A.mapa) return false;
+    const pos = posDe_(v);
+    return !pos.obra_liberada_em && !OBRA_ANDANDO.includes(pos.obra_status);
+  }
+  const podeLiberar = (v) => podeEditar(v) && !A.semRpc && !!(window.obras && window.obras.liberarModal);
+  const podeDevolver = (v) => podeLiberar(v) && !!posDe_(v).obra_liberada_em && !OBRA_ANDANDO.includes(posDe_(v).obra_status);
+  const alvoObra = (v) => ({ venda_id: v.id, cliente_nome: v.cliente_nome, kwp: v.kit_power, pagamento: v.forma_pagamento });
+  async function depoisLiberar() { await carregar(true); repintar(); }
+  function liberar(vendaId) {
+    const v = (state.vendas || []).find((x) => x.id === vendaId);
+    if (v && podeLiberar(v)) window.obras.liberarModal(alvoObra(v), depoisLiberar);
+  }
+  function devolverObra(vendaId) {
+    const v = (state.vendas || []).find((x) => x.id === vendaId);
+    if (v && podeDevolver(v)) window.obras.devolver(alvoObra(v), depoisLiberar);
+  }
+
   // ------------------------------------------------------------ etapas
   // Devolve { s: [5 estados], t: { pag: [título, detalhe], ... }, pct, fase, atencao }.
   // Estados: 'ok' feito · 'at' em andamento · 'late' precisa de atenção · '' aguardando.
@@ -138,9 +161,13 @@
     // Obra
     const pos = d.pos || {};
     const projetoOk = s[1] === 'ok';
-    if (!pos.obra_status) {
+    if (aguardaLiberacao(v)) {
+      // a venda só entra na aba Obras quando a gestão libera (botão aqui no card da venda)
+      const fin = ['financiamento', 'entrada_financiamento'].includes(v.forma_pagamento);
+      s.push('at'); t.obra = ['Aguardando liberação', fin ? 'Libere quando o financiamento for aprovado' : 'Libere quando o pagamento estiver garantido'];
+    } else if (!pos.obra_status) {
       if (projetoOk) { s.push('at'); t.obra = ['Liberada para agendar', 'Projeto aprovado na concessionária']; }
-      else { s.push(''); t.obra = ['Aguardando', 'Libera quando o projeto for aprovado']; }
+      else { s.push('at'); t.obra = ['Liberada para obra', 'Aguardando a OS da engenharia']; }
     } else {
       const equipe = pos.obra_equipe ? `equipe ${pos.obra_equipe}` : '';
       if (pos.obra_status === 'concluida') { s.push('ok'); t.obra = ['Concluída', [pos.obra_data ? dm(pos.obra_data) : '', equipe].filter(Boolean).join(' · ') || 'Obra finalizada']; }
@@ -233,6 +260,7 @@
     if (faseId === 'pag' && state.canFin) return fin('titulos', 'Ver títulos no Financeiro');
     if (faseId === 'ent' && state.canFin) return fin('ordemcompra', 'Ver ordem de compra no Financeiro');
     if (faseId === 'proj') return { txt: 'Abrir na aba Engenharia da ficha', ir: () => openVendaClienteFicha(v.id, 'engenharia') };
+    if (faseId === 'obra' && aguardaLiberacao(v) && podeLiberar(v)) return { txt: 'Liberar para obra', ir: () => liberar(v.id) };
     if (faseId === 'obra' && podeEditar(v) && !A.semRpc && window.obras) return { txt: 'Abrir na aba Obras', ir: () => window.vendasAndamento.irObras(v.id) };
     if (faseId === 'mon' && podeEditar(v) && !A.semRpc) {
       return { txt: 'Atualizar monitoramento', ir: () => { A.editando = { venda: v.id, fase: 'mon' }; ficha('posvenda').ir(); } };
@@ -367,7 +395,9 @@
     if (f.id === 'ent') return state.canFin ? bt(`vendasAndamento.irFinanceiro('ordemcompra', '${cid}', '${esc(v.id)}')`, 'arrow-up-right', 'Ver ordem de compra') : '';
     if (f.id === 'proj') return v.cliente_id ? bt(`crmSet360Tab('engenharia')`, 'arrow-up-right', inf.s[1] ? 'Abrir na aba Engenharia' : 'Enviar à engenharia') : '';
     if (!podeEditar(v) || A.semRpc) return '';
-    // a obra (agenda, equipe, conclusão) é gerenciada na aba Obras do Comercial
+    // liberação para obra: aqui no card da venda; depois a obra é gerenciada na aba Obras
+    if (f.id === 'obra' && aguardaLiberacao(v) && podeLiberar(v)) return bt(`vendasAndamento.liberar('${esc(v.id)}')`, 'lock-keyhole-open', 'Liberar para obra', 'pri');
+    if (f.id === 'obra' && podeDevolver(v)) return `<div class="pv-bts">${bt(`vendasAndamento.irObras('${esc(v.id)}')`, 'arrow-up-right', 'Abrir na aba Obras')}${bt(`vendasAndamento.devolverObra('${esc(v.id)}')`, 'undo-2', 'Devolver', 'ghost')}</div>`;
     if (f.id === 'obra' && window.obras) return bt(`vendasAndamento.irObras('${esc(v.id)}')`, 'arrow-up-right', 'Abrir na aba Obras');
     return bt(`vendasAndamento.editar('${esc(v.id)}', '${f.id}')`, 'pencil', f.id === 'obra' ? 'Atualizar obra' : 'Atualizar monitoramento', 'edit');
   }
@@ -570,7 +600,7 @@
   window.vendasAndamento = {
     FASES, carregar, garantir, info, trilho, agora, painel, painelCard, fasesHTML, filtrarLista,
     vendaDaFicha, topoEtapasHTML, topoResumoHTML, topoMiniHTML, abaHTML, irEtapa,
-    editar, salvar, irFinanceiro, irDaLista, abrir, fechar, filtrar, dica,
+    editar, salvar, irFinanceiro, irDaLista, abrir, fechar, filtrar, dica, liberar, devolverObra,
     // da ficha (aba Pós-venda) para o card da obra na aba Obras
     irObras: (vendaId) => {
       if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId && typeof closeCrm360 === 'function') closeCrm360();

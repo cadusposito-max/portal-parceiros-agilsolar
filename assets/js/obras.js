@@ -121,7 +121,6 @@
   const noEscopo = () => (typeof applyAdminGlobalScope === 'function' ? applyAdminGlobalScope(O.lista || []) : (O.lista || []));
   const liberada = (o) => !!(o.pos && o.pos.obra_liberada_em);
   const obras = () => noEscopo().filter(liberada);
-  const aguardando = () => noEscopo().filter((o) => !liberada(o));
   const equipesAtivas = (franquia) => (typeof applyAdminGlobalScope === 'function' ? applyAdminGlobalScope(O.equipes || []) : (O.equipes || []))
     .filter((e) => e.ativa && (!franquia || e.franquia_id === franquia));
   const achar = (id) => (O.lista || []).find((x) => x.venda_id === id);
@@ -247,15 +246,6 @@
       return `<button type="button" class="${O.filtro === a.k ? 'on' : ''} ${n ? '' : 'zero'}" onclick="obras.filtrar('${a.k}')" title="${O.filtro === a.k ? 'Tirar o filtro' : 'Mostrar só essas'}">
         <span class="ic ob-t-${a.tone}">${ic(a.i)}</span><span><b>${n}</b><small>${a.t}</small></span></button>`;
     }).join('')}</div>`;
-  }
-
-  // vendas que ainda não foram liberadas para obra (ficam fora da agenda, do quadro e da lista)
-  function libBarHTML() {
-    const n = aguardando().length;
-    if (!n) return '';
-    return `<div class="ob-libbar"><span class="ic">${ic('lock-keyhole')}</span>
-      <div><b>${n === 1 ? '1 venda aguardando liberação' : n + ' vendas aguardando liberação'}</b><small>Ela entra nas obras quando o financiamento for aprovado ou a entrada cair. Quem libera é a gestão.</small></div>
-      <button type="button" class="eg-btn pri" onclick="obras.liberarLista()">${ic('lock-keyhole-open')}Ver e liberar</button></div>`;
   }
 
   function toolbarHTML() {
@@ -409,19 +399,19 @@
       return;
     }
     const lista = filtradas();
-    const corpo = !todas.length ? `<div class="v2-card"><div class="v2-empty">Nenhuma obra liberada ainda. A venda vira obra quando a gestão libera.</div></div>`
+    const corpo = !todas.length ? `<div class="v2-card"><div class="v2-empty">Nenhuma obra liberada ainda. A venda vira obra quando a gestão libera, no card da venda em Vendas.</div></div>`
       : O.vista === 'agenda' ? agendaHTML(lista)
       : celular() ? mobileHTML(lista)
       : O.vista === 'lista' ? listaHTML(lista) : quadroHTML(lista);
-    container.innerHTML = `${libBarHTML()}${attHTML()}${toolbarHTML()}${O.erro ? `<div class="eg-aviso r">${ic('triangle-alert')}<span>Não deu para atualizar as obras: ${esc(O.erro)}</span></div>` : ''}${corpo}`;
+    container.innerHTML = `${attHTML()}${toolbarHTML()}${O.erro ? `<div class="eg-aviso r">${ic('triangle-alert')}<span>Não deu para atualizar as obras: ${esc(O.erro)}</span></div>` : ''}${corpo}`;
     icons();
   }
 
   // ------------------------------------------------------------ card da obra (painel)
   async function abrir(id, aba) {
-    // venda ainda não liberada (ex.: veio da Jornada em Vendas): oferece liberar em vez de abrir o card
+    // venda ainda não liberada: a liberação é feita no card da venda (Jornada, em Vendas)
     const alvo = achar(id);
-    if (alvo && !liberada(alvo)) { liberarModal(id); return; }
+    if (alvo && !liberada(alvo)) { toast('Essa venda ainda não foi liberada para obra. Libere no card da venda, em Vendas.'); return; }
     const outra = O.aberta !== id;
     if (outra) O.el[id] = null;
     O.aba = aba || (outra ? 'resumo' : O.aba || 'resumo');
@@ -605,7 +595,7 @@
         ${kv('Kit (ordem de compra)', custoKit)}${kv('Elétrica', Number(pos.eletrica_total) ? money(pos.eletrica_total) : I.e.ok ? '—' : 'a comprar')}</div></div>
       ${liberada(o) ? `<div class="rd-card"><h3>${ic('lock-keyhole-open')}Liberação para obra</h3><div class="rd-kv">
         ${kv('Liberada em', esc(quando(pos.obra_liberada_em)))}${kv('Por', esc(pos.obra_liberada_por || '—'))}${kv('Motivo', esc(pos.obra_liberacao_motivo || '—'))}${kv('Pagamento da venda', esc(FORMAS[o.pagamento] || '—'))}</div>
-        ${['os', 'material', 'pronta'].includes(I.etapa) ? `<div class="ob-linha"><button type="button" class="rd-btn sm ghost" onclick="obras.devolver()">${ic('undo-2')}Devolver para aguardando liberação</button></div>` : ''}</div>` : ''}`;
+        <p class="ob-nota">${ic('info')}<span>A liberação (e a devolução) é feita no card da venda, em Vendas.</span></p></div>` : ''}`;
   }
 
   function abaMaterial(o, I) {
@@ -1038,59 +1028,46 @@
     });
   }
 
-  // liberação para obra: lista das vendas aguardando + confirmar com motivo
-  function liberarLista() {
-    const lista = aguardando().slice().sort((a, b) => String(a.venda_em).localeCompare(String(b.venda_em)));
-    if (!lista.length) { fecharModal(); toast('Nenhuma venda aguardando liberação.'); return; }
-    const linha = (o) => {
-      const eng = o.os ? `OS ${esc(o.os.numero)}` : o.eng ? `Projeto ${esc(pnum(o.eng))} · ${esc((ENG_ST[o.eng.status] || o.eng.status).toLowerCase())}` : 'Não enviado à engenharia';
-      return `<div class="ob-lib-it">
-        <div class="tx"><b>${esc(o.cliente_nome || 'Cliente')}</b>
-          <small>${esc(cidade(o))} · ${kwp(o.kwp)} · venda ${esc(dm(String(o.venda_em).slice(0, 10)))} · ${esc(o.vendedor || '—')}${verTodas() ? ' · ' + esc(franquiaNome(o.franquia_id)) : ''}</small>
-          <div class="ob-chips">${chip(o.pagamento === 'financiamento' || o.pagamento === 'entrada_financiamento' ? 'wa' : '', 'wallet', FORMAS[o.pagamento] || 'Pagamento não informado')}${chip(o.os ? 'ok' : '', 'clipboard-list', eng)}</div></div>
-        <button type="button" class="eg-btn pri" onclick="obras.liberarModal('${o.venda_id}')">${ic('lock-keyhole-open')}Liberar</button></div>`;
-    };
-    modal(`<h3>${ic('lock-keyhole')} Aguardando liberação · ${lista.length}</h3>
-      <p class="sub">Vendas que ainda não entraram nas obras. Libere quando o pagamento estiver garantido.</p>
-      <div class="ob-lib-l">${lista.map(linha).join('')}</div>
-      <div class="rd-mfoot"><button type="button" class="rd-btn" onclick="obras.fecharModal()">Fechar</button></div>`);
-  }
-  function liberarModal(id) {
-    const o = achar(id); if (!o) return;
-    O.libAlvo = id;
-    const pre = o.pagamento === 'avista' ? 'Pagamento à vista' : ['financiamento', 'entrada_financiamento'].includes(o.pagamento) ? 'Financiamento aprovado' : 'Entrada recebida';
+  // Liberação para obra. O botão fica no card da venda (Jornada em Vendas e aba
+  // Pós-venda da ficha, em vendas-andamento.js), que chama esta janela com os
+  // dados da venda: { venda_id, cliente_nome, kwp, pagamento }. depois() roda ao gravar.
+  function liberarModal(alvo, depois) {
+    if (!alvo || !alvo.venda_id) return;
+    O.libAlvo = alvo; O.libDepois = depois || null;
+    const pre = alvo.pagamento === 'avista' ? 'Pagamento à vista' : ['financiamento', 'entrada_financiamento'].includes(alvo.pagamento) ? 'Financiamento aprovado' : 'Entrada recebida';
     modal(`<h3>${ic('lock-keyhole-open')} Liberar para obra</h3>
-      <p class="sub"><b>${esc(o.cliente_nome)}</b> · ${esc(cidade(o))} · ${kwp(o.kwp)} · ${esc(FORMAS[o.pagamento] || 'pagamento não informado')}</p>
+      <p class="sub"><b>${esc(alvo.cliente_nome || 'Cliente')}</b>${Number(alvo.kwp) ? ' · ' + kwp(alvo.kwp) : ''} · ${esc(FORMAS[alvo.pagamento] || 'pagamento não informado')}</p>
       <div class="rd-fgrid"><div class="rd-fld full"><label>Por que pode ir para obra?</label><div class="ob-opts">${LIB_MOTIVOS.map((m) => `<label><input type="radio" name="ob-lib" value="${esc(m)}" ${m === pre ? 'checked' : ''}>${esc(m)}</label>`).join('')}</div></div>
         <div class="rd-fld full"><label for="ob-lib-tx">Observação</label><textarea id="ob-lib-tx" maxlength="300" placeholder="Ex.: aprovado no BV em 08/11, contrato assinado"></textarea></div></div>
-      <div class="eg-aviso g">${ic('history')}<span>Fica registrado na timeline do cliente. A obra entra em <b>${o.os ? 'Material' : 'Aguardando OS'}</b> e anda sozinha daí em diante.</span></div>
+      <div class="eg-aviso g">${ic('history')}<span>Fica registrado na timeline do cliente. A venda entra na aba <b>Obras</b> e anda sozinha daí em diante.</span></div>
       <div class="rd-err" id="ob-err"></div>
-      <div class="rd-mfoot"><button type="button" class="rd-btn" onclick="obras.liberarLista()">Voltar</button><button type="button" class="eg-btn ok" onclick="obras.libConfirmar(this)">${ic('check')}Liberar para obra</button></div>`);
+      <div class="rd-mfoot"><button type="button" class="rd-btn" onclick="obras.fecharModal()">Cancelar</button><button type="button" class="eg-btn ok" onclick="obras.libConfirmar(this)">${ic('check')}Liberar para obra</button></div>`);
   }
   async function libConfirmar(b) {
-    const o = achar(O.libAlvo); if (!o) return;
+    const alvo = O.libAlvo; if (!alvo) return;
     const mot = (document.querySelector('input[name="ob-lib"]:checked') || {}).value || '';
     const tx = val('ob-lib-tx');
     if (mot === 'Outro motivo' && !tx) { erro('Conte por que a obra pode ser liberada.'); return; }
     await ocupado(b, async () => {
       try {
-        await rpc('obra_liberar', { p_venda_id: o.venda_id, p_liberar: true, p_motivo: mot, p_texto: tx || null });
-        await carregar(true);
-        toast(`${o.cliente_nome || 'Venda'} liberada para obra`);
-        repintar();
-        if (aguardando().length) liberarLista(); else fecharModal();
+        await rpc('obra_liberar', { p_venda_id: alvo.venda_id, p_liberar: true, p_motivo: mot, p_texto: tx || null });
+        fecharModal();
+        toast(`${alvo.cliente_nome || 'Venda'} liberada para obra`);
+        if (O.lista) carregar(true).then(repintar);
+        if (O.libDepois) await O.libDepois();
       } catch (e) { erro(e.message || String(e)); }
     });
   }
-  async function devolver() {
-    const o = achar(O.aberta); if (!o) return;
-    if (!confirm(`Devolver ${o.cliente_nome || 'esta venda'} para "aguardando liberação"? Ela sai das obras até ser liberada de novo.`)) return;
+  // devolver para "aguardando liberação" (também pelo card da venda; só antes de agendar)
+  async function devolver(alvo, depois) {
+    if (!alvo || !alvo.venda_id) return;
+    if (!confirm(`Devolver ${alvo.cliente_nome || 'esta venda'} para "aguardando liberação"? Ela sai das obras até ser liberada de novo.`)) return;
     try {
-      await rpc('obra_liberar', { p_venda_id: o.venda_id, p_liberar: false, p_motivo: null, p_texto: null });
-      fechar();
-      await carregar(true);
+      await rpc('obra_liberar', { p_venda_id: alvo.venda_id, p_liberar: false, p_motivo: null, p_texto: null });
+      if (O.aberta === alvo.venda_id) fechar();
       toast('Devolvida para aguardando liberação');
-      repintar();
+      if (O.lista) carregar(true).then(repintar);
+      if (depois) await depois();
     } catch (e) { console.error('[obras] devolver', e); toast('Não foi possível devolver: ' + (e.message || e)); }
   }
 
@@ -1281,7 +1258,7 @@
     agendarModal, agendarSlot: (data, eq) => agendarModal(null, { data, eq }),
     agAlvo: (id) => { O.agAlvo = id; agEquipes(); agCheck(); },
     agCheck, agConfirmar, concluirModal, ccConfirmar, prioridadeModal, prioEnviar, entregaModal, enConfirmar,
-    liberarLista, liberarModal, libConfirmar, devolver,
+    liberarModal, libConfirmar, devolver,
     equipesModal, eqSalvar, eqAtiva,
     elSet, elAdd, elDel, elForn, elGerar, elSalvar: () => elSalvar(), elStatus, confAbrir, confToque, confFechar, confFim,
   };
