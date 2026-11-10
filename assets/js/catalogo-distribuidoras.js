@@ -463,7 +463,20 @@ function pbFornecimentoMount() {
   });
 }
 
+// A carga normal só traz os 1.000 primeiros kits: a aba aberta (promocionais,
+// catálogo ou campanha) é buscada inteira na primeira vez e a lista se refaz.
+function pbGarantirLinhaCompleta() {
+  if (typeof linhaCompletaEstado !== 'function' || state.pbProposalMode !== 'PROMOCIONAL') return;
+  const linha = pbLinhaAtual();
+  if (linhaCompletaEstado(linha) !== 'falta') return;
+  carregarLinhaCompleta(linha).then(() => {
+    if (state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === linha
+      && (typeof orcamentoAberto !== 'function' || orcamentoAberto())) pbFornecimentoSync();
+  });
+}
+
 function pbFornecimentoRender() {
+  pbGarantirLinhaCompleta();
   const panel = document.getElementById('pb-fornecimento-panel');
   if (!panel) return;
   const slot = document.getElementById(state.pbPorta === 'dim' ? 'pbd-fornecimento-slot' : 'pb-kit-fornecimento-slot');

@@ -1160,7 +1160,9 @@ function renderModalProducts() {
 
   if (list.length === 0) {
     container.classList.add('hidden');
-    const motivo = !state.pbSearch && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(state.pbCategory) : '';
+    const carregando = typeof linhaCompletaCarregando === 'function' && typeof pbLinhaAtual === 'function' && linhaCompletaCarregando(pbLinhaAtual());
+    const motivo = carregando ? 'Carregando os kits…'
+      : !state.pbSearch && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(state.pbCategory) : '';
     const txt = emptyEl.querySelector('p');
     if (txt) txt.textContent = motivo || 'Nenhum kit atende a este filtro';
     emptyEl.classList.remove('hidden');
@@ -1206,7 +1208,8 @@ function renderModalProducts() {
   const ordenar = list.length > 1
     ? `<label class="pbl-ordem"><span>Ordenar por</span><select aria-label="Ordenar os kits" onchange="pbOrdenar(this.value)">${Object.entries(PB_ORDENS)
       .map(([v, t]) => `<option value="${v}"${v === ordem ? ' selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
-  const cabecalho = `<div class="pbl-topo"><p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>${ordenar}</div>`;
+  const carregandoResto = typeof linhaCompletaCarregando === 'function' && typeof pbLinhaAtual === 'function' && linhaCompletaCarregando(pbLinhaAtual());
+  const cabecalho = `<div class="pbl-topo"><p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${carregandoResto ? ' · <b class="pbl-carregando">carregando os outros kits…</b>' : ''}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>${ordenar}</div>`;
 
   container.innerHTML = cabecalho
     + `<div class="pbl-lista">${visiveis.map((item) => _pbKitLinhaHTML(item, geracaoDe(item), r)).join('')}</div>`

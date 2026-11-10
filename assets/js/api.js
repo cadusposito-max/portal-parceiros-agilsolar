@@ -163,17 +163,21 @@ async function selectProdutosDaUnidade(franquiaId, opcoes = {}) {
     modulo_id, modulo_qtd, inversor_id, inversor_qtd, distribuidora_id,
     precos_franquia!inner(price, list_price${extra})`;
   // A API entrega no máximo 1.000 linhas por consulta. A carga normal da plataforma
-  // fica como sempre foi (uma consulta). `todas: true` (seletor de kits da campanha)
-  // busca em páginas de 1.000, 4 de cada vez, até acabar.
+  // fica como sempre foi (uma consulta). `todas: true` busca em páginas de 1.000,
+  // 4 de cada vez, até acabar. `linha` traz só uma linha de kits (orçamento).
   const PAGINA = 1000;
-  const pagina = (extra, de) => supabaseClient.from('produtos').select(cols(extra))
-    .eq('precos_franquia.franquia_id', franquiaId)
+  const daLinha = (q) => {
+    if (!opcoes.linha) return q;
+    return opcoes.linha === 'catalogo' ? q.or('linha.is.null,linha.eq.catalogo') : q.eq('linha', opcoes.linha);
+  };
+  const pagina = (extra, de) => daLinha(supabaseClient.from('produtos').select(cols(extra))
+    .eq('precos_franquia.franquia_id', franquiaId))
     .order('power', { ascending: true }).order('id', { ascending: true })
     .range(de, de + PAGINA - 1);
   const consulta = async (extra) => {
     if (!opcoes.todas) {
-      return supabaseClient.from('produtos').select(cols(extra))
-        .eq('precos_franquia.franquia_id', franquiaId).order('power', { ascending: true });
+      return daLinha(supabaseClient.from('produtos').select(cols(extra))
+        .eq('precos_franquia.franquia_id', franquiaId)).order('power', { ascending: true });
     }
     const tudo = [];
     for (let de = 0; ; de += PAGINA * 4) {
@@ -187,6 +191,76 @@ async function selectProdutosDaUnidade(franquiaId, opcoes = {}) {
   const r = await consulta(', price_custos, list_price_custos');
   if (r.error && /price_custos|list_price_custos/.test(String(r.error.message || ''))) return consulta('');
   return r;
+}
+
+// ---------- linha de kits inteira, sob demanda (orçamento) ----------
+// A carga normal (fetchProducts) traz só os 1.000 primeiros kits por potência; a
+// Matriz tem milhares (catálogo + campanha). O orçamento pede a linha da aba aberta
+// inteira e ela entra em state.data no lugar do pedaço que veio na carga normal.
+// Fica guardada 10 min: um fetchProducts nesse meio tempo não perde os kits grandes
+// (o que veio na carga normal vale mais, por ser mais novo).
+const _linhaCompleta = {};   // linha → { fid, rows, em }
+const _linhaCarregando = {}; // linha → Promise
+const LINHA_COMPLETA_TTL = 10 * 60 * 1000;
+
+function produtosFranquiaAlvo() {
+  return state.isAdmin ? (state.adminKitsFranquia || state.franquiaId || null) : (state.franquiaId || null);
+}
+const _linhaDoKit = (k) => k?.linha || 'catalogo';
+
+function _mesclarLinha(linha, rows, preferirAtuais) {
+  const atuais = new Map((state.data || []).filter((k) => _linhaDoKit(k) === linha).map((k) => [String(k.id), k]));
+  const novos = rows.map((k) => (preferirAtuais && atuais.has(String(k.id)) ? atuais.get(String(k.id)) : k));
+  const ids = new Set(novos.map((k) => String(k.id)));
+  // kit que veio na carga normal e não está na linha guardada (criado depois): fica
+  if (preferirAtuais) atuais.forEach((k, id) => { if (!ids.has(id)) { novos.push(k); ids.add(id); } });
+  state.data = (state.data || []).filter((k) => _linhaDoKit(k) !== linha && !ids.has(String(k.id)))
+    .concat(novos)
+    .sort((a, b) => (Number(a.power) || 0) - (Number(b.power) || 0));
+}
+
+function _linhaCompletaValida(linha) {
+  const c = _linhaCompleta[linha];
+  return Boolean(c && c.fid === produtosFranquiaAlvo() && Date.now() - c.em < LINHA_COMPLETA_TTL);
+}
+
+function linhaCompletaCarregando(linha) {
+  return Boolean(_linhaCarregando[linha]);
+}
+
+// 'ok' = a linha inteira já está em state.data; 'carregando'; 'falta' = precisa pedir.
+function linhaCompletaEstado(linha) {
+  if (_linhaCarregando[linha]) return 'carregando';
+  if (!_linhaCompletaValida(linha)) return 'falta';
+  const c = _linhaCompleta[linha];
+  if (c.dataRef !== state.data) { _mesclarLinha(linha, c.rows, true); c.dataRef = state.data; }
+  return 'ok';
+}
+
+async function carregarLinhaCompleta(linha) {
+  const fid = produtosFranquiaAlvo();
+  if (!state.currentUser || !fid || !linha) return false;
+  if (_linhaCarregando[linha]) return _linhaCarregando[linha];
+  const p = (async () => {
+    try {
+      const { data, error } = await selectProdutosDaUnidade(fid, { todas: true, linha });
+      if (error) throw error;
+      if (produtosFranquiaAlvo() !== fid) return false; // trocou de unidade no meio
+      const rows = (data || []).map((k) => enrichProductForUI({ ...k, ...resolveProductPrices(k) }));
+      _mesclarLinha(linha, rows, false);
+      _linhaCompleta[linha] = { fid, rows, em: Date.now(), dataRef: state.data };
+      return true;
+    } catch (err) {
+      console.warn(`[produtos] Não foi possível carregar todos os kits (${linha}).`, err);
+      // não tenta de novo em seguida: marca como "feita" por 1 min com o que já tinha
+      _linhaCompleta[linha] = { fid, rows: (state.data || []).filter((k) => _linhaDoKit(k) === linha), em: Date.now() - LINHA_COMPLETA_TTL + 60000, dataRef: state.data };
+      return false;
+    } finally {
+      delete _linhaCarregando[linha];
+    }
+  })();
+  _linhaCarregando[linha] = p;
+  return p;
 }
 
 async function fetchProducts() {
