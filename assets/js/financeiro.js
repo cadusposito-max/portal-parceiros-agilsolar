@@ -448,6 +448,11 @@
   }
 
   /* Ações de título: baixar (modal), renegociar (prompt), cancelar (confirm) + lançamento (modal) */
+  // Data de hoje no fuso local (toISOString usaria UTC e viraria o dia à noite).
+  function finHojeIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
   function finTitBaixar(id) {
     const t = finTitById(id); if (!t) return;
     finEnsureChrome();
@@ -471,6 +476,10 @@
             <option value="PIX">PIX</option><option value="Boleto">Boleto</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option><option value="Cartão">Cartão</option>
           </select>
         </div>
+        <div>
+          <label class="text-[10px] font-black uppercase tracking-widest text-neutral-500">Data do recebimento</label>
+          <input id="fin-baixa-data" type="date" value="${finHojeIso()}" max="${finHojeIso()}" class="fin-acc-focus w-full mt-1.5 px-3 py-2.5 bg-neutral-950 border border-neutral-800 text-white text-sm font-bold">
+        </div>
         <button onclick="finBaixarSubmit('${id}')" class="w-full py-3 fin-acc-solid text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2"><i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>Confirmar baixa</button>
       </div>`;
     document.getElementById('fin-modal').classList.add('is-open');
@@ -479,8 +488,11 @@
   async function finBaixarSubmit(id) {
     const valor = parseFloat(document.getElementById('fin-baixa-valor').value);
     const meio = document.getElementById('fin-baixa-meio').value;
+    const data = document.getElementById('fin-baixa-data').value;
     if (!(valor > 0)) { finToast('Informe um valor válido', 'warn'); return; }
-    try { await finRpc('baixar_fin_titulo', { p_id: id, p_valor: valor, p_meio: meio, p_comprovante: '' }); }
+    if (!data) { finToast('Informe a data do recebimento', 'warn'); return; }
+    if (data > finHojeIso()) { finToast('A data do recebimento não pode ser no futuro', 'warn'); return; }
+    try { await finRpc('baixar_fin_titulo', { p_id: id, p_valor: valor, p_meio: meio, p_comprovante: '', p_data: data }); }
     catch (_) { return; }
     closeFinModal(); finToast('Baixa registrada', 'ok'); renderRec();
   }

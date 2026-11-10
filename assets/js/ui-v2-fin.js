@@ -327,6 +327,11 @@
   }
 
   // receber uma parcela (confirma antes)
+  // hoje no fuso local (toISOString usaria UTC e viraria o dia à noite)
+  function hojeIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
   function acharParcela(parcelaId) {
     for (const p of PARC.rows) { const x = p.parcelas.find((y) => y.id === parcelaId); if (x) return { p, x }; }
     return null;
@@ -337,12 +342,16 @@
     abrirDlg(`
       <header><div><small>Receber parcela</small><h3>${esc(p.cli)}</h3><span>${ordinal(x.numero)} de ${p.n} parcelas</span></div><button class="v2-sq" title="Fechar" onclick="uiV2Fin.fecharDlg()">${ic('x')}</button></header>
       <div class="vfin-res"><div><span>Valor da parcela</span><b>${brl(x.valor)}</b></div><div><span>Vencimento</span><b>${x.venc ? dataBR(x.venc) : '—'}</b></div><div><span>Depois desta, faltam</span><b>${plural(p.abertas.length - 1, 'parcela', 'parcelas')} · ${brl(p.falta - x.valor)}</b></div></div>
+      <label class="vfin-campo"><span>Data do recebimento</span><input id="vfin-p-data" type="date" value="${hojeIso()}" max="${hojeIso()}"></label>
       <div class="vfin-nota" style="margin:0">${ic('info')}A baixa entra também no título da venda, e o vencimento dele passa para a próxima parcela.</div>
       <div class="vfin-dlg-acts"><button class="v2-btn2" onclick="uiV2Fin.fecharDlg()">Cancelar</button><button class="v2-btnp vfin-receber" id="vfin-p-ok" onclick="uiV2Fin.parcReceberOk('${esc(x.id)}')">${ic('check')}Confirmar recebimento</button></div>`);
   }
   async function parcReceberOk(parcelaId) {
+    const data = (document.getElementById('vfin-p-data') || {}).value || '';
+    if (!data) { if (window.finToast) finToast('Informe a data do recebimento', 'warn'); return; }
+    if (data > hojeIso()) { if (window.finToast) finToast('A data do recebimento não pode ser no futuro', 'warn'); return; }
     const btn = document.getElementById('vfin-p-ok'); if (btn) btn.disabled = true;
-    try { await window.finRpc('pagar_fin_parcela', { p_parcela_id: parcelaId }); } catch (_) { if (btn) btn.disabled = false; return; }
+    try { await window.finRpc('pagar_fin_parcela', { p_parcela_id: parcelaId, p_data: data }); } catch (_) { if (btn) btn.disabled = false; return; }
     fecharDlg();
     if (window.finToast) finToast('Parcela recebida', 'ok');
     await atualizarTelaAberta();
