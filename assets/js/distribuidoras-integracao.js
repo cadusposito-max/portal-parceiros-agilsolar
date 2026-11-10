@@ -108,6 +108,9 @@ function pbIntegracaoTelhadoOpcoesHTML(provedor) {
 function pbIntegracaoAtual() {
   const id = typeof _pbFornecimento !== 'undefined' ? _pbFornecimento.distribuidora : '';
   if (!id || !_integracoesAtivas) return null;
+  // Cotação ao vivo só no catálogo completo. Na campanha (preço tabelado) a
+  // distribuidora escolhida só filtra a lista de kits.
+  if (typeof pbLinhaAtual === 'function' && pbLinhaAtual() !== 'catalogo') return null;
   return _integracoesAtivas.get(String(id)) || null;
 }
 

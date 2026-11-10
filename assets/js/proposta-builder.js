@@ -1073,6 +1073,12 @@ function _pbKitLinhaHTML(item, geracao, r) {
     </div>`;
 }
 
+const PB_ORDENS = { potencia: 'Menor potência', potencia_desc: 'Maior potência', preco: 'Menor preço', preco_desc: 'Maior preço' };
+function pbOrdenar(v) {
+  state.pbOrdem = PB_ORDENS[v] ? v : 'potencia';
+  renderModalProducts();
+}
+
 function renderModalProducts() {
   const container = document.getElementById('pb-products-container');
   const emptyEl   = document.getElementById('pb-empty');
@@ -1139,6 +1145,19 @@ function renderModalProducts() {
     });
   }
 
+  // Ordenar por (cabeçalho da lista). Padrão: menor potência, como sempre foi.
+  const ordem = PB_ORDENS[state.pbOrdem] ? state.pbOrdem : 'potencia';
+  if (ordem !== 'potencia') {
+    const pot = (k) => Number(k.power) || 0;
+    const preco = (k) => Number(k.price) || 0;
+    const cmp = {
+      potencia_desc: (a, b) => pot(b) - pot(a) || preco(a) - preco(b),
+      preco: (a, b) => preco(a) - preco(b) || pot(a) - pot(b),
+      preco_desc: (a, b) => preco(b) - preco(a) || pot(a) - pot(b),
+    }[ordem];
+    list = [...list].sort(cmp);
+  }
+
   if (list.length === 0) {
     container.classList.add('hidden');
     const motivo = !state.pbSearch && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(state.pbCategory) : '';
@@ -1171,7 +1190,7 @@ function renderModalProducts() {
       }
     }
   }
-  const chave = `${state.pbCategory}|${state.pbSearch || ''}|${_pbListaTodos}|${visiveis.length}|${visiveis[0]?.id ?? ''}|${visiveis[visiveis.length - 1]?.id ?? ''}`;
+  const chave = `${state.pbCategory}|${state.pbSearch || ''}|${ordem}|${_pbListaTodos}|${visiveis.length}|${visiveis[0]?.id ?? ''}|${visiveis[visiveis.length - 1]?.id ?? ''}`;
   if (chave !== _pbListaChave) { _pbListaChave = chave; _pbListaLimite = PB_LISTA_PASSO; }
   // O kit escolhido nunca some: se estiver mais pra baixo, a lista vai até ele.
   const escolhidoId = typeof _orcamentoKitId !== 'undefined' && _orcamentoKitId != null ? String(_orcamentoKitId) : '';
@@ -1184,7 +1203,10 @@ function renderModalProducts() {
   }
 
   const tipoNome = state.pbCategory === 'kitsMicro' ? 'com microinversor' : 'com inversor';
-  const cabecalho = `<p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>`;
+  const ordenar = list.length > 1
+    ? `<label class="pbl-ordem"><span>Ordenar por</span><select aria-label="Ordenar os kits" onchange="pbOrdenar(this.value)">${Object.entries(PB_ORDENS)
+      .map(([v, t]) => `<option value="${v}"${v === ordem ? ' selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
+  const cabecalho = `<div class="pbl-topo"><p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>${ordenar}</div>`;
 
   container.innerHTML = cabecalho
     + `<div class="pbl-lista">${visiveis.map((item) => _pbKitLinhaHTML(item, geracaoDe(item), r)).join('')}</div>`
