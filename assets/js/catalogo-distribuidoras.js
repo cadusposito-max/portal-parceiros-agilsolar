@@ -469,14 +469,26 @@ function pbFornecimentoRender() {
   const slot = document.getElementById(state.pbPorta === 'dim' ? 'pbd-fornecimento-slot' : 'pb-kit-fornecimento-slot');
   if (slot && panel.parentElement !== slot) slot.appendChild(panel);
   pbLinhaRender();
-  // Promocionais e campanha são tabelados: sem filtro de equipamento nem distribuidora.
-  panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || pbLinhaAtual() !== 'catalogo');
+  // Promocionais são tabelados: sem filtro. A campanha também é tabelada, mas pode
+  // ter a plataforma inteira: ganha os filtros de módulo e de marca do inversor.
+  // Sem distribuidora (Belenus/AVT trocariam a lista pela cotação ao vivo) e sem telhado.
+  const campLinha = pbCampanhaNoAr();
+  const ehCampanha = state.pbProposalMode === 'PROMOCIONAL' && Boolean(campLinha) && pbLinhaAtual() === campLinha.linha;
+  if (ehCampanha && _pbFornecimento.distribuidora) _pbFornecimento.distribuidora = '';
+  panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || !(pbLinhaAtual() === 'catalogo' || ehCampanha));
   const catalogo = state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo';
   document.getElementById('pb-forn-telhado')?.classList.toggle('hidden', !catalogo);
-  document.getElementById('pb-forn-simples')?.classList.toggle('quatro', catalogo);
+  document.getElementById('pb-filtro-distribuidora')?.closest('label')?.classList.toggle('hidden', ehCampanha);
+  [['modulo', 'Módulo / painel'], ['inversor', 'Inversor / micro']].forEach(([tipo, nome], i) => {
+    const cap = document.getElementById(`pb-filtro-${tipo}`)?.closest('label')?.querySelector('.pbd-forn-cap');
+    if (cap) cap.textContent = `${i + (ehCampanha ? 1 : 2)} · ${nome}`;
+  });
+  document.getElementById('pb-forn-simples')?.classList.toggle('quatro', catalogo || ehCampanha);
   if (typeof hibridoRenderPainel === 'function' && hibridoRenderPainel(panel)) return;
   if (typeof kitMontadoRenderPainel === 'function' && kitMontadoRenderPainel(panel)) return;
-  document.getElementById('pb-fornecimento-hint').textContent = state.pbPorta === 'dim'
+  document.getElementById('pb-fornecimento-hint').textContent = ehCampanha
+    ? `Filtre os kits da ${campLinha.nome || 'campanha'} pelo módulo e pela marca do inversor.`
+    : state.pbPorta === 'dim'
     ? 'Escolha a distribuidora, o módulo, a marca do inversor e o telhado. O consumo define a potência do sistema e o kit recomendado.'
     : 'Filtre os kits pela distribuidora, pelo módulo, pela marca do inversor e pelo telhado.';
   const disponiveis = catalogoEquipamentosDaDistribuidora(_pbFornecimento.distribuidora);
