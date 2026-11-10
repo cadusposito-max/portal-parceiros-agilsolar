@@ -100,6 +100,7 @@ function renderAdminPanel(container) {
     { id: 'custos',        label: 'CUSTOS EXTRAS',   icon: 'circle-plus', adminOnly: true },
     { id: 'usuarios',      label: 'USUARIOS',        icon: 'user-cog',   adminOnly: true },
     { id: 'comunicados',   label: 'COMUNICADOS',      icon: 'megaphone',  adminOnly: true },
+    { id: 'campanhas',     label: 'CAMPANHAS',        icon: 'badge-percent', adminOnly: true },
   ];
   const sections = allSections.filter(s => !s.adminOnly || state.isAdmin);
 
@@ -173,6 +174,7 @@ function renderAdminPanel(container) {
     else if (state.adminSection === 'vendedores')  renderAdminVendedores(content);
     else if (state.adminSection === 'comunicados') renderAdminComunicados(content);
     else if (state.adminSection === 'franquias')   renderAdminFranquias(content);
+    else if (state.adminSection === 'campanhas' && typeof renderAdminCampanhas === 'function') renderAdminCampanhas(content);
   }
 }
 

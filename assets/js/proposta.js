@@ -98,6 +98,111 @@ function startCountdown(createdAt) {
 }
 
 // ==========================================
+// CAMPANHA — selo da promoção (Configurações › Campanhas na plataforma)
+// Faixa (A) ou cartão na identidade (B), na cor escolhida; contagem até o
+// fim; "últimas horas" nas últimas 24 h; depois do fim, "condição encerrada"
+// e o preço apagado. Efeito: partícula na borda (escuro) ou brilho (claro).
+// ==========================================
+const CAMPANHA_CORES = {
+  preto:   { c: '#141210', c2: '#1D1A16', ink: '#fff',    ac: '#FAA519', acink: '#2A1A00', tile: 'rgba(255,255,255,.08)', tileb: '#FFF3DC', brd: '#FAA519', part: '#FAA519' },
+  azul:    { c: '#0072AA', c2: '#008FD4', ink: '#fff',    ac: '#FAA519', acink: '#2A1A00', tile: 'rgba(255,255,255,.14)', tileb: '#E5F3FB', brd: '#008FD4', part: '#FFD58A' },
+  laranja: { c: '#F59B0B', c2: '#FAA519', ink: '#2A1A00', ac: '#2A1A00', acink: '#FAA519', tile: 'rgba(0,0,0,.09)',       tileb: '#FFF3DC', brd: '#FAA519', part: '#FFFFFF' },
+  verde:   { c: '#127A51', c2: '#1FA971', ink: '#fff',    ac: '#FFE08A', acink: '#0B3D28', tile: 'rgba(255,255,255,.14)', tileb: '#E3F6EE', brd: '#1FA971', part: '#FFE08A' },
+};
+
+function renderCampanha(c, waLink) {
+  const box = document.getElementById('camp-selo');
+  if (!box || !c || !c.fim) return;
+  const fimMs = new Date(c.fim).getTime();
+  if (!Number.isFinite(fimMs)) return;
+  const cor = CAMPANHA_CORES[c.cor] ? c.cor : 'preto';
+  const k = CAMPANHA_CORES[cor];
+  // variáveis no body: o selo, a etiqueta do kit e a fita do preço usam as mesmas
+  const body = document.body;
+  body.dataset.campCor = cor;
+  [['c', k.c], ['c2', k.c2], ['ink', k.ink], ['ac', k.ac], ['acink', k.acink], ['tile', k.tile], ['tileb', k.tileb], ['brd', k.brd], ['part', k.part]]
+    .forEach(([n, v]) => body.style.setProperty('--cp-' + n, v));
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  const dois = (n) => String(n).padStart(2, '0');
+  const d = new Date(fimMs);
+  const fimTxt = `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${dois(d.getHours())}h${dois(d.getMinutes())}`;
+  const visualB = c.visual === 'b';
+  const etiqueta = esc(c.etiqueta || 'OFERTA');
+
+  // etiqueta ao lado da marca do kit
+  const brand = document.getElementById('kit-brand-wrapper');
+  if (brand && !document.getElementById('camp-chip')) brand.insertAdjacentHTML('afterend', `<span id="camp-chip" class="cp-chip">${etiqueta}</span>`);
+
+  // fita no preço + aviso quando acaba
+  const badge = document.getElementById('badge-discount');
+  const priceEl = document.getElementById('kit-price');
+  const priceBox = priceEl ? priceEl.closest('.rounded-2xl') : null;
+  if (priceEl && !document.getElementById('camp-aviso-preco')) {
+    priceEl.insertAdjacentHTML('afterend', `<p id="camp-aviso-preco" class="cp-aviso-preco" style="display:none"><i data-lucide="info" class="w-4 h-4"></i>Este valor era da condição ${etiqueta} e não vale mais.</p>`);
+  }
+
+  let estado = '';
+  let ultTxt = [];
+  function pintar() {
+    const resta = fimMs - Date.now();
+    const fim = resta <= 0;
+    const ult = !fim && resta < 24 * 3600 * 1000;
+    const novo = fim ? 'fim' : ult ? 'ult' : 'prazo';
+    if (novo !== estado) {
+      estado = novo;
+      ultTxt = [];
+      const txt = fim ? `Condição encerrada em <b>${fimTxt}</b>`
+        : ult ? `Termina <b>${d.toDateString() === new Date().toDateString() ? 'hoje' : 'amanhã'} às ${dois(d.getHours())}h${dois(d.getMinutes())}</b>`
+        : `${visualB ? 'Válida até' : 'Condição especial válida até'} <b>${fimTxt}</b>`;
+      const marca = visualB
+        ? `<div class="cp-marca"><span class="cp-tag">${etiqueta}</span><span class="cp-sub">${esc(c.nome || '')}</span></div>`
+        : `<div class="cp-marca"><span class="cp-tag">${etiqueta}</span><span class="cp-sub">${esc(c.subtitulo || '')}</span></div>`;
+      let dir = '';
+      if (fim) {
+        dir = `<div class="cp-fim"><p>Esta condição terminou. Fale com o seu consultor para receber os valores atualizados.</p>${waLink ? `<a href="${esc(waLink)}" target="_blank" rel="noopener noreferrer"><i data-lucide="message-circle" class="w-4 h-4"></i>Falar com o consultor</a>` : ''}</div>`;
+      } else if (c.contagem !== false) {
+        const dias = Math.floor(resta / 86400000);
+        const rot = (dias > 0 ? ['dias'] : []).concat(['horas', 'min', 'seg']);
+        dir = `${ult ? '<div class="cp-ultimas">Últimas horas</div>' : ''}<div class="cp-cd">${rot.map((l) => `<div class="u"><span class="n"></span><span class="l">${l}</span></div>`).join('')}</div>`;
+      }
+      box.innerHTML = `<div class="cp-selo ${visualB ? 'b' : 'a'}${fim ? ' fim' : ''}${ult ? ' ult' : ''}"><div>${marca}<p class="cp-txt">${txt}</p></div>${dir ? `<div>${dir}</div>` : ''}</div>`;
+      box.classList.remove('hidden');
+      box.classList.toggle('sem', c.efeito === false);
+      box.classList.toggle('fim', fim);
+
+      if (badge) {
+        if (c.fita !== false) {
+          badge.textContent = fim ? 'ENCERRADA' : `PREÇO ${String(c.etiqueta || '').toUpperCase()}`;
+          badge.classList.add('cp-fita');
+          badge.classList.toggle('fim', fim);
+          badge.classList.remove('hidden');
+        } else if (fim) {
+          badge.classList.add('hidden');
+        }
+      }
+      if (priceBox) priceBox.classList.toggle('cp-preco-fim', fim);
+      const aviso = document.getElementById('camp-aviso-preco');
+      if (aviso) aviso.style.display = fim ? '' : 'none';
+      if (window.lucide) lucide.createIcons();
+    }
+    if (!fim && c.contagem !== false) {
+      const s = Math.floor(resta / 1000);
+      const v = [Math.floor(s / 86400), Math.floor(s % 86400 / 3600), Math.floor(s % 3600 / 60), s % 60];
+      if (v[0] === 0 && box.querySelectorAll('.cp-cd .n').length === 3) v.shift();
+      box.querySelectorAll('.cp-cd .n').forEach((n, i) => {
+        const t = dois(v[i]);
+        if (ultTxt[i] !== t) { n.textContent = t; n.classList.remove('vira'); void n.offsetWidth; n.classList.add('vira'); ultTxt[i] = t; }
+      });
+    }
+    return fim;
+  }
+  if (!pintar()) {
+    const timer = setInterval(() => { if (pintar()) clearInterval(timer); }, 1000);
+  }
+}
+
+// ==========================================
 // CARROSSEL DE VÍDEOS
 // ==========================================
 let videoAtual = 0;
@@ -360,7 +465,9 @@ function renderData(data) {
   }
 
   // --- Urgency countdown ---
-  if (data.created_at) startCountdown(data.created_at);
+  // Proposta de campanha com validade até o fim dela: o selo da campanha substitui as 72 h.
+  const campanhaValeAteFim = Boolean(data.campanha && data.campanha.validade_fim);
+  if (data.created_at && !campanhaValeAteFim) startCountdown(data.created_at);
 
   // --- WhatsApp CTA links ---
   // Usa apenas vendedor_nome — vendedor_email não deve ser retornado pela RPC pública
@@ -409,6 +516,9 @@ function renderData(data) {
     comNoteText.innerText = data.custom_commercial_note;
     comNoteRow.classList.remove('hidden');
   }
+
+  // --- Campanha (selo, contagem, fita no preço) ---
+  if (data.campanha && !isCustomMode) renderCampanha(data.campanha, waLink);
 
   // --- Show floating CTA (só se houver telefone do consultor) ---
   const floatingDiv = document.getElementById('floating-cta');

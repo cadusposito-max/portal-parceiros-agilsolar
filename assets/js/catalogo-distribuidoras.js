@@ -103,7 +103,14 @@ const PB_LINHAS = {
   catalogo: 'Todas as marcas, até 150 módulos, nas distribuidoras Helte, AVT e Belenus.',
 };
 
+// Campanha no ar (campanhas.js): a linha dela vale enquanto estiver no prazo.
+function pbCampanhaNoAr() {
+  return window.Campanhas ? Campanhas.noAr() : null;
+}
+
 function pbLinhaAtual() {
+  const camp = pbCampanhaNoAr();
+  if (camp && state.pbLinha === camp.linha) return camp.linha;
   // parceiro só cota com os promocionais (sem catálogo, híbrido, kit montado ou distribuidora)
   if (state.isParceiro) return 'promocional';
   return state.pbLinha === 'catalogo' ? 'catalogo' : 'promocional';
@@ -116,20 +123,37 @@ function pbKitDaLinha(kit) {
 function pbLinhaRender() {
   const box = document.getElementById('pb-linha');
   if (!box) return;
-  box.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || Boolean(state.isParceiro));
+  // parceiro não tem o texto da linha; a faixa da campanha aparece para ele também
+  const campBox = pbCampanhaNoAr();
+  box.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || (Boolean(state.isParceiro) && !(campBox && pbLinhaAtual() === campBox.linha)));
   box.querySelectorAll('[data-pb-linha]').forEach((b) => {
     const on = b.dataset.pbLinha === pbLinhaAtual();
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', String(on));
   });
   const hint = document.getElementById('pb-linha-hint');
-  if (hint) hint.textContent = PB_LINHAS[pbLinhaAtual()];
+  if (hint) {
+    // campanha: faixa com a contagem no lugar do texto
+    const camp = pbCampanhaNoAr();
+    const naCampanha = Boolean(camp && pbLinhaAtual() === camp.linha);
+    hint.classList.toggle('tem-camp', naCampanha);
+    if (naCampanha) {
+      if (hint.dataset.camp !== camp.id) { hint.innerHTML = Campanhas.faixaHTML(camp); hint.dataset.camp = camp.id; }
+    } else {
+      hint.textContent = PB_LINHAS[pbLinhaAtual()] || '';
+      delete hint.dataset.camp;
+    }
+  }
   if (typeof hibridoRenderChave === 'function') hibridoRenderChave(); // chave On-grid / Híbrido (hibrido.js)
   pbEstruturaRender();
 }
 
 function pbLinhaEscolher(linha) {
-  if (!PB_LINHAS[linha] || linha === pbLinhaAtual() || state.isParceiro) return;
+  const camp = pbCampanhaNoAr();
+  const ehCampanha = Boolean(camp && linha === camp.linha);
+  if ((!PB_LINHAS[linha] && !ehCampanha) || linha === pbLinhaAtual()) return;
+  // parceiro: só promocionais e a campanha (quando ela é liberada para parceiro)
+  if (state.isParceiro && linha !== 'promocional' && !ehCampanha) return;
   if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) return;
   state.pbLinha = linha;
   // Filtros de marca/distribuidora só existem no catálogo: trocar de linha começa do zero.
@@ -445,8 +469,8 @@ function pbFornecimentoRender() {
   const slot = document.getElementById(state.pbPorta === 'dim' ? 'pbd-fornecimento-slot' : 'pb-kit-fornecimento-slot');
   if (slot && panel.parentElement !== slot) slot.appendChild(panel);
   pbLinhaRender();
-  // Promocionais são sempre SOFAR/Hoymiles: sem filtro de equipamento nem distribuidora.
-  panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || pbLinhaAtual() === 'promocional');
+  // Promocionais e campanha são tabelados: sem filtro de equipamento nem distribuidora.
+  panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || pbLinhaAtual() !== 'catalogo');
   const catalogo = state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo';
   document.getElementById('pb-forn-telhado')?.classList.toggle('hidden', !catalogo);
   document.getElementById('pb-forn-simples')?.classList.toggle('quatro', catalogo);

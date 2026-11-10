@@ -1023,9 +1023,17 @@
     });
   }
   window.uiV2InvalidarCustosKits = () => { custosKits = null; };
+  // kit de campanha (Configurações › Campanhas): etiqueta com a cor dela
+  const campRot = (k) => (window.Campanhas ? Campanhas.rotuloLinha(k.linha) : '');
+  const campChip = (k) => {
+    const r = campRot(k);
+    if (!r) return '';
+    const c = (Campanhas.ativa && Campanhas.ativa.linha === k.linha && Campanhas.ativa) || Campanhas.lista.find((x) => x.linha === k.linha);
+    return c ? Campanhas.tagHTML(c) : `<span class="v2-chip t-gray">${esc(r)}</span>`;
+  };
   const seloPreco = (k) => {
     if (k.preco_por === 'custos') return '<span class="v2-chip t-green" title="Preço calculado pelo centro de custo da unidade">Preço por custos</span>';
-    if (!state.isAdmin || !custosKits || k.linha === 'promocional') return '';
+    if (!state.isAdmin || !custosKits || (k.linha || 'catalogo') !== 'catalogo') return '';
     return custosKits.has(String(k.id)) ? '' : '<span class="v2-chip t-gray" title="Sem custo cadastrado: no modo custos, este kit continua no markup">Sem custo</span>';
   };
 
@@ -1060,7 +1068,7 @@
       const ger = Number(k._estGeneration) || calcularGeracaoEstimada(Number(k.power) || 0, k.categoria);
       const id = esc(k.id);
       return `<div class="v2-card v2-pcard v2-kit ${inativo ? 'off' : ''}" onclick="openModalById('${id}')">
-        <div class="tags">${k.linha === 'promocional' ? `<span class="v2-chip t-green">${ic('tag')}Promocional</span>` : ''}${k.brand ? `<span class="v2-chip t-blue">${esc(k.brand)}</span>` : ''}<span class="v2-chip t-gray">${micro ? 'Microinversor' : 'Inversor'}</span>${k.tag ? `<span class="v2-chip t-orange">${ic('flame')}${esc(cap(k.tag))}</span>` : ''}${inativo ? '<span class="v2-chip t-gray">Fora de linha</span>' : ''}${seloVinculo(k)}${seloPreco(k)}</div>
+        <div class="tags">${k.linha === 'promocional' ? `<span class="v2-chip t-green">${ic('tag')}Promocional</span>` : ''}${campChip(k)}${k.brand ? `<span class="v2-chip t-blue">${esc(k.brand)}</span>` : ''}<span class="v2-chip t-gray">${micro ? 'Microinversor' : 'Inversor'}</span>${k.tag ? `<span class="v2-chip t-orange">${ic('flame')}${esc(cap(k.tag))}</span>` : ''}${inativo ? '<span class="v2-chip t-gray">Fora de linha</span>' : ''}${seloVinculo(k)}${seloPreco(k)}</div>
         <div><small class="muted" style="font-size:12px;font-weight:700">Kit fotovoltaico</small><div class="kp">${kwpTxt(k.power)} <small>kWp</small></div></div>
         <div class="kit">${ic('solar-panel')}<span title="${esc(k.name)}">${esc(k.name || 'Sem nome')}</span></div>
         <ul><li>${ic('cpu')}Categoria<b>${micro ? 'Microinversor' : 'Inversor string'}</b></li>${k.type ? `<li>${ic('home')}Tipo<b>${esc(cap(k.type))}</b></li>` : ''}<li>${ic('sun')}Geração média<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b></li></ul>
@@ -1084,7 +1092,7 @@
       const ger = Number(k._estGeneration) || calcularGeracaoEstimada(Number(k.power) || 0, k.categoria);
       const desconto = Number(k.list_price) > Number(k.price);
       return `<tr class="${inativo ? 'off' : ''}" onclick="openModalById('${esc(k.id)}')">
-        <td><div class="v2-eqn"><span class="v2-eqic">${ic('solar-panel')}</span><div><b>${esc(k.name || 'Sem nome')}</b><small>${k.linha === 'promocional' ? 'Promocional · ' : ''}${esc(k.brand || '')}${k.tag ? ' · ' + esc(cap(k.tag)) : ''}${inativo ? ' · fora de linha' : ''}</small>${seloVinculo(k)}</div></div></td>
+        <td><div class="v2-eqn"><span class="v2-eqic">${ic('solar-panel')}</span><div><b>${esc(k.name || 'Sem nome')}</b><small>${k.linha === 'promocional' ? 'Promocional · ' : campRot(k) ? esc(campRot(k)) + ' · ' : ''}${esc(k.brand || '')}${k.tag ? ' · ' + esc(cap(k.tag)) : ''}${inativo ? ' · fora de linha' : ''}</small>${seloVinculo(k)}</div></div></td>
         <td style="font-weight:800">${kwpTxt(k.power)} kWp</td>
         <td class="hide-sm">${micro ? 'Microinversor' : 'Inversor'}${k.type ? `<small class="muted" style="display:block;font-size:12px">${esc(cap(k.type))}</small>` : ''}</td>
         <td class="hide-sm">${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</td>
@@ -1114,7 +1122,7 @@
       <div class="v2-toolbar">
         <label class="v2-sbox">${ic('search')}<input id="v2-kit-search" type="text" value="${esc(_catalogoBusca)}" oninput="handleCatalogoBuscaInput(this.value)" placeholder="Buscar kit por nome ou marca" autocomplete="off"></label>
         <select class="v2-select ${_catalogoCategoria !== 'all' ? 'on' : ''}" onchange="setCatalogoCategoria(this.value)"><option value="all">Todas as categorias</option><option value="kitsInversor" ${_catalogoCategoria === 'kitsInversor' ? 'selected' : ''}>Inversores</option><option value="kitsMicro" ${_catalogoCategoria === 'kitsMicro' ? 'selected' : ''}>Microinversores</option></select>
-        <select class="v2-select ${linhaF !== 'all' ? 'on' : ''}" title="Kits promocionais ou do catálogo completo" onchange="uiV2Screens.setKitLinha(this.value)"><option value="all">Promocionais e catálogo</option><option value="promocional" ${linhaF === 'promocional' ? 'selected' : ''}>Só promocionais</option><option value="catalogo" ${linhaF === 'catalogo' ? 'selected' : ''}>Só catálogo</option></select>
+        <select class="v2-select ${linhaF !== 'all' ? 'on' : ''}" title="Kits promocionais ou do catálogo completo" onchange="uiV2Screens.setKitLinha(this.value)"><option value="all">Promocionais e catálogo</option><option value="promocional" ${linhaF === 'promocional' ? 'selected' : ''}>Só promocionais</option><option value="catalogo" ${linhaF === 'catalogo' ? 'selected' : ''}>Só catálogo</option>${[...new Set(todos.map((k) => k.linha).filter((l) => window.Campanhas && Campanhas.ehLinhaDeCampanha(l)))].map((l) => `<option value="${esc(l)}" ${linhaF === l ? 'selected' : ''}>Só ${esc(Campanhas.rotuloLinha(l))}</option>`).join('')}</select>
         <select class="v2-select ${_catalogoStatus !== 'all' ? 'on' : ''}" onchange="setCatalogoStatus(this.value)"><option value="all">Ativos e inativos</option><option value="ativos" ${_catalogoStatus === 'ativos' ? 'selected' : ''}>Só ativos</option><option value="inativos" ${_catalogoStatus === 'inativos' ? 'selected' : ''}>Fora de linha</option></select>
         ${state.isAdmin && franquias.length ? `<select class="v2-select" title="De qual unidade são os preços exibidos" onchange="setCatalogoFranquia(this.value)">${franquias.map((f) => `<option value="${esc(f.id)}" ${String(franqAtual) === String(f.id) ? 'selected' : ''}>Preços: ${esc(cap(f.nome || ''))}</option>`).join('')}</select>` : ''}
         ${filtros ? `<button class="v2-pill v2-fclear" onclick="uiV2Screens.limparKits()">${ic('filter-x')}Limpar · ${lista.length} de ${todos.length}</button>` : ''}
@@ -1290,7 +1298,7 @@
     kitFaixa: 'all',
     setKitFaixa(v) { this.kitFaixa = v || 'all'; if (has('renderContent')) renderContent(); },
     kitLinha: 'all',
-    setKitLinha(v) { this.kitLinha = ['promocional', 'catalogo'].includes(v) ? v : 'all'; if (has('renderContent')) renderContent(); },
+    setKitLinha(v) { this.kitLinha = v && v !== 'all' ? String(v) : 'all'; if (has('renderContent')) renderContent(); },
     limparKits() { _catalogoBusca = ''; _catalogoCategoria = 'all'; _catalogoStatus = 'all'; this.kitFaixa = 'all'; this.kitLinha = 'all'; if (has('renderContent')) renderContent(); },
     limparEquip() { _equipBusca = ''; _equipCategoria = 'all'; _equipStatus = 'all'; if (has('renderContent')) renderContent(); },
   };

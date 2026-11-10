@@ -60,10 +60,18 @@ let _orcamentoCatalogoEm = 0;
 async function orcamentoAtualizarCatalogo() {
   _orcamentoCatalogoEm = Date.now();
   try {
+    const campAntes = window.Campanhas && Campanhas.noAr() ? Campanhas.noAr().id : null;
     await Promise.all([
       typeof fetchProducts === 'function' ? fetchProducts() : null,
       typeof carregarCatalogoDistribuidoras === 'function' ? carregarCatalogoDistribuidoras(true) : null,
+      window.Campanhas ? Campanhas.carregarAtiva() : null,
     ]);
+    // a campanha entrou ou saiu do ar desde o último carregamento: redesenha o seletor
+    const campAgora = window.Campanhas && Campanhas.noAr() ? Campanhas.noAr().id : null;
+    if (campAgora !== campAntes && orcamentoAberto()) {
+      if (!campAgora && window.Campanhas && state.pbLinha !== 'catalogo' && state.pbLinha !== 'promocional') state.pbLinha = 'promocional';
+      renderContent();
+    }
   } catch (err) {
     console.warn('[orçamento] Falha ao atualizar kits/catálogo.', err);
   }
@@ -102,16 +110,23 @@ function orcamentoVerFicha() {
   openCrm360(id, 'propostas');
 }
 
-// Seletor do topo: as duas linhas de kits + a Personalizada (admin e franqueado).
+// Seletor do topo: a campanha no ar (quando tem) + as duas linhas de kits +
+// a Personalizada (admin e franqueado).
 function _orcamentoLinhasHTML() {
-  // parceiro só tem os promocionais: sem seletor
-  if (state.isParceiro) return '';
-  const opcoes = [
-    ['promocional', 'tag', 'Promocionais'],
-    ['catalogo', 'layout-grid', 'Catálogo completo'],
-    ...(canUsePersonalizada() ? [['personalizada', 'lock', 'Personalizada']] : []),
-  ];
-  return `<div id="orcamento-linha" class="orcamento-linha" role="group" aria-label="Tipo de orçamento">${opcoes.map(([v, ic, t]) =>
+  const camp = window.Campanhas ? Campanhas.noAr() : null;
+  // parceiro só tem os promocionais: sem seletor (com campanha, Campanha × Promocionais)
+  if (state.isParceiro && !camp) return '';
+  const opcoes = state.isParceiro
+    ? [['promocional', 'tag', 'Promocionais']]
+    : [
+      ['promocional', 'tag', 'Promocionais'],
+      ['catalogo', 'layout-grid', 'Catálogo completo'],
+      ...(canUsePersonalizada() ? [['personalizada', 'lock', 'Personalizada']] : []),
+    ];
+  const botaoCamp = camp
+    ? `<button type="button" class="orc-camp" data-orc-linha="${escapeHTML(camp.linha)}" style="${Campanhas.vars(camp.cor)}" onclick="orcamentoEscolherLinha(this.dataset.orcLinha)" title="${escapeHTML(camp.nome)}">${Campanhas.tagHTML(camp)}<span class="ate">até ${escapeHTML(new Date(camp.fim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }))}</span></button>`
+    : '';
+  return `<div id="orcamento-linha" class="orcamento-linha" role="group" aria-label="Tipo de orçamento">${botaoCamp}${opcoes.map(([v, ic, t]) =>
     `<button type="button" data-orc-linha="${v}" onclick="orcamentoEscolherLinha('${v}')"><i data-lucide="${ic}"></i><span>${t}</span></button>`).join('')}</div>`;
 }
 
@@ -121,7 +136,8 @@ function _orcamentoLinhaAtual() {
 }
 
 function orcamentoEscolherLinha(v) {
-  if (_orcamentoGerando || v === _orcamentoLinhaAtual() || state.isParceiro) return;
+  if (_orcamentoGerando || v === _orcamentoLinhaAtual()) return;
+  if (state.isParceiro && v !== 'promocional' && !(window.Campanhas && Campanhas.daLinha(v))) return;
   if (v === 'personalizada') {
     setPBProposalMode(PB_PROPOSAL_MODES.PERSONALIZADA);
     return;
@@ -333,7 +349,9 @@ function _orcamentoKitCardHTML(kit, r, nota) {
   const dist = typeof pbKitDistribuidoraNome === 'function' ? pbKitDistribuidoraNome(kit) : '';
   const temDe = Number(kit.list_price) > Number(kit.price);
   const detalhes = [`${_orcKwp(kit.power)} kWp`, g ? `~${_orcInt(g)} kWh/mês` : '', pct != null ? `cobre ${pct}% do consumo` : ''].filter(Boolean).join(' · ');
+  const camp = window.Campanhas ? Campanhas.daLinha(kit.linha) : null;
   return `<div class="orc-kit">
+    ${camp ? Campanhas.tagHTML(camp) : ''}
     <div class="orc-kit-n">${escapeHTML(kit.name || '')}</div>
     <div class="orc-kit-d">${detalhes}</div>
     ${dist ? `<div class="orc-kit-d">Distribuidora: ${escapeHTML(dist)}${cotado ? ' · frete incluso' : ''}</div>` : ''}
@@ -376,6 +394,8 @@ function _orcamentoLadoHTML(r, kit) {
     const voltar = r?.recomendado && !ehRec
       ? '<button type="button" class="orc-link" onclick="orcamentoLimparKit()">voltar ao recomendado</button>' : '';
     html += `<div class="orc-sec">${titulo}${voltar}</div>${_orcamentoKitCardHTML(kit, r, ehRec ? r.nota : '')}`;
+    const camp = window.Campanhas ? Campanhas.daLinha(kit.linha) : null;
+    if (camp) html += `<div class="orc-camp-val"><i data-lucide="calendar-clock"></i><span>${escapeHTML(Campanhas.validadeTexto(camp))}</span></div>`;
   }
 
   html += `<button type="button" id="orcamento-lado-gerar" class="btn btn-primary orc-gerar" onclick="orcamentoGerar(event)" ${kit && !_orcamentoGerando ? '' : 'disabled'}>

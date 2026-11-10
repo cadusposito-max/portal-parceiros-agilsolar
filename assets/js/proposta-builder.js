@@ -236,7 +236,9 @@ function pbEmbedSetup(client) {
   if (mesmoCliente) return;
 
   state.pbCategory     = 'kitsInversor';
-  state.pbLinha        = 'promocional';
+  // campanha no ar: o orçamento abre nela
+  const campanha       = window.Campanhas ? Campanhas.noAr() : null;
+  state.pbLinha        = campanha ? campanha.linha : 'promocional';
   state.pbSearch       = '';
   state.pbProposalMode = PB_PROPOSAL_MODES.PROMOCIONAL;
   _pbListaTodos        = false;
@@ -628,7 +630,7 @@ async function renderPBCatalogo() {
         chave: 'kit:' + k.id,
         tipo: 'kit',
         titulo: k.name,
-        sub: [k.linha === 'promocional' ? 'Promocional' : '', k.brand, `${_pbKwp(k.power)} kWp`].filter(Boolean).join(' · '),
+        sub: [k.linha === 'promocional' ? 'Promocional' : (window.Campanhas ? Campanhas.rotuloLinha(k.linha) : ''), k.brand, `${_pbKwp(k.power)} kWp`].filter(Boolean).join(' · '),
         preco: _pbNum(k.price),
       }));
   } else {
@@ -1058,11 +1060,12 @@ function _pbKitLinhaHTML(item, geracao, r) {
     : `<b>${_pbKwp(item.power)}</b><small>kWp</small>`;
   const temDe = Number(item.list_price) > Number(item.price);
   const faixa = pct == null ? '' : pct < 95 ? ' is-baixo' : pct <= 130 ? ' is-ok' : ' is-sobra';
+  const camp = window.Campanhas ? Campanhas.daLinha(item.linha) : null;
   return `
     <div data-orcamento-kit="${id}" class="pbl-row" role="button" tabindex="0" aria-pressed="false" aria-label="Escolher ${escapeHTML(item.name)}">
       <span class="pbl-qn">${qtd}</span>
       <span class="pbl-tx">
-        <b>${_pbKwp(item.power)} kWp${rec ? '<i class="pbl-rec">Recomendado</i>' : ''}</b>
+        <b>${_pbKwp(item.power)} kWp${camp ? Campanhas.tagHTML(camp) : ''}${rec ? '<i class="pbl-rec">Recomendado</i>' : ''}</b>
         <small><span class="pbl-nm">${escapeHTML(item.name)}</span><span class="pbl-mt">${dist ? escapeHTML(dist) + ' · ' : ''}${est ? escapeHTML(est) + ' · ' : ''}~${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês</span></small>
       </span>
       ${pct != null ? `<span class="pbl-pc${faixa}" title="Gera ${pct}% da média de consumo">${pct}%<small>do consumo</small></span>` : ''}
@@ -1505,7 +1508,7 @@ function openFechaVenda(clientId) {
     .map((k, i) => {
       const curto = _fvNomeCurto(k.name);
       return {
-        id: 'c:' + (k.id || i), curto, promo: k.linha === 'promocional', micro: /micro/i.test(k.name || ''),
+        id: 'c:' + (k.id || i), curto, promo: (k.linha || 'catalogo') !== 'catalogo', micro: /micro/i.test(k.name || ''),
         kit: { nome: k.name, preco: k.price, power: k.power, brand: k.brand },
         busca: _fvNorm(`${k.name} ${curto} ${k.brand || ''} ${k.power || ''} kwp ${k.linha === 'promocional' ? 'promocional' : ''}`),
       };

@@ -71,6 +71,90 @@
         .tema-btn{position:absolute;top:18px;right:14px;z-index:2;width:38px;height:38px;border-radius:50%;background:rgb(var(--fundo));color:rgb(var(--azul-txt));display:flex;align-items:center;justify-content:center}
         .topo{box-shadow:0 6px 24px rgba(15,37,51,.06)}
         html.dark .topo{box-shadow:none;border:1px solid rgb(var(--linha))}
+
+        /* ===== CAMPANHA (Configurações › Campanhas · proposta.js renderCampanha) =====
+           Cores por variáveis --cp-* (no body). Partícula na borda só no escuro; brilho passando no claro. */
+        @property --cp-ang{syntax:'<angle>';initial-value:0deg;inherits:false}
+        html.dark body[data-camp-cor="preto"]{--cp-c:#1E1B16;--cp-c2:#2B261E}
+        .cp-orb{position:relative;border-radius:24px}
+        .cp-orb > div{position:relative;z-index:1}
+        html.dark .cp-orb:not(.sem):not(.fim)::before,html.dark .cp-orb:not(.sem):not(.fim)::after{content:"";position:absolute;border-radius:inherit;pointer-events:none;
+            background:conic-gradient(from var(--cp-ang),transparent 0 80%,color-mix(in srgb,var(--cp-part) 25%,transparent) 88%,var(--cp-part) 96%,#FFF4DA 98.6%,transparent 99.2%);
+            animation:cp-orbita 5s linear infinite}
+        html.dark .cp-orb::before{inset:-3px;z-index:0;filter:blur(10px)}
+        html.dark .cp-orb::after{inset:0;z-index:2;padding:2px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+        @keyframes cp-orbita{to{--cp-ang:360deg}}
+        .cp-selo{position:relative;overflow:hidden;border-radius:24px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+        html:not(.dark) .cp-orb:not(.sem):not(.fim) .cp-selo::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;transform:translateX(-120%);
+            background:linear-gradient(105deg,transparent 36%,rgba(255,255,255,.12) 45%,rgba(255,236,200,.34) 50%,rgba(255,255,255,.12) 55%,transparent 64%);
+            animation:cp-reflexo 5s cubic-bezier(.45,0,.25,1) infinite}
+        html:not(.dark) .cp-orb:not(.sem):not(.fim) .cp-selo.b::before{background:linear-gradient(105deg,transparent 32%,color-mix(in srgb,var(--cp-brd) 8%,transparent) 44%,color-mix(in srgb,var(--cp-brd) 20%,transparent) 50%,color-mix(in srgb,var(--cp-brd) 8%,transparent) 56%,transparent 68%)}
+        @keyframes cp-reflexo{0%,58%{transform:translateX(-120%)}88%,100%{transform:translateX(120%)}}
+        /* A · faixa */
+        .cp-selo.a{background:linear-gradient(120deg,var(--cp-c2),var(--cp-c) 60%);color:var(--cp-ink);padding:20px 22px 20px 24px;box-shadow:0 10px 30px -12px rgba(20,18,16,.45)}
+        html.dark .cp-selo.a{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cp-ac) 40%,transparent),0 10px 30px -12px rgba(0,0,0,.6)}
+        .cp-marca{display:flex;align-items:baseline;gap:10px}
+        .cp-selo.a .cp-tag{font-family:Montserrat,sans-serif;font-weight:900;font-size:24px;line-height:1;letter-spacing:.01em;position:relative;padding-bottom:7px}
+        .cp-selo.a .cp-tag::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;border-radius:2px;background:var(--cp-ac)}
+        .cp-selo.a .cp-sub{font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.62}
+        .cp-selo.a .cp-txt{font-size:13px;opacity:.7;margin:10px 0 0;line-height:1.4}
+        .cp-selo.a .cp-txt b{opacity:1;font-weight:700;white-space:nowrap}
+        .cp-selo.a .cp-cd .u{background:var(--cp-tile);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
+        .cp-selo.a .cp-cd .n{color:var(--cp-ac)}
+        .cp-selo.a .cp-cd .l{opacity:.55}
+        .cp-selo.a .cp-ultimas{color:var(--cp-ac)}
+        .cp-selo.a.ult .cp-cd .u{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cp-ac) 50%,transparent)}
+        .cp-selo.a.fim{background:linear-gradient(120deg,#232323,#1B1B1B 60%);color:#fff}
+        html.dark .cp-selo.a.fim{box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+        .cp-selo.a.fim .cp-tag{opacity:.5}
+        .cp-selo.a.fim .cp-tag::after{background:rgba(255,255,255,.2)}
+        /* B · na identidade */
+        .cp-selo.b{background:rgb(var(--superficie));padding:18px 20px 18px 22px;box-shadow:inset 0 0 0 1.5px var(--cp-brd),0 6px 24px rgba(15,37,51,.06)}
+        html.dark .cp-selo.b{box-shadow:inset 0 0 0 1.5px var(--cp-brd)}
+        .cp-selo.b .cp-marca{align-items:center}
+        .cp-selo.b .cp-tag{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:7px;background:var(--cp-c);color:var(--cp-ink);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;letter-spacing:.14em}
+        .cp-selo.b .cp-sub{font-family:Montserrat,sans-serif;font-weight:800;font-size:15px;color:rgb(var(--tinta))}
+        .cp-selo.b .cp-txt{font-size:13px;color:rgb(var(--suave));margin:8px 0 0}
+        .cp-selo.b .cp-txt b{color:rgb(var(--tinta));font-weight:700;white-space:nowrap}
+        .cp-selo.b .cp-cd .u{background:var(--cp-tileb)}
+        html.dark .cp-selo.b .cp-cd .u{background:color-mix(in srgb,var(--cp-brd) 16%,transparent)}
+        .cp-selo.b .cp-cd .n{color:rgb(var(--tinta))}
+        .cp-selo.b .cp-cd .l{color:rgb(var(--suave))}
+        .cp-selo.b .cp-ultimas{color:rgb(var(--laranja-txt))}
+        .cp-selo.b.fim{box-shadow:inset 0 0 0 1.5px rgb(var(--linha)),0 6px 24px rgba(15,37,51,.06)}
+        .cp-selo.b.fim .cp-tag{opacity:.4}
+        /* contagem */
+        .cp-cd{display:flex;gap:6px}
+        .cp-cd .u{width:58px;height:58px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+        .cp-cd .n{font-family:Montserrat,sans-serif;font-weight:800;font-size:22px;line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+        .cp-cd .l{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;line-height:1}
+        .cp-cd .n.vira{animation:cp-vira .35s ease-out}
+        @keyframes cp-vira{from{opacity:.25;transform:translateY(-3px)}to{opacity:1;transform:none}}
+        .cp-ultimas{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
+        .cp-ultimas::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;animation:cp-pisca 1.2s ease-in-out infinite}
+        @keyframes cp-pisca{50%{opacity:.2}}
+        .cp-fim{display:flex;align-items:center;gap:12px}
+        .cp-fim p{margin:0;font-size:13px;line-height:1.45;max-width:230px;opacity:.75}
+        .cp-selo.b .cp-fim p{color:rgb(var(--texto));opacity:1}
+        .cp-fim a{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;background:#FAA519;color:#3D2600;font-family:Montserrat,sans-serif;font-weight:800;font-size:13px;height:42px;padding:0 16px;border-radius:12px;white-space:nowrap}
+        @media (max-width:640px){
+          .cp-selo{flex-direction:column;align-items:stretch;gap:16px}
+          .cp-selo.a,.cp-selo.b{padding:20px}
+          .cp-cd .u{flex:1;width:auto}
+          .cp-fim{flex-direction:column;align-items:stretch}
+          .cp-fim p{max-width:none}
+          .cp-fim a{justify-content:center}
+        }
+        /* etiqueta ao lado da marca do kit + fita no preço */
+        .cp-chip{display:inline-flex;align-items:center;vertical-align:middle;margin:0 0 16px 6px;height:24px;padding:0 12px;border-radius:999px;background:var(--cp-c);color:var(--cp-ink);font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;letter-spacing:.16em}
+        html.dark .cp-chip{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cp-ac) 50%,transparent)}
+        #kit-brand-wrapper{vertical-align:middle}
+        #badge-discount.cp-fita{right:-42px;top:20px;padding:5px 48px;letter-spacing:.08em;background:var(--cp-c);color:var(--cp-ac)}
+        html.dark #badge-discount.cp-fita{background:var(--cp-ac);color:var(--cp-acink)}
+        #badge-discount.cp-fita.fim,html.dark #badge-discount.cp-fita.fim{background:rgb(var(--linha));color:rgb(var(--suave))}
+        .cp-preco-fim #kit-price,.cp-preco-fim #kit-list-price{opacity:.4}
+        .cp-aviso-preco{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;font-weight:700;color:rgb(var(--laranja-txt));background:rgb(var(--laranja-claro));padding:6px 10px;border-radius:10px}
+        @media (prefers-reduced-motion:reduce){.cp-orb::before,.cp-orb::after,.cp-selo::before{display:none !important;animation:none !important}}
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center relative font-sans">
@@ -130,6 +214,9 @@
             <i data-lucide="file-down" class="w-5 h-5"></i> Baixar proposta em PDF
         </a>
     </div>
+
+    <!-- CAMPANHA (proposta de kit de campanha · proposta.js renderCampanha) -->
+    <div id="camp-selo" class="cp-orb hidden"></div>
 
     <!-- VALIDADE DA PROPOSTA -->
     <div id="urgency-banner" class="hidden card p-4">
@@ -422,7 +509,7 @@
 <script src="/assets/js/utils.js?v=20261013-link"></script>
 <script src="/assets/js/geracao-chart.js?v=20261103-marca"></script>
 <script src="/assets/js/proposta-calc.js?v=20261027-pdf-paisagem"></script>
-<script src="/assets/js/proposta.js?v=20261103-identidade"></script>
+<script src="/assets/js/proposta.js?v=20261110-campanhas"></script>
 <script>
 // Claro/escuro: fica salvo na aba (como no link atual).
 function iconeTema() {

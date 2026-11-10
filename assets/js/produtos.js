@@ -901,16 +901,20 @@ function getMappedImportValue(rowMap, field) {
   return '';
 }
 
+// promocional | catalogo | código de uma campanha (Configurações › Campanhas)
 function normalizeImportedLinha(value) {
   const v = normalizeImportHeader(value);
   if (!v) return null;
+  const camp = (window.Campanhas ? Campanhas.lista : []).find((c) =>
+    normalizeImportHeader(c.linha) === v || normalizeImportHeader(c.etiqueta) === v);
+  if (camp) return camp.linha;
   return v.includes('promo') ? 'promocional' : 'catalogo';
 }
 
 function buildKitMatchKey(name, brand, power, linha) {
   const powerNum = Number(power);
   const powerKey = Number.isFinite(powerNum) ? powerNum.toFixed(4) : '';
-  return `${normalizeImportHeader(name)}|${normalizeImportHeader(brand)}|${powerKey}|${linha === 'promocional' ? 'promocional' : 'catalogo'}`;
+  return `${normalizeImportHeader(name)}|${normalizeImportHeader(brand)}|${powerKey}|${linha || 'catalogo'}`;
 }
 
 async function readImportedKitRows(file) {
@@ -1984,7 +1988,7 @@ async function exportCurrentKitsXLSX() {
       tag: item.tag || '',
       description: item.description || '',
       ativo: item.ativo === false ? 'NAO' : 'SIM',
-      linha: item.linha === 'promocional' ? 'promocional' : 'catalogo',
+      linha: item.linha || 'catalogo',
       modulo: nomesEq.get(item.modulo_id) || '',
       qtd_modulos: item.modulo_qtd || '',
       inversor: nomesEq.get(item.inversor_id) || '',

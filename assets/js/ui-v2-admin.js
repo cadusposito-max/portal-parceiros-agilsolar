@@ -23,6 +23,7 @@
     ]],
     ['Comercial', [
       ['leads', 'megaphone', 'Leads Meta', 'Rodízio e unidades', true],
+      ['campanhas', 'badge-percent', 'Campanhas', 'Promoções com prazo', true],
     ]],
     ['Propostas', [
       ['financiadoras', 'landmark', 'Financiadoras', 'Bancos e taxas na proposta', true],
@@ -31,7 +32,7 @@
     ]],
   ];
   const CATALOGO = [['produtos', 'zap', 'Kits'], ['componentes', 'boxes', 'Equipamentos']];
-  const RENDER = { leads: 'renderAdminLeadsMeta', usuarios: 'renderAdminUsuarios', vendedores: 'renderAdminVendedores', comunicados: 'renderAdminComunicados', financiadoras: 'renderAdminFinanciadoras', custos: 'renderAdminCustos', distribuidoras: 'renderAdminDistribuidoras' };
+  const RENDER = { leads: 'renderAdminLeadsMeta', campanhas: 'renderAdminCampanhas', usuarios: 'renderAdminUsuarios', vendedores: 'renderAdminVendedores', comunicados: 'renderAdminComunicados', financiadoras: 'renderAdminFinanciadoras', custos: 'renderAdminCustos', distribuidoras: 'renderAdminDistribuidoras' };
 
   // celular: o menu vira gaveta de baixo, aberta pelo botão com a seção atual
   window.uiV2Admin = {
