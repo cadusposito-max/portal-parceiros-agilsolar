@@ -377,6 +377,65 @@ body.is-loading #doc,body.is-error #doc{display:none}
 #pdf-overlay .pdf-btn{justify-content:center;width:100%}
 #pdf-overlay .pdf-btn-ghost{background:#f1f5f9;color:var(--tinta)}
 body.is-capturing #pdf-action-bar{display:none}
+/* ---------- Híbrido ---------- */
+.cena .dn{width:auto}
+.capa .tipo-sis{font-size:9pt;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--azul-txt);margin-top:5mm}
+.vitrine.tres{grid-template-columns:1fr 1fr 1fr}
+.vitrine.tres .lado{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.5mm;padding:5mm 5mm 7mm}
+.vitrine.tres .lado > img{height:29mm;max-width:36mm}
+.vitrine.tres .qtd{font-size:24pt}
+.vitrine.tres .spec{font-size:8pt;margin-top:.5mm}
+.vitrine.tres h3{font-size:11.5pt;margin-top:.5mm}
+.vitrine.tres .marca{margin-top:1.5mm}
+.vitrine.tres .gar{margin-top:2mm;font-size:8.5pt}
+.vitrine .lado.depois{opacity:.55}
+.backup{display:grid;grid-template-columns:96mm minmax(0,1fr);gap:9mm;flex:1;min-height:0}
+.bk-heroi{display:flex;flex-direction:column}
+.bk-heroi .h{font-family:var(--f-marca);font-weight:900;font-size:58pt;line-height:1;color:var(--azul-txt);letter-spacing:-.03em;white-space:nowrap}
+.bk-heroi .h small{font-size:18pt;font-weight:800;letter-spacing:0;margin-left:2mm}
+.bk-heroi .hl{font-size:11pt;font-weight:700;color:var(--tinta);margin-top:2mm;line-height:1.4}
+.bk-num{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4mm;margin-top:6mm;padding-top:4mm;border-top:1px solid var(--linha)}
+.bk-num span{font-size:8pt;color:var(--suave)}
+.bk-num b{display:block;font-family:var(--f-marca);font-weight:800;font-size:13pt;color:var(--tinta);white-space:nowrap}
+.aut{margin-top:auto;display:flex;flex-direction:column;gap:2.4mm}
+.aut .rot{margin-bottom:.5mm}
+.aut-l{display:grid;grid-template-columns:24mm 1fr 14mm;gap:3mm;align-items:center;font-size:8.6pt}
+.aut-l .t{color:var(--suave);font-weight:700;white-space:nowrap}
+.aut-l .tr{height:4mm;border-radius:2mm;background:var(--fundo);overflow:hidden}
+.aut-l .tr i{display:block;height:100%;background:var(--azul-medio);border-radius:2mm}
+.aut-l .v{font-family:var(--f-marca);font-weight:800;color:var(--tinta);text-align:right;white-space:nowrap}
+.aut-l.seu .t{color:var(--tinta)}
+.aut-l.seu .tr i{background:var(--azul)}
+.ligados{background:var(--azul);color:#fff;border-radius:5mm;padding:6mm 7mm;display:flex;flex-direction:column}
+.ligados .rot{color:#fff;opacity:.85}
+.ligados h3{color:#fff;font-size:15pt;margin-top:1.5mm}
+.lig-lista{margin-top:4mm;display:flex;flex-direction:column}
+.lig-lista div{display:flex;align-items:center;gap:3mm;padding:2.3mm 0;border-bottom:1px solid rgba(255,255,255,.22);font-size:10pt}
+.lig-lista .ic{width:5.5mm;height:5.5mm;color:#fff}
+.lig-lista b{margin-left:auto;font-family:var(--f-marca);font-weight:800;white-space:nowrap}
+.lig-lista.duas{display:grid;grid-template-columns:1fr 1fr;column-gap:6mm}
+.lig-lista.duas div{padding:1.5mm 0;font-size:8.8pt;gap:2mm;min-width:0}
+.lig-lista.duas div span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lig-lista.duas .ic{width:4.5mm;height:4.5mm}
+.lig-lista .mais{font-style:italic;opacity:.9}
+.lig-tot{margin-top:auto;padding-top:4mm;display:flex;justify-content:space-between;align-items:baseline;font-size:10pt}
+.lig-tot b{font-family:var(--f-marca);font-weight:900;font-size:20pt}
+.fora{margin-top:3mm;font-size:8.6pt;opacity:.9}
+.dia3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4mm;margin-top:5mm}
+.dia3 div{border:1px solid var(--linha);border-radius:4mm;padding:3.5mm 4.5mm;display:flex;gap:3mm;align-items:center;font-size:8.8pt;line-height:1.35}
+.dia3 .ic{width:7mm;height:7mm;color:var(--laranja-txt)}
+.dia3 div.noite .ic{color:var(--azul-txt)}
+.dia3 b{display:block;color:var(--tinta);font-size:10pt}
+.depois3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5mm;margin-top:6mm}
+.depois3 div{border:1px solid var(--linha);border-radius:4mm;padding:5mm}
+.depois3 .ic{width:8mm;height:8mm;color:var(--azul)}
+.depois3 h3{font-size:12pt;margin:3mm 0 1.5mm}
+.depois3 p{font-size:9.3pt;line-height:1.45}
+.selos-g.cinco{grid-template-columns:repeat(5,minmax(0,1fr));gap:3.5mm}
+.selos-g.cinco .gar-card{padding:4mm;gap:3mm}
+.selos-g.cinco .gar-card .gi{width:10mm;height:10mm}
+.selos-g.cinco .gar-card .num{font-size:15pt}
+
 /* Celular: a página fica escondida atrás de uma tela lisa; só aparecem as caixas do PDF */
 body.modo-direto #pdf-action-bar{display:none!important}
 body.modo-direto #pdf-overlay{background:#f4f7fa;backdrop-filter:none}
@@ -415,6 +474,7 @@ body.is-capturing *{box-shadow:none!important}
   var D = null;          // dados da proposta já calculados (montarDados)
   var arquivoPdf = 'Proposta-Agil-Solar.pdf';
   var IMG = 'assets/img/proposta/';
+  var IMG_BAT = IMG + 'eq-bateria.png';
 
   // ---------- utilitários ----------
   function isValidUUID(v) {
@@ -488,6 +548,41 @@ body.is-capturing *{box-shadow:none!important}
     };
   }
 
+  // ---------- híbrido ----------
+  // Inversor marcado como híbrido na cotação → proposta híbrida. A bateria vem da cotação
+  // (detalhe_custo.hibrido); aparelhos e horas, do orçamento (propostas.hibrido).
+  var HB_DESCARGA = 0.9, HB_EFICIENCIA = 0.95;
+  var HB_PADRAO = [['Geladeira', 1, 150, 'geladeira'], ['Lâmpadas LED', 8, 10, 'lampada'], ['TV', 1, 100, 'tv'], ['Internet / roteador', 1, 15, 'wifi'], ['Ventiladores', 2, 70, 'ventilador']];
+  var HB_ICONE = { refrigerator: 'geladeira', snowflake: 'geladeira', lightbulb: 'lampada', tv: 'tv', monitor: 'tv', wifi: 'wifi', fan: 'ventilador', 'air-vent': 'ar' };
+  var HB_MARCA = { SAJ: 'SAJ', 'LUXPOWER TEK': 'Luxpower', LUXPOWER: 'Luxpower', 'FOX ESS': 'FoxESS', FOXESS: 'FoxESS', SECPOWER: 'Secpower', UNIPOWER: 'Unipower', SUNGROW: 'Sungrow', GROWATT: 'Growatt' };
+  function marcaBonita(v) {
+    var s = String(v || '').trim();
+    if (HB_MARCA[s.toUpperCase()]) return HB_MARCA[s.toUpperCase()];
+    return s.toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); });
+  }
+  function montarHibrido(p, inversor) {
+    var hk = p.hibrido_kit || null, hp = p.hibrido || {};
+    if (!(p.kit_inversor && p.kit_inversor.hibrido) && !hk) return null;
+    if (inversor) inversor.marca = marcaBonita(inversor.marca);
+    var b = hk && hk.bateria && Number(hk.bateria.qtd) > 0 && Number(hk.bateria.kwh) > 0 ? hk.bateria : null;
+    var bat = b ? { marca: marcaBonita(b.marca), kwhUn: Number(b.kwh), qtd: Number(b.qtd) } : null;
+    var nominal = bat ? bat.kwhUn * bat.qtd : 0;
+    var util = nominal * HB_DESCARGA * HB_EFICIENCIA;
+    var padrao = HB_PADRAO.map(function (a) { return { nome: a[0], q: a[1], w: a[2], ic: a[3] }; });
+    var cargas = (Array.isArray(hp.cargas) ? hp.cargas : [])
+      .filter(function (c) { return Number(c.q) > 0 && Number(c.w) > 0 && c.nome; })
+      .map(function (c) { return { nome: String(c.nome), q: Number(c.q), w: Number(c.w), ic: HB_ICONE[c.icone] || 'raio' }; });
+    if (!cargas.length) cargas = padrao;
+    var soma = function (l) { return l.reduce(function (a, c) { return a + c.q * c.w; }, 0); };
+    var exemplo = 10.24 * HB_DESCARGA * HB_EFICIENCIA;
+    return {
+      bat: bat, nominal: nominal, util: util, cargas: cargas, ligadoW: soma(cargas),
+      autonomiaPedida: Number(hp.horas) || null,
+      horas: function (kw) { return util / kw; },
+      exemploW: soma(padrao), exemploUtil: exemplo,
+    };
+  }
+
   function montarDados(p) {
     var num = calcularNumerosProposta(p);
     var temGeracao = num.geracao > 0;
@@ -496,6 +591,7 @@ body.is-capturing *{box-shadow:none!important}
     var modulo = equipamento(p.kit_modulo, p.custom_modulo_nome, p.custom_modulo_qty);
     var inversor = equipamento(p.kit_inversor, p.custom_inversor_nome, p.custom_inversor_qty);
     if (inversor && !inversor.qtd) inversor.qtd = 1;
+    var hib = montarHibrido(p, inversor);
     var criada = new Date(p.created_at);
     var validade = propostaValidade(p.created_at);
     var precoDe = !num.personalizada && Number(p.kit_list_price) > num.preco ? Number(p.kit_list_price) : null;
@@ -529,6 +625,7 @@ body.is-capturing *{box-shadow:none!important}
       kit: num.nome || p.kit_nome || 'Sistema fotovoltaico',
       modulo: modulo,
       inversor: inversor,
+      hib: hib,
       telhado: p.estrutura_nome || '',
       garantiaPlacas: Number(p.franquia_garantia_paineis_anos) || 25,
       garantiaInversor: Number(p.franquia_garantia_inversor_anos) || 10,
@@ -587,6 +684,15 @@ body.is-capturing *{box-shadow:none!important}
     regua: '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
     globo: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>',
     insta: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/>',
+    bateria: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 11v2M7 10v4M11 10v4"/>',
+    geladeira: '<path d="M7 3h10a1 1 0 011 1v16a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1zM6 10h12M9 6v2M9 13v3"/>',
+    lampada: '<path d="M9 18h6M10 21h4M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0012 3z"/>',
+    tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    wifi: '<path d="M5 12.5a10 10 0 0114 0M8.5 15.5a5 5 0 017 0M2 9a14.5 14.5 0 0120 0"/><circle cx="12" cy="19" r="1"/>',
+    ventilador: '<circle cx="12" cy="12" r="2"/><path d="M12 10c0-4 1-7 4-7 2 0 2.5 3 0 5M14 12c4 0 7 1 7 4 0 2-3 2.5-5 0M12 14c0 4-1 7-4 7-2 0-2.5-3 0-5M10 12c-4 0-7-1-7-4 0-2 3-2.5 5 0"/>',
+    lua: '<path d="M21 13A9 9 0 1111 3a7 7 0 0010 10z"/>',
+    insta: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/>',
+    ar: '<rect x="2" y="5" width="20" height="8" rx="2"/><path d="M6 10h12M8 16v3M12 16v4M16 16v3"/>',
   };
   function ic(k) {
     return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + IC[k] + '</svg>';
@@ -652,26 +758,45 @@ body.is-capturing *{box-shadow:none!important}
   function cenaSobreposta() {
     var X = function (x) { return (x / 15.36).toFixed(2) + '%'; };
     var Y = function (y) { return (y / 10.24).toFixed(2) + '%'; };
-    var selo = function (x, y, n) { return '<div class="sl" style="left:' + X(x) + ';top:' + Y(y) + '">' + n + '</div>'; };
-    var legenda = function (x, y, t, s) { return '<div class="lg" style="left:' + X(x) + ';top:' + Y(y) + '">' + t + (s ? '<span>' + s + '</span>' : '') + '</div>'; };
-    return '<img src="' + IMG + 'cena-como-funciona.webp" alt="">'
+    // Posições na escala da imagem (1536 × 1024). Com bateria: cena do híbrido; sem: a do on-grid.
+    var P = D.hib && D.hib.bat ? {
+      img: IMG + 'cena-hibrido.webp',
+      sol: [[232, 214, 455, 372], [205, 245, 318, 418]],
+      troca: [1205, 655, 1268, 492], trocaTxt: [1190, 520],
+      leg: [[535, 905, 'Seu imóvel'], [1085, 905, 'Medidor', 'mede o que entra e o que sai'], [1408, 905, 'Rede', 'guarda os seus créditos']],
+      selos: [[208, 382, 1], [720, 604, 2], [722, 742, 3], [212, 612, 4]],
+      dn: ['o sol abastece o imóvel e carrega a bateria', 'Sem rede:', 'a bateria assume'],
+    } : {
+      img: IMG + 'cena-como-funciona.webp',
+      sol: [[232, 190, 455, 340], [205, 222, 320, 395]],
+      troca: [1175, 590, 1290, 470], trocaTxt: [1150, 478],
+      leg: [[470, 905, 'Seu imóvel'], [1060, 905, 'Medidor', 'mede o que entra e o que sai'], [1372, 905, 'Rede', 'guarda os seus créditos']],
+      selos: [[178, 352, 1], [762, 630, 2], [332, 592, 3], [1050, 634, 4]],
+      dn: ['o que sobra vira crédito', 'À noite:', 'seu imóvel usa o crédito'],
+    };
+    var X = function (x) { return (x / 15.36).toFixed(2) + '%'; };
+    var Y = function (y) { return (y / 10.24).toFixed(2) + '%'; };
+    var selo = function (a) { return '<div class="sl" style="left:' + X(a[0]) + ';top:' + Y(a[1]) + '">' + a[2] + '</div>'; };
+    var legenda = function (a) { return '<div class="lg" style="left:' + X(a[0]) + ';top:' + Y(a[1]) + '">' + a[2] + (a[3] ? '<span>' + a[3] + '</span>' : '') + '</div>'; };
+    var linha = function (l) { return '<line x1="' + l[0] + '" y1="' + l[1] + '" x2="' + l[2] + '" y2="' + l[3] + '" marker-end="url(#c5-lar)"/>'; };
+    return '<img src="' + P.img + '" alt="">'
       + '<svg viewBox="0 0 1536 1024" aria-hidden="true"><defs>'
       + '<marker id="c5-lar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#FAA519"/></marker>'
       + '<marker id="c5-az" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#008FD4"/></marker></defs>'
-      + '<g stroke="#FAA519" stroke-width="7" stroke-dasharray="20 16" stroke-linecap="round" fill="none"><line x1="232" y1="190" x2="455" y2="340" marker-end="url(#c5-lar)"/><line x1="205" y1="222" x2="320" y2="395" marker-end="url(#c5-lar)"/></g>'
-      + '<line x1="1175" y1="590" x2="1290" y2="470" stroke="#008FD4" stroke-width="8" stroke-linecap="round" marker-start="url(#c5-az)" marker-end="url(#c5-az)"/>'
+      + '<g stroke="#FAA519" stroke-width="7" stroke-dasharray="20 16" stroke-linecap="round" fill="none">' + P.sol.map(linha).join('') + '</g>'
+      + '<line x1="' + P.troca[0] + '" y1="' + P.troca[1] + '" x2="' + P.troca[2] + '" y2="' + P.troca[3] + '" stroke="#008FD4" stroke-width="8" stroke-linecap="round" marker-start="url(#c5-az)" marker-end="url(#c5-az)"/>'
       + '</svg>'
-      + '<div class="troca" style="right:' + X(1536 - 1150) + ';top:' + Y(478) + '">troca de energia<br>com a rede</div>'
-      + '<div class="dn"><div><i></i><span><b>De dia:</b> o que sobra vira crédito</span></div><div><i class="lua"></i><span><b>À noite:</b> seu imóvel usa o crédito</span></div></div>'
-      + legenda(470, 905, 'Seu imóvel') + legenda(1060, 905, 'Medidor', 'mede o que entra e o que sai') + legenda(1372, 905, 'Rede', 'guarda os seus créditos')
+      + '<div class="troca" style="right:' + X(1536 - P.trocaTxt[0]) + ';top:' + Y(P.trocaTxt[1]) + '">troca de energia<br>com a rede</div>'
+      + '<div class="dn"><div><i></i><span><b>De dia:</b> ' + P.dn[0] + '</span></div><div><i class="lua"></i><span><b>' + P.dn[1] + '</b> ' + P.dn[2] + '</span></div></div>'
+      + P.leg.map(legenda).join('')
       + '<div class="ilus">imagem ilustrativa</div>'
-      + selo(178, 352, 1) + selo(762, 630, 2) + selo(332, 592, 3) + selo(1050, 634, 4);
+      + P.selos.map(selo).join('');
   }
 
   // ---------- páginas ----------
   function montarPaginas() {
     var nomeCli = esc(D.cliente), primeiro = esc(D.primeiro), cidade = esc(D.cidade);
-    var mod = D.modulo, inv = D.inversor;
+    var mod = D.modulo, inv = D.inversor, H = D.hib;
     var parcelas = propostaParcelasCartao(D.preco, D.cartaoTaxas);
     var parcela = function (n) { return parcelas[n - 1].parcela; };
     var paginas = [];
@@ -687,21 +812,22 @@ body.is-capturing *{box-shadow:none!important}
     // 1. Capa
     paginas.push({ capa: true, html: '<section class="pg capa">' + fundoCapa()
       + '<div class="conteudo"><div class="marca"><img src="' + IMG + 'logo-cor.png" alt="Ágil Solar"></div>'
-      + '<h1>Proposta<br>comercial</h1><div class="traco"></div>'
+      + '<h1>Proposta<br>comercial</h1><div class="traco"></div>' + (H ? '<div class="tipo-sis">' + (H.bat ? 'Sistema solar híbrido com bateria' : 'Sistema solar híbrido · pronto para bateria') + '</div>' : '')
       + '<div class="cliente">' + nomeCli + '</div>' + (cidade ? '<div class="cidade">' + cidade + '</div>' : '')
       + '<div class="rodape-capa"><div class="dados">'
       + '<div>Proposta<b>' + esc(D.numero) + '</b></div>'
       + '<div>Sistema<b class="kwp">' + kwpFmt(D.kwp) + ' kWp</b></div>'
-      + '<div>Emitida em<b>' + esc(D.dataCurta) + '</b></div>'
+      + (H && H.bat ? '<div>Bateria<b class="kwp">' + brl(H.nominal, 2) + ' kWh</b></div>' : '<div>Emitida em<b>' + esc(D.dataCurta) + '</b></div>')
       + '<div>Responsável comercial<b>' + esc(D.consultor.nome) + '</b></div>'
       + '</div><div class="redes"><span>' + ic('insta') + ' ' + esc(D.empresa.insta) + '</span><span>' + ic('globo') + ' ' + esc(D.empresa.site) + '</span></div></div>'
       + '</div></section>' });
 
     // 2. Resumo: a conta de hoje × a conta com solar
     var mini = '<div><span class="num">' + kwpFmt(D.kwp) + '<small>kWp</small></span><span class="k">potência</span></div>'
-      + (D.temGeracao ? '<div><span class="num">' + int(D.geracao) + '<small>kWh</small></span><span class="k">geração por mês</span></div>' : '')
+      + (D.temGeracao && !H ? '<div><span class="num">' + int(D.geracao) + '<small>kWh</small></span><span class="k">geração por mês</span></div>' : '')
       + (mod && mod.qtd ? '<div><span class="num">' + mod.qtd + '<small>placas</small></span><span class="k">' + esc((mod.marca ? mod.marca + ' ' : '') + (mod.potW ? mod.potW + ' W' : '')) + '</span></div>' : '')
-      + (inv && inv.potW ? '<div><span class="num">' + kwFmt(inv.potW / 1000) + '<small>kW</small></span><span class="k">inversor ' + esc(inv.marca) + '</span></div>' : '');
+      + (inv && inv.potW ? '<div><span class="num">' + kwFmt(inv.potW / 1000) + '<small>kW</small></span><span class="k">' + (H ? 'híbrido ' : 'inversor ') + esc(inv.marca) + '</span></div>' : '')
+      + (!H ? '' : H.bat ? '<div><span class="num">' + brl(H.nominal, 1) + '<small>kWh</small></span><span class="k">bateria</span></div>' : '<div><span class="num">Pronto<small></small></span><span class="k">para bateria</span></div>');
     var faixaRes = '<div class="faixa-res"><div><div class="rot">Seu sistema</div><div class="mini4">' + mini + '</div></div>'
       + '<div><div class="rot">Investimento' + (D.precoDe ? '<span class="de">De R$ ' + brl(D.precoDe) + '</span>' : '') + '</div>'
       + '<div class="preco">' + din(D.preco) + '</div>'
@@ -711,7 +837,7 @@ body.is-capturing *{box-shadow:none!important}
       var comSolar = D.contaSem - D.economiaMensal;
       var pctSolar = Math.max(comSolar / D.contaSem * 100, 19); // largura mínima para o valor caber na barra
       var pago = esc(D.payback).replace(' e ', '<br>e ');
-      folha(cab('Sua proposta em uma página', 'Olá, ' + primeiro + '. Este é o seu sistema.', 'Calculado para o seu consumo' + (cidade ? ' e para a irradiação solar de ' + cidade : '') + '.')
+      folha(cab('Sua proposta em uma página', 'Olá, ' + primeiro + '. Este é o seu sistema' + (H ? ' híbrido' : '') + '.', (H ? 'Economia na conta' + (H.bat ? ' e energia mesmo quando a rede parar' : ' hoje e pronto para receber bateria') + '. ' : '') + 'Calculado para o seu consumo' + (cidade ? ' e para a irradiação solar de ' + cidade : '') + '.')
         + '<div class="ad"><div><div class="olho">Sua economia</div>'
         + '<div class="eco-g">' + din(D.economiaMensal) + '</div><div class="eco-l">a menos na sua conta de luz, todo mês</div>'
         + '<div class="eco-mais"><div>em 1 ano<b>R$ ' + brl(D.economiaAnual) + '</b></div><div>em 25 anos<b>R$ ' + int(D.economia25) + '</b></div><div>se paga em<b>' + pago + '</b></div></div></div>'
@@ -749,7 +875,8 @@ body.is-capturing *{box-shadow:none!important}
       var fichas = [
         ['raio', 'Potência', kwpFmt(D.kwp) + ' kWp'],
         mod && mod.qtd ? ['placa', 'Placas', mod.qtd + (mod.potW ? ' × ' + mod.potW + ' W' : '')] : null,
-        inv ? ['inversor', 'Inversor', (inv.marca ? inv.marca + ' ' : '') + (inv.potW ? kwFmt(inv.potW / 1000) + ' kW' : inv.nome)] : null,
+        inv ? ['inversor', H ? 'Inversor híbrido' : 'Inversor', (inv.marca ? inv.marca + ' ' : '') + (inv.potW ? kwFmt(inv.potW / 1000) + ' kW' : inv.nome)] : null,
+        !H ? null : H.bat ? ['bateria', 'Bateria', H.bat.qtd + ' × ' + brl(H.bat.kwhUn, 2) + ' kWh'] : ['bateria', 'Bateria', 'pronto para receber'],
         ['grafico', 'Geração anual', int(D.geracaoAno) + ' kWh'],
         D.telhado ? ['telhado', 'Telhado', D.telhado] : null,
         ['regua', 'Área mínima', brl(D.area, 1) + ' m²'],
@@ -764,12 +891,19 @@ body.is-capturing *{box-shadow:none!important}
     }
 
     // 5. Como funciona
-    folha(cab('Como funciona', 'Do sol à sua conta de luz', 'O sistema fica ligado à rede da distribuidora. Não precisa de bateria: a própria rede guarda o que sobra, em forma de crédito.')
+    folha((H ? cab('Como funciona', H.bat ? 'Do sol ao seu imóvel, mesmo sem rede' : 'Economia hoje, backup quando quiser', H.bat ? 'O sistema fica ligado à rede e tem bateria: de dia o sol abastece o imóvel e carrega a bateria; se a energia da rua cair, os aparelhos escolhidos continuam ligados.' : 'O inversor híbrido funciona ligado à rede como um sistema comum e já fica pronto para receber bateria depois.')
+      : cab('Como funciona', 'Do sol à sua conta de luz', 'O sistema fica ligado à rede da distribuidora. Não precisa de bateria: a própria rede guarda o que sobra, em forma de crédito.'))
       + '<div class="cena5"><div class="cena">' + cenaSobreposta() + '</div><div class="passos-v">'
       + '<div class="passo-v"><div class="n">1</div><div><h3>As placas captam o sol</h3><p>Durante o dia, ' + (mod && mod.qtd ? 'as ' + mod.qtd + ' placas' : 'as placas') + ' no seu telhado transformam a luz do sol em energia elétrica.</p></div></div>'
-      + '<div class="passo-v"><div class="n">2</div><div><h3>O inversor converte</h3><p>Transforma essa energia no mesmo padrão da tomada do seu imóvel e mostra tudo no aplicativo.</p></div></div>'
-      + '<div class="passo-v"><div class="n">3</div><div><h3>Seu imóvel usa primeiro</h3><p>O que estiver ligado usa a energia do sol antes de puxar da rede.</p></div></div>'
-      + '<div class="passo-v"><div class="n">4</div><div><h3>O que sobra vira crédito</h3><p>O excedente vai para a rede e volta como crédito, para usar à noite ou nos meses de menos sol. Os créditos valem por 60 meses.</p></div></div>'
+      + (H ? ''
+        + '<div class="passo-v"><div class="n">2</div><div><h3>O inversor híbrido gerencia</h3><p>Converte a energia para a tomada do imóvel, decide entre imóvel' + (H.bat ? ', bateria' : '') + ' e rede e mostra tudo no aplicativo.</p></div></div>'
+        + (H.bat ? '<div class="passo-v"><div class="n">3</div><div><h3>A bateria guarda o que sobra</h3><p>A energia do sol que o imóvel não usou carrega a bateria, para quando precisar.</p></div></div>' : '<div class="passo-v"><div class="n">3</div><div><h3>Seu imóvel usa primeiro</h3><p>O que estiver ligado usa a energia do sol antes de puxar da rede.</p></div></div>')
+        + (H.bat ? '<div class="passo-v"><div class="n">4</div><div><h3>Se a rede cair, o imóvel continua ligado</h3><p>A bateria assume os aparelhos escolhidos sem você fazer nada. Quando a rede volta, ela recarrega.</p></div></div>'
+          : '<div class="passo-v"><div class="n">4</div><div><h3>O que sobra vira crédito</h3><p>O excedente vai para a rede e volta como crédito na conta. A bateria pode entrar depois, sem trocar o inversor.</p></div></div>')
+      : ''
+        + '<div class="passo-v"><div class="n">2</div><div><h3>O inversor converte</h3><p>Transforma essa energia no mesmo padrão da tomada do seu imóvel e mostra tudo no aplicativo.</p></div></div>'
+        + '<div class="passo-v"><div class="n">3</div><div><h3>Seu imóvel usa primeiro</h3><p>O que estiver ligado usa a energia do sol antes de puxar da rede.</p></div></div>'
+        + '<div class="passo-v"><div class="n">4</div><div><h3>O que sobra vira crédito</h3><p>O excedente vai para a rede e volta como crédito, para usar à noite ou nos meses de menos sol. Os créditos valem por 60 meses.</p></div></div>')
       + '</div></div>'
       + '<div class="aviso">' + ic('info') + '<span><b>O que continua na conta de luz:</b> a taxa mínima da distribuidora (custo de disponibilidade), a iluminação pública e a parcela de uso da rede sobre a energia injetada prevista na Lei 14.300. Por isso a economia estimada nesta proposta é de 85% da conta, e não de 100%.</span></div>');
 
@@ -778,22 +912,79 @@ body.is-capturing *{box-shadow:none!important}
       + (mod && mod.qtd ? '<div class="qtd">' + mod.qtd + '×</div>' : '')
       + '<h3>Placas solares' + (mod && mod.potW ? '<br>' + mod.potW + ' W' : '') + '</h3>'
       + (mod && mod.marca ? '<div class="marca">' + esc(mod.marca) + '</div>' : '')
-      + (mod ? '<div class="spec">' + esc(mod.nome) + '</div>' : '<div class="spec">' + esc(D.kit) + '</div>')
+      + (mod ? '<div class="spec">' + esc(mod.nome) + (H ? '<br><b>' + kwpFmt(D.kwp) + ' kWp no total</b>' : '') + '</div>' : '<div class="spec">' + esc(D.kit) + '</div>')
       + '<span class="gar">' + D.garantiaPlacas + ' anos de eficiência</span></div></div>';
+    var ladoBat = !H ? '' : H.bat
+      ? '<div class="lado"><img src="' + IMG_BAT + '" alt=""><div><div class="qtd">' + H.bat.qtd + '×</div><h3>Bateria de lítio<br>' + brl(H.bat.kwhUn, 2) + ' kWh</h3><div class="marca">' + esc(H.bat.marca) + '</div><div class="spec">' + brl(H.nominal, 2) + ' kWh no total · ' + brl(H.util, 1) + ' kWh úteis</div><span class="gar">10 anos de garantia</span></div></div>'
+      : '<div class="lado depois"><img src="' + IMG_BAT + '" alt=""><div><h3>Bateria<br>pode entrar depois</h3><div class="spec">O inversor já está pronto para ela</div></div></div>';
     var ladoInv = '<div class="lado"><img src="' + IMG + 'eq-inversor.png" alt=""><div>'
       + '<div class="qtd">' + ((inv && inv.qtd) || 1) + '×</div>'
-      + '<h3>Inversor' + (inv && inv.potW ? '<br>' + kwFmt(inv.potW / 1000) + ' kW' : '') + '</h3>'
+      + '<h3>Inversor' + (H ? ' híbrido' : '') + (inv && inv.potW ? '<br>' + kwFmt(inv.potW / 1000) + ' kW' : '') + '</h3>'
       + (inv && inv.marca ? '<div class="marca">' + esc(inv.marca) + '</div>' : '')
       + (inv ? '<div class="spec">' + esc(inv.nome) + '</div>' : '')
       + '<span class="gar">' + D.garantiaInversor + ' anos de garantia</span></div></div>';
     folha(cab('Seus equipamentos', 'O que vai no seu telhado', 'Equipamentos de marcas reconhecidas, com garantia do fabricante e instalação pela nossa equipe técnica.')
-      + '<div class="vitrine"><span class="total">Total ' + kwpFmt(D.kwp) + ' kWp</span>' + ladoPlaca + ladoInv + '<span class="ilus">imagens ilustrativas</span></div>'
+      + (H ? '<div class="vitrine tres">' + ladoPlaca + ladoInv + ladoBat + '<span class="ilus">imagens ilustrativas</span></div>'
+        : '<div class="vitrine"><span class="total">Total ' + kwpFmt(D.kwp) + ' kWp</span>' + ladoPlaca + ladoInv + '<span class="ilus">imagens ilustrativas</span></div>')
       + '<div class="base-eq"><div><div class="sub-tit">Completa o sistema</div><div class="itens4">'
       + '<div><div class="bola">' + ic('telhado') + '</div><b>Estrutura</b>para o seu telhado</div>'
       + '<div><div class="bola">' + ic('raio') + '</div><b>Cabos e conectores</b>para sol e chuva</div>'
-      + '<div><div class="bola">' + ic('escudo') + '</div><b>Proteções elétricas</b>para o seu imóvel</div>'
+      + (H && H.bat ? '<div><div class="bola">' + ic('escudo') + '</div><b>Quadro de backup</b>com os circuitos essenciais</div>' : '<div><div class="bola">' + ic('escudo') + '</div><b>Proteções elétricas</b>para o seu imóvel</div>')
       + '<div><div class="bola">' + ic('celular') + '</div><b>Aplicativo</b>da geração no celular</div>'
       + '</div></div><div><div class="sub-tit">Trabalhamos com as melhores marcas</div><img class="marcas" src="' + IMG + 'marcas.png" alt="Astronergy, Znshine Solar, Jinko Solar, Hoymiles, Chint, Solis, Sofar, Ronma, Huawei"></div></div>');
+
+    // Avisa o que normalmente fica fora do backup, sem citar o que o vendedor pôs nele.
+    function foraBackup(cargas) {
+      var tem = function (re) { return cargas.some(function (c) { return re.test(c.nome); }); };
+      var fora = [[/chuveiro/i, 'Chuveiro'], [/ar.?condicionado/i, 'ar-condicionado'], [/forno/i, 'forno']]
+        .filter(function (f) { return !tem(f[0]); }).map(function (f) { return f[1]; });
+      if (!fora.length) return '';
+      fora[0] = fora[0].charAt(0).toUpperCase() + fora[0].slice(1);
+      var txt = fora.length > 1 ? fora.slice(0, -1).join(', ') + ' e ' + fora[fora.length - 1] : fora[0];
+      return '<div class="fora">' + txt + (fora.length > 1 ? ' ficam' : ' fica') + ' fora do backup para não esgotar a bateria.</div>';
+    }
+
+    // Lista do que fica no backup: até 5 numa coluna; até 14 em duas; acima disso
+    // os 13 de maior consumo e uma linha "+ N outros aparelhos" (o total soma todos).
+    function listaLigados(cargas) {
+      var linha = function (c) { return '<div>' + ic(c.ic || 'raio') + '<span>' + (c.q > 1 ? c.q + ' × ' : '') + esc(c.nome) + '</span><b>' + int(c.q * c.w) + ' W</b></div>'; };
+      if (cargas.length <= 14) return cargas.map(linha).join('');
+      var ord = cargas.slice().sort(function (a, b) { return b.q * b.w - a.q * a.w; });
+      var resto = ord.slice(13);
+      return ord.slice(0, 13).map(linha).join('')
+        + '<div class="mais">' + ic('raio') + '<span>+ ' + resto.length + ' outros aparelhos</span><b>' + int(resto.reduce(function (a, c) { return a + c.q * c.w; }, 0)) + ' W</b></div>';
+    }
+
+    // Backup: quanto tempo a bateria segura e o que fica ligado
+    if (H && H.bat) {
+      var horasSeu = H.horas(H.ligadoW / 1000);
+      var seuKw = H.ligadoW / 1000;
+      var aut = [1, 2, 3].filter(function (k) { return Math.abs(k - seuKw) > 0.15; })
+        .map(function (k) { return [k, false]; }).concat([[seuKw, true]])
+        .sort(function (a, b) { return a[0] - b[0]; });
+      var hMax = H.horas(aut[0][0]);
+      folha(cab('Seu backup', 'Energia mesmo quando a rede parar', 'Os circuitos de backup são separados no quadro. Só eles ficam na bateria, para ela render mais.')
+        + '<div class="backup"><div class="bk-heroi"><div class="olho">Com seus aparelhos ligados</div>'
+        + '<div class="h">~' + (horasSeu >= 10 ? Math.round(horasSeu) : brl(horasSeu, 1).replace(',0', '')) + '<small>horas</small></div><div class="hl">de energia sem a rede da distribuidora, à noite e sem sol</div>'
+        + '<div class="bk-num"><div><span>bateria total</span><b>' + brl(H.nominal, 2) + ' kWh</b></div><div><span>energia útil</span><b>' + brl(H.util, 1) + ' kWh</b></div>' + (H.autonomiaPedida ? '<div><span>você pediu</span><b>' + H.autonomiaPedida + ' h</b></div>' : '') + '</div>'
+        + '<div class="aut"><div class="rot">Quanto mais ligado, menos tempo</div>'
+        + aut.map(function (a) { var h = H.horas(a[0]); return '<div class="aut-l' + (a[1] ? ' seu' : '') + '"><span class="t">' + (a[1] ? 'seus ' + brl(a[0], 2) + ' kW' : brl(a[0], a[0] % 1 ? 1 : 0) + ' kW') + '</span><span class="tr"><i style="width:' + Math.min(100, h / hMax * 100) + '%"></i></span><span class="v">' + (h >= 10 ? Math.round(h) : brl(h, 1)) + ' h</span></div>'; }).join('')
+        + '</div></div>'
+        + '<div class="ligados"><div class="rot">O que fica ligado</div><h3>Os aparelhos escolhidos para o backup</h3><div class="lig-lista' + (H.cargas.length > 5 ? ' duas' : '') + '">'
+        + listaLigados(H.cargas)
+        + '</div><div class="lig-tot"><span>Tudo ligado junto</span><b>' + int(H.ligadoW) + ' W</b></div>' + foraBackup(H.cargas) + '</div></div>'
+        + '<div class="dia3"><div>' + ic('sol') + '<span><b>Rede fora, com sol</b>as placas abastecem o imóvel e ainda recarregam a bateria</span></div>'
+        + '<div>' + ic('nuvem') + '<span><b>Rede fora, nublado</b>as placas ajudam e a bateria cobre só a diferença</span></div>'
+        + '<div class="noite">' + ic('lua') + '<span><b>Rede fora, à noite</b>só a bateria segura os aparelhos escolhidos</span></div></div>');
+    } else if (H) {
+      folha(cab('Próximo passo', 'Quando quiser a bateria', 'O inversor híbrido já fica instalado. Colocar a bateria depois é só instalar e configurar.')
+        + '<div class="backup"><div class="bk-heroi"><div class="olho">Hoje</div><div class="h" style="font-size:44pt">Economia</div><div class="hl">na conta de luz, como um sistema solar comum</div>'
+        + '<div class="olho" style="margin-top:8mm">Depois</div><div class="h" style="font-size:44pt">Backup</div><div class="hl">energia mesmo quando a rede parar, no mesmo sistema</div></div>'
+        + '<div class="ligados"><div class="rot">Exemplo de bateria</div><h3>2 × 5,12 kWh</h3><p class="fora" style="font-size:10.5pt;margin-top:4mm;line-height:1.55">Geladeira, 8 lâmpadas LED, TV, internet e 2 ventiladores (' + int(H.exemploW) + ' W) ligados na falta de energia.</p><div class="lig-tot"><span>Ligados por cerca de</span><b>~' + Math.round(H.exemploUtil / (H.exemploW / 1000)) + ' h</b></div><div class="fora">Na instalação da bateria, separamos no quadro o que fica ligado quando a energia cair.</div></div></div>'
+        + '<div class="depois3"><div>' + ic('inversor') + '<h3>Inversor já pronto</h3><p>Não precisa trocar o inversor nem refazer o projeto das placas.</p></div>'
+        + '<div>' + ic('relogio') + '<h3>Investimento em etapas</h3><p>Economia na conta hoje; o backup vem quando fizer sentido para você.</p></div>'
+        + '<div>' + ic('celular') + '<h3>Um app só</h3><p>Placas, consumo e, depois, a bateria, tudo no mesmo monitoramento.</p></div></div>');
+    }
 
     // 7. Retorno (só com geração)
     if (D.temGeracao) {
@@ -840,14 +1031,15 @@ body.is-capturing *{box-shadow:none!important}
       + '<div class="fases9"><div class="jornada"><div class="prazo-chave"><span>Estimativa de <b>até 90 dias</b> até a geração</span></div><div class="passos5">'
       + '<div class="e"><div class="bola">' + ic('documento') + '</div><div class="n">ETAPA 1</div><h3>Projeto</h3><p>Feito pelos nossos engenheiros, dentro de todas as normas, com ART.</p></div>'
       + '<div class="e"><div class="bola">' + ic('caminhao') + '</div><div class="n">ETAPA 2</div><h3>Frete</h3><p>Levamos os equipamentos até o local da instalação.</p></div>'
-      + '<div class="e"><div class="bola">' + ic('ferramenta') + '</div><div class="n">ETAPA 3</div><h3>Instalação</h3><p>Equipe técnica própria, num horário bom para a sua rotina.</p></div>'
+      + '<div class="e"><div class="bola">' + ic('ferramenta') + '</div><div class="n">ETAPA 3</div><h3>Instalação</h3><p>' + (H ? 'Placas, inversor' + (H.bat ? ', bateria' : '') + ' e quadro, com equipe técnica própria.' : 'Equipe técnica própria, num horário bom para a sua rotina.') + '</p></div>'
       + '<div class="e"><div class="bola">' + ic('medidor') + '</div><div class="n">ETAPA 4</div><h3>Homologação</h3><p>Aprovação na distribuidora para a economia ser real.</p></div>'
       + '<div class="e"><div class="bola">' + ic('sol') + '</div><div class="n">ETAPA 5</div><h3>Pós-venda</h3><p>Sistema gerando e o nosso time acompanhando.</p></div>'
       + '</div></div>'
       + '<div class="gar9"><div class="sub-tit">Garantias <span class="miudo" style="font-family:var(--f-texto);font-weight:500">conforme o fabricante de cada equipamento</span></div>'
-      + '<div class="selos-g">'
+      + '<div class="selos-g' + (H && H.bat ? ' cinco' : '') + '">'
       + '<div class="gar-card"><div class="gi">' + ic('placa') + '</div><div><span class="k">Placas</span><span class="num">25 a 30<small>anos</small></span><p>de eficiência · 12 a 15 contra defeito</p></div></div>'
       + '<div class="gar-card"><div class="gi">' + ic('inversor') + '</div><div><span class="k">Inversor</span><span class="num">10 a 15<small>anos</small></span><p>contra defeito de fabricação</p></div></div>'
+      + (H && H.bat ? '<div class="gar-card"><div class="gi">' + ic('bateria') + '</div><div><span class="k">Bateria</span><span class="num">10<small>anos</small></span><p>conforme o fabricante</p></div></div>' : '')
       + '<div class="gar-card"><div class="gi">' + ic('telhado') + '</div><div><span class="k">Estrutura</span><span class="num">10<small>anos</small></span><p>de fixação no telhado</p></div></div>'
       + '<div class="gar-card"><div class="gi">' + ic('ferramenta') + '</div><div><span class="k">Instalação</span><span class="num">12<small>meses</small></span><p>do serviço da nossa equipe</p></div></div>'
       + '</div></div></div>');

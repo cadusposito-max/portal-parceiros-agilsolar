@@ -1259,6 +1259,8 @@ async function copyProposalLink(kit, event) {
       source_product_id: kit._cotacaoId ? null : (kit.id || null), // a engenharia acha os equipamentos do kit por aqui
       distribuidora_id: kit._cotacaoId ? null : (kit.distribuidora_id || null),
       ...(kit._cotacaoId ? { cotacao_id: kit._cotacaoId, proposal_mode: 'PROMOCIONAL' } : {}),
+      // kit híbrido: aparelhos e horas de backup pro PDF (hibrido.js)
+      ...(kit._hibridoDados ? { hibrido: kit._hibridoDados } : {}),
       // telhado escolhido no catálogo completo: o banco recalcula o preço com essa estrutura
       ...(kit._estrutura_id && !kit._cotacaoId ? { estrutura_id: kit._estrutura_id } : {}),
       franquia_id:       state.franquiaId

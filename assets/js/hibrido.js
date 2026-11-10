@@ -21,6 +21,7 @@ const HB_APARELHOS = { // nome, watts, horas por dia, pico de partida (× watts)
   portao: ['Portão eletrônico', 250, 0.2, 3, 'door-open'],
   micro: ['Micro-ondas', 1200, 0.3, 1, 'microwave'],
   ar: ['Ar-condicionado 9.000 inverter', 850, 8, 1.5, 'air-vent'],
+  ar12: ['Ar-condicionado 12.000 inverter', 1100, 8, 1.5, 'air-vent'],
   chuveiro: ['Chuveiro elétrico', 5500, 0.5, 1, 'shower-head'],
 };
 const HB_SUGERIDOS = [['geladeira', 1], ['led', 8], ['tv', 1], ['net', 1], ['vent', 2]];
@@ -236,6 +237,20 @@ function hibridoKit() {
     id: 'hib:' + k.cotacao_id, _cotacaoId: k.cotacao_id, _hibrido: true, ativo: true, linha: 'catalogo',
     name: k.titulo, brand: k.marca, power: Number(k.kwp), price: Number(k.preco), list_price: Number(k.preco_de),
     categoria: k.categoria || 'kitsInversor', distribuidora_id: dist?.id || null,
+    _hibridoDados: hibridoDadosProposta(),
+  };
+}
+
+// O que vai pra proposta (propostas.hibrido): o PDF monta a página "Seu backup" com isso.
+// A bateria e o inversor saem da cotação, não daqui.
+function hibridoDadosProposta() {
+  const sem = _hb.bateria === 'sem';
+  return {
+    bateria: sem ? 'sem' : 'com',
+    horas: sem ? null : Number(_hb.horas) || null,
+    cargas: sem ? [] : (_hb.cargas || [])
+      .filter((a) => Number(a.q) > 0 && Number(a.w) > 0 && String(a.nome || '').trim())
+      .map((a) => ({ nome: String(a.nome).trim(), q: Number(a.q), w: Number(a.w), h: Number(a.h) || 0, icone: a.icone || 'plug' })),
   };
 }
 
