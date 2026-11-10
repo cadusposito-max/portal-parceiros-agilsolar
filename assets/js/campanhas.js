@@ -366,7 +366,7 @@
     // equipamentos e distribuidoras: os mesmos filtros do Catálogo completo do orçamento
     const temCatalogo = typeof carregarCatalogoDistribuidoras === 'function';
     const [{ data, error }] = await Promise.all([
-      selectProdutosDaUnidade(fid),
+      selectProdutosDaUnidade(fid, { todas: true }),
       temCatalogo ? carregarCatalogoDistribuidoras().catch(() => null) : null,
     ]);
     if (error) throw error;
