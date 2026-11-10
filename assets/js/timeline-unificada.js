@@ -29,6 +29,7 @@
   // ---- origem ---------------------------------------------------------------
   function origemCrm(a) {
     if (a.tipo === 'venda' && a.meta && a.meta.acao === 'obra') return 'obra';
+    if (a.tipo === 'nota' && a.meta && a.meta.origem === 'obra') return 'obra'; // comentário escrito na aba Obras
     if (a.tipo === 'engenharia') return 'eng';
     return 'com';
   }

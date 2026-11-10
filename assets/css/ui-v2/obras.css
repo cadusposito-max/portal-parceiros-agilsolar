@@ -214,6 +214,14 @@ html[data-theme="dark"] .ob-el .falta-tag { color: #F59A9A; }
 .ob-tl > div:last-child::after { display: none; }
 .ob-tl > div.eng::before { background: var(--v2-orange); }
 .ob-tl small { display: block; color: var(--v2-gray); font-size: 11.5px; font-weight: 600; margin-top: 1px; }
+/* comentário: balão leve, para não se confundir com as mudanças de etapa */
+.ob-tl > div.nota::before { box-sizing: border-box; background: var(--v2-card); border: 2px solid var(--v2-blue); width: 9px; height: 9px; margin-top: 12px; }
+.ob-tl > div.nota::after { top: 24px; }
+.ob-tl > div.nota.eng::before { border-color: var(--v2-orange); }
+.ob-tl q { display: block; quotes: none; background: var(--v2-soft); border: 1px solid var(--v2-line); border-radius: 4px 12px 12px 12px; padding: 7px 11px; color: var(--v2-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ob-tl small .v2-men-avisou svg { width: 11px; height: 11px; vertical-align: -1px; }
+.ob-com { margin-top: 12px; }
+.ob-com-acts { display: flex; justify-content: flex-end; margin-top: 6px; }
 
 .ob-recado { width: 100%; min-height: 70px; resize: vertical; border: 1px solid var(--v2-line-strong); border-radius: 12px; padding: 10px 12px; font: inherit; color: var(--v2-ink); background: var(--v2-card); outline: 0; margin-top: 10px; }
 .ob-recado:focus { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }

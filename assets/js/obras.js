@@ -474,6 +474,10 @@
     }
     const corpoAntes = d.querySelector('.eg-pb');
     const y = corpoAntes ? corpoAntes.scrollTop : 0;
+    // o painel é redesenhado inteiro (recarga, salvar): o comentário em digitação não se perde
+    const comAntes = document.getElementById('ob-com');
+    if (comAntes) O.rascunho = { id: O.aberta, v: comAntes.value, foco: document.activeElement === comAntes, s: comAntes.selectionStart, e: comAntes.selectionEnd };
+    else if (O.rascunho && O.rascunho.id !== O.aberta) O.rascunho = null;
     const cls = `eg-panel rd eg ob-panel t-${O.aba}${O.cheia ? ' cheia' : ''}${criou || novo ? ' entra' : ''}`;
     if (!o) { d.innerHTML = `<div class="${cls}"><div class="rd-loading">${ic('loader-2')}Abrindo a obra...</div></div>`; icons(); return; }
     const I = info(o);
@@ -517,6 +521,15 @@
     icons();
     const np = d.querySelector('.eg-pb');
     if (np && y && !novo) np.scrollTop = y;
+    const com = document.getElementById('ob-com');
+    if (com) {
+      const r = O.rascunho;
+      if (r && r.id === O.aberta && r.v) {
+        com.value = r.v;
+        if (r.foco) { com.focus(); try { com.setSelectionRange(r.s, r.e); } catch (_) { /* sem seleção */ } }
+      }
+      if (typeof crmMencaoLigarCaixa === 'function') crmMencaoLigarCaixa(com, o.cliente_id, { dica: 'ob-men-dica' });
+    }
   }
 
   const btnPri = (onclick, icone, txt) => `<button type="button" class="eg-btn pri" onclick="${onclick}">${ic(icone)}${txt}</button>`;
@@ -692,7 +705,7 @@
   // ------------------------------------------------------------ agenda da obra
   function abaAgenda(o, I) {
     const pos = I.pos;
-    const remarc = (O.tl[o.venda_id] || []).filter((x) => /Data da instalação:/.test(x.t) && !/Data da instalação: —/.test(x.t));
+    const remarc = (O.tl[o.venda_id] || []).filter((x) => !x.nota && /Data da instalação:/.test(x.t) && !/Data da instalação: —/.test(x.t));
     const remHTML = remarc.length ? `<div class="ob-tl">${remarc.map((x) => `<div><span>${esc(x.t.split(' · ').filter((p) => /Data da instalação|Equipe|Duração/.test(p)).join(' · '))}<small>${esc(quando(x.em))} · ${esc(x.quem)}</small></span></div>`).join('')}</div>` : `<p class="ob-nota">${ic('info')}<span>Nenhuma remarcação.</span></p>`;
     if (I.etapa === 'concluida') {
       return `<div class="rd-card"><h3>${ic('circle-check')}Instalação feita</h3><div class="rd-kv">${kv('Concluída em', esc(dmy(pos.obra_concluida_em || pos.obra_data)))}${kv('Equipe', esc(equipeNome(o)))}${kv('Agendada para', esc(dataObra(I) || '—'))}</div></div>
@@ -720,18 +733,25 @@
   async function carregarTimeline(o) {
     if (!o.cliente_id) { O.tl[o.venda_id] = []; return; }
     try {
+      // comentários (nota) entram todos: escritos aqui, na ficha ou no card da engenharia
       const [c, e] = await Promise.all([
-        sb().from('crm_atividades').select('tipo, descricao, meta, autor_email, created_at').eq('cliente_id', o.cliente_id).in('tipo', ['venda', 'engenharia']).order('created_at', { ascending: false }).limit(80),
-        o.eng ? sb().from('eng_eventos').select('tipo, texto, autor_nome, created_at').eq('projeto_id', o.eng.id).in('tipo', ['os', 'alerta']).order('created_at', { ascending: false }).limit(30) : Promise.resolve({ data: [] }),
+        sb().from('crm_atividades').select('id, tipo, descricao, meta, autor_email, created_at').eq('cliente_id', o.cliente_id).in('tipo', ['venda', 'engenharia', 'nota']).order('created_at', { ascending: false }).limit(120),
+        o.eng ? sb().from('eng_eventos').select('id, tipo, texto, meta, interno, autor_nome, created_at').eq('projeto_id', o.eng.id).in('tipo', ['os', 'alerta', 'comentario']).order('created_at', { ascending: false }).limit(40) : Promise.resolve({ data: [] }),
       ]);
       const itens = [];
       (c.data || []).forEach((x) => {
         const acao = x.meta && x.meta.acao;
         if (x.tipo === 'venda' && acao && !['obra', 'posvenda'].includes(acao)) return;
         if (x.tipo === 'venda' && acao && x.meta.venda_id && x.meta.venda_id !== o.venda_id) return;
-        itens.push({ t: x.descricao || '', em: x.created_at, quem: nomePorEmail(x.autor_email), eng: x.tipo === 'engenharia' });
+        // comentário escrito na obra de outra venda do mesmo cliente fica na obra dele
+        if (x.tipo === 'nota' && x.meta && x.meta.origem === 'obra' && x.meta.venda_id && x.meta.venda_id !== o.venda_id) return;
+        const nota = x.tipo === 'nota';
+        itens.push({ t: x.descricao || '', em: x.created_at, quem: nomePorEmail(x.autor_email), eng: x.tipo === 'engenharia', nota, meta: nota ? x.meta : null, onde: nota && !(x.meta && x.meta.origem === 'obra') ? 'na ficha' : '' });
       });
-      (e.data || []).forEach((x) => itens.push({ t: (x.tipo === 'os' ? 'Engenharia: ' : '') + (x.texto || ''), em: x.created_at, quem: x.autor_nome || 'Engenharia', eng: true }));
+      (e.data || []).forEach((x) => {
+        const com = x.tipo === 'comentario';
+        itens.push({ t: (x.tipo === 'os' ? 'Engenharia: ' : '') + (x.texto || ''), em: x.created_at, quem: x.autor_nome || 'Engenharia', eng: true, nota: com, meta: com ? x.meta : null, onde: com ? (x.interno ? 'na engenharia · interno' : 'na engenharia') : '' });
+      });
       itens.sort((a, b) => new Date(b.em) - new Date(a.em));
       O.tl[o.venda_id] = itens;
     } catch (err) { console.warn('[obras] timeline', err); O.tl[o.venda_id] = O.tl[o.venda_id] || []; }
@@ -740,7 +760,53 @@
     const l = O.tl[o.venda_id];
     if (!l) return `<p class="ob-nota">${ic('loader-2')}<span>Carregando...</span></p>`;
     if (!l.length) return `<p class="ob-nota">${ic('info')}<span>Nada registrado ainda.</span></p>`;
-    return `<div class="ob-tl">${l.slice(0, max || l.length).map((x) => `<div class="${x.eng ? 'eng' : ''}"><span>${esc(x.t)}<small>${esc(quando(x.em))} · ${esc(x.quem)}</small></span></div>`).join('')}</div>`;
+    const texto = (x) => (x.nota && typeof crmMencaoTextoHTML === 'function' ? crmMencaoTextoHTML(x.t, x.meta) : esc(x.t));
+    const avisou = (x) => (x.nota && typeof crmMencaoAvisouHTML === 'function' ? crmMencaoAvisouHTML(x.meta) : '');
+    return `<div class="ob-tl">${l.slice(0, max || l.length).map((x) => `<div class="${x.eng ? 'eng' : ''}${x.nota ? ' nota' : ''}"><span>${x.nota ? `<q>${texto(x)}</q>` : texto(x)}<small>${esc(quando(x.em))} · ${esc(x.quem)}${x.onde ? ' · ' + esc(x.onde) : ''}${avisou(x)}</small></span></div>`).join('')}</div>`;
+  }
+  // caixa de comentário (mesma ideia do card da engenharia): grava na timeline do cliente
+  function caixaHTML(o) {
+    if (!o.cliente_id) return '';
+    return `<div class="eg-com ob-com">
+        <textarea id="ob-com" rows="2" placeholder="Escreva um comentário sobre a obra" autocomplete="off" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();obras.comentar()}"></textarea>
+        ${typeof crmMencaoDicaHTML === 'function' ? crmMencaoDicaHTML('ob-men-dica') : ''}
+        <div class="ob-com-acts"><button class="rd-btn sm pri" id="ob-com-btn" onclick="obras.comentar()">${ic('send')}Comentar</button></div>
+      </div>`;
+  }
+  let enviando = false;
+  async function comentar() {
+    const o = achar(O.aberta);
+    const inp = document.getElementById('ob-com');
+    if (!o || !o.cliente_id || !inp || enviando) return;
+    const texto = inp.value.trim();
+    if (!texto) { toast('Escreva o comentário.'); inp.focus(); return; }
+    const mencao = typeof crmMencaoColher === 'function' ? crmMencaoColher(o.cliente_id, texto) : null;
+    const b = document.getElementById('ob-com-btn');
+    enviando = true; if (b) b.disabled = true;
+    try {
+      const { error } = await sb().from('crm_atividades').insert([{
+        cliente_id: o.cliente_id,
+        franquia_id: o.franquia_id,
+        autor_email: (state.currentUser && state.currentUser.email) || 'sistema',
+        tipo: 'nota',
+        descricao: texto,
+        meta: { origem: 'obra', venda_id: o.venda_id, ...(mencao || {}) },
+      }]);
+      if (error) throw error;
+      O.rascunho = null;
+      inp.value = '';
+      if (typeof crmMencaoLimpar === 'function') crmMencaoLimpar(o.cliente_id);
+      const avisados = mencao ? mencao.mencionados_nomes.map((n) => n.split(' ')[0]).join(', ') : '';
+      toast(avisados ? `Comentário registrado · ${avisados} vai receber o aviso` : 'Comentário registrado');
+      await carregarTimeline(o);
+      if (O.aberta === o.venda_id) pintarPainel();
+    } catch (e) {
+      console.error('[obras] comentar', e);
+      toast('Não foi possível registrar o comentário: ' + (e.message || e));
+    } finally {
+      enviando = false;
+      const b2 = document.getElementById('ob-com-btn'); if (b2) b2.disabled = false;
+    }
   }
   // Arquivos: a mesma aba da ficha do cliente (crm-arquivos.js), desenhada dentro do card.
   // O cadastro do cliente vem fresco do banco (PJ, localização do padrão, franquia).
@@ -773,7 +839,7 @@
     return `<div class="rd-card ob-arq"><div id="ob-arq-box">${renderCrmArquivosTab(cli)}</div></div>`;
   }
 
-  const abaTimeline = (o) => `<div class="rd-card"><h3>${ic('history')}Timeline da obra<span class="r">o que mudou, de → para</span></h3><div style="margin-top:12px">${timelineHTML(o)}</div></div>`;
+  const abaTimeline = (o) => `<div class="rd-card"><h3>${ic('history')}Timeline da obra<span class="r">comentários e o que mudou, de → para</span></h3>${caixaHTML(o)}<div style="margin-top:14px">${timelineHTML(o)}</div></div>`;
 
   // ------------------------------------------------------------ gravar
   async function rpc(nome, args) {
@@ -1111,6 +1177,7 @@
     ficha: (aba) => { const o = achar(O.aberta); if (!o || !o.cliente_id) return; fechar(); openCrm360(o.cliente_id, aba); },
     imprimirOS: () => { const o = achar(O.aberta); if (o && o.os && window.EV && EV.imprimirOS) EV.imprimirOS(o.os.id); else toast('A OS abre pelo módulo da engenharia.'); },
     irFinanceiro: () => { const o = achar(O.aberta); if (!o) return; fechar(); vendasAndamento.irFinanceiro('ordemcompra', o.cliente_id, o.venda_id); },
+    comentar,
     salvar: (d) => salvar(d),
     kit: (d) => kit(d),
     desfazerEntrega: () => { if (confirm('Desfazer o registro de entrega do kit?')) kit({ entregue_em: '' }, 'Entrega desfeita'); },
