@@ -587,6 +587,12 @@
       ${I.etapa === 'concluida' ? `<div class="rd-card"><h3>${ic('gauge')}Pós-obra</h3>
         <div class="ob-linha"><span style="min-width:120px;font-weight:700">Medidor</span>${segmHTML(MEDIDOR, pos.medidor_status || 'aguardando', `obras.salvar({medidor_status:'$'})`)}</div>
         <div class="ob-linha"><span style="min-width:120px;font-weight:700">Monitoramento</span>${segmHTML(MON, pos.mon_status || 'pendente', `obras.salvar({mon_status:'$'})`)}</div>
+        <div class="ob-linha"><span style="min-width:120px;font-weight:700">Cliente com acesso</span>${segmHTML([['true', 'Sim'], ['false', 'Não']], pos.mon_acesso_cliente == null ? '' : String(pos.mon_acesso_cliente), `obras.monSalvar({mon_acesso_cliente:'$'})`)}</div>
+        <div class="rd-fgrid ob-mon">
+          <div class="rd-fld"><label for="ob-mon-app">App de monitoramento</label><input id="ob-mon-app" type="text" maxlength="60" value="${esc(pos.mon_app || '')}" placeholder="Ex.: SolarMan" oninput="obras.monSujo()"></div>
+          <div class="rd-fld"><label for="ob-mon-obs">Observação do monitoramento</label><input id="ob-mon-obs" type="text" maxlength="200" value="${esc(pos.mon_obs || '')}" placeholder="Ex.: Wi-Fi do cliente fraco no telhado" oninput="obras.monSujo()"></div>
+        </div>
+        <div class="ob-linha" id="ob-mon-bt" style="display:none"><button type="button" class="eg-btn pri" onclick="obras.monTexto()">${ic('check')}Salvar app e observação</button></div>
         <div class="ob-linha"><button type="button" class="rd-btn sm ghost" onclick="obras.desfazerConclusao()">${ic('undo-2')}Desfazer conclusão</button></div></div>` : ''}
       <div class="rd-card"><h3>${ic('map-pin')}Cliente e local</h3><div class="rd-kv">
         ${kv('Cliente', esc(o.cliente_nome || '—'))}${kv('Telefone', esc(o.telefone || '—'))}${kv('Cidade', esc(cidade(o)) + (o.uf ? ' - ' + esc(o.uf) : ''))}
@@ -880,6 +886,12 @@
     const id = O.aberta; if (!id) return;
     try { await rpc('obra_salvar', { p_venda_id: id, p_dados: dados }); await depoisDeGravar(msg || 'Obra atualizada'); }
     catch (e) { console.error('[obras] salvar', e); toast('Não foi possível salvar: ' + (e.message || e)); }
+  }
+  // app, acesso do cliente e observação do monitoramento: mesma função do card da venda (Jornada)
+  async function monSalvar(dados, msg) {
+    const id = O.aberta; if (!id) return;
+    try { await rpc('venda_posvenda_salvar', { p_venda_id: id, p_dados: dados }); await depoisDeGravar(msg || 'Monitoramento atualizado'); }
+    catch (e) { console.error('[obras] monitoramento', e); toast('Não foi possível salvar: ' + (e.message || e)); }
   }
   async function kit(dados, msg) {
     const id = O.aberta; if (!id) return;
@@ -1263,6 +1275,9 @@
     desfazerConclusao: () => { if (confirm('Desfazer a conclusão? A obra volta para Agendada.')) salvar({ obra_status: 'agendada' }, 'Conclusão desfeita'); },
     recadoSujo: () => { const b = document.getElementById('ob-recado-bt'); if (b) b.style.display = ''; },
     salvarRecado: () => salvar({ obra_recado: val('ob-recado') }, 'Recado salvo'),
+    monSalvar: (d) => monSalvar(d),
+    monSujo: () => { const b = document.getElementById('ob-mon-bt'); if (b) b.style.display = ''; },
+    monTexto: () => monSalvar({ mon_app: val('ob-mon-app'), mon_obs: val('ob-mon-obs') }, 'Monitoramento salvo'),
     agendarModal, agendarSlot: (data, eq) => agendarModal(null, { data, eq }),
     agAlvo: (id) => { O.agAlvo = id; agEquipes(); agCheck(); },
     agCheck, agConfirmar, concluirModal, ccConfirmar, prioridadeModal, prioEnviar, entregaModal, enConfirmar,
