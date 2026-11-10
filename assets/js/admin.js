@@ -91,7 +91,7 @@ function renderAdminPanel(container) {
 
   if (!state.adminSection) state.adminSection = 'produtos';
 
-  // Gestor só acessa KITS (da própria franquia) e VENDEDORES (para ver a equipe)
+  // Gestor só acessa KITS (da própria franquia)
   const allSections = [
     { id: 'produtos',      label: 'KITS',            icon: 'zap' },
     { id: 'financiadoras', label: 'FINANCIADORAS',   icon: 'landmark',   adminOnly: true },
@@ -99,7 +99,6 @@ function renderAdminPanel(container) {
     { id: 'distribuidoras', label: 'DISTRIBUIDORAS', icon: 'plug',       adminOnly: true },
     { id: 'custos',        label: 'CUSTOS EXTRAS',   icon: 'circle-plus', adminOnly: true },
     { id: 'usuarios',      label: 'USUARIOS',        icon: 'user-cog',   adminOnly: true },
-    { id: 'vendedores',    label: 'VENDEDORES',       icon: 'users' },
     { id: 'comunicados',   label: 'COMUNICADOS',      icon: 'megaphone',  adminOnly: true },
   ];
   const sections = allSections.filter(s => !s.adminOnly || state.isAdmin);

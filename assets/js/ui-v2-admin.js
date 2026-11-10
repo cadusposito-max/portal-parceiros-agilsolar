@@ -19,7 +19,6 @@
   const GRUPOS = [
     ['Sistema', [
       ['usuarios', 'user-cog', 'Usuários', 'Acessos e perfis', true],
-      ['vendedores', 'users', 'Vendedores', 'Comissão da equipe', false],
       ['comunicados', 'megaphone', 'Comunicados', 'Avisos para a equipe', true],
     ]],
     ['Comercial', [
@@ -47,8 +46,10 @@
 
     const grupos = GRUPOS.map(([g, itens]) => [g, itens.filter((s) => !s[4] || state.isAdmin)]).filter(([, itens]) => itens.length);
     const todas = grupos.flatMap(([, itens]) => itens);
-    if (!todas.some((s) => s[0] === state.adminSection)) state.adminSection = todas[0][0];
-    const atual = todas.find((s) => s[0] === state.adminSection);
+    // gestor não tem seção própria: fica só o atalho do Catálogo
+    const VAZIO = ['', 'settings', 'Configurações', 'Kits e equipamentos ficam em Comercial › Produtos'];
+    if (todas.length && !todas.some((s) => s[0] === state.adminSection)) state.adminSection = todas[0][0];
+    const atual = todas.find((s) => s[0] === state.adminSection) || VAZIO;
 
     container.className = 'v2a';
     container.innerHTML = `
@@ -68,6 +69,7 @@
     ['admin-overlay-kitsbar', 'admin-bar'].forEach((id) => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
     const fn = RENDER[atual[0]];
     if (has(fn)) window[fn](document.getElementById('admin-section-content'));
+    else if (atual === VAZIO) document.getElementById('admin-section-content').innerHTML = '<p style="color:var(--v2-muted,#64748b);font-size:14px">Use o atalho do Catálogo ao lado para abrir kits e equipamentos.</p>';
     if (window.lucide) window.lucide.createIcons();
   };
 
