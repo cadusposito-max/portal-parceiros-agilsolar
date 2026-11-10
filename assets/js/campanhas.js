@@ -237,10 +237,14 @@
               <label class="camp-campo"><span>Termina em</span><input type="datetime-local" data-campo="fim" value="${paraInput(c.fim)}"></label>
             </div>
           </section>
-          <section class="camp-bloco"><div class="t"><span class="n">4</span>Kits da campanha</div><p class="s">Preço próprio, pela importação de sempre (Comercial › Produtos).</p>
-            <label class="camp-campo"><span>Código na planilha (coluna linha)</span><input data-campo="linha" maxlength="30" value="${esc(c.linha)}" placeholder="black"></label>
-            <div class="camp-kits"><i data-lucide="file-spreadsheet"></i><div><b>${n.kits ? `${n.kits} kits importados` : 'Nenhum kit ainda'}</b><span>${nova ? 'Salve o rascunho e importe a planilha com a coluna' : 'Na planilha, use a coluna'} <code>linha = ${esc(c.linha || '...')}</code></span></div>
-              ${nova ? '' : '<button type="button" class="btn btn-secondary" data-camp-acao="produtos">Ir para Produtos</button>'}</div>
+          <section class="camp-bloco"><div class="t"><span class="n">4</span>Kits da campanha</div><p class="s">Escolha os kits que já estão na plataforma e dê o preço da campanha. Os kits de hoje não mudam: a campanha ganha uma cópia de cada um, que vale até o fim dela.</p>
+            ${n.kits
+              ? `<div class="camp-kits is-ok"><i data-lucide="check"></i><div><b>${n.kits} kits na campanha</b><span>Cópias com o preço da campanha, valem até ${esc(dataHora(c.fim))}</span></div>
+                  <button type="button" class="btn btn-secondary" data-camp-acao="kits"><i data-lucide="pencil"></i>Editar kits</button></div>
+                 <div class="camp-kits-mini" id="camp-kits-mini"></div>`
+              : `<div class="camp-kits"><i data-lucide="package-plus"></i><div><b>Nenhum kit ainda</b><span>${nova ? 'Salve o rascunho e escolha os kits da plataforma.' : 'Escolha da plataforma, sem planilha.'}</span></div>
+                  <button type="button" class="btn btn-primary" data-camp-acao="kits"${nova ? ' disabled' : ''}><i data-lucide="list-checks"></i>Escolher kits</button></div>`}
+            <label class="camp-campo camp-cod"><span>Código dos kits (coluna linha, se preferir importar planilha em Comercial › Produtos)</span><input data-campo="linha" maxlength="30" value="${esc(c.linha)}" placeholder="black"></label>
           </section>
           <section class="camp-bloco"><div class="t"><span class="n">5</span>Na proposta</div><p class="s">Liga e desliga cada detalhe.</p>
             <div class="camp-chk">${chk.map(([k, t, s]) => `<div class="camp-chk-l" data-toggle="${k}" role="switch" tabindex="0" aria-checked="${c[k] ? 'true' : 'false'}"><span class="tx"><b>${t}</b><small>${s}</small></span><input type="checkbox" data-bool="${k}" tabindex="-1" aria-hidden="true" ${c[k] ? 'checked' : ''}><span class="sw"></span></div>`).join('')}</div>
@@ -287,9 +291,387 @@
   function desenhar() {
     if (!cont) return;
     cont.innerHTML = `<div class="camp-adm">${tela === 'lista' ? htmlLista() : htmlEditor()}</div>`;
-    if (tela !== 'lista') pintarPrevia();
+    if (tela !== 'lista') { pintarPrevia(); pintarKitsMini(); }
     if (window.lucide) lucide.createIcons();
   }
+
+  // amostra dos kits da campanha na seção 4 (os 4 primeiros + quantos faltam)
+  async function pintarKitsMini() {
+    const box = cont && cont.querySelector('#camp-kits-mini');
+    const c = ed && ed.id && Campanhas.lista.find((x) => x.id === ed.id);
+    if (!box || !c) return;
+    try {
+      const { data, error } = await supabaseClient.from('produtos').select('name, power, categoria, modulo_qtd, price')
+        .eq('linha', c.linha).eq('ativo', true).order('power', { ascending: true });
+      if (error || !document.body.contains(box)) return;
+      const lista = data || [];
+      box.innerHTML = lista.slice(0, 4).map((k) => `<span>${esc(kitCurto(k))} · <b>R$ ${brl(k.price)}</b></span>`).join('')
+        + (lista.length > 4 ? `<span>+${lista.length - 4}</span>` : '');
+    } catch (_) { /* a amostra é só enfeite */ }
+  }
+
+  // ==========================================
+  // SELETOR DE KITS DA CAMPANHA
+  // Escolhe kits que já existem (promocionais ou catálogo, preço da Matriz)
+  // e grava CÓPIAS com produtos.linha = código da campanha. Os kits de hoje
+  // não mudam. Cada cópia ganha o mesmo preço em todas as unidades ativas
+  // (precos_franquia). Desmarcar tira a cópia de linha (ativo = false), sem
+  // apagar: proposta antiga continua apontando para ela.
+  // ==========================================
+  const DESCONTO_PADRAO = 8;
+  const LIMITE_LISTA = 200;
+  const nrm = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const chaveKit = (k) => `${nrm(k.name)}|${nrm(k.brand)}|${Number(k.power || 0).toFixed(2)}`;
+  const r2 = (v) => Math.round(Number(v) * 100) / 100;
+  const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pctTxt = (v) => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  // "12.990,00", "12990.5", "12.990", "8,5" → número
+  function lerNum(s) {
+    let t = String(s ?? '').trim().replace(/[^\d,.-]/g, '');
+    if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+    const n = Number(t);
+    return t && Number.isFinite(n) ? n : NaN;
+  }
+  const tipoKit = (k) => (/micro/i.test(String(k.categoria || '')) ? 'micro' : 'inv');
+  function kitCurto(k) {
+    const n = Number(k.modulo_qtd) || (String(k.name).match(/(\d+)\s*MOD/i) || [])[1] || '';
+    return `Kit ${n} ${tipoKit(k) === 'micro' ? 'micro' : 'inv.'}`.replace(/\s+/g, ' ');
+  }
+
+  let kp = null; // estado do seletor aberto
+
+  async function kpAbrir() {
+    const camp = ed && ed.id && Campanhas.lista.find((x) => x.id === ed.id);
+    if (!camp) { toast('Salve o rascunho da campanha antes de escolher os kits.'); return; }
+    if (ed.linha !== camp.linha) { toast('O código dos kits mudou: salve a campanha antes de escolher os kits.'); return; }
+    kp = { camp, fonte: 'promocional', tipo: '', busca: '', deModo: 'hoje', pct: DESCONTO_PADRAO, fontes: [], copias: new Map(), sel: new Map(), carregando: true, salvando: false };
+    kpMontar();
+    try {
+      await kpCarregar();
+    } catch (err) {
+      console.warn('[campanhas] Falha ao carregar os kits.', err);
+      toast('Não foi possível carregar os kits. Tente de novo.');
+      kpFechar();
+      return;
+    }
+    if (!kp) return;
+    kp.carregando = false;
+    kpPintar();
+  }
+
+  async function kpCarregar() {
+    const fid = typeof FRANQUIA_MATRIZ_ID !== 'undefined' ? FRANQUIA_MATRIZ_ID : state.franquiaId;
+    const { data, error } = await selectProdutosDaUnidade(fid);
+    if (error) throw error;
+    if (!kp) return; // fechou enquanto carregava
+    const linha = kp.camp.linha;
+    const promo = new Map();
+    const cat = new Map();
+    (data || []).forEach((p) => {
+      const pr = typeof resolveProductPrices === 'function' ? resolveProductPrices(p) : p;
+      const k = { ...p, hoje: Number(pr.price) || 0, de: Number(pr.list_price) || 0, chave: chaveKit(p), tipo: tipoKit(p) };
+      const l = p.linha || 'catalogo';
+      // cópias inativas também entram: marcar de novo reativa em vez de duplicar
+      if (l === linha) { kp.copias.set(k.chave, k); return; }
+      if (p.ativo === false || !(k.hoje > 0)) return;
+      const m = l === 'promocional' ? promo : l === 'catalogo' ? cat : null;
+      if (m && !m.has(k.chave)) m.set(k.chave, k);
+    });
+    // cópia ativa sem kit de origem (origem saiu de linha): aparece na aba Promocionais para dar para desmarcar
+    const orfas = [];
+    kp.copias.forEach((c, chave) => {
+      if (c.ativo === false || promo.has(chave) || cat.has(chave)) return;
+      orfas.push({ ...c, linha: 'promocional', hoje: c.de || c.hoje, de: c.de || c.hoje, orfa: true });
+    });
+    const ord = (a, b) => Number(a.power) - Number(b.power) || (a.tipo === b.tipo ? 0 : a.tipo === 'inv' ? -1 : 1) || String(a.name).localeCompare(String(b.name));
+    kp.fontes = [...promo.values(), ...orfas, ...cat.values()].sort(ord);
+
+    // o que já está na campanha
+    const descontos = [];
+    let pelaHoje = 0;
+    let pelaDe = 0;
+    kp.copias.forEach((c, chave) => {
+      if (c.ativo === false) return;
+      const src = promo.get(chave) || cat.get(chave) || orfas.find((o) => o.chave === chave);
+      if (!src) return;
+      kp.sel.set(chave, { src, preco: r2(c.hoje), proprio: false });
+      if (src.hoje > 0) descontos.push((1 - c.hoje / src.hoje) * 100);
+      if (Math.abs(c.de - src.hoje) < 0.01) pelaHoje++; else pelaDe++;
+    });
+    if (descontos.length) {
+      // desconto geral = o mais comum (empate: o menor); o resto vira "preço próprio"
+      const freq = new Map();
+      descontos.forEach((d) => { const v = Math.round(d * 10) / 10; freq.set(v, (freq.get(v) || 0) + 1); });
+      kp.pct = [...freq.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+      kp.deModo = pelaDe > pelaHoje ? 'de' : 'hoje';
+      kp.sel.forEach((s) => { s.proprio = Math.abs(s.preco - r2(s.src.hoje * (1 - kp.pct / 100))) > 0.009; });
+      // se tem kit marcado só no catálogo, abre nele
+      if ([...kp.sel.values()].every((s) => s.src.linha === 'catalogo')) kp.fonte = 'catalogo';
+    }
+  }
+
+  const precoGeral = (k) => r2(k.hoje * (1 - kp.pct / 100));
+
+  function kpVisiveis() {
+    const q = nrm(kp.busca).replace(/mod\./g, 'mod').split(' ').filter(Boolean);
+    return kp.fontes.filter((k) => (k.linha === kp.fonte) && (!kp.tipo || k.tipo === kp.tipo)
+      && q.every((w) => `${nrm(k.name).replace(/mod\./g, 'mod')} ${nrm(k.brand)} ${k.modulo_qtd || ''} mod`.includes(w)));
+  }
+
+  function kpRowHTML(k) {
+    const s = kp.sel.get(k.chave);
+    const on = Boolean(s && s.src === k);
+    const outra = Boolean(s && s.src !== k); // mesmo kit marcado na outra aba
+    const preco = on ? s.preco : precoGeral(k);
+    const pct = k.hoje > 0 ? r2((1 - preco / k.hoje) * 100) : 0;
+    const riscado = kp.deModo === 'hoje' ? k.hoje : Math.max(k.de, preco);
+    const kwp = Number(k.power || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+    return `<div class="ckp-row${on ? '' : ' off'}" data-ch="${esc(k.chave)}">
+      <button type="button" class="ckp-ck${on ? ' on' : ''}" data-kp="ck" aria-pressed="${on}" aria-label="${on ? 'Desmarcar' : 'Marcar'} ${esc(k.name)}">${on ? '<i data-lucide="check"></i>' : ''}</button>
+      <div class="ckp-nm"><b title="${esc(k.name)}">${esc(k.name)}</b><small><span class="ckp-tp">${k.tipo === 'micro' ? 'Micro' : 'Inversor'}</span>${kwp} kWp${on && s.proprio ? '<span class="ckp-aj">preço próprio</span>' : ''}${outra ? '<span class="ckp-aj">marcado na outra aba</span>' : ''}${k.orfa ? '<span class="ckp-aj">kit de origem saiu de linha</span>' : ''}</small></div>
+      <div class="ckp-hoje"><span class="ckp-lm">Hoje </span>R$ ${brl(k.hoje)}</div>
+      <div class="ckp-pct"><input data-kp-in="pct" inputmode="decimal" value="${pctTxt(pct)}" aria-label="Desconto em %"${on ? '' : ' tabindex="-1"'}><span>%</span></div>
+      <div class="ckp-rs"><span>R$</span><input data-kp-in="rs" inputmode="decimal" value="${brl(preco)}" aria-label="Preço da campanha"${on ? '' : ' tabindex="-1"'}></div>
+      <div class="ckp-de">R$ ${brl(riscado)}</div>
+    </div>`;
+  }
+
+  function kpMontar() {
+    kpFecharDom();
+    const c = kp.camp;
+    const el = document.createElement('div');
+    el.className = 'ckp-scrim';
+    el.id = 'ckp';
+    el.innerHTML = `<div class="ckp-modal" role="dialog" aria-modal="true" aria-label="Kits da campanha">
+      <div class="ckp-h">${Campanhas.tagHTML(c, 'ckp-tag')}<div><h4>Kits da campanha</h4><p>Marque os kits e dê o preço: desconto geral, desconto por kit ou o valor exato. Valem até <b>${esc(dataHora(c.fim))}</b>.</p></div>
+        <button type="button" class="ckp-x" data-kp="fechar" aria-label="Fechar"><i data-lucide="x"></i></button></div>
+      <div class="ckp-ctl">
+        <div class="ckp-seg" data-kp-grupo="fonte"></div>
+        <label class="ckp-busca"><i data-lucide="search"></i><input data-kp-busca placeholder="Buscar: 10 mod, hoymiles, 7,3kw…" aria-label="Buscar kit"></label>
+        <button type="button" class="ckp-chip" data-kp-tipo="inv">Inversor</button>
+        <button type="button" class="ckp-chip" data-kp-tipo="micro">Micro</button>
+        <button type="button" class="btn btn-secondary ckp-sm" data-kp="todos">Marcar todos</button>
+      </div>
+      <div class="ckp-geral">
+        <b><i data-lucide="badge-percent"></i>Desconto geral</b>
+        <div class="ckp-pct"><input data-kp-geral inputmode="decimal" aria-label="Desconto geral em %"><span>%</span></div>
+        <button type="button" class="btn btn-primary ckp-sm" data-kp="aplicar">Aplicar aos marcados</button>
+        <small>Kit com preço próprio fica como está. <button type="button" class="ckp-link" data-kp="zerar">Desfazer ajustes</button></small>
+      </div>
+      <div class="ckp-lst" id="ckp-lst"><p class="ckp-vazio">Carregando os kits…</p></div>
+      <div class="ckp-f">
+        <div class="ckp-res" id="ckp-res"></div>
+        <div class="ckp-dech"><span>Riscado na proposta (“De”)</span><span class="ckp-seg" data-kp-grupo="de"></span></div>
+        <span class="ckp-esp"></span>
+        <div class="ckp-btns"><button type="button" class="btn btn-secondary" data-kp="fechar">Cancelar</button><button type="button" class="btn btn-primary" data-kp="salvar" id="ckp-salvar" disabled><i data-lucide="check"></i>Salvar</button></div>
+      </div>
+    </div>`;
+    document.body.appendChild(el);
+    document.body.classList.add('ckp-aberto');
+    el.addEventListener('click', kpClique);
+    el.addEventListener('change', kpMudou);
+    el.addEventListener('input', (e) => {
+      if (e.target.matches('[data-kp-busca]')) { kp.busca = e.target.value; kpPintarLista(); }
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.matches('[data-kp-geral]')) { e.preventDefault(); kpAplicarGeral(); }
+      else if (e.key === 'Enter' && e.target.matches('[data-kp-in]')) { e.preventDefault(); e.target.blur(); }
+    });
+    if (window.lucide) lucide.createIcons();
+    requestAnimationFrame(() => el.classList.add('on'));
+  }
+
+  function kpPintar() {
+    const el = document.getElementById('ckp');
+    if (!el || !kp) return;
+    const nPromo = kp.fontes.filter((k) => k.linha === 'promocional').length;
+    el.querySelector('[data-kp-grupo="fonte"]').innerHTML = [['promocional', 'Promocionais', nPromo], ['catalogo', 'Catálogo completo', 0]]
+      .map(([v, t, n]) => `<button type="button" class="${kp.fonte === v ? 'on' : ''}" data-kp-fonte="${v}">${t}${n ? ` <em>${n}</em>` : ''}</button>`).join('');
+    el.querySelector('[data-kp-grupo="de"]').innerHTML = [['hoje', 'Preço de hoje'], ['de', '“De” de hoje']]
+      .map(([v, t]) => `<button type="button" class="${kp.deModo === v ? 'on' : ''}" data-kp-de="${v}">${t}</button>`).join('');
+    el.querySelectorAll('[data-kp-tipo]').forEach((b) => b.classList.toggle('on', b.dataset.kpTipo === kp.tipo));
+    const g = el.querySelector('[data-kp-geral]');
+    if (g && document.activeElement !== g) g.value = pctTxt(kp.pct);
+    kpPintarLista();
+  }
+
+  function kpPintarLista() {
+    const lst = document.getElementById('ckp-lst');
+    if (!lst || !kp) return;
+    if (kp.carregando) return;
+    const v = kpVisiveis();
+    const mostra = v.slice(0, LIMITE_LISTA);
+    const top = lst.scrollTop;
+    lst.innerHTML = `<div class="ckp-row ckp-cab"><span></span><span>Kit</span><span>Hoje</span><span>Desconto</span><span>Preço ${esc(kp.camp.etiqueta)}</span><span>Riscado</span></div>`
+      + (mostra.length ? mostra.map(kpRowHTML).join('') : `<p class="ckp-vazio">${kp.fontes.length ? 'Nenhum kit com esse filtro.' : 'Nenhum kit com preço na Matriz.'}</p>`)
+      + (v.length > mostra.length ? `<p class="ckp-vazio">Mostrando ${mostra.length} de ${v.length}. Busque para achar os outros.</p>` : '');
+    lst.scrollTop = top;
+    kpPintarRodape();
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function kpPintarRodape() {
+    const res = document.getElementById('ckp-res');
+    const btn = document.getElementById('ckp-salvar');
+    if (!res || !btn || !kp) return;
+    const arr = [...kp.sel.values()];
+    const media = arr.length ? arr.reduce((s, x) => s + (x.src.hoje > 0 ? 1 - x.preco / x.src.hoje : 0), 0) / arr.length * 100 : 0;
+    const proprios = arr.filter((x) => x.proprio).length;
+    const ativas = [...kp.copias.values()].filter((c) => c.ativo !== false).length;
+    const saem = [...kp.copias.entries()].filter(([ch, c]) => c.ativo !== false && !kp.sel.has(ch)).length;
+    res.innerHTML = arr.length
+      ? `<b>${arr.length} kit${arr.length > 1 ? 's' : ''} marcado${arr.length > 1 ? 's' : ''}</b><small>Desconto médio ${pctTxt(Math.round(media * 10) / 10)}%${proprios ? ` · ${proprios} com preço próprio` : ''}${saem ? ` · ${saem} sai${saem > 1 ? 'em' : ''} da campanha` : ''}</small>`
+      : `<b>Nenhum kit marcado</b><small>${ativas ? `Os ${ativas} kits saem da campanha ao salvar` : 'Marque na lista ou use “Marcar todos”'}</small>`;
+    btn.disabled = kp.salvando || kp.carregando || (!arr.length && !ativas);
+    btn.innerHTML = kp.salvando ? 'Salvando…' : `<i data-lucide="check"></i>${ativas ? 'Salvar alterações' : `Salvar ${arr.length || ''} kit${arr.length === 1 ? '' : 's'}`.replace(/\s+/g, ' ')}`;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function kpMarcar(k, marcar) {
+    if (marcar) kp.sel.set(k.chave, { src: k, preco: precoGeral(k), proprio: false });
+    else kp.sel.delete(k.chave);
+  }
+
+  function kpAplicarGeral() {
+    const inp = document.querySelector('#ckp [data-kp-geral]');
+    const v = lerNum(inp && inp.value);
+    if (!Number.isFinite(v) || v < 0 || v >= 100) { toast('Desconto geral entre 0 e 99%.'); return; }
+    kp.pct = v;
+    let n = 0;
+    kp.sel.forEach((s) => { if (!s.proprio) { s.preco = r2(s.src.hoje * (1 - v / 100)); n++; } });
+    kpPintar();
+    toast(n ? `${pctTxt(v)}% aplicado em ${n} kit${n === 1 ? '' : 's'}.` : `Desconto geral: ${pctTxt(v)}%. Marque os kits na lista.`);
+  }
+
+  function kpClique(e) {
+    if (!kp) return;
+    if (e.target.id === 'ckp') { kpFechar(); return; }
+    const acao = e.target.closest('[data-kp]')?.dataset.kp;
+    if (acao === 'fechar') { kpFechar(); return; }
+    if (acao === 'salvar') { kpSalvar(); return; }
+    if (kp.carregando || kp.salvando) return;
+    if (acao === 'ck') {
+      const ch = e.target.closest('[data-ch]').dataset.ch;
+      const k = kpVisiveis().find((x) => x.chave === ch);
+      if (!k) return;
+      const s = kp.sel.get(ch);
+      kpMarcar(k, !(s && s.src === k));
+      kpPintarLista();
+      return;
+    }
+    if (acao === 'todos') {
+      const v = kpVisiveis();
+      const tudo = v.length && v.every((k) => kp.sel.get(k.chave)?.src === k);
+      v.forEach((k) => { if (tudo) kp.sel.delete(k.chave); else if (kp.sel.get(k.chave)?.src !== k) kpMarcar(k, true); });
+      kpPintarLista();
+      return;
+    }
+    if (acao === 'aplicar') { kpAplicarGeral(); return; }
+    if (acao === 'zerar') {
+      kp.sel.forEach((s) => { s.proprio = false; s.preco = precoGeral(s.src); });
+      kpPintarLista();
+      return;
+    }
+    const f = e.target.closest('[data-kp-fonte]');
+    if (f) { kp.fonte = f.dataset.kpFonte; kpPintar(); document.getElementById('ckp-lst').scrollTop = 0; return; }
+    const t = e.target.closest('[data-kp-tipo]');
+    if (t) { kp.tipo = kp.tipo === t.dataset.kpTipo ? '' : t.dataset.kpTipo; kpPintar(); return; }
+    const d = e.target.closest('[data-kp-de]');
+    if (d) { kp.deModo = d.dataset.kpDe; kpPintar(); }
+  }
+
+  // % recalcula o R$ e o R$ recalcula o % (ao sair do campo). Mexer num kit desmarcado já marca.
+  function kpMudou(e) {
+    const inp = e.target.closest('[data-kp-in]');
+    if (!inp || !kp) return;
+    const ch = inp.closest('[data-ch]').dataset.ch;
+    const k = kpVisiveis().find((x) => x.chave === ch);
+    if (!k) return;
+    const v = lerNum(inp.value);
+    const preco = inp.dataset.kpIn === 'pct' ? r2(k.hoje * (1 - v / 100)) : r2(v);
+    if (!Number.isFinite(v) || !(preco > 0)) { toast('Valor inválido.'); kpPintarLista(); return; }
+    kp.sel.set(ch, { src: k, preco, proprio: Math.abs(preco - precoGeral(k)) > 0.009 });
+    kpPintarLista();
+  }
+
+  async function kpSalvar() {
+    if (!kp || kp.salvando || kp.carregando) return;
+    const linha = kp.camp.linha;
+    kp.salvando = true;
+    kpPintarRodape();
+    try {
+      const { data: fr, error: ef } = await supabaseClient.from('franquias').select('id').eq('ativo', true);
+      if (ef) throw ef;
+      const unidades = (fr || []).map((f) => f.id);
+      if (!unidades.length) throw new Error('nenhuma unidade ativa');
+
+      const novos = [];
+      const velhos = [];
+      kp.sel.forEach((s, chave) => {
+        const k = s.src;
+        const preco = r2(s.preco);
+        const de = r2(Math.max(kp.deModo === 'hoje' ? k.hoje : (k.de || k.hoje), preco));
+        const row = {
+          categoria: k.categoria, name: k.name, brand: k.brand, power: k.power, type: k.type ?? null, description: k.description ?? null, tag: k.tag ?? null,
+          franquia_id: k.franquia_id ?? null, modulo_id: k.modulo_id ?? null, modulo_qtd: k.modulo_qtd ?? null, inversor_id: k.inversor_id ?? null,
+          inversor_qtd: k.inversor_qtd ?? null, distribuidora_id: k.distribuidora_id ?? null, linha, ativo: true, price: preco, list_price: de,
+        };
+        const c = kp.copias.get(chave);
+        if (c) velhos.push({ id: c.id, ...row }); else novos.push(row);
+      });
+
+      const gravados = [];
+      if (novos.length) {
+        const { data, error } = await supabaseClient.from('produtos').insert(novos).select('id, price, list_price');
+        if (error) throw error;
+        gravados.push(...(data || []));
+      }
+      if (velhos.length) {
+        const { error } = await supabaseClient.from('produtos').upsert(velhos, { onConflict: 'id' });
+        if (error) throw error;
+        gravados.push(...velhos.map((x) => ({ id: x.id, price: x.price, list_price: x.list_price })));
+      }
+      // mesmo preço em todas as unidades ativas (é o que o orçamento e o banco usam)
+      const precos = [];
+      gravados.forEach((p) => unidades.forEach((f) => precos.push({ produto_id: p.id, franquia_id: f, price: p.price, list_price: p.list_price })));
+      for (let i = 0; i < precos.length; i += 500) {
+        const { error } = await supabaseClient.from('precos_franquia').upsert(precos.slice(i, i + 500), { onConflict: 'produto_id,franquia_id' });
+        if (error) throw error;
+      }
+      const sair = [...kp.copias.entries()].filter(([ch, c]) => c.ativo !== false && !kp.sel.has(ch)).map(([, c]) => c.id);
+      if (sair.length) {
+        const { error } = await supabaseClient.from('produtos').update({ ativo: false }).in('id', sair);
+        if (error) throw error;
+      }
+
+      const primeira = ![...kp.copias.values()].some((c) => c.ativo !== false);
+      const n = kp.sel.size;
+      kp.salvando = false;
+      kpFechar();
+      toast(primeira ? `${n} kit${n === 1 ? '' : 's'} na campanha ${ed?.nome || ''}. Os kits de hoje não mudaram.`.replace(/\s+\./, '.')
+        : `Kits da campanha atualizados${sair.length ? ` (${sair.length} saíram)` : ''}.`);
+      await carregarResumo();
+      desenhar();
+      if (typeof fetchProducts === 'function') fetchProducts().catch(() => {});
+    } catch (err) {
+      console.warn('[campanhas] Falha ao salvar os kits.', err);
+      if (kp) { kp.salvando = false; kpPintarRodape(); }
+      toast(`Não foi possível salvar os kits: ${String(err?.message || err)}`);
+    }
+  }
+
+  function kpFecharDom() {
+    const el = document.getElementById('ckp');
+    if (el) el.remove();
+    document.body.classList.remove('ckp-aberto');
+  }
+  function kpFechar() {
+    if (kp && kp.salvando) return;
+    kp = null;
+    kpFecharDom();
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && kp) kpFechar(); });
 
   function validar(c, publicar) {
     if (String(c.nome).trim().length < 2) return 'Dê um nome para a campanha.';
@@ -300,7 +682,7 @@
     if (!c.perfis.length) return 'Escolha pelo menos um grupo em "Quem pode usar".';
     if (publicar) {
       if (ms(c.fim) <= Date.now()) return 'O fim já passou: ajuste o período antes de publicar.';
-      if (!(c.id && resumo[c.id] && resumo[c.id].kits > 0)) return 'Importe os kits da campanha antes de publicar (Comercial › Produtos, coluna linha = ' + c.linha + ').';
+      if (!(c.id && resumo[c.id] && resumo[c.id].kits > 0)) return 'Escolha os kits da campanha antes de publicar (seção 4, Kits da campanha).';
     }
     return '';
   }
@@ -384,6 +766,7 @@
       }
       if (acao === 'excluir') { excluir(); return; }
       if (acao === 'produtos') { if (typeof adminIrParaAbaProdutos === 'function') adminIrParaAbaProdutos(); return; }
+      if (acao === 'kits') { kpAbrir(); return; }
       if (!ed) return;
       const vis = e.target.closest('[data-visual]');
       if (vis) { ed.visual = vis.dataset.visual; desenhar(); return; }
@@ -429,7 +812,6 @@
         ed._linhaManual = true;
       }
       ed[campo] = v;
-      if (campo === 'linha') { const code = cont.querySelector('.camp-kits code'); if (code) code.textContent = `linha = ${v || '...'}`; }
       pintarPrevia();
     });
     cont.addEventListener('change', (e) => {
