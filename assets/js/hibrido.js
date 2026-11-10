@@ -28,6 +28,7 @@ const HB_SUGERIDOS = [['geladeira', 1], ['led', 8], ['tv', 1], ['net', 1], ['ven
 const HB_HORAS = [2, 4, 6, 8, 12];
 const HB_DESCARGA = 0.9;      // lítio: usa 90% da capacidade
 const HB_EFICIENCIA = 0.95;   // perdas do inversor
+const HB_TAXA_C = 0.5;        // potência: cada kWh de bateria segura ~0,5 kW ligados juntos (0,5C)
 const HB_OVERLOAD = 1.6;      // placas até 160% do inversor (como nas cotações da Belenus)
 const HB_MARCAS = { SAJ: 'SAJ', SUNGROW: 'Sungrow', 'LUXPOWER TEK': 'Luxpower', GROWATT: 'Growatt', 'FOX ESS': 'FoxESS', SECPOWER: 'Secpower', UNIPOWER: 'Unipower' };
 
@@ -169,9 +170,14 @@ function hibridoCalc() {
     if (a.q) partida = Math.max(partida, a.w * (a.pico - 1));
   });
   const ligado = w / 1000, pico = (w + partida) / 1000;
+  // Bateria: a energia pras horas de falta e, no mínimo, o banco que aguenta tudo ligado junto.
+  // A distribuidora arredonda pra cima em módulos, então qtd × kWh × 0,5 ≥ kW ligados.
+  const porEnergia = falta / 1000 / (HB_DESCARGA * HB_EFICIENCIA);
+  const porPotencia = ligado / HB_TAXA_C;
   return {
     sem: false, mod, placas, kwp, ligado, pico, dia: dia / 1000, falta: falta / 1000,
-    bateria: falta / 1000 / (HB_DESCARGA * HB_EFICIENCIA),
+    bateria: Math.max(porEnergia, porPotencia), porEnergia, porPotencia,
+    pelaPotencia: porPotencia > porEnergia + 0.005,
     invMin: Math.max(ligado * 1.2, pico / 1.5, invPlacas),
   };
 }
@@ -476,6 +482,7 @@ function hibridoLadoHTML(kit) {
     </div>
     <p class="orc-met-s">${c.sem ? `${c.placas} placas · ${_hbKw(c.kwp)} kWp · bateria fica pra depois`
       : `${_hbNum(c.ligado)} kW ligados juntos · pico ${_hbNum(c.pico)} kW · ${_hb.horas} h de autonomia · ${c.placas} placas`}</p>`;
+  if (!c.sem && c.pelaPotencia) html += `<p class="hb-ref">Bateria calculada pela potência: ${_hbNum(c.ligado)} kW ligados juntos pedem pelo menos ${_hbNum(c.porPotencia)} kWh de bateria. Só pras ${_hb.horas} h bastariam ${_hbNum(c.porEnergia)} kWh.</p>`;
   if (!c.sem && c.bateria > 20) html += '<div class="orc-aviso">Banco de bateria grande. Vale rever a lista de cargas com o cliente antes de cotar.</div>';
   if (!telOk) html += pbAlertaHTML({ icone: 'home', titulo: 'A Belenus não tem estrutura pra esse telhado', corpo: 'Escolha outro telhado no cartão "Telhado do cliente".' });
   if (semCargas) html += '<div class="orc-aviso">Diga o que fica ligado na falta de energia pra calcular a bateria.</div>';
