@@ -10,7 +10,8 @@
 //   arquivo  — PDF, ZIP, PNG... só pra baixar.
 //   video    — link do YouTube (não ocupa espaço).
 // Campos (jsonb): { id, label, tipo: texto|unidade|whats|cidade|fixo,
-//   x, y, w (frações da arte), size (px na arte), cor, align, peso, ex, max }
+//   x, y, w (frações da arte), size (px na arte), cor (nome da paleta ou #hex),
+//   fonte (nome em FONTES; vazio = Plus Jakarta Sans), align, peso, ex, max }
 // foto (jsonb): área da foto trocável { x, y, w, h } (frações).
 // ==========================================================================
 (function () {
@@ -31,6 +32,56 @@
   };
   const AUTO = { unidade: 'Nome da unidade', whats: 'WhatsApp', cidade: 'Cidade' };
   const FONTE = '"Plus Jakarta Sans", Inter, system-ui, sans-serif';
+  // Fontes do editor (Google Fonts, baixadas só quando usadas). [nome, pesos que existem, estilo]
+  const FONTES = [
+    ['Plus Jakarta Sans', [400, 600, 800], 'Padrão da marca'],
+    ['Montserrat', [400, 600, 800, 900], 'Moderna'],
+    ['Poppins', [400, 600, 800, 900], 'Moderna'],
+    ['Inter', [400, 600, 800, 900], 'Moderna'],
+    ['Nunito', [400, 600, 800, 900], 'Arredondada'],
+    ['Raleway', [400, 600, 800, 900], 'Elegante'],
+    ['Oswald', [400, 600, 700], 'Estreita'],
+    ['Barlow Condensed', [400, 600, 800, 900], 'Estreita'],
+    ['Bebas Neue', [400], 'Título'],
+    ['Anton', [400], 'Título'],
+    ['Archivo Black', [400], 'Título'],
+    ['Righteous', [400], 'Título'],
+    ['Playfair Display', [400, 600, 800, 900], 'Serifada'],
+    ['Lora', [400, 600, 700], 'Serifada'],
+    ['Dancing Script', [400, 600, 700], 'Manuscrita'],
+    ['Pacifico', [400], 'Manuscrita'],
+    ['Permanent Marker', [400], 'Pincel'],
+  ];
+  const fonteDe = (nome) => FONTES.find((x) => x[0] === nome) || FONTES[0];
+  // peso pedido → o mais perto que a fonte tem (fonte de um peso só nunca fica "negrito falso")
+  const pesoDe = (f) => { const ps = fonteDe(f.fonte)[1], p = Number(f.peso) || 800; return ps.reduce((a, b) => (Math.abs(b - p) < Math.abs(a - p) ? b : a), ps[0]); };
+  const NOME_PESO = { 400: 'Normal', 600: 'Médio', 700: 'Negrito', 800: 'Negrito', 900: 'Extra' };
+  const _cssFonte = {};
+  function cssFonte(nome) {
+    const [fam, ps] = fonteDe(nome);
+    if (!_cssFonte[fam]) {
+      _cssFonte[fam] = new Promise((res) => {
+        const l = document.createElement('link');
+        l.rel = 'stylesheet';
+        l.href = 'https://fonts.googleapis.com/css2?family=' + fam.replace(/ /g, '+') + (ps.length > 1 ? ':wght@' + ps.join(';') : '') + '&display=swap';
+        l.onload = res; l.onerror = res;
+        document.head.appendChild(l);
+      });
+    }
+    return _cssFonte[fam];
+  }
+  // Espera as fontes que a arte usa (no máx. 5 s: sem internet sai com a padrão)
+  function fontesProntas(it) {
+    const usos = new Set(((it && it.campos) || []).map((f) => fonteDe(f.fonte)[0] + '|' + pesoDe(f)));
+    usos.add('Plus Jakarta Sans|800');
+    const todas = Promise.all([...usos].map(async (u) => {
+      const [fam, p] = u.split('|');
+      await cssFonte(fam);
+      try { await document.fonts.load(`${p} 40px "${fam}"`); } catch (_) {}
+    }));
+    return Promise.race([todas, new Promise((r) => setTimeout(r, 5000))]);
+  }
+  const corHex = (c) => { const v = COR[c] || c; return /^#[0-9a-f]{6}$/i.test(v || '') ? v.toUpperCase() : '#FFFFFF'; };
 
   const M = {
     tab: 'biblioteca', container: null, itens: null, stats: {}, carregando: null, erro: null,
@@ -150,12 +201,12 @@
   function cardItem(i) {
     const st = M.stats[i.id];
     const selo = i.tipo === 'editavel' ? `<span class="mk-badge ed">${ic('pencil')}EDITÁVEL</span>` : `<span class="mk-badge fx">${i.tipo === 'video' ? 'VÍDEO' : 'SÓ BAIXAR'}</span>`;
-    const acao = i.tipo === 'editavel' ? ['abrir', 'pencil', 'Editar e baixar'] : i.tipo === 'video' ? ['assistir', 'play', 'Assistir'] : ['baixar', 'download', 'Baixar'];
+    const acao = i.tipo === 'editavel' ? ['abrir', 'pencil', CT.admin() ? 'Editar' : 'Editar e baixar'] : i.tipo === 'video' ? ['assistir', 'play', 'Assistir'] : ['baixar', 'download', 'Baixar'];
     return `<div class="mk-card${i.publicado ? '' : ' oculto'}">
       <button class="mk-thumb" data-mk="${acao[0]}" data-id="${i.id}">${capaHTML(i)}${selo}${i.publicado ? '' : '<span class="mk-badge rasc">RASCUNHO</span>'}</button>
       <div class="mk-cbody"><b>${esc(i.nome)}</b><span class="mk-meta">${esc(metaItem(i))}${i.campanha ? ' · ' + esc(i.campanha) : ''}</span>
         ${CT.admin() ? `<span class="mk-adm">${ic('download')}${st ? `${st.downloads} ${i.tipo === 'video' ? 'vezes' : 'downloads'} · ${st.unidades} unidade${st.unidades == 1 ? '' : 's'}` : 'ninguém baixou ainda'}</span>` : ''}
-        <div class="mk-cact"><button class="ct-btn pri" data-mk="${acao[0]}" data-id="${i.id}">${ic(acao[1])}${acao[2]}</button>
+        <div class="mk-cact"><button class="ct-btn pri" data-mk="${acao[0]}" data-id="${i.id}" title="${acao[2]}">${ic(acao[1])}<span>${acao[2]}</span></button>
           ${CT.admin() && i.tipo === 'editavel' ? `<button class="ct-btn gh ic" data-mk="montar" data-id="${i.id}" title="Montar campos">${ic('pencil-ruler')}</button>` : ''}
           ${CT.admin() ? `<button class="ct-btn gh ic" data-mk="editar" data-id="${i.id}" title="Nome, pasta e quem vê">${ic('settings-2')}</button>` : ''}</div>
       </div></div>`;
@@ -227,10 +278,10 @@
       if (!txt) return;
       let size = f.size || 48;
       const maxW = Math.max(10, (f.w || 0.5) * W);
-      const setFont = () => { ctx.font = `${f.peso || 800} ${size}px ${FONTE}`; };
+      const setFont = () => { ctx.font = `${pesoDe(f)} ${size}px "${fonteDe(f.fonte)[0]}", ${FONTE}`; };
       setFont();
       while (ctx.measureText(txt).width > maxW && size > 10) { size -= 2; setFont(); }
-      ctx.fillStyle = COR[f.cor] || f.cor || '#FFFFFF';
+      ctx.fillStyle = corHex(f.cor);
       ctx.textBaseline = 'middle';
       ctx.textAlign = f.align || 'left';
       const x = f.align === 'center' ? (f.x + f.w / 2) * W : f.align === 'right' ? (f.x + f.w) * W : f.x * W;
@@ -238,8 +289,6 @@
     });
     return canvas;
   }
-  let _fontes = null;
-  const fontesProntas = () => _fontes || (_fontes = Promise.all([600, 800].map((p) => document.fonts.load(`${p} 40px "Plus Jakarta Sans"`))).catch(() => {}));
 
   function encaixar() {
     const box = M.container && M.container.querySelector('.mk-stage');
@@ -289,7 +338,7 @@
     if (!it || !cv) return;
     encaixar();
     try {
-      await fontesProntas();
+      await fontesProntas(it);
       _edBg = await CT.imagem(it.arquivo_id);
       if (M.view !== 'editor' || M.aberto !== it.id) return;
       if (!it.largura) { it.largura = _edBg.naturalWidth; it.altura = _edBg.naturalHeight; encaixar(); }
@@ -333,6 +382,13 @@
     if (!M.montarId || !item(M.montarId) || item(M.montarId).tipo !== 'editavel') M.montarId = lista[0].id;
     if (!M.rasc || M.rasc.id !== M.montarId) { M.rasc = JSON.parse(JSON.stringify(item(M.montarId))); M.rasc.campos = M.rasc.campos || []; M.sujo = false; M.sel = null; }
   }
+  // Paleta da marca + cores em hex já usadas nesta arte
+  function coresSw(r, f) {
+    const atual = corHex(f.cor), marca = Object.values(COR);
+    const usadas = [...new Set((r.campos || []).map((x) => corHex(x.cor)))].filter((h) => !marca.includes(h));
+    return Object.entries(COR).map(([k, c]) => [c, k]).concat(usadas.map((h) => [h, h]))
+      .map(([c, t]) => `<button data-mk="cor" data-cor="${c}" class="${atual === c ? 'on' : ''}" style="background:${c}" title="${t}"></button>`).join('');
+  }
   function tipoCls(f) { return f.tipo === 'texto' ? '' : f.tipo === 'fixo' ? 'fixo' : 'auto'; }
   function vMontar() {
     garantirRascunho();
@@ -361,9 +417,11 @@
           ${f.tipo === 'texto' || f.tipo === 'fixo' ? `<div class="ct-two"><div class="ct-fld" ${f.tipo === 'fixo' ? 'style="grid-column:span 2"' : ''}><label>${f.tipo === 'fixo' ? 'Texto' : 'Texto de exemplo'}</label><input class="ct-inp" data-cfg="ex" value="${esc(f.ex || '')}"></div>
             ${f.tipo === 'texto' ? `<div class="ct-fld"><label>Máx. de letras</label><input class="ct-inp" type="number" min="1" max="120" data-cfg="max" value="${f.max || 30}"></div>` : ''}</div>` : ''}
           <div class="ct-fld"><label>Tamanho da letra<span class="cnt" id="mk-size-lbl">${f.size}px</span></label><input type="range" min="16" max="${Math.round(Math.max(200, H / 5))}" step="2" data-cfg="size" value="${f.size}"></div>
-          <div class="ct-fld"><label>Cor</label><div class="mk-sw">${Object.entries(COR).map(([k, c]) => `<button data-mk="cor" data-cor="${k}" class="${f.cor === k ? 'on' : ''}" style="background:${c}" title="${k}"></button>`).join('')}</div></div>
+          <div class="ct-fld"><label>Fonte<span class="cnt">${esc(fonteDe(f.fonte)[0])}</span></label><div class="mk-fontes">${FONTES.map(([n, , e]) => `<button data-mk="fonte" data-fonte="${esc(n)}" class="${fonteDe(f.fonte)[0] === n ? 'on' : ''}" style="font-family:'${n}',sans-serif"><b>${esc(n)}</b><small>${e}</small></button>`).join('')}</div></div>
+          <div class="ct-fld"><label>Cor</label><div class="mk-sw">${coresSw(r, f)}</div>
+            <div class="mk-hex"><input type="color" data-cor-pick value="${corHex(f.cor)}" title="Escolher qualquer cor"><input class="ct-inp" data-cor-hex value="${corHex(f.cor)}" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#FFFFFF" aria-label="Cor em hex"><span class="mk-hexdica">Cole o código da cor (ex.: #FAA519)</span></div></div>
           <div class="ct-two"><div class="ct-fld"><label>Alinhar</label><div class="ct-segw">${[['left', 'Esq.'], ['center', 'Centro'], ['right', 'Dir.']].map(([k, n]) => `<button data-mk="al" data-al="${k}" class="${f.align === k ? 'on' : ''}">${n}</button>`).join('')}</div></div>
-            <div class="ct-fld"><label>Peso</label><div class="ct-segw">${[[600, 'Normal'], [800, 'Negrito']].map(([k, n]) => `<button data-mk="peso" data-peso="${k}" class="${Number(f.peso) === k ? 'on' : ''}">${n}</button>`).join('')}</div></div></div>
+            <div class="ct-fld"><label>Peso</label>${fonteDe(f.fonte)[1].length > 1 ? `<div class="ct-segw">${fonteDe(f.fonte)[1].map((k) => `<button data-mk="peso" data-peso="${k}" class="${pesoDe(f) === k ? 'on' : ''}">${NOME_PESO[k]}</button>`).join('')}</div>` : '<p class="mk-um">Esta fonte só tem um peso.</p>'}</div></div>
           <button class="ct-btn gh perigo-tx" data-mk="del-campo">${ic('trash-2')}Tirar este campo</button>
         </div>` : (r.campos || []).length ? `<p class="ct-note">${ic('info')}<span>Clique numa caixa na arte (ou num campo acima) pra mudar tamanho, cor e o que vai nele.</span></p>` : ''}
         <p class="ct-note">${ic('eye')}<span>Aparece pra quem tem o <b>Marketing</b> liberado no cadastro do usuário.</span></p>
@@ -381,7 +439,8 @@
     if (!r) return;
     encaixar();
     try {
-      await fontesProntas();
+      FONTES.forEach(([n]) => cssFonte(n)); // pra lista de fontes aparecer no próprio desenho
+      await fontesProntas(r);
       _mtBg = await CT.imagem(r.arquivo_id);
       if (M.tab !== 'montar' || !M.rasc || M.rasc.id !== r.id) return;
       if (!r.largura) { r.largura = _mtBg.naturalWidth; r.altura = _mtBg.naturalHeight; encaixar(); }
@@ -672,11 +731,18 @@
         case 'sel': M.sel = id; pintar(); break;
         case 'add': novoCampo(b.dataset.tipo); break;
         case 'foto-area': M.rasc.foto = M.rasc.foto ? null : { x: 0, y: 0, w: 1, h: 0.6 }; M.sel = M.rasc.foto ? '__foto' : null; M.sujo = true; pintar(); break;
-        case 'cor': case 'al': case 'peso': {
+        case 'cor': case 'al': case 'peso': case 'fonte': {
           const f = M.rasc && M.rasc.campos.find((x) => x.id === M.sel);
           if (!f) return;
-          if (a === 'cor') f.cor = b.dataset.cor; else if (a === 'al') f.align = b.dataset.al; else f.peso = Number(b.dataset.peso);
-          M.sujo = true; pintar(); break;
+          if (a === 'cor') f.cor = b.dataset.cor;
+          else if (a === 'al') f.align = b.dataset.al;
+          else if (a === 'peso') f.peso = Number(b.dataset.peso);
+          else { f.fonte = b.dataset.fonte === FONTES[0][0] ? '' : b.dataset.fonte; f.peso = pesoDe(f); }
+          M.sujo = true;
+          const lista = M.container.querySelector('.mk-fontes'), rolou = lista ? lista.scrollTop : 0;
+          pintar();
+          const nova = M.container.querySelector('.mk-fontes'); if (nova) nova.scrollTop = rolou;
+          break;
         }
         case 'del-campo': M.rasc.campos = M.rasc.campos.filter((x) => x.id !== M.sel); M.sel = null; M.sujo = true; pintar(); break;
         case 'salvar': salvarMontar(b.dataset.pub === '1', b); break;
@@ -704,6 +770,20 @@
         return;
       }
       if (d.uni) { M.uniEdit = Object.assign({}, M.uniEdit || M.uni, { [d.uni]: el.value }); redesenharEditor(); return; }
+      if ((el.hasAttribute('data-cor-hex') || el.hasAttribute('data-cor-pick')) && M.rasc) {
+        const f = M.rasc.campos.find((x) => x.id === M.sel);
+        if (!f) return;
+        let v = el.value.trim();
+        if (v && v[0] !== '#') v = '#' + v;
+        if (/^#[0-9a-f]{3}$/i.test(v) && el.hasAttribute('data-cor-pick')) v = '#' + v.slice(1).split('').map((c) => c + c).join('');
+        if (!/^#[0-9a-f]{6}$/i.test(v)) return;
+        f.cor = v.toUpperCase();
+        const outro = root.querySelector(el.hasAttribute('data-cor-hex') ? '[data-cor-pick]' : '[data-cor-hex]');
+        if (outro) outro.value = f.cor;
+        root.querySelectorAll('.mk-sw button').forEach((s) => s.classList.toggle('on', corHex(s.dataset.cor) === f.cor));
+        marcarSujo(); agendarMontar();
+        return;
+      }
       if (d.cfg && M.rasc) {
         const f = M.rasc.campos.find((x) => x.id === M.sel);
         if (!f) return;

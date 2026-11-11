@@ -113,7 +113,7 @@ html[data-ui="v2"] .mk-banner { display: flex; align-items: center; gap: 18px; b
 html[data-ui="v2"] .mk-banner::after { content: ""; position: absolute; right: -40px; top: -60px; width: 260px; height: 260px; background: radial-gradient(circle, rgba(250,165,25,.35), transparent 65%); pointer-events: none; }
 html[data-ui="v2"] .mk-banner .tx { flex: 1; position: relative; z-index: 1; min-width: 0; }
 html[data-ui="v2"] .mk-banner .tag { font-size: 11px; font-weight: 800; color: var(--v2-orange); letter-spacing: .08em; }
-html[data-ui="v2"] .mk-banner h3 { font-size: 20px; font-weight: 800; margin: 2px 0 0; color: #fff; }
+html[data-ui="v2"] .mk-banner h3 { font-size: 20px; font-weight: 800; margin: 2px 0 0; color: #fff !important; } /* o tema claro antigo pinta todo h3 de escuro */
 html[data-ui="v2"] .mk-banner p { font-size: 13px; color: #B8C0C8; margin: 2px 0 0; }
 html[data-ui="v2"] .mk-banner .ct-btn { position: relative; z-index: 1; }
 html[data-ui="v2"] .mk-camp-h { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 12px; flex-wrap: wrap; }
@@ -144,7 +144,9 @@ html[data-ui="v2"] .mk-meta { font-size: 12px; color: var(--v2-gray); font-weigh
 html[data-ui="v2"] .mk-adm { font-size: 11px; color: var(--v2-blue-text); font-weight: 700; display: flex; gap: 5px; align-items: center; }
 html[data-ui="v2"] .mk-adm svg.lucide { width: 13px; height: 13px; }
 html[data-ui="v2"] .mk-cact { display: flex; gap: 6px; margin-top: auto; padding-top: 4px; }
-html[data-ui="v2"] .mk-cact .ct-btn.pri { flex: 1; min-width: 0; }
+html[data-ui="v2"] .mk-cact .ct-btn.pri { flex: 1; min-width: 0; padding: 0 10px; overflow: hidden; }
+html[data-ui="v2"] .mk-cact .ct-btn.pri > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+html[data-ui="v2"] .mk-cact .ct-btn.pri > svg { flex-shrink: 0; }
 
 html[data-ui="v2"] .mk-ed { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; }
 html[data-ui="v2"] .mk-stagebox { background: var(--v2-card); border-radius: 24px; box-shadow: var(--v2-shadow); padding: 16px; position: sticky; top: 16px; min-width: 0; }
@@ -187,6 +189,17 @@ html[data-ui="v2"] .mk-addrow .ct-btn { flex: 1; padding: 0 10px; }
 html[data-ui="v2"] .mk-sw { display: flex; gap: 8px; flex-wrap: wrap; }
 html[data-ui="v2"] .mk-sw button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--v2-line-strong); outline: 2.5px solid transparent; outline-offset: 2px; padding: 0; }
 html[data-ui="v2"] .mk-sw button.on { outline-color: var(--v2-blue); }
+html[data-ui="v2"] .mk-fontes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 232px; overflow-y: auto; padding: 2px; }
+html[data-ui="v2"] .mk-fontes button { text-align: left; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); border-radius: 10px; padding: 7px 10px; color: var(--v2-ink); display: flex; flex-direction: column; gap: 2px; min-width: 0; cursor: pointer; }
+html[data-ui="v2"] .mk-fontes button:hover { border-color: var(--v2-blue); }
+html[data-ui="v2"] .mk-fontes button b { font-size: 16px; font-weight: 400; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .mk-fontes button small { font: 600 10px "Plus Jakarta Sans", sans-serif; color: var(--v2-gray); }
+html[data-ui="v2"] .mk-fontes button.on { border-color: var(--v2-blue); background: var(--v2-blue-50); }
+html[data-ui="v2"] .mk-hex { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+html[data-ui="v2"] .mk-hex input[type=color] { width: 44px; height: 40px; border: 1.5px solid var(--v2-line-strong); border-radius: 10px; padding: 3px; background: var(--v2-card); cursor: pointer; flex: none; }
+html[data-ui="v2"] .mk-hex .ct-inp { font-family: ui-monospace, Consolas, monospace; text-transform: uppercase; width: 116px; flex: none; }
+html[data-ui="v2"] .mk-hexdica { font-size: 11px; color: var(--v2-gray); flex: 1 1 120px; }
+html[data-ui="v2"] .mk-um { font-size: 12px; color: var(--v2-gray); margin: 10px 0 0; }
 html[data-ui="v2"] .ct-panel input[type=range] { width: 100%; accent-color: var(--v2-blue); }
 html[data-ui="v2"] .mk-uso-resumo { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 html[data-ui="v2"] .mk-uso-resumo b { font-size: 30px; font-weight: 800; color: var(--v2-ink); }
