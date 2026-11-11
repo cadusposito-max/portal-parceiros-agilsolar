@@ -230,6 +230,7 @@
             }).join('')}</div>
             <div class="camp-campo"><span>Cor</span><div class="camp-cores">${Object.entries(CORES).map(([k, x]) =>
               `<button type="button" class="camp-cor${c.cor === k ? ' on' : ''}" data-cor="${k}" title="${x.nome}" aria-label="${x.nome}" style="background:linear-gradient(135deg,${x.c2},${x.c})"><i style="background:${x.ac}"></i></button>`).join('')}</div></div>
+            ${c.cor === 'preto' ? '<div class="camp-dica"><i data-lucide="moon"></i><span>Na cor Preto, a proposta online fica <b>inteira preta</b>, com detalhes em laranja e a etiqueta grande na capa.</span></div>' : ''}
           </section>
           <section class="camp-bloco"><div class="t"><span class="n">3</span>Período</div><p class="s">Entra e sai sozinha nessas datas (depois de publicada).</p>
             <div class="camp-g2">
@@ -269,7 +270,8 @@
     const el = cont && cont.querySelector('#camp-prev');
     if (!el || !ed) return;
     const c = ed;
-    const escuro = document.documentElement.getAttribute('data-theme') === 'dark';
+    const temaPreto = c.cor === 'preto'; // proposta inteira preta (proposta.html · cp-tema)
+    const escuro = temaPreto || document.documentElement.getAttribute('data-theme') === 'dark';
     const r = restam(c.fim);
     const tag = esc(c.etiqueta || 'ETIQUETA');
     const cd = c.contagem ? `<div class="cd" data-camp-fim="${esc(c.fim)}">${[['d', r.d, 'dias'], ['h', r.h, 'h'], ['m', r.m, 'min'], ['s', r.s, 'seg']].map(([k, v, l]) => `<span><b data-u="${k}">${dois(v)}</b><small>${l}</small></span>`).join('')}</div>` : '';
@@ -285,7 +287,7 @@
     el.setAttribute('style', vars(c.cor));
     el.innerHTML = `<div class="pv-t"><b>Prévia</b><div class="pv-seg"><button type="button" class="${prevAba === 'proposta' ? 'on' : ''}" data-prev="proposta">Proposta</button><button type="button" class="${prevAba === 'orcamento' ? 'on' : ''}" data-prev="orcamento">Orçamento</button></div></div>
       <div class="pv-tela${escuro ? ' esc' : ''}">${corpo}</div>
-      <p class="pv-nota">${prevAba === 'proposta' ? `É assim que o cliente vê o topo da proposta${c.efeito ? (escuro ? ' (no tema escuro, com a partícula)' : ' (no tema claro, com o brilho passando)') : ''}.` : 'Botão no seletor do orçamento e etiqueta nos kits da campanha.'}</p>`;
+      <p class="pv-nota">${prevAba === 'proposta' ? (temaPreto ? `É assim que o cliente vê o topo da proposta: ela fica inteira preta${c.efeito ? ', com a partícula' : ''}.` : `É assim que o cliente vê o topo da proposta${c.efeito ? (escuro ? ' (no tema escuro, com a partícula)' : ' (no tema claro, com o brilho passando)') : ''}.`) : 'Botão no seletor do orçamento e etiqueta nos kits da campanha.'}</p>`;
   }
 
   function desenhar() {

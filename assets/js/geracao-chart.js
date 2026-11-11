@@ -88,6 +88,8 @@ const GERACAO_CHART_TEMAS = {
   light:          { fundo: '#ffffff', grid: '#f1f5f9', base: '#cbd5e1', eixo: '#94a3b8', mes: '#64748b', rotulo: '#334155', barra: '#f97316', barraBaixa: '#fdba74', media: '#0f172a' },
   dark:           { fundo: '#000000', grid: '#262626', base: '#404040', eixo: '#737373', mes: '#a3a3a3', rotulo: '#e5e5e5', barra: '#f97316', barraBaixa: '#9a3412', media: '#facc15' },
   marca:          { fundo: '#ffffff', grid: '#EEF2F5', base: '#C9D3DC', eixo: '#8A97A2', mes: '#5E6B76', rotulo: '#0F2533', barra: '#008FD4', barraBaixa: '#8ACDEE', media: '#FAA519' },
+  // proposta temática de campanha (preta, laranja nos detalhes)
+  black:          { fundo: '#141311', grid: '#26231F', base: '#3A362F', eixo: '#8F877D', mes: '#8F877D', rotulo: '#F1ECE5', barra: '#FAA519', barraBaixa: '#7A5212', media: '#FFFFFF' },
   'marca-escuro': { fundo: '#111B25', grid: '#22303D', base: '#33414E', eixo: '#8A97A2', mes: '#8A97A2', rotulo: '#E6ECF1', barra: '#008FD4', barraBaixa: '#0E5A80', media: '#FAA519' },
 };
 function renderGeracaoChartSVG(valores, opts) {

@@ -155,6 +155,52 @@
         .cp-preco-fim #kit-price,.cp-preco-fim #kit-list-price{opacity:.4}
         .cp-aviso-preco{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12px;font-weight:700;color:rgb(var(--laranja-txt));background:rgb(var(--laranja-claro));padding:6px 10px;border-radius:10px}
         @media (prefers-reduced-motion:reduce){.cp-orb::before,.cp-orb::after,.cp-selo::before{display:none !important;animation:none !important}}
+
+        /* ===== PROPOSTA TEMÁTICA (campanha na cor Preto) =====
+           A página inteira fica preta, laranja nos detalhes; capa com a etiqueta grande.
+           proposta.js liga html.cp-tema (+ dark). Sem claro/escuro enquanto for tema. */
+        html.cp-tema{--fundo:8 8 8;--superficie:20 19 17;--tinta:255 255 255;--texto:214 209 202;--suave:150 143 134;--linha:42 39 35;
+                     --azul-claro:31 29 26;--azul-txt:250 165 25;--laranja-claro:46 33 12;--laranja-txt:255 196 92}
+        html.cp-tema body{background:#080808}
+        html.cp-tema .tema-btn{display:none}
+        /* todo azul vira laranja */
+        html.cp-tema .bg-azul{background-color:#FAA519 !important}
+        html.cp-tema .text-azul{color:#FAA519 !important}
+        html.cp-tema .ico{background:rgba(250,165,25,.12);color:#FAA519}
+        html.cp-tema .card{border:1px solid rgb(var(--linha));box-shadow:none}
+        html.cp-tema #btn-download-pdf{background:#FAA519 !important;color:#2A1A00 !important;box-shadow:0 8px 24px -8px rgba(250,165,25,.55)}
+        html.cp-tema #vendor-avatar{color:#2A1A00}
+        html.cp-tema .bg-laranja-claro .text-tinta{color:#fff}
+        html.cp-tema #btn-show-installments:hover{background:rgb(var(--laranja-claro))}
+        html.cp-tema .vid-nav-btn{background:#FAA519;color:#2A1A00}
+        html.cp-tema .cp-chip{background:#FAA519;color:#1A1000;box-shadow:none}
+        html.cp-tema #badge-discount.cp-fita:not(.fim){background:#FAA519;color:#1A1000}
+        /* faixa da contagem: preta com luz laranja no canto */
+        html.cp-tema .cp-selo.a:not(.fim){background:radial-gradient(130% 160% at 0% 0%,rgba(250,165,25,.20),transparent 52%),linear-gradient(120deg,#1E1912,#120F0C 60%);
+            box-shadow:inset 0 0 0 1px rgba(250,165,25,.38)}
+        html.cp-tema .cp-selo.a .cp-cd .u{background:rgba(255,255,255,.07)}
+        /* capa: brilho laranja em cima, etiqueta grande "nascendo" do rodapé, fio de luz embaixo */
+        .cp-capa-txt{display:none}
+        html.cp-tema .topo{container-type:inline-size;border:1px solid rgb(var(--linha));box-shadow:none;padding-top:44px;padding-bottom:calc(var(--cp-capa-fs,27) * .52cqw + 44px);
+            background:radial-gradient(70% 55% at 50% 0%,rgba(250,165,25,.16),transparent 72%),radial-gradient(55% 38% at 50% 100%,rgba(250,165,25,.10),transparent 75%),#0C0B09}
+        html.cp-tema .topo > .absolute.bg-azul{display:none}
+        html.cp-tema .topo::after{content:"";position:absolute;left:12%;right:12%;bottom:0;height:1px;z-index:1;pointer-events:none;
+            background:linear-gradient(90deg,transparent,rgba(250,165,25,.7),transparent)}
+        html.cp-tema .topo > img,html.cp-tema .topo > p,html.cp-tema .topo > h1,html.cp-tema .topo > a{position:relative;z-index:2}
+        html.cp-tema .cp-capa-txt{display:block;position:absolute;left:0;right:0;bottom:-.2em;z-index:0;pointer-events:none;
+            text-align:center;white-space:nowrap;font-family:Montserrat,sans-serif;font-weight:900;font-size:calc(var(--cp-capa-fs,27) * 1cqw);line-height:.82;letter-spacing:-.045em;
+            padding-left:.045em; /* compensa o letter-spacing negativo pra centralizar */
+            color:transparent;-webkit-background-clip:text;background-clip:text;
+            -webkit-mask-image:linear-gradient(180deg,#000 10%,rgba(0,0,0,.6) 50%,transparent 90%);mask-image:linear-gradient(180deg,#000 10%,rgba(0,0,0,.6) 50%,transparent 90%);
+            background-image:linear-gradient(105deg,transparent 42%,rgba(255,184,64,.32) 50%,transparent 58%),
+              linear-gradient(180deg,rgba(250,165,25,.44) 0%,rgba(250,165,25,.24) 16%,rgba(250,165,25,.09) 46%,rgba(250,165,25,.05) 100%);
+            background-size:250% 100%,100% 100%;background-repeat:no-repeat;background-position:160% 0,0 0;
+            animation:cp-capa-brilho 7s cubic-bezier(.45,0,.25,1) infinite}
+        @keyframes cp-capa-brilho{0%,62%{background-position:160% 0,0 0}92%,100%{background-position:-60% 0,0 0}}
+        html.cp-tema .cp-capa-txt.parado{animation:none}
+        .cp-olho{display:inline-flex;align-items:center;gap:8px}
+        .cp-olho i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#FAA519;box-shadow:0 0 0 4px rgba(250,165,25,.18)}
+        @media (prefers-reduced-motion:reduce){html.cp-tema .cp-capa-txt{animation:none}}
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center relative font-sans">
@@ -204,7 +250,7 @@
         <button type="button" class="tema-btn" id="tema-btn" onclick="trocarTema()" title="Modo claro/escuro" aria-label="Alternar modo claro e escuro"><i data-lucide="moon" class="w-4 h-4"></i></button>
         <img src="/assets/img/proposta/logo-cor.png" alt="Ágil Solar" class="w-44 md:w-56 h-auto mx-auto relative dark:hidden">
         <img src="/assets/img/proposta/logo-branco.png" alt="Ágil Solar" class="w-44 md:w-56 h-auto mx-auto relative hidden dark:block">
-        <p class="text-azul-txt font-extrabold uppercase tracking-[.16em] text-[11px] md:text-xs mt-7 mb-2 relative">Proposta Ágil Solar</p>
+        <p id="topo-olho" class="text-azul-txt font-extrabold uppercase tracking-[.16em] text-[11px] md:text-xs mt-7 mb-2 relative">Proposta Ágil Solar</p>
         <h1 class="text-3xl md:text-4xl font-extrabold text-tinta leading-tight relative">
             Olá, <span id="client-name" class="text-tinta underline decoration-laranja decoration-[5px] underline-offset-[7px]">...</span>!
         </h1>
@@ -507,9 +553,9 @@
 <script src="/assets/js/config.js?v=20261013-link"></script>
 <script src="/assets/js/analytics.js?v=20260713-auditoria"></script>
 <script src="/assets/js/utils.js?v=20261013-link"></script>
-<script src="/assets/js/geracao-chart.js?v=20261103-marca"></script>
+<script src="/assets/js/geracao-chart.js?v=20261111-black-tema"></script>
 <script src="/assets/js/proposta-calc.js?v=20261027-pdf-paisagem"></script>
-<script src="/assets/js/proposta.js?v=20261110-campanhas"></script>
+<script src="/assets/js/proposta.js?v=20261111-black-tema"></script>
 <script>
 // Claro/escuro: fica salvo na aba (como no link atual).
 function iconeTema() {

@@ -130,6 +130,26 @@ function renderCampanha(c, waLink) {
   const visualB = c.visual === 'b';
   const etiqueta = esc(c.etiqueta || 'OFERTA');
 
+  // campanha na cor Preto = proposta inteira no tema (preta, laranja nos detalhes, capa com a etiqueta)
+  const tema = cor === 'preto';
+  if (tema) {
+    const html = document.documentElement;
+    html.classList.add('cp-tema', 'dark');
+    const topo = document.querySelector('.topo');
+    if (topo && !topo.querySelector('.cp-capa-txt')) {
+      const capa = document.createElement('div');
+      capa.className = 'cp-capa-txt';
+      capa.setAttribute('aria-hidden', 'true');
+      capa.textContent = String(c.etiqueta || 'OFERTA').toUpperCase();
+      // a etiqueta ocupa a largura da capa: 27% p/ 5 letras, menor se for mais comprida
+      topo.style.setProperty('--cp-capa-fs', String(Math.min(27, 135 / Math.max(1, capa.textContent.length))));
+      topo.insertBefore(capa, topo.firstChild);
+    }
+    const olho = document.getElementById('topo-olho');
+    if (olho) olho.innerHTML = `<span class="cp-olho"><i></i>Proposta ${esc(c.nome || `${c.etiqueta || ''} Ágil Solar`)}</span>`;
+    if (typeof renderGeracaoWeb === 'function') renderGeracaoWeb();
+  }
+
   // etiqueta ao lado da marca do kit
   const brand = document.getElementById('kit-brand-wrapper');
   if (brand && !document.getElementById('camp-chip')) brand.insertAdjacentHTML('afterend', `<span id="camp-chip" class="cp-chip">${etiqueta}</span>`);
@@ -170,6 +190,8 @@ function renderCampanha(c, waLink) {
       box.classList.remove('hidden');
       box.classList.toggle('sem', c.efeito === false);
       box.classList.toggle('fim', fim);
+      const capaTxt = document.querySelector('.cp-capa-txt');
+      if (capaTxt) capaTxt.classList.toggle('parado', fim);
 
       if (badge) {
         if (c.fita !== false) {
@@ -349,11 +371,12 @@ function renderGeracaoWeb() {
   const el = document.getElementById('gen-chart');
   if (!el || !_geracaoMensalValores) return;
   const isLight  = !document.documentElement.classList.contains('dark');
+  const black    = document.documentElement.classList.contains('cp-tema');
   const compacto = el.clientWidth > 0 && el.clientWidth < 520;
-  const chave    = (isLight ? 'l' : 'd') + (compacto ? 'c' : 'w');
+  const chave    = (black ? 'b' : isLight ? 'l' : 'd') + (compacto ? 'c' : 'w');
   if (el.dataset.render === chave) return;
   el.dataset.render = chave;
-  el.innerHTML = renderGeracaoChartSVG(_geracaoMensalValores, { tema: isLight ? 'marca' : 'marca-escuro', compacto });
+  el.innerHTML = renderGeracaoChartSVG(_geracaoMensalValores, { tema: black ? 'black' : isLight ? 'marca' : 'marca-escuro', compacto });
 }
 
 function renderData(data) {
