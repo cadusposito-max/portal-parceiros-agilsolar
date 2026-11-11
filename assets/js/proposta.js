@@ -143,7 +143,7 @@ function renderCampanha(c, waLink) {
       capa.textContent = String(c.etiqueta || 'OFERTA').toUpperCase();
       // a etiqueta ocupa a largura da capa: 27% p/ 5 letras, menor se for mais comprida
       topo.style.setProperty('--cp-capa-fs', String(Math.min(27, 135 / Math.max(1, capa.textContent.length))));
-      topo.insertBefore(capa, topo.firstChild);
+      topo.appendChild(capa); // embaixo do botão do PDF, dentro do fluxo da capa
     }
     const olho = document.getElementById('topo-olho');
     if (olho) olho.innerHTML = `<span class="cp-olho"><i></i>Proposta ${esc(c.nome || `${c.etiqueta || ''} Ágil Solar`)}</span>`;

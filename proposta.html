@@ -181,13 +181,13 @@
         html.cp-tema .cp-selo.a .cp-cd .u{background:rgba(255,255,255,.07)}
         /* capa: brilho laranja em cima, etiqueta grande "nascendo" do rodapé, fio de luz embaixo */
         .cp-capa-txt{display:none}
-        html.cp-tema .topo{container-type:inline-size;border:1px solid rgb(var(--linha));box-shadow:none;padding-top:44px;padding-bottom:calc(var(--cp-capa-fs,27) * .52cqw + 44px);
+        html.cp-tema .topo{container-type:inline-size;border:1px solid rgb(var(--linha));box-shadow:none;padding-top:44px;padding-bottom:0;
             background:radial-gradient(70% 55% at 50% 0%,rgba(250,165,25,.16),transparent 72%),radial-gradient(55% 38% at 50% 100%,rgba(250,165,25,.10),transparent 75%),#0C0B09}
         html.cp-tema .topo > .absolute.bg-azul{display:none}
         html.cp-tema .topo::after{content:"";position:absolute;left:12%;right:12%;bottom:0;height:1px;z-index:1;pointer-events:none;
             background:linear-gradient(90deg,transparent,rgba(250,165,25,.7),transparent)}
         html.cp-tema .topo > img,html.cp-tema .topo > p,html.cp-tema .topo > h1,html.cp-tema .topo > a{position:relative;z-index:2}
-        html.cp-tema .cp-capa-txt{display:block;position:absolute;left:0;right:0;bottom:-.2em;z-index:0;pointer-events:none;
+        html.cp-tema .cp-capa-txt{display:block;position:relative;z-index:0;pointer-events:none;margin:26px -24px -.2em; /* na própria capa (não absoluto): o tamanho segue a largura do cartão; o pé da palavra fica cortado */
             text-align:center;white-space:nowrap;font-family:Montserrat,sans-serif;font-weight:900;font-size:calc(var(--cp-capa-fs,27) * 1cqw);line-height:.82;letter-spacing:-.045em;
             padding-left:.045em; /* compensa o letter-spacing negativo pra centralizar */
             color:transparent;-webkit-background-clip:text;background-clip:text;
@@ -555,7 +555,7 @@
 <script src="/assets/js/utils.js?v=20261013-link"></script>
 <script src="/assets/js/geracao-chart.js?v=20261111-black-tema"></script>
 <script src="/assets/js/proposta-calc.js?v=20261027-pdf-paisagem"></script>
-<script src="/assets/js/proposta.js?v=20261111-tema-chave"></script>
+<script src="/assets/js/proposta.js?v=20261111-capa-desktop"></script>
 <script>
 // Claro/escuro: fica salvo na aba (como no link atual).
 function iconeTema() {
