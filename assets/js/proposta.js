@@ -130,8 +130,8 @@ function renderCampanha(c, waLink) {
   const visualB = c.visual === 'b';
   const etiqueta = esc(c.etiqueta || 'OFERTA');
 
-  // campanha na cor Preto = proposta inteira no tema (preta, laranja nos detalhes, capa com a etiqueta)
-  const tema = cor === 'preto';
+  // chave "Proposta inteira no tema" (só na cor Preto): página preta, laranja nos detalhes, capa com a etiqueta
+  const tema = cor === 'preto' && c.tema_proposta === true;
   if (tema) {
     const html = document.documentElement;
     html.classList.add('cp-tema', 'dark');

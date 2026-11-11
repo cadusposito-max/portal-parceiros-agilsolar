@@ -177,7 +177,7 @@
     const fim = new Date(ini); fim.setDate(fim.getDate() + 14); fim.setHours(23, 59, 0, 0);
     return { id: null, nome: '', etiqueta: '', subtitulo: 'Ágil Solar', cor: 'preto', visual: 'a',
       inicio: ini.toISOString(), fim: fim.toISOString(), linha: '', contagem: true, efeito: true, fita: true,
-      validade_fim: true, perfis: ['matriz', 'franqueado', 'parceiro'], publicada: false, _linhaManual: false };
+      validade_fim: true, tema_proposta: false, perfis: ['matriz', 'franqueado', 'parceiro'], publicada: false, _linhaManual: false };
   }
 
   function htmlLista() {
@@ -210,6 +210,8 @@
       ['efeito', 'Efeito no selo', 'Partícula na borda no tema escuro, brilho passando no tema claro'],
       ['fita', 'Fita no preço', `"Preço ${esc(c.etiqueta || 'da campanha')}" no canto do valor`],
       ['validade_fim', 'Proposta vale até o fim da campanha', 'No lugar das 72 h de sempre'],
+      // só existe o tema preto: nas outras cores a chave fica travada
+      ['tema_proposta', 'Proposta inteira no tema', c.cor === 'preto' ? 'Página toda preta, com laranja nos detalhes e a etiqueta grande na capa' : 'Só na cor Preto', c.cor !== 'preto'],
     ];
     const cor = CORES[c.cor] || CORES.preto;
     return `<button type="button" class="camp-voltar" data-camp-acao="lista"><i data-lucide="arrow-left"></i>Campanhas</button>
@@ -230,7 +232,6 @@
             }).join('')}</div>
             <div class="camp-campo"><span>Cor</span><div class="camp-cores">${Object.entries(CORES).map(([k, x]) =>
               `<button type="button" class="camp-cor${c.cor === k ? ' on' : ''}" data-cor="${k}" title="${x.nome}" aria-label="${x.nome}" style="background:linear-gradient(135deg,${x.c2},${x.c})"><i style="background:${x.ac}"></i></button>`).join('')}</div></div>
-            ${c.cor === 'preto' ? '<div class="camp-dica"><i data-lucide="moon"></i><span>Na cor Preto, a proposta online fica <b>inteira preta</b>, com detalhes em laranja e a etiqueta grande na capa.</span></div>' : ''}
           </section>
           <section class="camp-bloco"><div class="t"><span class="n">3</span>Período</div><p class="s">Entra e sai sozinha nessas datas (depois de publicada).</p>
             <div class="camp-g2">
@@ -248,7 +249,10 @@
             <label class="camp-campo camp-cod"><span>Código dos kits (coluna linha, se preferir importar planilha em Comercial › Produtos)</span><input data-campo="linha" maxlength="30" value="${esc(c.linha)}" placeholder="black"></label>
           </section>
           <section class="camp-bloco"><div class="t"><span class="n">5</span>Na proposta</div><p class="s">Liga e desliga cada detalhe.</p>
-            <div class="camp-chk">${chk.map(([k, t, s]) => `<div class="camp-chk-l" data-toggle="${k}" role="switch" tabindex="0" aria-checked="${c[k] ? 'true' : 'false'}"><span class="tx"><b>${t}</b><small>${s}</small></span><input type="checkbox" data-bool="${k}" tabindex="-1" aria-hidden="true" ${c[k] ? 'checked' : ''}><span class="sw"></span></div>`).join('')}</div>
+            <div class="camp-chk">${chk.map(([k, t, s, trava]) => {
+              const on = !trava && !!c[k];
+              return `<div class="camp-chk-l${trava ? ' is-off' : ''}" data-toggle="${k}" role="switch" tabindex="${trava ? '-1' : '0'}" aria-checked="${on ? 'true' : 'false'}"${trava ? ' aria-disabled="true"' : ''}><span class="tx"><b>${t}</b><small>${s}</small></span><input type="checkbox" data-bool="${k}" tabindex="-1" aria-hidden="true" ${on ? 'checked' : ''}${trava ? ' disabled' : ''}><span class="sw"></span></div>`;
+            }).join('')}</div>
           </section>
           <section class="camp-bloco"><div class="t"><span class="n">6</span>Quem pode usar</div><p class="s">Quem vê a campanha no orçamento. O admin vê sempre.</p>
             <div class="camp-pills">${PERFIS.map(([k, t]) => `<button type="button" class="${c.perfis.includes(k) ? 'on' : ''}" data-perfil="${k}">${c.perfis.includes(k) ? '<i data-lucide="check"></i>' : ''}${t}</button>`).join('')}</div>
@@ -270,7 +274,7 @@
     const el = cont && cont.querySelector('#camp-prev');
     if (!el || !ed) return;
     const c = ed;
-    const temaPreto = c.cor === 'preto'; // proposta inteira preta (proposta.html · cp-tema)
+    const temaPreto = c.cor === 'preto' && !!c.tema_proposta; // proposta inteira preta (proposta.html · cp-tema)
     const escuro = temaPreto || document.documentElement.getAttribute('data-theme') === 'dark';
     const r = restam(c.fim);
     const tag = esc(c.etiqueta || 'ETIQUETA');
@@ -788,7 +792,8 @@
     if (erro) { toast(erro); return; }
     salvando = true;
     const payload = { nome: c.nome, etiqueta: c.etiqueta, subtitulo: c.subtitulo, cor: c.cor, visual: c.visual, inicio: c.inicio, fim: c.fim,
-      linha: c.linha, contagem: c.contagem, efeito: c.efeito, fita: c.fita, validade_fim: c.validade_fim, perfis: c.perfis, publicada };
+      linha: c.linha, contagem: c.contagem, efeito: c.efeito, fita: c.fita, validade_fim: c.validade_fim,
+      tema_proposta: c.cor === 'preto' && !!c.tema_proposta, perfis: c.perfis, publicada };
     try {
       const q = c.id
         ? supabaseClient.from('campanhas').update(payload).eq('id', c.id).select().single()
@@ -804,6 +809,7 @@
       const m = String(err?.message || '');
       toast(/uma_por_vez|conflicting key|exclusion/i.test(m) ? 'Já tem outra campanha publicada nesse período. Só uma fica no ar por vez.'
         : /campanhas_linha_key|duplicate key/i.test(m) ? 'Esse código na planilha já é de outra campanha.'
+        : /tema_proposta/i.test(m) ? 'Falta rodar a migration 20261111150000_campanhas_tema_proposta.sql no SQL Editor.'
         : `Não foi possível salvar: ${m}`);
     } finally { salvando = false; }
   }
@@ -829,7 +835,7 @@
   function alternar(row) {
     const k = row.dataset.toggle;
     const inp = row.querySelector('input');
-    if (!ed || !k || !inp) return;
+    if (!ed || !k || !inp || inp.disabled) return;
     inp.checked = !inp.checked;
     row.setAttribute('aria-checked', String(inp.checked));
     ed[k] = inp.checked;
