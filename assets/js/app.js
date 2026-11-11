@@ -469,8 +469,8 @@ function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
   // Marketing e Documentação: todo mundo (menos técnico); abas marcadas admin só pro admin.
-  if (state.environment === 'marketing' && podeConteudo()) return MKT_TABS.filter((t) => !t.admin || state.isAdmin);
-  if (state.environment === 'docs' && podeConteudo()) return DOCS_TABS.filter((t) => !t.admin || state.isAdmin);
+  if (state.environment === 'marketing' && podeConteudo('marketing')) return MKT_TABS.filter((t) => !t.admin || state.isAdmin);
+  if (state.environment === 'docs' && podeConteudo('docs')) return DOCS_TABS.filter((t) => !t.admin || state.isAdmin);
   // Parceiro: só o Comercial, e só Clientes e Propostas.
   if (state.isParceiro) return TABS.filter((t) => TABS_PARCEIRO.includes(t.id));
   if (state.environment === 'rede' && state.isAdmin) return REDE_TABS;
@@ -630,11 +630,26 @@ function podeRede() {
   return Boolean(state.isAdmin || state.isFranqueado);
 }
 
-// Marketing e Documentação: todo mundo, menos o técnico (que vive no O&M).
-// O que cada um vê dentro deles o banco decide (conteudo_pode_ver).
+// Marketing e Documentação: liberados por login (user_accounts.mkt_enabled /
+// docs_enabled, no cadastro do usuário). Admin sempre; técnico fica no O&M.
 const ENVS_CONTEUDO = ['marketing', 'docs'];
-function podeConteudo() {
-  return Boolean(state.currentUser) && !state.isTecnico;
+function podeConteudo(env) {
+  if (!state.currentUser || state.isTecnico) return false;
+  if (state.isAdmin) return true;
+  if (env === 'marketing') return !!state.canMkt;
+  if (env === 'docs') return !!state.canDocs;
+  return !!(state.canMkt || state.canDocs);
+}
+async function conteudoRefreshAccess() {
+  if (state.isAdmin) { state.canMkt = true; state.canDocs = true; return; }
+  try {
+    const { data, error } = await supabaseClient.rpc('conteudo_meu_acesso');
+    state.canMkt = !error && !!(data && data.mkt);
+    state.canDocs = !error && !!(data && data.docs);
+  } catch (_) {
+    state.canMkt = false;
+    state.canDocs = false;
+  }
 }
 
 // mkt.js, docs.js e conteudo.js só são baixados quando o ambiente é aberto.
@@ -926,7 +941,7 @@ function setEnvironment(env) {
   if (state.isTecnico) return; // técnico não troca de ambiente
   if (state.isParceiro && env !== 'comercial' && !ENVS_CONTEUDO.includes(env)) return; // parceiro: Comercial, Marketing e Documentação
   if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede' && !ENVS_CONTEUDO.includes(env)) return;
-  if (ENVS_CONTEUDO.includes(env) && !podeConteudo()) return;
+  if (ENVS_CONTEUDO.includes(env) && !podeConteudo(env)) return;
   if (env === 'rede' && !podeRede()) return; // Rede: admin ou franqueado
   if (env === 'om' && !state.canOM) return; // sem acesso ao O&M
   if (env === 'financeiro' && !state.canFin) return; // sem acesso ao Financeiro
@@ -1042,7 +1057,7 @@ function launcherGuardarUltimoEnv(env) {
 function enterEnvironment(env) {
   if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede' && !ENVS_CONTEUDO.includes(env)) return;
   if (state.isParceiro && env !== 'comercial' && !ENVS_CONTEUDO.includes(env)) return;
-  if (ENVS_CONTEUDO.includes(env) && !podeConteudo()) return;
+  if (ENVS_CONTEUDO.includes(env) && !podeConteudo(env)) return;
   if (env === 'rede' && !podeRede()) return;
   if (env === 'om' && !state.canOM) return;
   if (env === 'financeiro' && !state.canFin) return;
@@ -1231,7 +1246,7 @@ function appRouteParse(rawHash) {
   if (env === 'vistoria' && !state.canVis) return null;
   if (env === 'engenharia' && !state.canEng) return null;
   if (env === 'rede' && !podeRede()) return null;
-  if (ENVS_CONTEUDO.includes(env) && !podeConteudo()) return null;
+  if (ENVS_CONTEUDO.includes(env) && !podeConteudo(env)) return null;
   if (env === 'rede' && !state.isAdmin && !REDE_TABS_FRANQUEADO.some((t) => t.id === tab)) return null;
   if (!tabsByEnv[env].includes(tab)) return null;
   if (env === 'comercial' && TABS_GESTAO.includes(tab) && !(state.isAdmin || state.isGestor)) return null;

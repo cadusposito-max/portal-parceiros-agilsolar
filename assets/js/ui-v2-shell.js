@@ -45,7 +45,7 @@
   };
   function envAllowed(k) {
     if (state.isTecnico) return k === 'om';
-    if (k === 'marketing' || k === 'docs') return true;
+    if (k === 'marketing' || k === 'docs') return has('podeConteudo') && podeConteudo(k);
     if (state.isParceiro) return k === 'comercial';
     if (k === 'comercial') return true;
     if (k === 'om') return !!state.canOM;

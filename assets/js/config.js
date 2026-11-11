@@ -97,9 +97,11 @@ let state = {
   canEng: false,
   // Ambiente Rede (6º ambiente — gestão das unidades da rede). Só admin (state.isAdmin).
   redeActiveTab: 'visao',
-  // Ambientes Marketing e Documentação (todo mundo menos técnico; ver podeConteudo em app.js)
+  // Ambientes Marketing e Documentação: liberados por login (ver podeConteudo em app.js)
   mktActiveTab: 'biblioteca',
   docsActiveTab: 'inicio',
+  canMkt: false,
+  canDocs: false,
   // Sub-estado da Engenharia: inputs, último resultado calculado, presets e projetos (estado local até o banco).
   eng: {
     inputs: {},

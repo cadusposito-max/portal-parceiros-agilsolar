@@ -363,7 +363,7 @@
             <div class="ct-fld"><label>Peso</label><div class="ct-segw">${[[600, 'Normal'], [800, 'Negrito']].map(([k, n]) => `<button data-mk="peso" data-peso="${k}" class="${Number(f.peso) === k ? 'on' : ''}">${n}</button>`).join('')}</div></div></div>
           <button class="ct-btn gh perigo-tx" data-mk="del-campo">${ic('trash-2')}Tirar este campo</button>
         </div>` : (r.campos || []).length ? `<p class="ct-note">${ic('info')}<span>Clique numa caixa na arte (ou num campo acima) pra mudar tamanho, cor e o que vai nele.</span></p>` : ''}
-        <div class="ct-grp sep"><h4>${ic('eye')}QUEM VÊ</h4>${CT.quemVeHTML(r.publico, 'mk-pub')}</div>
+        <p class="ct-note">${ic('eye')}<span>Aparece pra quem tem o <b>Marketing</b> liberado no cadastro do usuário.</span></p>
         <div class="mk-dl">
           <button class="ct-btn or big" data-mk="salvar" data-pub="1">${ic('check')}${r.publicado ? 'Salvar' : 'Publicar na Biblioteca'}</button>
           <div class="row">${r.publicado ? `<button class="ct-btn gh" data-mk="salvar" data-pub="0">Tirar da Biblioteca</button>` : `<button class="ct-btn gh" data-mk="salvar" data-pub="0">Salvar rascunho</button>`}
@@ -421,8 +421,6 @@
   async function salvarMontar(publicar, btn) {
     const r = M.rasc;
     if (!r) return;
-    r.publico = CT.lerQuemVe(M.container, 'mk-pub');
-    if (publicar && !r.publico.length) { CT.toast('Marque pelo menos um grupo em Quem vê.'); return; }
     if (btn) { btn.disabled = true; btn.dataset.txt = btn.innerHTML; btn.innerHTML = 'Salvando…'; }
     try {
       const antigaCapa = r.capa_id;
@@ -431,7 +429,7 @@
         const capa = await gerarCapa(r, _mtBg);
         if (capa) capaId = (await CT.enviar(capa, 'mkt-capas')).id;
       }
-      const upd = { campos: r.campos, foto: r.foto || null, publico: r.publico, publicado: !!publicar, capa_id: capaId, largura: r.largura, altura: r.altura, updated_at: new Date().toISOString() };
+      const upd = { campos: r.campos, foto: r.foto || null, publicado: !!publicar, capa_id: capaId, largura: r.largura, altura: r.altura, updated_at: new Date().toISOString() };
       const { data, error } = await sb().from('mkt_itens').update(upd).eq('id', r.id).select('*').single();
       if (error) throw error;
       if (antigaCapa && antigaCapa !== capaId) CT.apagarArquivo(antigaCapa);
@@ -522,7 +520,6 @@
       const val = (n, d) => { const el = m.querySelector(`[name="${n}"]`); return el ? el.value : d; };
       const nome = val('nome', it ? it.nome : ''), pasta = val('pasta', it ? it.pasta : (S.tipo === 'video' ? 'videos' : 'redes'));
       const camp = val('campanha', it ? it.campanha || '' : ''), ate = val('ate', it ? it.campanha_ate || '' : ''), url = val('video', it ? it.video_url || '' : '');
-      const pub = m.querySelector('input[name="mk-pub-m"]') ? CT.lerQuemVe(m, 'mk-pub-m') : (it ? it.publico : ['gestor', 'vendedor']);
       m.innerHTML = `<div class="ct-mh"><div><h3>${novo ? 'Subir material' : 'Editar material'}</h3><p>${novo ? 'Vai pra Biblioteca do Marketing' : esc(it.nome)}</p></div><button class="ct-x" data-m="fechar">${ic('x')}</button></div>
         ${novo ? `<div class="ct-tipos">${tipos.map(([k, n, s]) => `<button data-m="tipo" data-tipo="${k}" class="${S.tipo === k ? 'on' : ''}"><b>${n}</b><small>${s}</small></button>`).join('')}</div>` : ''}
         ${S.tipo === 'video' ? `<div class="ct-fld"><label>Link do vídeo no YouTube</label><input class="ct-inp" name="video" value="${esc(url)}" placeholder="https://youtu.be/…"></div>
@@ -534,7 +531,6 @@
           <div class="ct-fld"><label>Pasta</label><select class="ct-inp" name="pasta">${PASTAS.map(([k, n]) => `<option value="${k}" ${pasta === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div></div>
         <div class="ct-two"><div class="ct-fld"><label>Campanha (opcional)</label><input class="ct-inp" name="campanha" value="${esc(camp)}" placeholder="Ex.: Black Friday 2026"></div>
           <div class="ct-fld"><label>No ar até</label><input class="ct-inp" type="date" name="ate" value="${esc(ate)}"></div></div>
-        <div class="ct-fld"><label>Quem vê</label>${CT.quemVeHTML(pub, 'mk-pub-m')}</div>
         ${!novo && it.tipo !== 'editavel' ? `<label class="ct-tog"><input type="checkbox" name="publicado" ${it.publicado ? 'checked' : ''}><span class="sl"></span>Aparece na Biblioteca</label>` : ''}
         <div class="ct-mf">${novo ? '' : `<button class="ct-btn gh perigo-tx" data-m="excluir" style="margin-right:auto">${ic('trash-2')}Excluir</button>`}
           <button class="ct-btn gh" data-m="fechar">Cancelar</button>
@@ -580,14 +576,13 @@
   async function salvarModal(m, btn, S, it) {
     const novo = !it;
     const v = (n) => (m.querySelector(`[name="${n}"]`) || {}).value || '';
-    const nome = v('nome').trim(), publico = CT.lerQuemVe(m, 'mk-pub-m');
+    const nome = v('nome').trim();
     if (!nome) { CT.toast('Dê um nome ao material.'); return; }
-    if (!publico.length) { CT.toast('Marque pelo menos um grupo em Quem vê.'); return; }
     if (S.tipo === 'video' && !CT.youtubeId(v('video'))) { CT.toast('Cole um link do YouTube válido.'); return; }
     if (novo && S.tipo !== 'video' && !S.file) { CT.toast('Escolha o arquivo.'); return; }
     btn.disabled = true; btn.textContent = S.file ? 'Enviando…' : 'Salvando…';
     try {
-      const reg = { nome, pasta: v('pasta') || 'redes', campanha: v('campanha').trim() || null, campanha_ate: v('ate') || null, publico, updated_at: new Date().toISOString() };
+      const reg = { nome, pasta: v('pasta') || 'redes', campanha: v('campanha').trim() || null, campanha_ate: v('ate') || null, updated_at: new Date().toISOString() };
       if (S.tipo === 'video') reg.video_url = v('video').trim();
       const velhos = [];
       if (S.file) {

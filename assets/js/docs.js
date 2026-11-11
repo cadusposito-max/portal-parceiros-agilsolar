@@ -307,7 +307,7 @@
     </div>
     <aside class="dc-aside"><div class="ct-panel">
       <div class="ct-fld"><label>Pasta</label><select class="ct-inp" id="dc-pasta">${PASTAS.map(([k, n]) => `<option value="${k}" ${pastaSel === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
-      <div class="ct-grp"><h4>QUEM VÊ</h4>${CT.quemVeHTML(d ? d.publico : ['gestor', 'vendedor', 'engenharia'], 'dc-pub')}</div>
+      <p class="ct-note">${ic('eye')}<span>Aparece pra quem tem a <b>Documentação</b> liberada no cadastro do usuário.</span></p>
       <div class="ct-grp"><h4>AVISOS</h4>
         <label class="ct-tog"><input type="checkbox" id="dc-obrig" ${d && d.obrigatorio ? 'checked' : ''}><span class="sl"></span>Leitura obrigatória (pede “Li e entendi”)</label>
         <div class="ct-fld" id="dc-prazo-box" ${d && d.obrigatorio ? '' : 'hidden'}><label>Ler até (opcional)</label><input class="ct-inp" type="date" id="dc-prazo" value="${esc(d && d.prazo ? d.prazo : '')}"></div>
@@ -380,12 +380,10 @@
     const d = D.editId ? D.full[D.editId] : null;
     const tipo = d ? (root.querySelector('.dc-tipo .on') || {}).dataset.tipo || d.tipo : D.novoTipo;
     const titulo = root.querySelector('#dc-tit').value.trim();
-    const publico = CT.lerQuemVe(root, 'dc-pub');
     if (!titulo) { CT.toast('Dê um título ao documento.'); return; }
-    if (!publico.length) { CT.toast('Marque pelo menos um grupo em Quem vê.'); return; }
     const reg = {
       tipo, titulo, resumo: root.querySelector('#dc-res').value.trim() || null,
-      pasta: root.querySelector('#dc-pasta').value, publico, publicado: !!pub,
+      pasta: root.querySelector('#dc-pasta').value, publicado: !!pub,
       obrigatorio: root.querySelector('#dc-obrig').checked,
       prazo: root.querySelector('#dc-obrig').checked ? (root.querySelector('#dc-prazo').value || null) : null,
       autor_nome: (state.profile && state.profile.nome) || (typeof getFirstName === 'function' ? getFirstName() : null),

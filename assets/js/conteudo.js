@@ -6,8 +6,8 @@
 // envia/baixa direto). Enquanto o R2 não estiver configurado (sem os segredos
 // R2_*), cai no bucket privado "conteudo" do Supabase. Imagem vira WebP aqui
 // no navegador antes de subir (bem mais leve).
-// Quem vê: publico text[] com 'gestor' | 'vendedor' | 'engenharia' | 'parceiro'
-// (conferido no banco por conteudo_pode_ver). Admin vê e edita tudo.
+// Quem vê: quem tem a chave do ambiente no cadastro (user_accounts.mkt_enabled /
+// docs_enabled, conferida no banco por conteudo_acesso). Admin vê e edita tudo.
 // ==========================================================================
 (function () {
   'use strict';

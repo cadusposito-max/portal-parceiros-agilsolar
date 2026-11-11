@@ -714,14 +714,22 @@ function _roleBadge(role) {
 async function fetchAdminUsuarios() {
   if (!_requireAdmin()) return [];
 
-  const [{ data, error }, fq] = await Promise.all([
+  const [{ data, error }, fq, ct] = await Promise.all([
     supabaseClient.rpc('admin_list_users_chat'),
     supabaseClient.from('user_accounts').select('user_id').eq('franqueado', true),
+    // chaves do Marketing e da Documentação (ver admin_set_user_conteudo_access)
+    supabaseClient.from('user_accounts').select('user_id, mkt_enabled, docs_enabled'),
   ]);
   if (error) throw error;
   // franqueado = gestor com a marca user_accounts.franqueado
   const franqueados = new Set(fq.error ? [] : (fq.data || []).map(r => r.user_id));
-  return (data || []).map(u => ({ ...u, franqueado: franqueados.has(u.user_id) }));
+  const chaves = new Map(ct.error ? [] : (ct.data || []).map(r => [r.user_id, r]));
+  return (data || []).map(u => ({
+    ...u,
+    franqueado: franqueados.has(u.user_id),
+    mkt_enabled: chaves.get(u.user_id)?.mkt_enabled === true,
+    docs_enabled: chaves.get(u.user_id)?.docs_enabled === true,
+  }));
 }
 
 // Perfil exibido no Admin: o franqueado é gravado como gestor + marca.
@@ -990,6 +998,8 @@ async function openAdminUsuarioForm(userId) {
   const defaultChatEnabled = current?.chat_enabled === true;
   const defaultOmEnabled = current?.om_enabled === true;
   const defaultFinEnabled = current?.fin_enabled === true;
+  const defaultMktEnabled = current?.mkt_enabled === true;
+  const defaultDocsEnabled = current?.docs_enabled === true;
   const defaultGestorId = current?.gestor_user_id || '';
 
   const fieldsHTML = `
@@ -1043,6 +1053,17 @@ async function openAdminUsuarioForm(userId) {
         <p class="text-teal-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente Financeiro na plataforma. Admin sempre ve, independente desta opcao.</p>
       </div>
       </div>
+      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" id="au-mkt-enabled" ${defaultMktEnabled ? 'checked' : ''} class="w-4 h-4 accent-orange-500">
+        <span class="text-white font-bold text-sm uppercase">Permitir acesso ao Marketing</span>
+      </label>
+      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" id="au-docs-enabled" ${defaultDocsEnabled ? 'checked' : ''} class="w-4 h-4 accent-cyan-500">
+        <span class="text-white font-bold text-sm uppercase">Permitir acesso à Documentação</span>
+      </label>
+      <div class="col-span-2 bg-cyan-950/20 border border-cyan-700/30 p-3">
+        <p class="text-cyan-200/90 text-[10px] font-bold">Quem tem a chave ve tudo que estiver publicado no ambiente (artes, manuais, leituras obrigatorias). Vale para qualquer perfil, inclusive parceiro. Admin sempre ve.</p>
+      </div>
       <div id="au-gestor-wrap" class="col-span-2 ${defaultRole === 'vendedor' ? '' : 'hidden'}">
         <label class="${_labelCls}">Gestor vinculado (apenas vendedor)</label>
         <select id="au-gestor-user-id" class="${_selectCls}">
@@ -1063,6 +1084,9 @@ async function openAdminUsuarioForm(userId) {
     const chatEnabled = !ehParceiro && document.getElementById('au-chat-enabled').checked;
     const omEnabled = !ehParceiro && document.getElementById('au-om-enabled').checked;
     const finEnabled = !ehParceiro && document.getElementById('au-fin-enabled').checked;
+    const mktEnabled = document.getElementById('au-mkt-enabled').checked;
+    const docsEnabled = document.getElementById('au-docs-enabled').checked;
+    const setConteudo = (uid) => supabaseClient.rpc('admin_set_user_conteudo_access', { p_user_id: uid, p_mkt: mktEnabled, p_docs: docsEnabled });
     const gestorUserId = roleValue === 'vendedor'
       ? (document.getElementById('au-gestor-user-id')?.value || null)
       : null;
@@ -1104,6 +1128,9 @@ async function openAdminUsuarioForm(userId) {
         p_enabled: finEnabled,
       });
       if (finError) { showToast('ERRO FINANCEIRO: ' + finError.message); return; }
+
+      const { error: ctError } = await setConteudo(userId);
+      if (ctError) { showToast('ERRO MARKETING/DOCUMENTACAO: ' + ctError.message); return; }
 
       closeAdminModal();
       showToast('USUARIO ATUALIZADO');
@@ -1164,8 +1191,11 @@ async function openAdminUsuarioForm(userId) {
           p_user_id: newUserId,
           p_enabled: finEnabled,
         });
+        const { error: ctError } = await setConteudo(newUserId);
         closeAdminModal();
-        if (omError) {
+        if (ctError) {
+          showToast('USUARIO CRIADO, MAS MARKETING/DOCUMENTACAO NAO FOI CONFIGURADO: ' + ctError.message);
+        } else if (omError) {
           showToast('USUARIO CRIADO, MAS O&M NAO FOI CONFIGURADO: ' + omError.message);
         } else if (finError) {
           showToast('USUARIO CRIADO, MAS FINANCEIRO NAO FOI CONFIGURADO: ' + finError.message);
