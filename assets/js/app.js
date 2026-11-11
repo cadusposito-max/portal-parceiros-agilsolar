@@ -468,6 +468,9 @@ const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
 function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
+  // Marketing e Documentação: todo mundo (menos técnico); abas marcadas admin só pro admin.
+  if (state.environment === 'marketing' && podeConteudo()) return MKT_TABS.filter((t) => !t.admin || state.isAdmin);
+  if (state.environment === 'docs' && podeConteudo()) return DOCS_TABS.filter((t) => !t.admin || state.isAdmin);
   // Parceiro: só o Comercial, e só Clientes e Propostas.
   if (state.isParceiro) return TABS.filter((t) => TABS_PARCEIRO.includes(t.id));
   if (state.environment === 'rede' && state.isAdmin) return REDE_TABS;
@@ -507,6 +510,8 @@ function getActiveTabId() {
   if (state.environment === 'vistoria') return state.vistoriaActiveTab;
   if (state.environment === 'engenharia') return state.engActiveTab;
   if (state.environment === 'rede') return state.redeActiveTab;
+  if (state.environment === 'marketing') return state.mktActiveTab;
+  if (state.environment === 'docs') return state.docsActiveTab;
   return state.activeTab;
 }
 
@@ -625,6 +630,33 @@ function podeRede() {
   return Boolean(state.isAdmin || state.isFranqueado);
 }
 
+// Marketing e Documentação: todo mundo, menos o técnico (que vive no O&M).
+// O que cada um vê dentro deles o banco decide (conteudo_pode_ver).
+const ENVS_CONTEUDO = ['marketing', 'docs'];
+function podeConteudo() {
+  return Boolean(state.currentUser) && !state.isTecnico;
+}
+
+// mkt.js, docs.js e conteudo.js só são baixados quando o ambiente é aberto.
+let _conteudoCarregando = null;
+function carregarConteudo() {
+  if (typeof renderMktRoute === 'function' && typeof renderDocsRoute === 'function') return Promise.resolve();
+  if (_conteudoCarregando) return _conteudoCarregando;
+  const srcs = (window.__scriptsSobDemanda && window.__scriptsSobDemanda.conteudo) || [];
+  const um = (src) => new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = false; // conteudo.js primeiro
+    s.onload = resolve;
+    s.onerror = () => { s.remove(); reject(new Error('Falha ao carregar ' + src)); };
+    document.head.appendChild(s);
+  });
+  _conteudoCarregando = Promise.all(srcs.map(um))
+    .then(() => { if (typeof renderMktRoute !== 'function') throw new Error('Módulo Marketing não inicializou'); })
+    .catch((err) => { _conteudoCarregando = null; throw err; });
+  return _conteudoCarregando;
+}
+
 // Ajustar a geração da proposta: admin ou franqueado (o banco confere em ajustar_geracao_proposta).
 function podeAjustarGeracao() {
   return Boolean(state.isAdmin || state.isFranqueado);
@@ -642,7 +674,7 @@ function renderEnvSwitcher() {
   }
   // Sem acesso a NENHUM ambiente extra: esconde o seletor e mantém só o Comercial.
   if (!state.canOM && !state.canFin && !state.canVis && !state.canEng) {
-    if (state.environment !== 'comercial') state.environment = 'comercial';
+    if (state.environment !== 'comercial' && !ENVS_CONTEUDO.includes(state.environment)) state.environment = 'comercial';
     if (desktop) desktop.style.display = 'none';
     if (section) section.style.display = 'none';
     return;
@@ -892,8 +924,9 @@ function closeOmMoreMenuOnOutside(ev) {
 
 function setEnvironment(env) {
   if (state.isTecnico) return; // técnico não troca de ambiente
-  if (state.isParceiro && env !== 'comercial') return; // parceiro só no Comercial
-  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede') return;
+  if (state.isParceiro && env !== 'comercial' && !ENVS_CONTEUDO.includes(env)) return; // parceiro: Comercial, Marketing e Documentação
+  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede' && !ENVS_CONTEUDO.includes(env)) return;
+  if (ENVS_CONTEUDO.includes(env) && !podeConteudo()) return;
   if (env === 'rede' && !podeRede()) return; // Rede: admin ou franqueado
   if (env === 'om' && !state.canOM) return; // sem acesso ao O&M
   if (env === 'financeiro' && !state.canFin) return; // sem acesso ao Financeiro
@@ -1007,8 +1040,9 @@ function launcherGuardarUltimoEnv(env) {
 // Disparado pelo clique nos cards. NÃO usa setEnvironment (que aborta quando o
 // ambiente já é o atual — caso do Comercial, que é o default).
 function enterEnvironment(env) {
-  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede') return;
-  if (state.isParceiro && env !== 'comercial') return;
+  if (env !== 'comercial' && env !== 'om' && env !== 'financeiro' && env !== 'vistoria' && env !== 'engenharia' && env !== 'rede' && !ENVS_CONTEUDO.includes(env)) return;
+  if (state.isParceiro && env !== 'comercial' && !ENVS_CONTEUDO.includes(env)) return;
+  if (ENVS_CONTEUDO.includes(env) && !podeConteudo()) return;
   if (env === 'rede' && !podeRede()) return;
   if (env === 'om' && !state.canOM) return;
   if (env === 'financeiro' && !state.canFin) return;
@@ -1028,6 +1062,8 @@ function enterEnvironment(env) {
   if (env === 'vistoria') state.vistoriaActiveTab = 'visao';
   if (env === 'engenharia') state.engActiveTab = 'visao';
   if (env === 'rede') state.redeActiveTab = state.isAdmin ? 'visao' : 'unidades';
+  if (env === 'marketing') state.mktActiveTab = 'biblioteca';
+  if (env === 'docs') state.docsActiveTab = 'inicio';
   renderTabs();
   renderContent();
   appRouteSync(false);
@@ -1035,7 +1071,7 @@ function enterEnvironment(env) {
 
 function setTab(tabId) {
   if (state.isTecnico && tabId !== 'os') return; // técnico só acessa a aba OS
-  if (state.isParceiro && !TABS_PARCEIRO.includes(tabId)) return; // parceiro: só Clientes e Propostas
+  if (state.isParceiro && !ENVS_CONTEUDO.includes(state.environment) && !TABS_PARCEIRO.includes(tabId)) return; // parceiro: só Clientes e Propostas
 
   // Admin é destino global (overlay), não uma aba de ambiente. Qualquer chamada
   // remanescente a setTab('admin') é redirecionada para o overlay.
@@ -1098,6 +1134,22 @@ function setTab(tabId) {
     return;
   }
 
+  if (ENVS_CONTEUDO.includes(state.environment)) {
+    const lista = getActiveTabsForEnvironment();
+    if (!lista.some((t) => t.id === tabId)) return;
+    closeMobileMenu();
+    if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
+    stopDashboardClock();
+    if (state.environment === 'marketing') state.mktActiveTab = tabId; else state.docsActiveTab = tabId;
+    // clicar numa aba volta pro começo dela (fecha documento/editor aberto)
+    const mod = state.environment === 'marketing' ? window.MKT : window.DOCS;
+    if (mod && mod.inicioDaAba) mod.inicioDaAba();
+    renderTabs();
+    renderContent();
+    appRouteSync(true);
+    return;
+  }
+
   closeMobileMenu();
   if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
   stopDashboardClock();
@@ -1136,6 +1188,8 @@ function appRouteCurrentHash() {
     vistoria: state.vistoriaActiveTab,
     engenharia: state.engActiveTab,
     rede: state.redeActiveTab,
+    marketing: state.mktActiveTab,
+    docs: state.docsActiveTab,
   };
   return `${APP_ROUTE_PREFIX}${state.environment}/${tabByEnv[state.environment] || ''}`;
 }
@@ -1167,6 +1221,8 @@ function appRouteParse(rawHash) {
     vistoria: (typeof VISTORIA_TABS !== 'undefined' ? VISTORIA_TABS : []).map((t) => t.id),
     engenharia: (typeof ENG_TABS !== 'undefined' ? ENG_TABS : []).map((t) => t.id),
     rede: (typeof REDE_TABS !== 'undefined' ? REDE_TABS : []).map((t) => t.id),
+    marketing: (typeof MKT_TABS !== 'undefined' ? MKT_TABS : []).filter((t) => !t.admin || state.isAdmin).map((t) => t.id),
+    docs: (typeof DOCS_TABS !== 'undefined' ? DOCS_TABS : []).filter((t) => !t.admin || state.isAdmin).map((t) => t.id),
   };
 
   if (!Object.prototype.hasOwnProperty.call(tabsByEnv, env)) return null;
@@ -1175,10 +1231,11 @@ function appRouteParse(rawHash) {
   if (env === 'vistoria' && !state.canVis) return null;
   if (env === 'engenharia' && !state.canEng) return null;
   if (env === 'rede' && !podeRede()) return null;
+  if (ENVS_CONTEUDO.includes(env) && !podeConteudo()) return null;
   if (env === 'rede' && !state.isAdmin && !REDE_TABS_FRANQUEADO.some((t) => t.id === tab)) return null;
   if (!tabsByEnv[env].includes(tab)) return null;
   if (env === 'comercial' && TABS_GESTAO.includes(tab) && !(state.isAdmin || state.isGestor)) return null;
-  if (state.isParceiro && (env !== 'comercial' || !TABS_PARCEIRO.includes(tab))) return null;
+  if (state.isParceiro && !ENVS_CONTEUDO.includes(env) && (env !== 'comercial' || !TABS_PARCEIRO.includes(tab))) return null;
 
   return { env, tab };
 }
@@ -1827,6 +1884,30 @@ function _renderContentImpl() {
       renderRedeRoute(container, state.redeActiveTab);
     } else {
       container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Módulo Rede não carregado.</div>';
+    }
+    queueAppLucideCreateIcons();
+    return;
+  }
+
+  // Ambientes Marketing e Documentação: mkt.js / docs.js (baixados na primeira vez)
+  if (ENVS_CONTEUDO.includes(state.environment)) {
+    stopDashboardClock();
+    if (typeof stopOmClock === 'function') stopOmClock();
+    mainToolbar.classList.add('hidden');
+    toggleContainer.classList.add('hidden');
+    if (adminBar) adminBar.classList.add('hidden');
+    const env = state.environment;
+    const fn = env === 'marketing' ? 'renderMktRoute' : 'renderDocsRoute';
+    if (typeof window[fn] === 'function') {
+      window[fn](container, env === 'marketing' ? state.mktActiveTab : state.docsActiveTab);
+    } else {
+      container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Carregando…</div>';
+      carregarConteudo()
+        .then(() => { if (state.environment === env) renderContent(); })
+        .catch(() => {
+          if (state.environment !== env) return;
+          container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Não foi possível carregar. Verifique a internet e tente de novo.</div>';
+        });
     }
     queueAppLucideCreateIcons();
     return;

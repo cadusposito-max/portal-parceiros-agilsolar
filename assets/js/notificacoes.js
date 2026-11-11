@@ -42,6 +42,8 @@
     tarefa_atrasada: ['alarm-clock', 'or'],
     // @menção numa anotação da timeline (crm-mencao.js)
     mencao: ['at-sign', 'bl'],
+    // documento novo / leitura obrigatória (docs.js)
+    documento: ['book-open', 'or'],
   };
   // menção é para a pessoa: aparece em destaque como os urgentes
   const EM_DESTAQUE = new Set(['proposta_vista', 'parceiro_fechou', 'os', 'mencao']);
@@ -160,6 +162,12 @@
         if (has('openDashComunicadoModalById')) openDashComunicadoModalById(encodeURIComponent(a.id));
       } else if (a.tela === 'tarefa' && a.id) {
         if (has('tarefasAbrir')) tarefasAbrir(a.id);
+      } else if (a.tela === 'doc' && a.id) {
+        if (window.DOCS) window.DOCS.abrir(a.id);
+        else if (has('setEnvironment') && has('carregarConteudo')) {
+          await carregarConteudo();
+          if (window.DOCS) window.DOCS.abrir(a.id);
+        }
       } else if (a.tela === 'propostas') {
         if (state.environment !== 'comercial' && has('setEnvironment')) setEnvironment('comercial');
         if (has('setTab')) setTab('propostas');

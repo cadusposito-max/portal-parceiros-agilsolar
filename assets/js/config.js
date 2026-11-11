@@ -97,6 +97,9 @@ let state = {
   canEng: false,
   // Ambiente Rede (6º ambiente — gestão das unidades da rede). Só admin (state.isAdmin).
   redeActiveTab: 'visao',
+  // Ambientes Marketing e Documentação (todo mundo menos técnico; ver podeConteudo em app.js)
+  mktActiveTab: 'biblioteca',
+  docsActiveTab: 'inicio',
   // Sub-estado da Engenharia: inputs, último resultado calculado, presets e projetos (estado local até o banco).
   eng: {
     inputs: {},
@@ -385,4 +388,18 @@ const REDE_TABS = [
 // Franqueado entra no mesmo ambiente, mas só vê a própria unidade.
 const REDE_TABS_FRANQUEADO = [
   { id: 'unidades',     label: 'MINHA UNIDADE',            icon: 'store' }
+];
+
+// Ambiente Marketing (mkt.js): artes editáveis e materiais da marca. `admin` = só admin vê a aba.
+const MKT_TABS = [
+  { id: 'biblioteca', label: 'BIBLIOTECA',  icon: 'layout-grid' },
+  { id: 'campanhas',  label: 'CAMPANHAS',   icon: 'flag' },
+  { id: 'montar',     label: 'MONTAR ARTE', icon: 'pencil-ruler', admin: true },
+  { id: 'uso',        label: 'QUEM BAIXOU', icon: 'chart-column', admin: true }
+];
+// Ambiente Documentação (docs.js): manuais, processos e modelos.
+const DOCS_TABS = [
+  { id: 'inicio',      label: 'INÍCIO',              icon: 'book-open' },
+  { id: 'obrigatoria', label: 'LEITURA OBRIGATÓRIA', icon: 'triangle-alert' },
+  { id: 'leituras',    label: 'QUEM JÁ LEU',         icon: 'eye', admin: true }
 ];
