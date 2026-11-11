@@ -97,9 +97,8 @@ let state = {
   canEng: false,
   // Ambiente Rede (6º ambiente — gestão das unidades da rede). Só admin (state.isAdmin).
   redeActiveTab: 'visao',
-  // Ambientes Marketing e Documentação: liberados por login (ver podeConteudo em app.js)
+  // Ambiente Marketing (artes + documentação): liberado por login (ver podeConteudo em app.js)
   mktActiveTab: 'biblioteca',
-  docsActiveTab: 'inicio',
   canMkt: false,
   canDocs: false,
   // Sub-estado da Engenharia: inputs, último resultado calculado, presets e projetos (estado local até o banco).
@@ -392,16 +391,16 @@ const REDE_TABS_FRANQUEADO = [
   { id: 'unidades',     label: 'MINHA UNIDADE',            icon: 'store' }
 ];
 
-// Ambiente Marketing (mkt.js): artes editáveis e materiais da marca. `admin` = só admin vê a aba.
+// Ambiente Marketing: artes (mkt.js) e documentação (docs.js) no mesmo lugar.
+// `chave` = qual liberação do cadastro do usuário abre a aba; `admin` = só admin vê.
 const MKT_TABS = [
-  { id: 'biblioteca', label: 'BIBLIOTECA',  icon: 'layout-grid' },
-  { id: 'campanhas',  label: 'CAMPANHAS',   icon: 'flag' },
-  { id: 'montar',     label: 'MONTAR ARTE', icon: 'pencil-ruler', admin: true },
-  { id: 'uso',        label: 'QUEM BAIXOU', icon: 'chart-column', admin: true }
+  { id: 'biblioteca',  label: 'ARTES',               icon: 'layout-grid',    chave: 'mkt' },
+  { id: 'campanhas',   label: 'CAMPANHAS',           icon: 'flag',           chave: 'mkt' },
+  { id: 'docs',        label: 'DOCUMENTAÇÃO',        icon: 'book-open',      chave: 'docs' },
+  { id: 'obrigatoria', label: 'LEITURA OBRIGATÓRIA', icon: 'triangle-alert', chave: 'docs' },
+  { id: 'montar',      label: 'MONTAR ARTE',         icon: 'pencil-ruler',   chave: 'mkt', admin: true },
+  { id: 'uso',         label: 'QUEM BAIXOU',         icon: 'chart-column',   chave: 'mkt', admin: true },
+  { id: 'leituras',    label: 'QUEM JÁ LEU',         icon: 'eye',            chave: 'docs', admin: true }
 ];
-// Ambiente Documentação (docs.js): manuais, processos e modelos.
-const DOCS_TABS = [
-  { id: 'inicio',      label: 'INÍCIO',              icon: 'book-open' },
-  { id: 'obrigatoria', label: 'LEITURA OBRIGATÓRIA', icon: 'triangle-alert' },
-  { id: 'leituras',    label: 'QUEM JÁ LEU',         icon: 'eye', admin: true }
-];
+// Abas do Marketing que são da documentação (docs.js desenha)
+const MKT_TABS_DOCS = ['docs', 'obrigatoria', 'leituras'];

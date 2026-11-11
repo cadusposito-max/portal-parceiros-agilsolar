@@ -93,6 +93,9 @@
     CT.meta('docs:' + D.tab, t, s);
   }
 
+  // A documentação mora em abas do ambiente Marketing (MKT_TABS_DOCS)
+  function naDoc() { return state.environment === 'marketing' && MKT_TABS_DOCS.includes(state.mktActiveTab); }
+
   async function renderDocsRoute(container, tab) {
     D.container = container;
     const novo = tab || 'inicio';
@@ -102,8 +105,8 @@
       meta();
       container.innerHTML = CT.carregando();
       CT.icons();
-      try { await carregar(); } catch (e) { if (state.environment === 'docs') { container.innerHTML = erroHTML(e); ligar(container.firstChild); CT.icons(); } return; }
-      if (state.environment !== 'docs') return;
+      try { await carregar(); } catch (e) { if (naDoc()) { container.innerHTML = erroHTML(e); ligar(container.firstChild); CT.icons(); } return; }
+      if (!naDoc()) return;
     }
     if (D.abrirDepois) { const id = D.abrirDepois; D.abrirDepois = null; return abrirDoc(id); }
     pintar();
@@ -111,7 +114,7 @@
 
   function pintar() {
     const c = D.container;
-    if (!c || state.environment !== 'docs') return;
+    if (!c || !naDoc()) return;
     meta();
     let html;
     if (D.view === 'editar') html = vEditar();
@@ -450,7 +453,7 @@
       const a = b.dataset.dc, id = b.dataset.id;
       switch (a) {
         case 'recarregar': D.docs = null; renderDocsRoute(D.container, D.tab); break;
-        case 'inicio': D.view = 'lista'; D.pasta = null; if (D.tab !== 'inicio') setTab('inicio'); else pintar(); break;
+        case 'inicio': D.view = 'lista'; D.pasta = null; if (D.tab !== 'inicio') setTab('docs'); else pintar(); break;
         case 'pasta': D.pasta = b.dataset.pasta; D.view = 'pasta'; pintar(); window.scrollTo(0, 0); break;
         case 'abrir': abrirDoc(id); break;
         case 'aba': setTab(b.dataset.tab); break;
@@ -543,7 +546,7 @@
       const { data } = await sb().from('doc_documentos').select('id').ilike('html', `%${termo}%`).limit(50);
       if (D.q.trim() !== q) return;
       D.achados = (data || []).map((x) => x.id);
-      if (state.environment === 'docs' && D.view === 'lista' && D.tab === 'inicio') {
+      if (naDoc() && D.view === 'lista' && D.tab === 'inicio') {
         const el = document.getElementById('dc-q'), pos = el ? el.selectionStart : null;
         pintar();
         const n = document.getElementById('dc-q');
@@ -553,13 +556,14 @@
   }
 
   // Botão "+" do menu (só admin)
-  function docsNovo() { if (state.environment === 'docs' && CT.admin()) abrirEditor(null); }
+  function docsNovo() { if (naDoc() && CT.admin()) abrirEditor(null); }
 
   // Sininho: abre o documento (troca de ambiente se precisar)
   function abrir(id) {
-    if (state.environment !== 'docs') {
+    if (!naDoc()) {
       D.abrirDepois = id;
-      if (typeof setEnvironment === 'function') setEnvironment('docs');
+      if (state.environment !== 'marketing') { state.mktActiveTab = 'docs'; if (typeof setEnvironment === 'function') setEnvironment('marketing'); }
+      else if (typeof setTab === 'function') setTab('docs');
       return;
     }
     if (!D.docs) { D.abrirDepois = id; return; }

@@ -39,13 +39,15 @@
     engenharia: { n: 'Engenharia', i: 'ruler', d: 'Projetos, OS e catálogo técnico', cta: null },
     // franqueado entra no mesmo ambiente, só com a unidade dele
     rede: { get n() { return state.isAdmin ? 'Rede' : 'Minha unidade'; }, i: 'network', get d() { return state.isAdmin ? 'Unidades, CNPJs, impostos e resultado' : 'Resultado, custos e taxas da sua unidade'; }, cta: null },
-    // Marketing e Documentação: só o admin sobe material / escreve documento
-    marketing: { n: 'Marketing', i: 'megaphone', d: 'Artes e materiais da marca', get cta() { return state.isAdmin ? ['Subir material', 'mktSubir'] : null; } },
-    docs: { n: 'Documentação', i: 'book-open', d: 'Manuais, processos e modelos', get cta() { return state.isAdmin ? ['Novo documento', 'docsNovo'] : null; } },
+    // Marketing: artes + documentação; só o admin sobe material / escreve documento (botão segue a aba)
+    marketing: { n: 'Marketing', i: 'megaphone', d: 'Artes, campanhas e documentação', get cta() {
+      if (!state.isAdmin) return null;
+      return typeof MKT_TABS_DOCS !== 'undefined' && MKT_TABS_DOCS.includes(state.mktActiveTab) ? ['Novo documento', 'docsNovo'] : ['Subir material', 'mktSubir'];
+    } },
   };
   function envAllowed(k) {
     if (state.isTecnico) return k === 'om';
-    if (k === 'marketing' || k === 'docs') return has('podeConteudo') && podeConteudo(k);
+    if (k === 'marketing') return has('podeConteudo') && podeConteudo(k);
     if (state.isParceiro) return k === 'comercial';
     if (k === 'comercial') return true;
     if (k === 'om') return !!state.canOM;
@@ -211,7 +213,7 @@
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
     // celular: início · 2 abas · + · mais
-    const MOB = { comercial: ['clientes', 'propostas'], om: ['os', 'clientes'], financeiro: ['vendas', 'recebiveis'], vistoria: ['agenda', 'os'], engenharia: ['funil', 'os'], rede: ['unidades', 'dre'], marketing: ['campanhas', 'montar'], docs: ['obrigatoria', 'leituras'] };
+    const MOB = { comercial: ['clientes', 'propostas'], om: ['os', 'clientes'], financeiro: ['vendas', 'recebiveis'], vistoria: ['agenda', 'os'], engenharia: ['funil', 'os'], rede: ['unidades', 'dre'], marketing: ['campanhas', 'docs'] };
     const pref = (MOB[k] || []).map((id) => T.find((t) => t.id === id)).filter(Boolean);
     // (parceiro só tem Clientes e Propostas: Clientes já é o Início, então não repete)
     const home = T[0], picks = (pref.length === 2 ? pref : T.slice(1, 3)).filter((t) => t !== home), inBar = [home, ...picks].filter(Boolean).map((t) => t.id);

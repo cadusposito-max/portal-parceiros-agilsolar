@@ -71,7 +71,7 @@
 
   // ------------------------------------------------------------ rota
   const TITULOS = {
-    biblioteca: ['Marketing', 'Artes prontas pra divulgar a sua unidade'],
+    biblioteca: ['Artes', 'Artes prontas pra divulgar a sua unidade'],
     campanhas: ['Campanhas', 'Materiais das campanhas no ar'],
     montar: ['Montar arte', 'Marque na arte o que quem baixa pode trocar'],
     uso: ['Quem baixou', 'Unidades que estão usando o material nos últimos 30 dias'],
@@ -82,6 +82,9 @@
     CT.meta('marketing:' + M.tab, t, s);
   }
 
+  // As abas de documentação do mesmo ambiente são do docs.js
+  function naArte() { return state.environment === 'marketing' && !MKT_TABS_DOCS.includes(state.mktActiveTab); }
+
   async function renderMktRoute(container, tab) {
     M.container = container;
     const novo = tab || 'biblioteca';
@@ -91,8 +94,8 @@
     if (!M.itens) {
       container.innerHTML = CT.carregando();
       CT.icons();
-      try { await carregar(); } catch (e) { if (state.environment === 'marketing') { container.innerHTML = erroHTML(e); ligar(container.firstChild); CT.icons(); } return; }
-      if (state.environment !== 'marketing') return;
+      try { await carregar(); } catch (e) { if (naArte()) { container.innerHTML = erroHTML(e); ligar(container.firstChild); CT.icons(); } return; }
+      if (!naArte()) return;
     }
     if (!M.uni) { try { M.uni = await CT.unidade(); } catch (_) { M.uni = { unidade: 'Ágil Solar', whats: '', cidade: '' }; } }
     pintar();
@@ -100,7 +103,7 @@
 
   function pintar() {
     const c = M.container;
-    if (!c || state.environment !== 'marketing') return;
+    if (!c || !naArte()) return;
     meta();
     let html;
     if (M.view === 'editor' && item(M.aberto)) html = vEditor();
@@ -248,7 +251,7 @@
     cvw.style.width = Math.max(40, it.largura * k) + 'px';
     cvw.style.height = Math.max(40, it.altura * k) + 'px';
   }
-  window.addEventListener('resize', () => { if (state.environment === 'marketing' && (M.view === 'editor' || M.tab === 'montar')) encaixar(); });
+  window.addEventListener('resize', () => { if (naArte() && (M.view === 'editor' || M.tab === 'montar')) encaixar(); });
 
   // ------------------------------------------------------------ editor (quem baixa)
   function vEditor() {
@@ -505,7 +508,7 @@
   async function carregarUso() {
     const { data, error } = await sb().rpc('mkt_uso', { p_dias: 30 });
     M.uso = error ? { erro: error.message, lista: [] } : { lista: data || [] };
-    if (M.tab === 'uso' && state.environment === 'marketing') pintar();
+    if (M.tab === 'uso' && naArte()) pintar();
   }
 
   // ------------------------------------------------------------ subir / editar material (admin)
@@ -746,7 +749,7 @@
 
   // Botão "+" do menu (só admin)
   function mktSubir() {
-    if (state.environment !== 'marketing') return;
+    if (!naArte()) return;
     abrirSubir(null, M.tab === 'montar' ? 'editavel' : undefined);
   }
 

@@ -468,9 +468,8 @@ const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
 function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
-  // Marketing e Documentação: todo mundo (menos técnico); abas marcadas admin só pro admin.
-  if (state.environment === 'marketing' && podeConteudo('marketing')) return MKT_TABS.filter((t) => !t.admin || state.isAdmin);
-  if (state.environment === 'docs' && podeConteudo('docs')) return DOCS_TABS.filter((t) => !t.admin || state.isAdmin);
+  // Marketing (artes + documentação): abas conforme as chaves do login; as de gestão só pro admin.
+  if (state.environment === 'marketing' && podeConteudo('marketing')) return mktAbasVisiveis();
   // Parceiro: só o Comercial, e só Clientes e Propostas.
   if (state.isParceiro) return TABS.filter((t) => TABS_PARCEIRO.includes(t.id));
   if (state.environment === 'rede' && state.isAdmin) return REDE_TABS;
@@ -511,7 +510,6 @@ function getActiveTabId() {
   if (state.environment === 'engenharia') return state.engActiveTab;
   if (state.environment === 'rede') return state.redeActiveTab;
   if (state.environment === 'marketing') return state.mktActiveTab;
-  if (state.environment === 'docs') return state.docsActiveTab;
   return state.activeTab;
 }
 
@@ -630,15 +628,22 @@ function podeRede() {
   return Boolean(state.isAdmin || state.isFranqueado);
 }
 
-// Marketing e Documentação: liberados por login (user_accounts.mkt_enabled /
-// docs_enabled, no cadastro do usuário). Admin sempre; técnico fica no O&M.
-const ENVS_CONTEUDO = ['marketing', 'docs'];
+// Marketing (artes + documentação): liberado por login (user_accounts.mkt_enabled
+// abre as artes, docs_enabled a documentação). Admin sempre; técnico fica no O&M.
+const ENVS_CONTEUDO = ['marketing'];
 function podeConteudo(env) {
   if (!state.currentUser || state.isTecnico) return false;
   if (state.isAdmin) return true;
-  if (env === 'marketing') return !!state.canMkt;
-  if (env === 'docs') return !!state.canDocs;
   return !!(state.canMkt || state.canDocs);
+}
+function mktAbasVisiveis() {
+  const tem = (t) => state.isAdmin || (t.chave === 'docs' ? state.canDocs : state.canMkt);
+  return MKT_TABS.filter((t) => (!t.admin || state.isAdmin) && tem(t));
+}
+// Aba que abre ao entrar no Marketing: artes, ou documentação pra quem só tem essa chave.
+function mktAbaInicial() {
+  const l = mktAbasVisiveis();
+  return l.length ? l[0].id : 'biblioteca';
 }
 async function conteudoRefreshAccess() {
   if (state.isAdmin) { state.canMkt = true; state.canDocs = true; return; }
@@ -955,6 +960,7 @@ function setEnvironment(env) {
 
   state.environment = env;
   launcherGuardarUltimoEnv(env);
+  if (env === 'marketing' && !mktAbasVisiveis().some((t) => t.id === state.mktActiveTab)) state.mktActiveTab = mktAbaInicial();
   renderTabs();
   renderContent();
   appRouteSync(true);
@@ -1077,8 +1083,7 @@ function enterEnvironment(env) {
   if (env === 'vistoria') state.vistoriaActiveTab = 'visao';
   if (env === 'engenharia') state.engActiveTab = 'visao';
   if (env === 'rede') state.redeActiveTab = state.isAdmin ? 'visao' : 'unidades';
-  if (env === 'marketing') state.mktActiveTab = 'biblioteca';
-  if (env === 'docs') state.docsActiveTab = 'inicio';
+  if (env === 'marketing') state.mktActiveTab = mktAbaInicial();
   renderTabs();
   renderContent();
   appRouteSync(false);
@@ -1155,9 +1160,9 @@ function setTab(tabId) {
     closeMobileMenu();
     if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
     stopDashboardClock();
-    if (state.environment === 'marketing') state.mktActiveTab = tabId; else state.docsActiveTab = tabId;
+    state.mktActiveTab = tabId;
     // clicar numa aba volta pro começo dela (fecha documento/editor aberto)
-    const mod = state.environment === 'marketing' ? window.MKT : window.DOCS;
+    const mod = MKT_TABS_DOCS.includes(tabId) ? window.DOCS : window.MKT;
     if (mod && mod.inicioDaAba) mod.inicioDaAba();
     renderTabs();
     renderContent();
@@ -1204,7 +1209,6 @@ function appRouteCurrentHash() {
     engenharia: state.engActiveTab,
     rede: state.redeActiveTab,
     marketing: state.mktActiveTab,
-    docs: state.docsActiveTab,
   };
   return `${APP_ROUTE_PREFIX}${state.environment}/${tabByEnv[state.environment] || ''}`;
 }
@@ -1227,7 +1231,9 @@ function appRouteParse(rawHash) {
   if (!raw.startsWith(APP_ROUTE_PREFIX)) return null;
   if (state.isTecnico) return null; // técnico tem ambiente/aba fixos
 
-  const [env, tab] = raw.slice(APP_ROUTE_PREFIX.length).split('/');
+  let [env, tab] = raw.slice(APP_ROUTE_PREFIX.length).split('/');
+  // link antigo do ambiente Documentação: hoje é aba do Marketing
+  if (env === 'docs') { env = 'marketing'; if (tab === 'inicio') tab = 'docs'; }
 
   const tabsByEnv = {
     comercial: (typeof TABS !== 'undefined' ? TABS : []).map((t) => t.id),
@@ -1236,8 +1242,7 @@ function appRouteParse(rawHash) {
     vistoria: (typeof VISTORIA_TABS !== 'undefined' ? VISTORIA_TABS : []).map((t) => t.id),
     engenharia: (typeof ENG_TABS !== 'undefined' ? ENG_TABS : []).map((t) => t.id),
     rede: (typeof REDE_TABS !== 'undefined' ? REDE_TABS : []).map((t) => t.id),
-    marketing: (typeof MKT_TABS !== 'undefined' ? MKT_TABS : []).filter((t) => !t.admin || state.isAdmin).map((t) => t.id),
-    docs: (typeof DOCS_TABS !== 'undefined' ? DOCS_TABS : []).filter((t) => !t.admin || state.isAdmin).map((t) => t.id),
+    marketing: (typeof MKT_TABS !== 'undefined' ? mktAbasVisiveis() : []).map((t) => t.id),
   };
 
   if (!Object.prototype.hasOwnProperty.call(tabsByEnv, env)) return null;
@@ -1904,7 +1909,7 @@ function _renderContentImpl() {
     return;
   }
 
-  // Ambientes Marketing e Documentação: mkt.js / docs.js (baixados na primeira vez)
+  // Ambiente Marketing: artes (mkt.js) e documentação (docs.js), baixados na primeira vez
   if (ENVS_CONTEUDO.includes(state.environment)) {
     stopDashboardClock();
     if (typeof stopOmClock === 'function') stopOmClock();
@@ -1912,9 +1917,11 @@ function _renderContentImpl() {
     toggleContainer.classList.add('hidden');
     if (adminBar) adminBar.classList.add('hidden');
     const env = state.environment;
-    const fn = env === 'marketing' ? 'renderMktRoute' : 'renderDocsRoute';
+    if (!mktAbasVisiveis().some((t) => t.id === state.mktActiveTab)) state.mktActiveTab = mktAbaInicial();
+    const aba = state.mktActiveTab, ehDoc = MKT_TABS_DOCS.includes(aba);
+    const fn = ehDoc ? 'renderDocsRoute' : 'renderMktRoute';
     if (typeof window[fn] === 'function') {
-      window[fn](container, env === 'marketing' ? state.mktActiveTab : state.docsActiveTab);
+      window[fn](container, ehDoc ? (aba === 'docs' ? 'inicio' : aba) : aba);
     } else {
       container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Carregando…</div>';
       carregarConteudo()
