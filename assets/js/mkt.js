@@ -382,6 +382,29 @@
     if (!M.montarId || !item(M.montarId) || item(M.montarId).tipo !== 'editavel') M.montarId = lista[0].id;
     if (!M.rasc || M.rasc.id !== M.montarId) { M.rasc = JSON.parse(JSON.stringify(item(M.montarId))); M.rasc.campos = M.rasc.campos || []; M.sujo = false; M.sel = null; }
   }
+  const ICONE_CAMPO = { texto: 'type', unidade: 'store', whats: 'message-circle', cidade: 'map-pin', fixo: 'lock' };
+  function previaCamada(x) {
+    if (AUTO[x.tipo]) return (M.uni && M.uni[x.tipo]) || 'Vem da unidade';
+    return x.ex || (x.tipo === 'fixo' ? 'Texto fixo' : 'Quem baixa escreve');
+  }
+  // Lista de fontes suspensa: cada nome escrito na própria fonte, agrupado por estilo
+  function seletorFonte(f) {
+    const atual = fonteDe(f.fonte);
+    let grupo = '', itens = '';
+    FONTES.forEach(([n, , e]) => {
+      if (e !== grupo) { grupo = e; itens += `<div class="gp">${esc(e.toUpperCase())}</div>`; }
+      itens += `<button data-mk="fonte" data-fonte="${esc(n)}" class="${atual[0] === n ? 'on' : ''}" style="font-family:'${n}',sans-serif"><span>${esc(n)}</span>${atual[0] === n ? ic('check') : ''}</button>`;
+    });
+    return `<div class="mk-fsel"><button class="mk-fbtn" data-mk="fonte-abrir" aria-haspopup="listbox" aria-expanded="false">
+        <span class="nm" style="font-family:'${atual[0]}',sans-serif">${esc(atual[0])}</span><small>${esc(atual[2])}</small>${ic('chevron-down')}</button>
+      <div class="mk-fmenu" role="listbox" hidden>${itens}</div></div>`;
+  }
+  function fecharFontes(root) {
+    const m = root && root.querySelector('.mk-fmenu');
+    if (!m || m.hidden) return;
+    m.hidden = true;
+    const b = root.querySelector('.mk-fbtn'); if (b) b.setAttribute('aria-expanded', 'false');
+  }
   // Paleta da marca + cores em hex já usadas nesta arte
   function coresSw(r, f) {
     const atual = corHex(f.cor), marca = Object.values(COR);
@@ -400,30 +423,37 @@
     return `<div class="ct-tools"><select class="ct-inp mk-sel" id="mk-montar-sel">${editaveis().map((i) => `<option value="${i.id}" ${i.id === r.id ? 'selected' : ''}>${esc(i.nome)}${i.publicado ? '' : ' (rascunho)'}</option>`).join('')}</select>
       ${M.sujo ? `<span class="mk-sujo">${ic('circle-dot')}Alterações não salvas</span>` : ''}
       <button class="ct-btn or" data-mk="subir" data-tipo="editavel">${ic('plus')}Nova arte</button></div>
-    <div class="mk-ed">
+    <div class="mk-ed mt3">
+      <div class="ct-panel mk-camadas">
+        <div class="ct-grp"><h4>${ic('layers')}CAMADAS</h4>
+          ${(r.campos || []).length || r.foto ? `<div class="mk-layers">${(r.campos || []).map((x) => `<button class="mk-layer ${tipoCls(x)} ${x.id === M.sel ? 'on' : ''}" data-mk="sel" data-id="${x.id}">
+              <span class="ico">${ic(ICONE_CAMPO[x.tipo] || 'type')}</span><span class="tx"><b>${esc(x.label)}</b><small>${esc(previaCamada(x))}</small></span></button>`).join('')}
+            ${r.foto ? `<button class="mk-layer foto ${M.sel === '__foto' ? 'on' : ''}" data-mk="sel" data-id="__foto"><span class="ico">${ic('image')}</span><span class="tx"><b>Foto trocável</b><small>Quem baixa põe a foto dele</small></span></button>` : ''}</div>`
+            : '<div class="ct-dica">Nenhuma camada ainda. Adicione um texto e arraste até o lugar certo da arte.</div>'}
+        </div>
+        <div class="mk-addcol"><button class="ct-btn gh" data-mk="add" data-tipo="texto">${ic('type')}Texto livre</button><button class="ct-btn gh" data-mk="add" data-tipo="whats">${ic('store')}Dado da unidade</button>
+          <button class="ct-btn gh" data-mk="foto-area">${ic(r.foto ? 'image-minus' : 'image-plus')}${r.foto ? 'Tirar foto trocável' : 'Foto trocável'}</button></div>
+        <div class="mk-leg"><span><i class="or"></i>Quem baixa escreve</span><span><i class="az"></i>Vem da unidade</span><span><i class="cz"></i>Fixo</span></div>
+      </div>
       <div class="mk-stagebox"><div class="mk-stage" id="mk-stage"><div class="mk-cvw" id="mk-cvw"><canvas id="mk-cv"></canvas>
         ${r.foto ? `<div class="mk-box foto ${M.sel === '__foto' ? 'on' : ''}" data-box="__foto" style="left:${r.foto.x * 100}%;top:${r.foto.y * 100}%;width:${r.foto.w * 100}%;height:${r.foto.h * 100}%"><span class="tg">Foto trocável</span><span class="rz canto" data-rz="__foto"></span></div>` : ''}
         ${(r.campos || []).map((x) => `<div class="mk-box ${tipoCls(x)} ${x.id === M.sel ? 'on' : ''}" data-box="${x.id}" style="left:${x.x * 100}%;top:${x.y * 100}%;width:${x.w * 100}%;height:${(x.size * 1.25) / H * 100}%"><span class="tg">${esc(x.label)}</span><span class="rz" data-rz="${x.id}"></span></div>`).join('')}
-      </div><span class="mk-info">Laranja = quem baixa escreve · Azul = vem da unidade · Cinza = fixo</span></div></div>
-      <div class="ct-panel">
-        <div class="ct-grp"><h4>CAMPOS DESTA ARTE</h4>
-          ${(r.campos || []).length ? `<div class="mk-flist">${r.campos.map((x) => `<button class="${tipoCls(x)} ${x.id === M.sel ? 'on' : ''}" data-mk="sel" data-id="${x.id}"><i></i>${esc(x.label)}</button>`).join('')}</div>` : '<div class="ct-dica">Nenhum campo ainda. Adicione um texto e arraste até o lugar certo da arte.</div>'}
-          <div class="mk-addrow"><button class="ct-btn gh" data-mk="add" data-tipo="texto">${ic('plus')}Texto livre</button><button class="ct-btn gh" data-mk="add" data-tipo="whats">${ic('plus')}Dado da unidade</button>
-            <button class="ct-btn gh" data-mk="foto-area">${ic(r.foto ? 'image-minus' : 'image-plus')}${r.foto ? 'Tirar foto trocável' : 'Foto trocável'}</button></div>
-        </div>
-        ${f ? `<div class="ct-grp sep"><h4>${ic('pencil')}CAMPO SELECIONADO</h4>
+      </div></div></div>
+      <div class="ct-panel mk-props">
+        ${f ? `<div class="ct-grp"><h4>${ic('pencil')}CAMADA SELECIONADA</h4>
           <div class="ct-fld"><label>Nome que quem baixa vê</label><input class="ct-inp" data-cfg="label" value="${esc(f.label)}"></div>
           <div class="ct-fld"><label>O que vai nele</label><select class="ct-inp" data-cfg="tipo">${Object.entries(TIPO_CAMPO).map(([k, n]) => `<option value="${k}" ${f.tipo === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
           ${f.tipo === 'texto' || f.tipo === 'fixo' ? `<div class="ct-two"><div class="ct-fld" ${f.tipo === 'fixo' ? 'style="grid-column:span 2"' : ''}><label>${f.tipo === 'fixo' ? 'Texto' : 'Texto de exemplo'}</label><input class="ct-inp" data-cfg="ex" value="${esc(f.ex || '')}"></div>
             ${f.tipo === 'texto' ? `<div class="ct-fld"><label>Máx. de letras</label><input class="ct-inp" type="number" min="1" max="120" data-cfg="max" value="${f.max || 30}"></div>` : ''}</div>` : ''}
           <div class="ct-fld"><label>Tamanho da letra<span class="cnt" id="mk-size-lbl">${f.size}px</span></label><input type="range" min="16" max="${Math.round(Math.max(200, H / 5))}" step="2" data-cfg="size" value="${f.size}"></div>
-          <div class="ct-fld"><label>Fonte<span class="cnt">${esc(fonteDe(f.fonte)[0])}</span></label><div class="mk-fontes">${FONTES.map(([n, , e]) => `<button data-mk="fonte" data-fonte="${esc(n)}" class="${fonteDe(f.fonte)[0] === n ? 'on' : ''}" style="font-family:'${n}',sans-serif"><b>${esc(n)}</b><small>${e}</small></button>`).join('')}</div></div>
+          <div class="ct-fld"><label>Fonte</label>${seletorFonte(f)}</div>
           <div class="ct-fld"><label>Cor</label><div class="mk-sw">${coresSw(r, f)}</div>
             <div class="mk-hex"><input type="color" data-cor-pick value="${corHex(f.cor)}" title="Escolher qualquer cor"><input class="ct-inp" data-cor-hex value="${corHex(f.cor)}" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#FFFFFF" aria-label="Cor em hex"><span class="mk-hexdica">Cole o código da cor (ex.: #FAA519)</span></div></div>
           <div class="ct-two"><div class="ct-fld"><label>Alinhar</label><div class="ct-segw">${[['left', 'Esq.'], ['center', 'Centro'], ['right', 'Dir.']].map(([k, n]) => `<button data-mk="al" data-al="${k}" class="${f.align === k ? 'on' : ''}">${n}</button>`).join('')}</div></div>
             <div class="ct-fld"><label>Peso</label>${fonteDe(f.fonte)[1].length > 1 ? `<div class="ct-segw">${fonteDe(f.fonte)[1].map((k) => `<button data-mk="peso" data-peso="${k}" class="${pesoDe(f) === k ? 'on' : ''}">${NOME_PESO[k]}</button>`).join('')}</div>` : '<p class="mk-um">Esta fonte só tem um peso.</p>'}</div></div>
           <button class="ct-btn gh perigo-tx" data-mk="del-campo">${ic('trash-2')}Tirar este campo</button>
-        </div>` : (r.campos || []).length ? `<p class="ct-note">${ic('info')}<span>Clique numa caixa na arte (ou num campo acima) pra mudar tamanho, cor e o que vai nele.</span></p>` : ''}
+        </div>` : M.sel === '__foto' ? `<div class="ct-grp"><h4>${ic('image')}FOTO TROCÁVEL</h4><p class="ct-note">${ic('info')}<span>Arraste a área na arte e puxe o canto pra mudar o tamanho. A foto de quem baixa preenche a área toda.</span></p></div>`
+          : `<div class="mk-propvazio">${ic('mouse-pointer-click')}<b>Escolha uma camada</b><span>Clique numa camada à esquerda ou numa caixa na arte pra mudar texto, fonte, cor e tamanho.</span></div>`}
         <p class="ct-note">${ic('eye')}<span>Aparece pra quem tem o <b>Marketing</b> liberado no cadastro do usuário.</span></p>
         <div class="mk-dl">
           <button class="ct-btn or big" data-mk="salvar" data-pub="1">${ic('check')}${r.publicado ? 'Salvar' : 'Publicar na Biblioteca'}</button>
@@ -704,7 +734,9 @@
   // ------------------------------------------------------------ eventos
   function ligar(root) {
     if (!root) return;
+    root.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharFontes(root); });
     root.addEventListener('click', async (e) => {
+      if (!e.target.closest('.mk-fsel')) fecharFontes(root);
       const b = e.target.closest('[data-mk]');
       if (!b) return;
       const a = b.dataset.mk, id = b.dataset.id, it = id && item(id);
@@ -739,9 +771,14 @@
           else if (a === 'peso') f.peso = Number(b.dataset.peso);
           else { f.fonte = b.dataset.fonte === FONTES[0][0] ? '' : b.dataset.fonte; f.peso = pesoDe(f); }
           M.sujo = true;
-          const lista = M.container.querySelector('.mk-fontes'), rolou = lista ? lista.scrollTop : 0;
           pintar();
-          const nova = M.container.querySelector('.mk-fontes'); if (nova) nova.scrollTop = rolou;
+          break;
+        }
+        case 'fonte-abrir': {
+          const m = b.parentElement.querySelector('.mk-fmenu');
+          m.hidden = !m.hidden;
+          b.setAttribute('aria-expanded', String(!m.hidden));
+          if (!m.hidden) { const on = m.querySelector('.on'); if (on) m.scrollTop = on.offsetTop - m.clientHeight / 2 + on.offsetHeight / 2; }
           break;
         }
         case 'del-campo': M.rasc.campos = M.rasc.campos.filter((x) => x.id !== M.sel); M.sel = null; M.sujo = true; pintar(); break;
@@ -796,7 +833,11 @@
           agendarMontar();
         } else if (k === 'label') {
           const tg = root.querySelector(`[data-box="${f.id}"] .tg`); if (tg) tg.textContent = el.value;
-        } else if (k === 'ex') agendarMontar();
+          const cb = root.querySelector(`.mk-layer[data-id="${f.id}"] b`); if (cb) cb.textContent = el.value;
+        } else if (k === 'ex') {
+          const cs = root.querySelector(`.mk-layer[data-id="${f.id}"] small`); if (cs) cs.textContent = previaCamada(f);
+          agendarMontar();
+        }
       }
     });
     root.addEventListener('change', async (e) => {
