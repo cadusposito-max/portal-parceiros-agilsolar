@@ -1055,14 +1055,14 @@ async function openAdminUsuarioForm(userId) {
       </div>
       <label class="col-span-2 flex items-center gap-3 cursor-pointer">
         <input type="checkbox" id="au-mkt-enabled" ${defaultMktEnabled ? 'checked' : ''} class="w-4 h-4 accent-orange-500">
-        <span class="text-white font-bold text-sm uppercase">Marketing: artes e campanhas</span>
+        <span class="text-white font-bold text-sm uppercase">Permitir acesso ao Marketing</span>
       </label>
-      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
+      <label class="col-span-2 hidden items-center gap-3 cursor-pointer"><!-- Documentação guardada: a chave fica, escondida -->
         <input type="checkbox" id="au-docs-enabled" ${defaultDocsEnabled ? 'checked' : ''} class="w-4 h-4 accent-cyan-500">
         <span class="text-white font-bold text-sm uppercase">Marketing: documentação</span>
       </label>
       <div class="col-span-2 bg-cyan-950/20 border border-cyan-700/30 p-3">
-        <p class="text-cyan-200/90 text-[10px] font-bold">As duas ficam no ambiente Marketing: a primeira abre as artes e campanhas, a segunda os manuais e leituras obrigatorias. Com qualquer uma ligada o ambiente aparece. Vale para qualquer perfil, inclusive parceiro. Admin sempre ve.</p>
+        <p class="text-cyan-200/90 text-[10px] font-bold">Quem tem a chave ve o ambiente Marketing (artes e campanhas). Vale para qualquer perfil, inclusive parceiro. Admin sempre ve.</p>
       </div>
       <div id="au-gestor-wrap" class="col-span-2 ${defaultRole === 'vendedor' ? '' : 'hidden'}">
         <label class="${_labelCls}">Gestor vinculado (apenas vendedor)</label>

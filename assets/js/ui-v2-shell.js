@@ -40,7 +40,7 @@
     // franqueado entra no mesmo ambiente, só com a unidade dele
     rede: { get n() { return state.isAdmin ? 'Rede' : 'Minha unidade'; }, i: 'network', get d() { return state.isAdmin ? 'Unidades, CNPJs, impostos e resultado' : 'Resultado, custos e taxas da sua unidade'; }, cta: null },
     // Marketing: artes + documentação; só o admin sobe material / escreve documento (botão segue a aba)
-    marketing: { n: 'Marketing', i: 'megaphone', d: 'Artes, campanhas e documentação', get cta() {
+    marketing: { n: 'Marketing', i: 'megaphone', d: 'Artes e campanhas da marca', get cta() {
       if (!state.isAdmin) return null;
       return typeof MKT_TABS_DOCS !== 'undefined' && MKT_TABS_DOCS.includes(state.mktActiveTab) ? ['Novo documento', 'docsNovo'] : ['Subir material', 'mktSubir'];
     } },

@@ -391,16 +391,17 @@ const REDE_TABS_FRANQUEADO = [
   { id: 'unidades',     label: 'MINHA UNIDADE',            icon: 'store' }
 ];
 
-// Ambiente Marketing: artes (mkt.js) e documentação (docs.js) no mesmo lugar.
-// `chave` = qual liberação do cadastro do usuário abre a aba; `admin` = só admin vê.
+// Ambiente Marketing (mkt.js). `chave` = qual liberação do cadastro abre a aba; `admin` = só admin vê.
+// A Documentação (docs.js) está GUARDADA desde 11/11: o código e o banco ficam, só não tem aba.
+// Pra voltar, é só reincluir estas linhas onde ela for morar:
+//   { id: 'docs',        label: 'DOCUMENTAÇÃO',        icon: 'book-open',      chave: 'docs' },
+//   { id: 'obrigatoria', label: 'LEITURA OBRIGATÓRIA', icon: 'triangle-alert', chave: 'docs' },
+//   { id: 'leituras',    label: 'QUEM JÁ LEU',         icon: 'eye',            chave: 'docs', admin: true }
 const MKT_TABS = [
   { id: 'biblioteca',  label: 'ARTES',               icon: 'layout-grid',    chave: 'mkt' },
   { id: 'campanhas',   label: 'CAMPANHAS',           icon: 'flag',           chave: 'mkt' },
-  { id: 'docs',        label: 'DOCUMENTAÇÃO',        icon: 'book-open',      chave: 'docs' },
-  { id: 'obrigatoria', label: 'LEITURA OBRIGATÓRIA', icon: 'triangle-alert', chave: 'docs' },
   { id: 'montar',      label: 'MONTAR ARTE',         icon: 'pencil-ruler',   chave: 'mkt', admin: true },
-  { id: 'uso',         label: 'QUEM BAIXOU',         icon: 'chart-column',   chave: 'mkt', admin: true },
-  { id: 'leituras',    label: 'QUEM JÁ LEU',         icon: 'eye',            chave: 'docs', admin: true }
+  { id: 'uso',         label: 'QUEM BAIXOU',         icon: 'chart-column',   chave: 'mkt', admin: true }
 ];
 // Abas do Marketing que são da documentação (docs.js desenha)
 const MKT_TABS_DOCS = ['docs', 'obrigatoria', 'leituras'];

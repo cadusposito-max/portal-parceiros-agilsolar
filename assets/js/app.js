@@ -634,7 +634,7 @@ const ENVS_CONTEUDO = ['marketing'];
 function podeConteudo(env) {
   if (!state.currentUser || state.isTecnico) return false;
   if (state.isAdmin) return true;
-  return !!(state.canMkt || state.canDocs);
+  return !!state.canMkt; // Documentação guardada: só a chave das artes abre o ambiente
 }
 function mktAbasVisiveis() {
   const tem = (t) => state.isAdmin || (t.chave === 'docs' ? state.canDocs : state.canMkt);
