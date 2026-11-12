@@ -144,9 +144,22 @@
     return p;
   };
 
+  // Baixa pela própria plataforma (o arquivo vem como blob): a pessoa não vê
+  // o endereço do Cloudflare/Supabase nem abre aba nova. Se o navegador
+  // bloquear, cai no link direto como antes.
   CT.baixarArquivo = async (arqId) => {
     const url = await CT.url(arqId, { download: true });
     if (!url) { CT.toast('Arquivo não encontrado.'); return false; }
+    const arq = (await CT.arquivos([arqId])).get(arqId);
+    try {
+      CT.toast('Baixando…');
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      CT.baixarBlob(await r.blob(), (arq && arq.nome) || 'arquivo');
+      return true;
+    } catch (e) {
+      console.warn('[conteudo] download direto', e);
+    }
     const a = document.createElement('a');
     a.href = url; a.rel = 'noopener'; a.target = '_blank';
     document.body.appendChild(a); a.click(); a.remove();
