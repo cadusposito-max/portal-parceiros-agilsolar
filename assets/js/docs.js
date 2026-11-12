@@ -1,11 +1,16 @@
 // ==========================================================================
-// AMBIENTE DOCUMENTAÇÃO — manuais, processos e modelos da rede
+// DOCUMENTAÇÃO — manuais, processos e treinamentos da rede
 // --------------------------------------------------------------------------
-// Abas: Início (busca + pastas + atualizados), Leitura obrigatória e Quem já
-// leu (admin). Três tipos de documento (doc_documentos.tipo):
+// Abre pelo ícone de livro no topo (ui-v2-shell → abrirDocumentacao) em tela
+// cheia por cima do ambiente atual; "Fechar"/Esc volta pra onde a pessoa estava.
+// Abas internas: Início (busca + pastas + atualizados), Leitura obrigatória e
+// Quem já leu (admin). Tipos de documento (doc_documentos.tipo):
 //   pagina — texto escrito aqui (HTML do editor; imagens e anexos guardados
 //            em conteudo_arquivos e referenciados por data-arq);
+//   slides — igual à página, mas o corpo é uma imagem por slide (convertidos do SULTS);
 //   pdf    — arquivo PDF; video — link do YouTube.
+// Admin: "Importar do SULTS" lê a pasta gerada no PC (manifesto.json + imagens)
+// e cria tudo como rascunho.
 // Leitura obrigatória: "Li e entendi" grava doc_leituras com a versão; quem
 // leu uma versão antiga volta a ter pendência quando o documento muda.
 // Aviso no sininho: RPC doc_avisar (1 aviso por pessoa; lembrete 1x por dia).
@@ -18,17 +23,18 @@
 
   const PASTAS = [
     ['comercial', 'Comercial', 'users', 'Proposta, atendimento e objeções'],
-    ['eng', 'Engenharia', 'ruler', 'Documentos do cliente e homologação'],
+    ['eng', 'Engenharia', 'ruler', 'Projetos, instalação e monitoramento'],
     ['jur', 'Contratos e jurídico', 'scale', 'Modelos, procuração e garantias'],
-    ['fin', 'Financeiro', 'wallet', 'Recebimentos, baixas e repasses'],
-    ['rede', 'Regras da rede', 'shield-check', 'Políticas, marca e conduta'],
-    ['trein', 'Treinamentos', 'graduation-cap', 'Vídeos e passo a passo da plataforma'],
+    ['fin', 'Financeiro', 'wallet', 'Financiamento e gestão do caixa'],
+    ['rede', 'Regras da rede', 'shield-check', 'Padrão, marca e conduta'],
+    ['trein', 'Treinamentos', 'graduation-cap', 'Treinamento inicial e cursos'],
   ];
   const pasta = (k) => PASTAS.find((p) => p[0] === k) || [k, k, 'folder', ''];
-  const TIPO = { pagina: ['file-text', 'Página'], pdf: ['file-type', 'PDF'], video: ['circle-play', 'Vídeo'] };
+  const TIPO = { pagina: ['file-text', 'Página'], slides: ['presentation', 'Slides'], pdf: ['file-type', 'PDF'], video: ['circle-play', 'Vídeo'] };
+  const comTexto = (t) => t === 'pagina' || t === 'slides'; // corpo em HTML (editor)
 
   const D = {
-    tab: 'inicio', container: null, docs: null, lidos: {}, carregando: null,
+    aberta: false, tab: 'inicio', container: null, docs: null, lidos: {}, carregando: null,
     view: 'lista', pasta: null, docId: null, de: 'inicio', q: '', achados: null, buscaT: 0,
     full: {}, resumo: null, vistas: null, editId: null, novoTipo: 'pagina', abrirDepois: null,
   };
@@ -82,40 +88,82 @@
       `<button class="ct-btn gh" data-dc="recarregar">${ic('rotate-cw')}Tentar de novo</button>`);
   }
 
-  // ------------------------------------------------------------ rota
-  function meta() {
-    let t = 'Documentação', s = 'Tudo o que a rede precisa saber, num lugar só';
-    if (D.view === 'pasta') { const p = pasta(D.pasta); t = p[1]; s = p[3]; }
-    else if (D.view === 'doc' && doc(D.docId)) { s = pasta(doc(D.docId).pasta)[1]; } // o título já está grande no documento
-    else if (D.view === 'editar') { t = D.editId ? 'Editar documento' : 'Novo documento'; s = ''; }
-    else if (D.tab === 'obrigatoria') { t = 'Leitura obrigatória'; s = 'O que a Matriz pediu pra todo mundo ler'; }
-    else if (D.tab === 'leituras') { t = 'Quem já leu'; s = 'Acompanhamento das leituras obrigatórias'; }
-    CT.meta('docs:' + D.tab, t, s);
-  }
-
-  // A documentação mora em abas do ambiente Marketing (MKT_TABS_DOCS)
-  function naDoc() { return state.environment === 'marketing' && MKT_TABS_DOCS.includes(state.mktActiveTab); }
-
-  async function renderDocsRoute(container, tab) {
-    D.container = container;
-    const novo = tab || 'inicio';
-    if (novo !== D.tab) { D.tab = novo; D.view = 'lista'; }
-    if (D.tab === 'leituras' && !CT.admin()) D.tab = 'inicio';
-    if (!D.docs) {
-      meta();
-      container.innerHTML = CT.carregando();
-      CT.icons();
-      try { await carregar(); } catch (e) { if (naDoc()) { container.innerHTML = erroHTML(e); ligar(container.firstChild); CT.icons(); } return; }
-      if (!naDoc()) return;
+  // ------------------------------------------------------------ camada (tela cheia)
+  // Fica dentro do <main>; com #app-content.docs-aberta o resto do <main> some (conteudo.css).
+  function naDoc() { return D.aberta; }
+  function camada() {
+    let el = document.getElementById('v2-docs');
+    if (!el) {
+      const main = document.querySelector('#app-content > main');
+      if (!main) return null;
+      el = document.createElement('section');
+      el.id = 'v2-docs';
+      el.className = 'v2-docs';
+      el.setAttribute('aria-label', 'Documentação');
+      main.appendChild(el);
     }
-    if (D.abrirDepois) { const id = D.abrirDepois; D.abrirDepois = null; return abrirDoc(id); }
+    return el;
+  }
+  function avisarShell() { if (window.uiV2Shell) window.uiV2Shell.refresh(); }
+  function atualizarPendentes() {
+    if (CT.admin() || !D.docs) return;
+    const n = pendentes().length;
+    if (state.docsPend !== n) { state.docsPend = n; avisarShell(); }
+  }
+  // alternar = clique no ícone: se já estiver aberta, fecha
+  async function abrirCamada(id, alternar) {
+    if (D.aberta && alternar) { fechar(); return; }
+    const el = camada();
+    if (!el) return;
+    if (!D.aberta) { D.rolagem = window.scrollY; D.tab = 'inicio'; D.view = 'lista'; D.pasta = null; D.q = ''; D.achados = null; }
+    D.aberta = true;
+    D.container = el;
+    document.getElementById('app-content').classList.add('docs-aberta');
+    avisarShell();
+    window.scrollTo(0, 0);
+    if (!D.docs) {
+      const casca = (miolo) => { el.innerHTML = `<div class="ct-root">${cabecalho()}${miolo}</div>`; ligar(el.firstChild); CT.icons(); };
+      casca(CT.carregando());
+      try { await carregar(); } catch (e) { if (D.aberta) casca(erroHTML(e)); return; }
+      if (!D.aberta) return;
+      atualizarPendentes();
+    }
+    if (id) return abrirDoc(id);
     pintar();
+  }
+  function fechar() {
+    if (!D.aberta) return;
+    if (D.view === 'editar' && !confirm('Sair sem salvar o documento?')) return;
+    D.aberta = false; D.view = 'lista'; D.editId = null; D.pdfNovo = null;
+    const el = document.getElementById('v2-docs');
+    if (el) el.innerHTML = '';
+    document.getElementById('app-content').classList.remove('docs-aberta');
+    avisarShell();
+    window.scrollTo(0, D.rolagem || 0);
+  }
+  // compatibilidade: a rota antiga do Marketing (#app/docs) só abre a camada
+  function renderDocsRoute() { abrirCamada(); }
+
+  function cabecalho() {
+    const adm = CT.admin(), nOb = pendentes().length;
+    const aba = (id, icone, nome, extra) => `<button data-dc="aba" data-tab="${id}" class="${D.tab === id && D.view !== 'doc' && D.view !== 'editar' ? 'on' : ''}">${ic(icone)}${nome}${extra || ''}</button>`;
+    return `<div class="dcx-head"><span class="dcx-ico">${ic('book-open')}</span>
+      <div class="dcx-tt"><h1>Documentação</h1><p>Manuais, processos e treinamentos da rede</p></div>
+      ${adm ? `<button class="ct-btn gh" data-dc="importar" title="Importar documentos convertidos do SULTS">${ic('folder-down')}<span>Importar do SULTS</span></button>
+        <button class="ct-btn or" data-dc="novo">${ic('plus')}<span>Novo documento</span></button>` : ''}
+      <button class="ct-btn gh" data-dc="fechar" title="Voltar pra onde você estava (Esc)">${ic('x')}<span>Fechar</span></button></div>
+      <div class="dcx-tabs">${aba('inicio', 'house', 'Início')}${aba('obrigatoria', 'triangle-alert', 'Leitura obrigatória', nOb ? `<span class="n">${nOb}</span>` : '')}${adm ? aba('leituras', 'eye', 'Quem já leu') : ''}</div>`;
+  }
+  function setAba(t) {
+    D.tab = t === 'leituras' && !CT.admin() ? 'inicio' : (t || 'inicio');
+    D.view = 'lista'; D.pasta = null; D.editId = null; D.pdfNovo = null;
+    pintar();
+    window.scrollTo(0, 0);
   }
 
   function pintar() {
     const c = D.container;
     if (!c || !naDoc()) return;
-    meta();
     let html;
     if (D.view === 'editar') html = vEditar();
     else if (D.view === 'doc' && doc(D.docId)) html = vDoc();
@@ -123,7 +171,7 @@
     else if (D.tab === 'obrigatoria') html = vObrig();
     else if (D.tab === 'leituras') html = vLeituras();
     else html = vInicio();
-    c.innerHTML = `<div class="ct-root" id="dc-root">${html}</div>`;
+    c.innerHTML = `<div class="ct-root" id="dc-root">${cabecalho()}${html}</div>`;
     ligar(c.firstChild);
     CT.icons();
     if (D.view === 'doc') posDoc();
@@ -149,8 +197,15 @@
       <small>${esc(d.titulo)}${d.prazo ? ' · ler até ' + CT.dataCurta(d.prazo) : ''}</small></div><button class="ct-btn or" data-dc="abrir" data-id="${d.id}">Ler agora</button></div>`;
   }
   function busca() {
-    return `<div class="ct-tools"><label class="ct-search grande">${ic('search')}<input id="dc-q" placeholder="Como faço…? Busque um assunto" value="${esc(D.q)}" autocomplete="off"></label>
-      ${CT.admin() ? `<button class="ct-btn or" data-dc="novo">${ic('plus')}Novo documento</button>` : ''}</div>`;
+    return `<div class="ct-tools"><label class="ct-search grande">${ic('search')}<input id="dc-q" placeholder="Como faço…? Busque um assunto" value="${esc(D.q)}" autocomplete="off"></label></div>`;
+  }
+  // admin: rascunhos (ex.: importados do SULTS) só ele vê; dá pra publicar tudo de uma vez
+  function bannerRascunhos() {
+    if (!CT.admin()) return '';
+    const r = (D.docs || []).filter((d) => !d.publicado);
+    if (!r.length) return '';
+    return `<div class="dc-rasc"><span class="ico">${ic('file-pen-line')}</span><div class="tx"><b>${r.length} documento${r.length === 1 ? '' : 's'} em rascunho</b>
+      <small>Só você vê. Abra pra conferir e publique, ou publique todos de uma vez.</small></div><button class="ct-btn pri" data-dc="pubtodos">${ic('check-check')}Publicar todos</button></div>`;
   }
   function vInicio() {
     const todos = visiveis();
@@ -162,11 +217,11 @@
         + (res.length ? `<div class="dc-list">${res.map((d) => linhaDoc(d, true)).join('')}</div>` : CT.vazio('search-x', `Nada sobre “${esc(D.q)}”`, 'Tente outra palavra.'));
     }
     if (!todos.length) {
-      return busca() + CT.vazio('book-open', 'Nenhum documento ainda', CT.admin() ? 'Escreva o primeiro: manual, passo a passo, política ou modelo.' : 'Quando a Matriz publicar manuais e processos, eles aparecem aqui.',
-        CT.admin() ? `<button class="ct-btn or" data-dc="novo">${ic('plus')}Novo documento</button>` : '');
+      return busca() + CT.vazio('book-open', 'Nenhum documento ainda', CT.admin() ? 'Importe os documentos convertidos do SULTS ou escreva o primeiro.' : 'Quando a Matriz publicar manuais e processos, eles aparecem aqui.',
+        CT.admin() ? `<button class="ct-btn gh" data-dc="importar">${ic('folder-down')}Importar do SULTS</button><button class="ct-btn or" data-dc="novo">${ic('plus')}Novo documento</button>` : '');
     }
     const recentes = todos.slice(0, 6);
-    return busca() + bannerObrig()
+    return busca() + bannerObrig() + bannerRascunhos()
       + `<div class="dc-pastas">${PASTAS.map(([k, n, i, s]) => { const c = todos.filter((d) => d.pasta === k).length; return `<button class="dc-pasta" data-dc="pasta" data-pasta="${k}"><span class="ci">${ic(i)}</span><b>${n}</b><small>${s}</small><span class="q">${c} documento${c === 1 ? '' : 's'}</span></button>`; }).join('')}</div>`
       + `<div class="ct-sec">${ic('clock')}ATUALIZADOS POR ÚLTIMO</div><div class="dc-list">${recentes.map((d) => linhaDoc(d, true)).join('')}</div>`;
   }
@@ -214,7 +269,7 @@
       corpo = src ? `<div class="ct-video"><iframe src="${esc(src)}" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>` : CT.vazio('video-off', 'Link de vídeo inválido', '');
       if (f.html) corpo += `<div class="ct-corpo">${CT.limparHTML(f.html)}</div>`;
     } else {
-      corpo = `<div class="ct-corpo" id="dc-corpo">${CT.limparHTML(f.html || '<p>(documento vazio)</p>')}</div>`;
+      corpo = `<div class="ct-corpo${d.tipo === 'slides' ? ' dc-slides' : ''}" id="dc-corpo">${CT.limparHTML(f.html || '<p>(documento vazio)</p>')}</div>`;
     }
     const leitura = d.obrigatorio && !CT.admin() ? (lido(d)
       ? `<div class="dc-leu ok">${ic('circle-check')}<div class="tx"><b>Você confirmou a leitura</b>A Matriz já sabe.</div></div>`
@@ -278,7 +333,10 @@
   }
   // imagens e anexos guardados por id (o link assinado expira; o id não)
   function prepararCorpo(el) {
-    el.querySelectorAll('img[data-arq]').forEach((img) => { CT.url(img.dataset.arq).then((u) => { if (u) img.src = u; }); });
+    // links de todas as imagens num lote só; o navegador baixa conforme chegam na tela
+    const imgs = [...el.querySelectorAll('img[data-arq]')];
+    imgs.forEach((img) => { img.loading = 'lazy'; img.decoding = 'async'; });
+    if (imgs.length) CT.urls(imgs.map((i) => i.dataset.arq)).then((u) => imgs.forEach((img) => { if (u[img.dataset.arq]) img.src = u[img.dataset.arq]; })).catch(() => {});
     el.querySelectorAll('.ct-anexo[data-arq]').forEach((a) => {
       if (!a.querySelector('button')) a.insertAdjacentHTML('beforeend', `<button class="ct-btn gh" data-dc="baixar" data-arq="${esc(a.dataset.arq)}" contenteditable="false">${ic('download')}Baixar</button>`);
     });
@@ -294,10 +352,10 @@
     const pastaSel = d ? d.pasta : (D.pasta || 'comercial');
     return `<div class="ct-crumb"><button data-dc="inicio">Documentação</button>›<span>${d ? 'Editar documento' : 'Novo documento'}</span></div>
     <div class="dc-doc"><div class="dc-art">
-      <div class="ct-segw dc-tipo">${Object.entries(TIPO).map(([k, [i, n]]) => `<button data-dc="tipo" data-tipo="${k}" class="${tipo === k ? 'on' : ''}">${ic(i)}${n}</button>`).join('')}</div>
+      <div class="ct-segw dc-tipo">${Object.entries(TIPO).filter(([k]) => k !== 'slides' || tipo === 'slides').map(([k, [i, n]]) => `<button data-dc="tipo" data-tipo="${k}" class="${tipo === k ? 'on' : ''}">${ic(i)}${n}</button>`).join('')}</div>
       <input class="dc-tit" id="dc-tit" placeholder="Título do documento" value="${esc(d ? d.titulo : '')}" maxlength="140">
       <input class="dc-res" id="dc-res" placeholder="Resumo em uma linha (aparece na lista)" value="${esc(d ? d.resumo || '' : '')}" maxlength="160">
-      ${tipo === 'pagina' ? `<div class="dc-tb" id="dc-tb">
+      ${comTexto(tipo) ? `<div class="dc-tb" id="dc-tb">
           <button data-fmt="h2" title="Título de seção">${ic('heading')}Título</button><button data-fmt="bold" title="Negrito">${ic('bold')}</button><span class="sep"></span>
           <button data-fmt="ol">${ic('list-ordered')}Passo a passo</button><button data-fmt="ul">${ic('list')}Lista</button><span class="sep"></span>
           <button data-fmt="aviso">${ic('triangle-alert')}Atenção</button><button data-fmt="dica">${ic('info')}Dica</button><span class="sep"></span>
@@ -392,7 +450,7 @@
       autor_nome: (state.profile && state.profile.nome) || (typeof getFirstName === 'function' ? getFirstName() : null),
       updated_at: new Date().toISOString(),
     };
-    if (tipo === 'pagina') {
+    if (comTexto(tipo)) {
       reg.html = htmlParaSalvar(root.querySelector('#dc-body'));
       if (!reg.html || reg.html === '<p><br></p>') { CT.toast('Escreva o conteúdo do documento.'); return; }
     }
@@ -452,11 +510,14 @@
       if (!b) return;
       const a = b.dataset.dc, id = b.dataset.id;
       switch (a) {
-        case 'recarregar': D.docs = null; renderDocsRoute(D.container, D.tab); break;
-        case 'inicio': D.view = 'lista'; D.pasta = null; if (D.tab !== 'inicio') setTab('docs'); else pintar(); break;
+        case 'recarregar': D.docs = null; abrirCamada(); break;
+        case 'fechar': fechar(); break;
+        case 'importar': importarEscolher(); break;
+        case 'pubtodos': publicarTodos(b); break;
+        case 'inicio': setAba('inicio'); break;
         case 'pasta': D.pasta = b.dataset.pasta; D.view = 'pasta'; pintar(); window.scrollTo(0, 0); break;
         case 'abrir': abrirDoc(id); break;
-        case 'aba': setTab(b.dataset.tab); break;
+        case 'aba': setAba(b.dataset.tab); break;
         case 'novo': abrirEditor(null); break;
         case 'editar': abrirEditor(D.docId); break;
         case 'cancelar': { const ed = D.editId; D.editId = null; D.pdfNovo = null; if (ed) { delete D.full[ed]; abrirDoc(ed); } else { D.view = D.pasta ? 'pasta' : 'lista'; pintar(); } break; }
@@ -507,7 +568,7 @@
           D.lidos[D.docId] = doc(D.docId).versao;
           CT.toast('Leitura confirmada. A Matriz já sabe.');
           pintar();
-          if (window.uiV2Shell) window.uiV2Shell.refresh();
+          atualizarPendentes();
           break;
         }
         case 'lembrar': {
@@ -555,26 +616,156 @@
     }, 350);
   }
 
-  // Botão "+" do menu (só admin)
+  // Botão "+" (só admin)
   function docsNovo() { if (naDoc() && CT.admin()) abrirEditor(null); }
 
-  // Sininho: abre o documento (troca de ambiente se precisar)
-  function abrir(id) {
-    if (!naDoc()) {
-      D.abrirDepois = id;
-      if (state.environment !== 'marketing') { state.mktActiveTab = 'docs'; if (typeof setEnvironment === 'function') setEnvironment('marketing'); }
-      else if (typeof setTab === 'function') setTab('docs');
-      return;
+  // Sininho: abre o documento por cima da tela atual
+  function abrir(id) { abrirCamada(id); }
+
+  // Esc fecha (menos dentro do editor ou com janela aberta por cima)
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !D.aberta || D.view === 'editar' || document.getElementById('ct-scrim')) return;
+    const a = document.activeElement;
+    if (a && (/INPUT|TEXTAREA|SELECT/.test(a.tagName) || a.isContentEditable)) { a.blur(); return; }
+    fechar();
+  });
+
+  // ------------------------------------------------------------ publicar rascunhos (admin)
+  async function publicarTodos(btn) {
+    const r = (D.docs || []).filter((d) => !d.publicado);
+    if (!r.length) return;
+    if (!(await CT.confirmar(`Publicar ${r.length} documento${r.length === 1 ? '' : 's'}?`, 'Quem tem a Documentação liberada passa a ver. Ninguém é avisado no sininho.', 'Publicar todos'))) return;
+    btn.disabled = true;
+    const { error } = await sb().from('doc_documentos').update({ publicado: true }).in('id', r.map((d) => d.id));
+    if (error) { btn.disabled = false; CT.toast('Não deu pra publicar: ' + error.message); return; }
+    await carregar(true);
+    CT.toast(`${r.length} documento${r.length === 1 ? '' : 's'} publicado${r.length === 1 ? '' : 's'}.`);
+    pintar();
+  }
+
+  // ------------------------------------------------------------ importar do SULTS (admin)
+  // Lê a pasta montada no PC (manifesto.json + uma pasta por documento com imagens/anexos).
+  // No html do manifesto: <img src="x.webp"> e <div class="ct-anexo" data-arquivo="x.xlsx">;
+  // cada arquivo é enviado (CT.enviar → R2) e vira data-arq="<id>". Tudo entra como rascunho.
+  const IMP = { itens: [], arquivos: new Map(), rodando: false };
+  function importarEscolher() {
+    if (!CT.admin() || IMP.rodando) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.webkitdirectory = true;
+    input.multiple = true;
+    input.addEventListener('change', async () => {
+      const files = [...(input.files || [])];
+      const man = files.find((f) => /(^|\/)manifesto\.json$/i.test(f.webkitRelativePath || f.name));
+      if (!man) { CT.toast('Essa pasta não tem o manifesto.json. Escolha a pasta "SULTS - Importar".'); return; }
+      let dados;
+      try { dados = JSON.parse(await man.text()); } catch (_) { CT.toast('Não deu pra ler o manifesto.json.'); return; }
+      const raiz = (man.webkitRelativePath || '').replace(/manifesto\.json$/i, '');
+      IMP.arquivos = new Map(files.map((f) => [String(f.webkitRelativePath || f.name).slice(raiz.length), f]));
+      const existentes = new Set((D.docs || []).map((d) => CT.norm(d.titulo)));
+      IMP.itens = (dados.itens || []).map((it) => ({ ...it, ja: existentes.has(CT.norm(it.titulo)), marcado: !it.fora && !existentes.has(CT.norm(it.titulo)) }));
+      importarModal(dados);
+    });
+    input.click();
+  }
+  function importarModal(dados) {
+    const grupo = (titulo, icone, lista) => lista.length ? `<div class="dci-g"><h5>${ic(icone)}${esc(titulo)} · ${lista.length}</h5>${lista.map((it) => {
+      const i = IMP.itens.indexOf(it), [ti, tn] = TIPO[it.tipo] || TIPO.pagina;
+      return `<label class="dci-it${it.fora || it.ja ? ' off' : ''}"><input type="checkbox" data-i="${i}" ${it.marcado ? 'checked' : ''} ${it.ja ? 'disabled' : ''}>
+        <span class="nm">${esc(it.titulo)}</span>${it.ja ? '<span class="dci-av">Já existe</span>' : it.motivo ? `<span class="dci-av">${esc(it.motivo)}</span>` : ''}
+        <span class="dci-tp ${it.tipo}">${ic(ti)}${tn}</span><span class="dci-eco">${esc(it.eco || '')}</span></label>`;
+    }).join('')}</div>` : '';
+    const dentro = IMP.itens.filter((it) => !it.fora), fora = IMP.itens.filter((it) => it.fora);
+    const m = CT.modal(`<div class="ct-mh"><div><h3>Importar do SULTS</h3><p>Os documentos já convertidos em texto e slides leves. Tudo entra como <b>rascunho</b>: você confere e publica.</p></div>
+        <button class="ct-x" data-imp="fechar" aria-label="Fechar">${ic('x')}</button></div>
+      <div class="dci-body" id="dci-body">
+        <div class="dci-src">${ic('folder-open')}<div><b>${esc(dados.origem || 'Pasta escolhida')}</b><small>${IMP.itens.length} documentos no pacote · ${IMP.arquivos.size} arquivos</small></div></div>
+        ${PASTAS.map(([k, n, i]) => grupo(n.toUpperCase(), i, dentro.filter((it) => it.pasta === k))).join('')}
+        ${grupo('SUGESTÃO: DEIXAR DE FORA', 'circle-slash', fora)}
+      </div>
+      <div class="ct-mf dci-mf"><span class="dci-res" id="dci-res"></span><button class="ct-btn gh" data-imp="fechar">Cancelar</button><button class="ct-btn pri" data-imp="ir" id="dci-ir">${ic('folder-down')}Importar</button></div>`, { largo: true });
+    const resumo = () => {
+      const n = IMP.itens.filter((it) => it.marcado).length;
+      m.querySelector('#dci-res').textContent = `${n} selecionado${n === 1 ? '' : 's'} · vão como rascunho`;
+      const ir = m.querySelector('#dci-ir'); ir.disabled = !n; ir.lastChild.textContent = `Importar ${n}`;
+    };
+    resumo();
+    m.addEventListener('change', (e) => { const c = e.target.closest('input[data-i]'); if (c) { IMP.itens[Number(c.dataset.i)].marcado = c.checked; resumo(); } });
+    m.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-imp]');
+      if (!b) return;
+      if (b.dataset.imp === 'fechar') { if (!IMP.rodando) CT.fecharModal(); }
+      else if (b.dataset.imp === 'ir') importarRodar(m);
+    });
+  }
+  async function importarRodar(m) {
+    const fila = IMP.itens.filter((it) => it.marcado);
+    if (!fila.length || IMP.rodando) return;
+    IMP.rodando = true;
+    const body = m.querySelector('#dci-body'), mf = m.querySelector('.dci-mf');
+    mf.innerHTML = '<span class="dci-res">Não feche esta janela.</span>';
+    const totalArq = fila.reduce((s, it) => s + (it.arquivos || []).length, 0);
+    let feitos = 0, arqFeitos = 0;
+    const erros = [];
+    const prog = () => {
+      const pct = totalArq ? Math.round(arqFeitos / totalArq * 100) : Math.round(feitos / fila.length * 100);
+      body.innerHTML = `<div class="dci-prog"><b>Importando ${Math.min(feitos + 1, fila.length)} de ${fila.length}…</b>
+        <div class="dc-prog"><i style="width:${pct}%"></i></div><small>${arqFeitos} de ${totalArq} imagens e arquivos enviados</small>
+        ${erros.length ? `<small class="dci-err">${erros.length} com erro</small>` : ''}</div>`;
+    };
+    prog();
+    const autor = (state.profile && state.profile.nome) || (typeof getFirstName === 'function' ? getFirstName() : null);
+    for (const it of fila) {
+      const enviados = [];
+      try {
+        const mapa = {};
+        const nomes = it.arquivos || [];
+        // até 4 envios ao mesmo tempo
+        for (let k = 0; k < nomes.length; k += 4) {
+          await Promise.all(nomes.slice(k, k + 4).map(async (nome) => {
+            const f = IMP.arquivos.get(`${it.chave}/${nome}`);
+            if (!f) throw new Error('faltou o arquivo ' + nome);
+            const arq = await CT.enviar(f, 'docs');
+            enviados.push(arq.id);
+            mapa[nome] = arq;
+            arqFeitos++;
+          }));
+          prog();
+        }
+        const html = CT.limparHTML(String(it.html || '')
+          .replace(/<img([^>]*?)\ssrc="([^"]+)"([^>]*)>/g, (t, a, nome, b) => (mapa[nome] ? `<img${a} data-arq="${mapa[nome].id}"${b}>` : t))
+          .replace(/<div class="ct-anexo" data-arquivo="([^"]+)"><b>([^<]*)<\/b><\/div>/g, (t, nome, rot) => (mapa[nome]
+            ? `<div class="ct-anexo" contenteditable="false" data-arq="${mapa[nome].id}"><b>${rot}</b><small>${CT.tamanho(mapa[nome].tamanho)}</small></div>` : t)));
+        const reg = { tipo: it.tipo === 'slides' ? 'slides' : 'pagina', titulo: it.titulo, resumo: it.resumo || null, pasta: it.pasta,
+          html, publicado: false, obrigatorio: false, autor_nome: autor };
+        const { data, error } = await sb().from('doc_documentos').insert(reg).select('id').single();
+        if (error) throw error;
+        await sb().from('doc_versoes').insert({ doc_id: data.id, versao: 1, mudou: 'Importado do SULTS', html, autor_nome: autor });
+      } catch (e) {
+        console.error('[docs] importar', it.titulo, e);
+        erros.push(`${it.titulo}: ${e.message || 'erro'}`);
+        enviados.forEach((idArq) => CT.apagarArquivo(idArq));
+      }
+      feitos++;
+      prog();
     }
-    if (!D.docs) { D.abrirDepois = id; return; }
-    abrirDoc(id);
+    IMP.rodando = false;
+    const ok = fila.length - erros.length;
+    await carregar(true).catch(() => {});
+    body.innerHTML = `<div class="dci-prog fim">${ic(erros.length ? 'triangle-alert' : 'circle-check')}<b>${ok} documento${ok === 1 ? '' : 's'} importado${ok === 1 ? '' : 's'} como rascunho</b>
+      <small>Confira na Documentação e use "Publicar todos" quando estiver tudo certo.</small>
+      ${erros.length ? `<div class="dci-errs"><b>${erros.length} não entraram:</b>${erros.map((x) => `<span>${esc(x)}</span>`).join('')}<small>Dá pra importar de novo: o que já entrou fica marcado como "Já existe".</small></div>` : ''}</div>`;
+    mf.innerHTML = `<span class="dci-res"></span><button class="ct-btn pri" data-imp="fechar">Ver os documentos</button>`;
+    CT.icons();
+    D.tab = 'inicio'; D.view = 'lista';
+    pintar();
   }
 
   window.renderDocsRoute = renderDocsRoute;
   window.docsNovo = docsNovo;
   window.DOCS = {
-    abrir, pendentes: () => pendentes().length,
+    abrir, abrirCamada, fechar, aberta: () => D.aberta, pendentes: () => pendentes().length,
     recarregar: () => { D.docs = null; D.full = {}; D.resumo = null; },
-    inicioDaAba: () => { if (D.abrirDepois) return; D.view = 'lista'; D.pasta = null; D.editId = null; D.pdfNovo = null; },
+    inicioDaAba: () => { D.view = 'lista'; D.pasta = null; D.editId = null; D.pdfNovo = null; },
   };
 })();

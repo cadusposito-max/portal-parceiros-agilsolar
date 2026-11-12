@@ -655,6 +655,45 @@ async function conteudoRefreshAccess() {
     state.canMkt = false;
     state.canDocs = false;
   }
+  docsRefreshPendentes();
+}
+
+// Documentação: ícone de livro no topo (ui-v2-shell) que abre em tela cheia por cima
+// do ambiente atual (docs.js). Vê quem tem docs_enabled no cadastro; admin sempre; técnico não.
+function podeDocs() {
+  return !!state.currentUser && !state.isTecnico && !!(state.isAdmin || state.canDocs);
+}
+// Número laranja no ícone = leituras obrigatórias pendentes (admin não tem).
+// Consulta leve no login; o docs.js atualiza quando a pessoa confirma uma leitura.
+async function docsRefreshPendentes() {
+  const antes = state.docsPend || 0;
+  state.docsPend = 0;
+  if (podeDocs() && !state.isAdmin) {
+    try {
+      const uid = state.currentUser.id;
+      const [{ data: obr }, { data: lid }] = await Promise.all([
+        supabaseClient.from('doc_documentos').select('id, versao').eq('obrigatorio', true).eq('publicado', true),
+        supabaseClient.from('doc_leituras').select('doc_id, versao').eq('user_id', uid),
+      ]);
+      const lidos = new Map((lid || []).map((x) => [x.doc_id, x.versao]));
+      state.docsPend = (obr || []).filter((d) => (lidos.get(d.id) || 0) < d.versao).length;
+    } catch (_) { state.docsPend = 0; }
+  }
+  if (state.docsPend !== antes && window.uiV2Shell) window.uiV2Shell.refresh();
+}
+// Abre (ou fecha, se já estiver aberta) a Documentação; com id, abre direto o documento.
+async function abrirDocumentacao(id) {
+  if (!podeDocs()) return;
+  try {
+    await carregarConteudo();
+  } catch (_) {
+    if (typeof showToast === 'function') showToast('Não deu pra abrir a Documentação. Verifique a internet.');
+    return;
+  }
+  if (window.DOCS) window.DOCS.abrirCamada(id, !id);
+}
+function fecharDocumentacao() {
+  if (window.DOCS && window.DOCS.aberta()) window.DOCS.fechar();
 }
 
 // mkt.js, docs.js e conteudo.js só são baixados quando o ambiente é aberto.

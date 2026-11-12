@@ -164,11 +164,8 @@
       } else if (a.tela === 'tarefa' && a.id) {
         if (has('tarefasAbrir')) tarefasAbrir(a.id);
       } else if (a.tela === 'doc' && a.id) {
-        if (window.DOCS) window.DOCS.abrir(a.id);
-        else if (has('setEnvironment') && has('carregarConteudo')) {
-          await carregarConteudo();
-          if (window.DOCS) window.DOCS.abrir(a.id);
-        }
+        // abre a Documentação em tela cheia por cima da tela atual, já no documento
+        if (has('abrirDocumentacao')) await abrirDocumentacao(a.id);
       } else if (a.tela === 'mkt') {
         if (state.environment !== 'marketing' && has('setEnvironment')) { state.mktActiveTab = 'inicio'; setEnvironment('marketing'); }
         else if (has('setTab')) setTab('inicio');

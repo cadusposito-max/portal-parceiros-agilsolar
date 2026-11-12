@@ -392,11 +392,8 @@ const REDE_TABS_FRANQUEADO = [
 ];
 
 // Ambiente Marketing (mkt.js). `chave` = qual liberação do cadastro abre a aba; `admin` = só admin vê.
-// A Documentação (docs.js) está GUARDADA desde 11/11: o código e o banco ficam, só não tem aba.
-// Pra voltar, é só reincluir estas linhas onde ela for morar:
-//   { id: 'docs',        label: 'DOCUMENTAÇÃO',        icon: 'book-open',      chave: 'docs' },
-//   { id: 'obrigatoria', label: 'LEITURA OBRIGATÓRIA', icon: 'triangle-alert', chave: 'docs' },
-//   { id: 'leituras',    label: 'QUEM JÁ LEU',         icon: 'eye',            chave: 'docs', admin: true }
+// A Documentação (docs.js) não é aba: desde 12/11 abre pelo ícone de livro no topo, em tela cheia
+// (abrirDocumentacao em app.js), com as abas dela lá dentro.
 const MKT_TABS = [
   { id: 'inicio',      label: 'INÍCIO',              icon: 'layout-dashboard', chave: 'mkt' },
   { id: 'biblioteca',  label: 'ARTES',               icon: 'layout-grid',    chave: 'mkt' },

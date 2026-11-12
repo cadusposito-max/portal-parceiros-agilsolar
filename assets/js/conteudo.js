@@ -126,6 +126,31 @@
     return url;
   };
 
+  // Vários links de uma vez (slides de um documento): 1 consulta + 1 assinatura em lote no R2
+  // e 1 createSignedUrls no Supabase. Se a função do R2 ainda não tiver o lote, cai no CT.url.
+  CT.urls = async (ids) => {
+    const lista = [...new Set((ids || []).filter(Boolean))];
+    const out = {};
+    const faltam = lista.filter((id) => { const c = _urls.get(id); if (c && c.ate > Date.now()) { out[id] = c.url; return false; } return true; });
+    if (!faltam.length) return out;
+    await CT.arquivos(faltam);
+    const ate = Date.now() + 50 * 60 * 1000;
+    const r2 = faltam.filter((id) => (CT._arq.get(id) || {}).provedor === 'r2');
+    const sup = faltam.filter((id) => (CT._arq.get(id) || {}).provedor === 'supabase');
+    for (let i = 0; i < r2.length; i += 200) {
+      const lote = r2.slice(i, i + 200);
+      const { data, error } = await sb().functions.invoke('conteudo-arquivos', { body: { acao: 'baixar_varios', ids: lote } });
+      if (!error && data && data.urls) Object.entries(data.urls).forEach(([id, u]) => { out[id] = u; _urls.set(id, { url: u, ate }); });
+    }
+    if (sup.length) {
+      const { data } = await sb().storage.from('conteudo').createSignedUrls(sup.map((id) => CT._arq.get(id).caminho), 3600);
+      (data || []).forEach((d, k) => { if (d && d.signedUrl) { out[sup[k]] = d.signedUrl; _urls.set(sup[k], { url: d.signedUrl, ate }); } });
+    }
+    // o que não veio no lote vai um por um
+    await Promise.all(faltam.filter((id) => !out[id]).map(async (id) => { const u = await CT.url(id); if (u) out[id] = u; }));
+    return out;
+  };
+
   // Imagem como objectURL (canvas não fica "sujo" e não depende de cabeçalho de cache)
   const _blobs = new Map();
   CT.imagem = async (arqId) => {

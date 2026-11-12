@@ -162,6 +162,9 @@
     const notifOn = has('notifAbrir') && has('notifDisponivel') && notifDisponivel();
     const notifCnt = notifOn && has('notifNaoLidas') ? notifNaoLidas() : 0;
     const tarefasOn = has('tarefasToggle') && has('tarefasDisponivel') && tarefasDisponivel();
+    const docsOn = has('podeDocs') && podeDocs();
+    const docsPend = docsOn ? (state.docsPend || 0) : 0;
+    const docsAberta = !!(window.DOCS && window.DOCS.aberta && window.DOCS.aberta());
     const canAdmin = has('userCanAccessAdminPanel') && userCanAccessAdminPanel();
     const multiEnv = Object.keys(ENVS).filter(envAllowed).length > 1;
     const meta = window.uiV2PageMeta;
@@ -172,7 +175,7 @@
     // Troca de aba, título e contador do chat não mudam a estrutura: só
     // atualiza esses pontos, sem recriar menu e ícones (era ~40ms por vez).
     const sig = JSON.stringify([k, T.map((t) => [t.id, t.label, t.icon]), u.nome, u.email, u.role, u.avatar, u.unidade, cta && cta[0], chatOn, canAdmin, multiEnv,
-      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn, tarefasOn]);
+      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn, tarefasOn, docsOn, docsPend, docsAberta]);
     // celular: a tela inicial do Comercial ganha a barra de busca grande (ver shell.css);
     // nos outros ambientes a tela inicial já tem a busca dela e a geral fica na lupa
     const top = $('#v2-top');
@@ -194,11 +197,13 @@
     // tarefas (tarefas.js pinta o contador depois; aqui o botão já nasce com o valor atual)
     const tc = tarefasOn && has('tarefasContagem') ? tarefasContagem() : { n: 0, late: false };
     const tarefasHTML = tarefasOn ? `<button class="v2-icb" data-v2="tarefas" title="Tarefas" aria-label="Tarefas" aria-expanded="false">${ic('list-checks')}${tc.n ? `<span class="cnt${tc.late ? ' tf-late' : ''}">${tc.n > 99 ? '99+' : tc.n}</span>` : ''}</button>` : '';
+    // documentação (docs.js abre em tela cheia; o número laranja = leituras obrigatórias pendentes)
+    const docsHTML = docsOn ? `<button class="v2-icb v2-docsb${docsAberta ? ' on' : ''}" data-v2="docs" title="Documentação" aria-label="Documentação" aria-pressed="${docsAberta}">${ic('book-open')}${docsPend ? `<span class="cnt or">${docsPend > 99 ? '99+' : docsPend}</span>` : ''}</button>` : '';
     $('#v2-mtop').classList.toggle('multi', multiEnv);
     $('#v2-mtop').innerHTML = `${LOGO}
       ${multiEnv ? `<button class="v2-envbtn" data-v2="sheet" data-target="v2-sheet-env"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${ic('chevron-down', 'class="chev"')}</button>` : ''}
       <span class="v2-grow"></span>
-      <button class="v2-icb v2-reload" data-v2="reload" title="Atualizar" aria-label="Atualizar a plataforma">${ic('rotate-cw')}</button>${tarefasHTML}${sinoHTML}
+      <button class="v2-icb v2-reload" data-v2="reload" title="Atualizar" aria-label="Atualizar a plataforma">${ic('rotate-cw')}</button>${docsHTML}${tarefasHTML}${sinoHTML}
       <button class="v2-av" data-v2="sheet" data-target="v2-sheet-user" aria-label="Menu da conta">${u.avatar}</button>`;
 
     $('#v2-top').innerHTML = `
@@ -208,7 +213,7 @@
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>
       ${scopeButton()}
       ${has('ajudaAbrir') ? `<button class="v2-icb" data-v2="ajuda" title="Central de ajuda" aria-label="Central de ajuda" aria-expanded="false">${ic('circle-help')}</button>` : ''}
-      ${tarefasHTML}${sinoHTML}
+      ${docsHTML}${tarefasHTML}${sinoHTML}
       ${chatOn ? `<button class="v2-icb" data-v2="chat" title="Mensagens da equipe">${ic('message-circle')}${unread ? `<span class="cnt">${unread > 99 ? '99+' : unread}</span>` : ''}</button>` : ''}
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
@@ -469,7 +474,10 @@
     const a = t.dataset.v2;
     if (a === 'theme') { e.stopPropagation(); setThemePreference(t.dataset.theme); paint(); return; }
     closeAll();
+    // trocar de aba/ambiente (ou abrir o admin) fecha a Documentação aberta por cima
+    if (['tab', 'env', 'cta', 'admin'].includes(a) && has('fecharDocumentacao')) fecharDocumentacao();
     switch (a) {
+      case 'docs': if (has('abrirDocumentacao')) abrirDocumentacao(); break;
       case 'open': toggleOpen(t, t.dataset.target); break;
       case 'sheet': openSheet(t.dataset.target); break;
       case 'env': if (has('setEnvironment')) setEnvironment(t.dataset.env); break;
