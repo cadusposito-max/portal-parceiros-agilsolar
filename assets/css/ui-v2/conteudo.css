@@ -475,6 +475,8 @@ html[data-ui="v2"] .mk-kpi.camp > b { font-size: 19px; margin-top: 12px; color: 
 html[data-ui="v2"] .mk-kpi.camp .dl, html[data-ui="v2"] .mk-kpi.camp .dl .or { color: var(--v2-orange); }
 html[data-ui="v2"] .mk-chart { display: flex; align-items: flex-end; gap: 3px; height: 170px; margin-top: 18px; border-bottom: 1px solid var(--v2-line); }
 html[data-ui="v2"] .mk-chart i { flex: 1; min-width: 0; background: var(--v2-blue); opacity: .75; border-radius: 5px 5px 1px 1px; position: relative; transition: opacity .12s; }
+html[data-ui="v2"] .mk-chart.densa { gap: 1px; } /* 90 dias: barra fina mas visível */
+html[data-ui="v2"] .mk-chart.densa i { border-radius: 2px 2px 0 0; }
 html[data-ui="v2"] .mk-chart i.zero { background: var(--v2-line-strong); opacity: 1; }
 html[data-ui="v2"] .mk-chart i:hover { opacity: 1; }
 html[data-ui="v2"] .mk-chart i:hover::after { content: attr(data-v); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--v2-ink); color: var(--v2-card); font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 8px; white-space: nowrap; z-index: 3; pointer-events: none; }

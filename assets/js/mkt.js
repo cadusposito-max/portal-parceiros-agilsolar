@@ -400,8 +400,8 @@
           c ? `<span class="or">${fc ? `Faltam ${fc.d} ${plural(fc.d, 'dia', 'dias')} · ` : ''}${a.campanha} ${plural(a.campanha, 'download', 'downloads')}</span>` : 'Suba um material com o campo Campanha', 'camp')}
       </div>
       <div class="mk-g graf">
-        <section class="mk-dcard"><h3>${ic('chart-column')}Downloads por dia</h3><p class="sub">Passe o mouse na barra pra ver o dia</p>
-          <div class="mk-chart">${serie.map((s) => `<i style="height:${Math.max(2, (Number(s.n) || 0) / maxS * 100)}%" class="${Number(s.n) ? '' : 'zero'}" data-v="${dm(s)} · ${s.n} ${plural(s.n, 'download', 'downloads')}"></i>`).join('')}</div>
+        <section class="mk-dcard"><h3>${ic('chart-column')}Downloads por dia</h3><p class="sub">Toque ou passe o mouse na barra pra ver o dia</p>
+          <div class="mk-chart${serie.length > 45 ? ' densa' : ''}">${serie.map((s) => `<i style="height:${Math.max(2, (Number(s.n) || 0) / maxS * 100)}%" class="${Number(s.n) ? '' : 'zero'}" data-v="${dm(s)} · ${s.n} ${plural(s.n, 'download', 'downloads')}"></i>`).join('')}</div>
           ${serie.length ? `<div class="mk-ax"><span>${dm(serie[0])}</span><span>${dm(serie[Math.floor(serie.length / 2)])}</span><span>${dm(serie[serie.length - 1])}</span></div>` : ''}
         </section>
         <section class="mk-dcard"><h3>${ic('alarm-clock')}Unidades paradas</h3><p class="sub">Não baixaram nada nos últimos ${p.dias} dias</p>
