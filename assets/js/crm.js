@@ -906,6 +906,75 @@ function crmPropostaTrilha(p, st) {
     <span class="crm-pa-info ${st.toLowerCase()}"><i data-lucide="${ico}"></i>${escapeHTML(info)}</span></div>`;
 }
 
+// ---------- aparência da campanha (Configurações › Campanhas) ----------
+// A proposta é "da campanha" quando tem campanha_id: o banco põe sozinho se saiu de
+// um kit da campanha; o admin pode pôr/tirar aqui (o gatilho só deixa o admin mexer).
+// Com campanha, o link mostra faixa, contagem, fita, tema e a validade da campanha.
+function crmPropostaCampanhaDe(p) {
+  if (!p || !p.campanha_id || !window.Campanhas) return null;
+  if (Campanhas.ativa && Campanhas.ativa.id === p.campanha_id) return Campanhas.ativa;
+  return (Campanhas.lista || []).find((c) => c.id === p.campanha_id) || null;
+}
+
+function crmPropostaCampanhaBtn(p) {
+  if (!state.isAdmin || !window.Campanhas) return '';
+  const tem = crmPropostaCampanhaDe(p);
+  const noAr = Campanhas.noAr();
+  if (tem) {
+    const dica = `Proposta da ${tem.nome} · ${Campanhas.validadeTexto(tem)} Clique para tirar.`;
+    return `<button type="button" class="btn btn-secondary btn-sm crm-pa-camp-btn on" title="${escapeHTML(dica)}" aria-pressed="true" onclick="crmPropostaCampanha('${p.id}')">${Campanhas.tagHTML(tem)}<i data-lucide="check"></i></button>`;
+  }
+  if (p.campanha_id || !noAr) return ''; // campanha que não está na lista ou nenhuma no ar: nada a fazer
+  const nome = noAr.etiqueta.charAt(0) + noAr.etiqueta.slice(1).toLowerCase();
+  return `<button type="button" class="btn btn-secondary btn-sm crm-pa-camp-btn" title="${escapeHTML(`Pôr a aparência da ${noAr.nome} nesta proposta`)}" aria-pressed="false" onclick="crmPropostaCampanha('${p.id}')"><i data-lucide="sparkles"></i><span class="crm-pa-txt">${escapeHTML(nome)}</span></button>`;
+}
+
+function crmPropostaCampanha(propostaId) {
+  if (!state.isAdmin || !window.Campanhas) return;
+  const p = (state.propostas || []).find((x) => x.id === propostaId);
+  if (!p) return;
+  const atual = crmPropostaCampanhaDe(p);
+  const nova = atual ? null : Campanhas.noAr();
+  if (!atual && !nova) { showToast('Nenhuma campanha no ar agora.'); return; }
+  const c = atual || nova;
+  const fim = new Date(c.fim);
+  const fimTxt = `${fim.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${String(fim.getHours()).padStart(2, '0')}h${String(fim.getMinutes()).padStart(2, '0')}`;
+  const linhas = atual
+    ? [`Tirar a aparência da ${c.nome} desta proposta?`, '',
+      '• O cliente volta a ver a proposta normal, sem contagem nem fita.',
+      '• A validade volta a ser de 72 h a partir da criação.',
+      '• Ela sai da contagem de propostas e vendas da campanha.', '',
+      'Vale na hora, inclusive no link que o cliente já tem.']
+    : [`Pôr a aparência da ${c.nome} nesta proposta?`, '',
+      `• O cliente vê ${((v) => (v.length > 1 ? `${v.slice(0, -1).join(', ')} e ${v[v.length - 1]}` : v[0]))([
+        c.contagem !== false ? 'a faixa com a contagem' : 'a faixa da campanha',
+        ...(c.fita !== false ? [`a fita "Preço ${c.etiqueta}"`] : []),
+        ...(c.cor === 'preto' && c.tema_proposta ? ['a proposta inteira no tema'] : []),
+      ])}.`,
+      c.validade_fim !== false ? `• A proposta passa a valer até ${fimTxt} (no lugar das 72 h).` : '• A validade continua de 72 h.',
+      '• Ela entra na contagem de propostas e vendas da campanha.', '',
+      'Vale na hora, inclusive no link que o cliente já tem.'];
+  showConfirmModal(linhas.join('\n'), async () => {
+    const { error } = await supabaseClient.from('propostas').update({ campanha_id: nova ? nova.id : null }).eq('id', propostaId);
+    if (error) { showToast('Não foi possível mudar: ' + error.message); return; }
+    p.campanha_id = nova ? nova.id : null;
+    // timeline: de → para
+    const client = _crm360Client();
+    if (client) {
+      supabaseClient.from('crm_atividades').insert([{
+        cliente_id: client.id, franquia_id: client.franquia_id, autor_email: state.currentUser?.email || 'sistema', tipo: 'proposta',
+        descricao: `Aparência da ${c.nome} na proposta ${p.numero || ''}: ${atual ? 'ligada → desligada' : 'desligada → ligada'}`.replace(/\s+:/, ':'),
+        meta: { proposta_id: p.id, evento: 'campanha', campanha_id: c.id, de: atual ? c.id : null, para: nova ? nova.id : null },
+      }]).then(({ error: e }) => {
+        if (e) console.warn('[crm] timeline da campanha', e);
+        else if (typeof crmFetchAtividades === 'function') crmFetchAtividades(client.id);
+      });
+    }
+    showToast(atual ? `Aparência da ${c.etiqueta} retirada.` : `Aparência da ${c.etiqueta} ligada.`);
+    if (_crm360ClientId && _crm360Tab === 'propostas') renderCrm360();
+  }, atual ? 'TIRAR' : 'PÔR APARÊNCIA', false);
+}
+
 function crmPropostaCartaoHTML(p, client) {
   const isPersonalizada = p.proposal_mode === 'PERSONALIZADA' || p.proposal_mode === 'EQUIPAMENTOS';
   const preco = isPersonalizada ? (p.custom_total_price || p.kit_price) : p.kit_price;
@@ -943,7 +1012,7 @@ function crmPropostaCartaoHTML(p, client) {
       <div class="crm-pa-top" onclick="if (!event.target.closest('a, button')) crmPropostaExpandir('${p.id}')">
         <div class="crm-pa-ico ${tipo === 'Híbrido' ? 'hib' : ''}"><i data-lucide="${tipo === 'Híbrido' ? 'battery-charging' : 'sun'}"></i></div>
         <div class="crm-pa-tit">
-          <b>${escapeHTML(crmPropostaTitulo(p.kit_nome))}</b>
+          <b>${(() => { const cp = crmPropostaCampanhaDe(p); return cp ? Campanhas.tagHTML(cp, 'crm-pa-camp-tag') : ''; })()}${escapeHTML(crmPropostaTitulo(p.kit_nome))}</b>
           <small>${tipo} · criada em ${formatDate(p.created_at)}${autor ? ` por ${escapeHTML(autor)}` : ''}</small>
         </div>
         <div class="crm-pa-lado">
@@ -962,6 +1031,7 @@ function crmPropostaCartaoHTML(p, client) {
       <div class="crm-pa-pe">
         ${crmPropostaTrilha(p, st)}
         <div class="crm-pa-acoes">
+          ${crmPropostaCampanhaBtn(p)}
           <!-- proposta-pdf.html só lê (não registra visualização/VISTA como proposta.html) -->
           <a href="proposta-pdf.html?id=${p.id}" target="_blank" rel="noopener" title="Baixar PDF" class="btn btn-secondary btn-sm"><i data-lucide="file-down"></i><span class="crm-pa-txt">PDF</span></a>
           ${crmMenuHTML(interno)}

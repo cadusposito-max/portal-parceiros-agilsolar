@@ -388,3 +388,11 @@ html[data-ui="v2"] .ckp-btns .btn:disabled { opacity: .45; cursor: not-allowed; 
   html[data-ui="v2"] .camp-kits .btn { width: 100%; }
   html[data-ui="v2"] body .camp-cod input { max-width: none; }
 }
+
+/* ---------- ficha › Propostas: etiqueta no título + botão ao lado do PDF (crm.js · crmPropostaCampanhaBtn) ---------- */
+html[data-ui="v2"] .crm-pa-tit .crm-pa-camp-tag { margin-right: 8px; vertical-align: 2px; }
+html[data-ui="v2"] .crm-pa-acoes .crm-pa-camp-btn { gap: 6px; }
+html[data-ui="v2"] .crm-pa-acoes .crm-pa-camp-btn svg { width: 14px; height: 14px; }
+html[data-ui="v2"] .crm-pa-acoes .crm-pa-camp-btn.on { border-color: #FAA519 !important; background: color-mix(in srgb, #FAA519 12%, var(--v2-card)) !important; color: #C47A00 !important; box-shadow: inset 0 0 0 1px #FAA519; }
+html[data-ui="v2"][data-theme="dark"] .crm-pa-acoes .crm-pa-camp-btn.on { color: #FAA519 !important; }
+html[data-ui="v2"] .crm-pa-acoes .crm-pa-camp-btn .camp-tag { margin: 0; }

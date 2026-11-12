@@ -541,7 +541,8 @@ function renderData(data) {
   }
 
   // --- Campanha (selo, contagem, fita no preço) ---
-  if (data.campanha && !isCustomMode) renderCampanha(data.campanha, waLink);
+  // vale também na Personalizada: o admin pode pôr a campanha nela pela ficha (crm.js)
+  if (data.campanha) renderCampanha(data.campanha, waLink);
 
   // --- Show floating CTA (só se houver telefone do consultor) ---
   const floatingDiv = document.getElementById('floating-cta');
