@@ -88,6 +88,7 @@
     pasta: 'todas', q: '', view: 'lista', aberto: null, de: 'biblioteca',
     vals: {}, fotos: {}, uni: null, uniEdit: null,
     montarId: null, rasc: null, sujo: false, sel: null, uso: null,
+    painel: null, painelDias: 30, painelCarregando: false,
   };
 
   const hoje = () => new Date().toISOString().slice(0, 10);
@@ -129,6 +130,14 @@
   };
   function meta() {
     let [t, s] = TITULOS[M.tab] || TITULOS.biblioteca;
+    if (M.tab === 'inicio') {
+      if (CT.admin()) { t = 'Painel do Marketing'; s = 'Como a rede está usando o material'; }
+      else {
+        const h = new Date().getHours(), nome = String((state.profile && state.profile.nome) || '').trim().split(/\s+/)[0];
+        t = (h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite') + (nome ? ', ' + nome : '');
+        s = ((M.uni && M.uni.unidade) ? M.uni.unidade + ' · ' : '') + 'o que tem de novo pra divulgar';
+      }
+    }
     if (M.view === 'editor' && item(M.aberto)) { t = item(M.aberto).nome; s = 'Troque os textos e baixe a arte pronta'; }
     CT.meta('marketing:' + M.tab, t, s);
   }
@@ -160,6 +169,7 @@
     if (M.view === 'editor' && item(M.aberto)) html = vEditor();
     else if (M.tab === 'montar') html = vMontar();
     else if (M.tab === 'uso') html = vUso();
+    else if (M.tab === 'inicio') html = vInicio();
     else html = vLista();
     c.innerHTML = `<div class="ct-root" id="mk-root">${html}</div>`;
     ligar(c.firstChild);
@@ -168,6 +178,7 @@
     if (M.view === 'editor') prepararEditor();
     if (M.tab === 'montar' && M.view !== 'editor') prepararMontar();
     if (M.tab === 'uso' && !M.uso) carregarUso();
+    if (M.tab === 'inicio' && M.view !== 'editor' && !M.painel) carregarPainel();
   }
 
   function preencherImagens(root) {
@@ -235,22 +246,171 @@
     }
     const cont = (p) => p === 'todas' ? todos.length : todos.filter((i) => i.pasta === p).length;
     const naPasta = filtrar(todos.filter((i) => M.pasta === 'todas' || i.pasta === M.pasta));
-    const ativas = todos.filter(campanhaAtiva);
-    let banner = '';
-    if (ativas.length && M.pasta === 'todas' && !M.q) {
-      const nome = ativas[0].campanha, doGrupo = ativas.filter((i) => i.campanha === nome);
-      const ate = doGrupo.map((i) => i.campanha_ate).filter(Boolean).sort().pop();
-      const ed = doGrupo.find((i) => i.tipo === 'editavel');
-      banner = `<div class="mk-banner"><div class="tx"><span class="tag">CAMPANHA NO AR${ate ? ' · ATÉ ' + CT.dataCurta(ate) : ''}</span><h3>${esc(nome)}</h3>
-        <p>${doGrupo.length} ${doGrupo.length === 1 ? 'material' : 'materiais'}${ed ? '. A arte sai com o nome e o WhatsApp da sua unidade.' : '.'}</p></div>
-        <button class="ct-btn or" data-mk="${ed ? 'abrir' : 'aba'}" data-id="${ed ? ed.id : ''}" data-tab="campanhas">${ed ? 'Montar minha arte' : 'Ver campanha'}</button></div>`;
-    }
     const chips = `<div class="ct-chips">${[['todas', 'Todas'], ...PASTAS].map(([k, n]) => `<button class="ct-chip ${M.pasta === k ? 'on' : ''}" data-mk="pasta" data-pasta="${k}">${n}<span>${cont(k)}</span></button>`).join('')}</div>`;
     if (!todos.length) {
       return barraBusca() + CT.vazio('megaphone', 'Ainda não tem material aqui', CT.admin() ? 'Suba a primeira arte: o franqueado troca os textos e baixa pronta.' : 'Quando a Matriz publicar artes e materiais, eles aparecem aqui.',
         CT.admin() ? `<button class="ct-btn or" data-mk="subir">${ic('plus')}Subir material</button>` : '');
     }
-    return barraBusca() + chips + banner + (naPasta.length ? grade(naPasta) : CT.vazio('search-x', M.q ? `Nada encontrado com “${esc(M.q)}”` : 'Nada nesta pasta ainda', ''));
+    return barraBusca() + chips + (naPasta.length ? grade(naPasta) : CT.vazio('search-x', M.q ? `Nada encontrado com “${esc(M.q)}”` : 'Nada nesta pasta ainda', ''));
+  }
+
+// ------------------------------------------------------------ início (painel)
+  // Unidade: campanha no ar, os números dela, novidades, mais usadas na rede e atalhos.
+  // Admin: painel da rede (downloads, unidades paradas, sem uso). Números: RPC mkt_painel.
+  const PASTA_ICONE = { redes: 'share-2', impressos: 'printer', marca: 'badge-check', videos: 'play' };
+  const acaoDe = (i) => (i.tipo === 'editavel' ? 'abrir' : i.tipo === 'video' ? 'assistir' : 'baixar');
+  const plural = (n, um, varios) => (Number(n) === 1 ? um : varios);
+  function quando(ts) {
+    if (!ts) return '';
+    const dias = Math.floor((Date.now() - new Date(ts)) / 864e5);
+    return dias <= 0 ? 'hoje' : dias === 1 ? 'ontem' : 'há ' + dias + ' dias';
+  }
+  async function carregarPainel() {
+    if (M.painelCarregando) return;
+    const dias = CT.admin() ? M.painelDias : 30;
+    M.painelCarregando = true;
+    try {
+      const { data, error } = await sb().rpc('mkt_painel', { p_dias: dias });
+      if (error) throw error;
+      M.painel = data || { dias, ranking: [] };
+    } catch (e) {
+      console.error('[mkt] painel', e);
+      M.painel = { erro: true, dias, ranking: [] };
+    } finally { M.painelCarregando = false; }
+    if (M.tab === 'inicio' && M.view === 'lista' && naArte()) pintar();
+  }
+  function campanhaAtual() {
+    const grupos = {};
+    visiveis().filter((i) => i.publicado && campanhaAtiva(i)).forEach((i) => { (grupos[i.campanha] = grupos[i.campanha] || []).push(i); });
+    const lista = Object.entries(grupos).map(([nome, itens]) => ({ nome, itens, ate: itens.map((i) => i.campanha_ate).filter(Boolean).sort().pop() || null }));
+    lista.sort((a, b) => ((a.ate || '9999') < (b.ate || '9999') ? -1 : 1)); // a que acaba primeiro
+    return lista[0] || null;
+  }
+  function faltam(ate) {
+    if (!ate) return null;
+    const ms = new Date(ate + 'T23:59:59') - Date.now();
+    return ms <= 0 ? { d: 0, h: 0 } : { d: Math.floor(ms / 864e5), h: Math.floor((ms % 864e5) / 36e5) };
+  }
+  function blocoCampanha() {
+    const c = campanhaAtual();
+    if (!c) {
+      return `<section class="mk-hero vazio"><div class="tx"><span class="tag">CAMPANHAS</span><h2>Nenhuma campanha no ar agora</h2>
+        <p>${CT.admin() ? 'Ao subir um material, preencha Campanha e a data final: ela aparece aqui em destaque pra rede toda.' : 'Quando a Matriz lançar uma campanha, ela aparece aqui com as artes prontas.'}</p>
+        <div class="acts">${CT.admin() ? `<button class="ct-btn or" data-mk="subir">${ic('plus')}Subir material</button>` : `<button class="ct-btn or" data-mk="aba" data-tab="biblioteca">${ic('layout-grid')}Ver todas as artes</button>`}</div></div></section>`;
+    }
+    const ed = c.itens.find((i) => i.tipo === 'editavel'), f = faltam(c.ate);
+    const pecas = c.itens.filter((i) => i.tipo !== 'video').slice(0, 3);
+    const n = c.itens.length;
+    return `<section class="mk-hero"><div class="tx">
+        <span class="tag"><i class="pulse"></i>CAMPANHA NO AR${c.ate ? ' · ATÉ ' + CT.dataCurta(c.ate) : ''}</span>
+        <h2>${esc(c.nome)}</h2>
+        <p>${n} ${plural(n, 'material', 'materiais')}${ed ? '. As artes saem com o nome e o WhatsApp da sua unidade.' : '.'}</p>
+        <div class="cont">${f ? `<div><b>${f.d}</b><small>${plural(f.d, 'DIA', 'DIAS')}</small></div><div><b>${String(f.h).padStart(2, '0')}</b><small>HORAS</small></div>` : ''}<div><b>${n}</b><small>${plural(n, 'MATERIAL', 'MATERIAIS')}</small></div></div>
+        <div class="acts">${ed ? `<button class="ct-btn or" data-mk="abrir" data-id="${ed.id}">${ic('pencil')}Montar minha arte</button>` : ''}<button class="ct-btn gl" data-mk="aba" data-tab="campanhas">Ver campanha</button></div>
+      </div>${pecas.length ? `<div class="pecas">${pecas.map((i) => `<button class="mk-pt" data-mk="${acaoDe(i)}" data-id="${i.id}" title="${esc(i.nome)}">${capaHTML(i)}</button>`).join('')}</div>` : ''}</section>`;
+  }
+  function blocoMinha() {
+    const p = M.painel;
+    const cab = `<h3>${ic('store')}Sua unidade · 30 dias</h3>`;
+    if (!p) return `<section class="mk-dcard mk-minha">${cab}${CT.carregando()}</section>`;
+    if (p.erro || !p.minha) return `<section class="mk-dcard mk-minha">${cab}<div class="ct-dica">Não deu pra carregar os números agora.</div></section>`;
+    const m = p.minha, n = Number(m.downloads) || 0, media = Number(m.media) || 0;
+    const max = Math.max(n, media * 1.6, 1), ult = m.ultimo && item(m.ultimo.item_id);
+    const mediaTx = String(media).replace('.', ',');
+    const leg = !n ? 'Nenhuma arte baixada ainda. Comece pela campanha!'
+      : n > media ? `<b class="ok">Acima da média</b> da rede (${mediaTx} por unidade)`
+      : n === media ? 'Na média da rede' : `A média da rede é ${mediaTx} por unidade`;
+    return `<section class="mk-dcard mk-minha">${cab}
+      <div class="big"><b>${n}</b><span>${plural(n, 'arte baixada', 'artes baixadas')}</span></div>
+      <div class="barra"><i style="width:${Math.round(n / max * 100)}%"></i>${media ? `<span class="media" style="left:${Math.round(media / max * 100)}%" title="Média da rede"></span>` : ''}</div>
+      <p class="leg">${leg}</p>
+      ${ult ? `<div class="ult"><span class="mk-pt mini">${capaHTML(ult)}</span><div class="tx"><b>${esc(ult.nome)}</b><small>Você baixou ${quando(m.ultimo.em)}</small></div>
+        <button class="ct-btn gh sm" data-mk="${acaoDe(ult)}" data-id="${ult.id}">${ic('rotate-ccw')}De novo</button></div>` : ''}
+    </section>`;
+  }
+  function blocoNovidades(titulo) {
+    const pub = visiveis().filter((i) => i.publicado).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+    const lim = Date.now() - 15 * 864e5, eNovo = (i) => new Date(i.created_at) > lim;
+    const novos = pub.filter(eNovo);
+    const lista = (novos.length >= 3 ? novos : pub).slice(0, 10);
+    if (!lista.length) return '';
+    return `<section class="mk-dcard"><h3>${ic('sparkles')}${titulo}<button class="mais" data-mk="aba" data-tab="biblioteca">Ver todas${ic('chevron-right')}</button></h3>
+      <p class="sub">${novos.length ? 'Materiais que entraram nos últimos 15 dias' : 'Os materiais mais recentes da biblioteca'}</p>
+      <div class="mk-nov">${lista.map((i) => `<button class="it" data-mk="${acaoDe(i)}" data-id="${i.id}"><span class="mk-pt">${eNovo(i) ? '<em class="novo">NOVO</em>' : ''}${capaHTML(i)}</span>
+        <b>${esc(i.nome)}</b><small>${esc(nomePasta(i.pasta))} · ${i.tipo === 'editavel' ? 'editável' : i.tipo === 'video' ? 'vídeo' : 'pra baixar'}</small></button>`).join('')}</div></section>`;
+  }
+  function blocoRanking(admin) {
+    const p = M.painel;
+    const linhas = p && !p.erro ? (p.ranking || []).map((r) => [item(r.item_id), r]).filter(([i]) => i) : null;
+    return `<section class="mk-dcard"><h3>${ic('trophy')}${admin ? 'Mais baixados' : 'Mais usadas na rede'}</h3>
+      <p class="sub">${admin ? `Últimos ${p ? p.dias : M.painelDias} dias · por quantas unidades baixaram` : 'Últimos 30 dias · o que as outras unidades estão usando'}</p>
+      ${!p ? CT.carregando() : !linhas ? '<div class="ct-dica">Não deu pra carregar agora.</div>' : !linhas.length ? '<div class="ct-dica">Ninguém baixou nada nesse período ainda.</div>'
+        : `<div class="mk-rank">${linhas.map(([i, r], k) => `<div class="r"><span class="pos">${k + 1}</span><span class="mk-pt mini">${capaHTML(i)}</span>
+          <div class="tx"><b>${esc(i.nome)}</b><small>${esc(nomePasta(i.pasta))}${admin ? ' · ' + r.downloads + ' ' + plural(r.downloads, 'download', 'downloads') : ''}</small></div>
+          <div class="num">${r.unidades}<small>${plural(r.unidades, 'unidade', 'unidades')}</small></div>
+          ${admin ? '' : `<button class="ct-btn gh sm" data-mk="${acaoDe(i)}" data-id="${i.id}">Usar</button>`}</div>`).join('')}</div>`}
+    </section>`;
+  }
+  function blocoPastas() {
+    const todos = visiveis();
+    return `<section class="mk-dcard"><h3>${ic('folder-open')}Atalhos</h3><p class="sub">Tudo da biblioteca, por pasta</p>
+      <div class="mk-pastas">${PASTAS.filter(([k]) => k !== 'campanhas').map(([k, n], x) => {
+        const c = todos.filter((i) => i.pasta === k).length;
+        return `<button class="pasta c${x}" data-mk="ir-pasta" data-pasta="${k}"><span class="ic">${ic(PASTA_ICONE[k] || 'folder')}</span><span><b>${n}</b><small>${c} ${plural(c, 'item', 'itens')}</small></span></button>`;
+      }).join('')}</div></section>`;
+  }
+  function vInicio() {
+    if (!visiveis().length) {
+      return CT.vazio('megaphone', 'Ainda não tem material aqui', CT.admin() ? 'Suba a primeira arte: o franqueado troca os textos e baixa pronta.' : 'Quando a Matriz publicar artes e materiais, eles aparecem aqui.',
+        CT.admin() ? `<button class="ct-btn or" data-mk="subir">${ic('plus')}Subir material</button>` : '');
+    }
+    if (CT.admin()) return vPainelAdmin();
+    return `<div class="mk-g hero">${blocoCampanha()}${blocoMinha()}</div>${blocoNovidades('Novidades')}<div class="mk-g dois">${blocoRanking(false)}${blocoPastas()}</div>`;
+  }
+  function vPainelAdmin() {
+    const p = M.painel, a = p && p.admin;
+    const per = `<div class="ct-tools mk-ptools"><div class="ct-segw mk-per">${[7, 30, 90].map((d) => `<button data-mk="periodo" data-dias="${d}" class="${M.painelDias === d ? 'on' : ''}">${d} dias</button>`).join('')}</div></div>`;
+    if (!p) return per + CT.carregando();
+    if (p.erro || !a) return per + CT.vazio('triangle-alert', 'Não deu pra carregar o painel', 'Verifique a internet e tente de novo.', `<button class="ct-btn gh" data-mk="painel-recarregar">${ic('rotate-cw')}Tentar de novo</button>`);
+    const todos = M.itens || [], pub = todos.filter((i) => i.publicado), rasc = todos.length - pub.length;
+    const novos = pub.filter((i) => new Date(i.created_at) > Date.now() - p.dias * 864e5).length;
+    const dl = Number(a.downloads) || 0, ant = Number(a.anterior) || 0;
+    const delta = ant ? Math.round((dl - ant) / ant * 100) : null;
+    const paradas = a.paradas || [];
+    const c = campanhaAtual(), fc = c && faltam(c.ate);
+    const serie = a.serie || [], maxS = Math.max(1, ...serie.map((s) => Number(s.n) || 0));
+    const dm = (s) => { const [, mm, dd] = String(s.dia).split('-'); return dd + '/' + mm; };
+    const semUso = (a.sem_uso || []).map(item).filter(Boolean);
+    const kpi = (icone, rot, valor, sub, cls = '') => `<section class="mk-dcard mk-kpi ${cls}"><span class="lb">${ic(icone)}${rot}</span><b>${valor}</b><span class="dl">${sub}</span></section>`;
+    return per + `<div class="mk-g kpis">
+        ${kpi('download', 'Downloads', dl, delta == null ? `<span>${dl ? 'Sem dados do período anterior' : 'Nenhum ainda'}</span>`
+          : `<span class="${delta >= 0 ? 'up' : 'down'}">${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)}% vs. ${p.dias} dias antes</span>`)}
+        ${kpi('store', 'Unidades usando', `${a.unidades_usando} <small>de ${a.unidades_total}</small>`,
+          paradas.length ? `<span class="or">${paradas.length} ${plural(paradas.length, 'não baixou', 'não baixaram')} nada</span>` : '<span class="up">Todas usando</span>')}
+        ${kpi('layout-grid', 'Materiais publicados', pub.length, `+${novos} no período · ${rasc} ${plural(rasc, 'rascunho', 'rascunhos')}`)}
+        ${kpi('flag', 'Campanha no ar', c ? esc(c.nome) : 'Nenhuma',
+          c ? `<span class="or">${fc ? `Faltam ${fc.d} ${plural(fc.d, 'dia', 'dias')} · ` : ''}${a.campanha} ${plural(a.campanha, 'download', 'downloads')}</span>` : 'Suba um material com o campo Campanha', 'camp')}
+      </div>
+      <div class="mk-g graf">
+        <section class="mk-dcard"><h3>${ic('chart-column')}Downloads por dia</h3><p class="sub">Passe o mouse na barra pra ver o dia</p>
+          <div class="mk-chart">${serie.map((s) => `<i style="height:${Math.max(2, (Number(s.n) || 0) / maxS * 100)}%" class="${Number(s.n) ? '' : 'zero'}" data-v="${dm(s)} · ${s.n} ${plural(s.n, 'download', 'downloads')}"></i>`).join('')}</div>
+          ${serie.length ? `<div class="mk-ax"><span>${dm(serie[0])}</span><span>${dm(serie[Math.floor(serie.length / 2)])}</span><span>${dm(serie[serie.length - 1])}</span></div>` : ''}
+        </section>
+        <section class="mk-dcard"><h3>${ic('alarm-clock')}Unidades paradas</h3><p class="sub">Não baixaram nada nos últimos ${p.dias} dias</p>
+          ${paradas.length ? `<div class="mk-par">${paradas.map((u) => `<div class="u"><span class="dot">${esc(String(u.unidade || '?').replace(/^Ágil Solar\s*/i, '').slice(0, 2).toUpperCase())}</span>
+              <div class="tx"><b>${esc(u.unidade)}</b><small>${u.ultimo_em ? 'Último download ' + quando(u.ultimo_em) : 'Nunca baixou'}</small></div>
+              <button class="ct-btn gh sm" data-mk="lembrar" data-fq="${u.franquia_id}" title="Avisa no sininho quem tem o Marketing liberado na unidade">${ic('bell')}Lembrar</button></div>`).join('')}</div>`
+            : `<div class="mk-okn">${ic('circle-check')}Todas as unidades baixaram algo nesse período.</div>`}
+        </section>
+      </div>
+      <div class="mk-g dois">${blocoRanking(true)}
+        <section class="mk-dcard"><h3>${ic('archive')}Sem uso</h3><p class="sub">Publicados antes do período e ninguém baixou · bons pra trocar ou tirar</p>
+          ${semUso.length ? `<div class="mk-sem">${semUso.map((i) => `<div class="s"><span class="mk-pt mini">${capaHTML(i)}</span><div class="tx"><b>${esc(i.nome)}</b><small>Publicado em ${CT.dataCurta(String(i.created_at).slice(0, 10))}</small></div>
+              <button class="ct-btn gh sm" data-mk="despublicar" data-id="${i.id}">Tirar da biblioteca</button></div>`).join('')}</div>`
+            : '<div class="mk-okn">' + ic('circle-check') + 'Tudo que está publicado foi baixado nesse período.</div>'}
+        </section>
+      </div>
+      ${blocoNovidades('Últimos materiais publicados')}`;
   }
 
   // ------------------------------------------------------------ desenho da arte
@@ -370,6 +530,7 @@
   }
   function registrar(id) {
     sb().rpc('mkt_registrar_download', { p_item: id }).then(({ error }) => {
+      if (!error) M.painel = null;
       if (!error && CT.admin()) { const s = M.stats[id] || (M.stats[id] = { item_id: id, downloads: 0, unidades: 1 }); s.downloads = Number(s.downloads) + 1; }
     });
   }
@@ -743,6 +904,26 @@
       switch (a) {
         case 'recarregar': M.itens = null; renderMktRoute(M.container, M.tab); break;
         case 'pasta': M.pasta = b.dataset.pasta; pintar(); break;
+        case 'ir-pasta': M.pasta = b.dataset.pasta; M.q = ''; setTab('biblioteca'); break;
+        case 'periodo': M.painelDias = Number(b.dataset.dias) || 30; M.painel = null; pintar(); break;
+        case 'painel-recarregar': M.painel = null; pintar(); break;
+        case 'lembrar': {
+          b.disabled = true;
+          const { data, error } = await sb().rpc('mkt_lembrar_unidade', { p_franquia: b.dataset.fq });
+          if (error) { b.disabled = false; CT.toast('Não deu pra avisar agora.'); return; }
+          const n = Number(data) || 0;
+          CT.toast(n ? `Aviso enviado no sininho pra ${n} ${n === 1 ? 'pessoa' : 'pessoas'}.` : 'Ninguém dessa unidade tem o Marketing liberado no cadastro.');
+          if (n) { b.innerHTML = ic('check') + 'Avisado'; CT.icons(); } else b.disabled = false;
+          break;
+        }
+        case 'despublicar': {
+          if (!it || !(await CT.confirmar('Tirar da biblioteca?', `"${it.nome}" deixa de aparecer pras unidades. Dá pra publicar de novo depois.`, 'Tirar'))) return;
+          const { error } = await sb().from('mkt_itens').update({ publicado: false, updated_at: new Date().toISOString() }).eq('id', it.id);
+          if (error) { CT.toast('Não deu pra tirar agora.'); return; }
+          it.publicado = false; M.painel = null; pintar();
+          CT.toast('Tirado da biblioteca.');
+          break;
+        }
         case 'aba': setTab(b.dataset.tab); break;
         case 'subir': abrirSubir(null, b.dataset.tipo); break;
         case 'editar': if (it) abrirSubir(it); break;

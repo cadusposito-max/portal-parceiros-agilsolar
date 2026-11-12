@@ -44,6 +44,7 @@
     mencao: ['at-sign', 'bl'],
     // documento novo / leitura obrigatória (docs.js)
     documento: ['book-open', 'or'],
+    marketing: ['megaphone', 'or'],
   };
   // menção é para a pessoa: aparece em destaque como os urgentes
   const EM_DESTAQUE = new Set(['proposta_vista', 'parceiro_fechou', 'os', 'mencao']);
@@ -168,6 +169,9 @@
           await carregarConteudo();
           if (window.DOCS) window.DOCS.abrir(a.id);
         }
+      } else if (a.tela === 'mkt') {
+        if (state.environment !== 'marketing' && has('setEnvironment')) { state.mktActiveTab = 'inicio'; setEnvironment('marketing'); }
+        else if (has('setTab')) setTab('inicio');
       } else if (a.tela === 'propostas') {
         if (state.environment !== 'comercial' && has('setEnvironment')) setEnvironment('comercial');
         if (has('setTab')) setTab('propostas');

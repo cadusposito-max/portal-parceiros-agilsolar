@@ -398,6 +398,7 @@ const REDE_TABS_FRANQUEADO = [
 //   { id: 'obrigatoria', label: 'LEITURA OBRIGATÓRIA', icon: 'triangle-alert', chave: 'docs' },
 //   { id: 'leituras',    label: 'QUEM JÁ LEU',         icon: 'eye',            chave: 'docs', admin: true }
 const MKT_TABS = [
+  { id: 'inicio',      label: 'INÍCIO',              icon: 'layout-dashboard', chave: 'mkt' },
   { id: 'biblioteca',  label: 'ARTES',               icon: 'layout-grid',    chave: 'mkt' },
   { id: 'campanhas',   label: 'CAMPANHAS',           icon: 'flag',           chave: 'mkt' },
   { id: 'montar',      label: 'MONTAR ARTE',         icon: 'pencil-ruler',   chave: 'mkt', admin: true },
