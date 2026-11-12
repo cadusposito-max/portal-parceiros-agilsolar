@@ -89,7 +89,10 @@
     vals: {}, fotos: {}, uni: null, uniEdit: null,
     montarId: null, rasc: null, sujo: false, sel: null, uso: null,
     painel: null, painelDias: 30, painelCarregando: false,
+    visao: (() => { try { return localStorage.getItem('mkt_visao') === 'unidade' ? 'unidade' : 'rede'; } catch (_) { return 'rede'; } })(),
   };
+  // Admin escolhe no Início: painel da rede ou o que as unidades veem
+  const verRede = () => CT.admin() && M.visao !== 'unidade';
 
   const hoje = () => new Date().toISOString().slice(0, 10);
   const campanhaAtiva = (i) => !!i.campanha && (!i.campanha_ate || i.campanha_ate >= hoje());
@@ -131,7 +134,7 @@
   function meta() {
     let [t, s] = TITULOS[M.tab] || TITULOS.biblioteca;
     if (M.tab === 'inicio') {
-      if (CT.admin()) { t = 'Painel do Marketing'; s = 'Como a rede está usando o material'; }
+      if (verRede()) { t = 'Painel do Marketing'; s = 'Como a rede está usando o material'; }
       else {
         const h = new Date().getHours(), nome = String((state.profile && state.profile.nome) || '').trim().split(/\s+/)[0];
         t = (h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite') + (nome ? ', ' + nome : '');
@@ -267,7 +270,7 @@
   }
   async function carregarPainel() {
     if (M.painelCarregando) return;
-    const dias = CT.admin() ? M.painelDias : 30;
+    const dias = verRede() ? M.painelDias : 30;
     M.painelCarregando = true;
     try {
       const { data, error } = await sb().rpc('mkt_painel', { p_dias: dias });
@@ -352,24 +355,29 @@
     </section>`;
   }
   function blocoPastas() {
-    const todos = visiveis();
+    const todos = visiveis().filter((i) => i.publicado);
     return `<section class="mk-dcard"><h3>${ic('folder-open')}Atalhos</h3><p class="sub">Tudo da biblioteca, por pasta</p>
       <div class="mk-pastas">${PASTAS.filter(([k]) => k !== 'campanhas').map(([k, n], x) => {
         const c = todos.filter((i) => i.pasta === k).length;
         return `<button class="pasta c${x}" data-mk="ir-pasta" data-pasta="${k}"><span class="ic">${ic(PASTA_ICONE[k] || 'folder')}</span><span><b>${n}</b><small>${c} ${plural(c, 'item', 'itens')}</small></span></button>`;
       }).join('')}</div></section>`;
   }
+  function trocaVisao(direita) {
+    if (!CT.admin()) return '';
+    const b = (v, icone, nome) => `<button data-mk="visao" data-v="${v}" class="${(M.visao === 'unidade') === (v === 'unidade') ? 'on' : ''}">${ic(icone)}${nome}</button>`;
+    return `<div class="ct-tools mk-ptools"><div class="ct-segw mk-visao">${b('rede', 'chart-column', 'Painel da rede')}${b('unidade', 'store', 'Visão das unidades')}</div>${direita}</div>`;
+  }
   function vInicio() {
     if (!visiveis().length) {
       return CT.vazio('megaphone', 'Ainda não tem material aqui', CT.admin() ? 'Suba a primeira arte: o franqueado troca os textos e baixa pronta.' : 'Quando a Matriz publicar artes e materiais, eles aparecem aqui.',
         CT.admin() ? `<button class="ct-btn or" data-mk="subir">${ic('plus')}Subir material</button>` : '');
     }
-    if (CT.admin()) return vPainelAdmin();
-    return `<div class="mk-g hero">${blocoCampanha()}${blocoMinha()}</div>${blocoNovidades('Novidades')}<div class="mk-g dois">${blocoRanking(false)}${blocoPastas()}</div>`;
+    if (verRede()) return vPainelAdmin();
+    return trocaVisao('') + `<div class="mk-g hero">${blocoCampanha()}${blocoMinha()}</div>${blocoNovidades('Novidades')}<div class="mk-g dois">${blocoRanking(false)}${blocoPastas()}</div>`;
   }
   function vPainelAdmin() {
     const p = M.painel, a = p && p.admin;
-    const per = `<div class="ct-tools mk-ptools"><div class="ct-segw mk-per">${[7, 30, 90].map((d) => `<button data-mk="periodo" data-dias="${d}" class="${M.painelDias === d ? 'on' : ''}">${d} dias</button>`).join('')}</div></div>`;
+    const per = trocaVisao(`<div class="ct-segw mk-per">${[7, 30, 90].map((d) => `<button data-mk="periodo" data-dias="${d}" class="${M.painelDias === d ? 'on' : ''}">${d} dias</button>`).join('')}</div>`);
     if (!p) return per + CT.carregando();
     if (p.erro || !a) return per + CT.vazio('triangle-alert', 'Não deu pra carregar o painel', 'Verifique a internet e tente de novo.', `<button class="ct-btn gh" data-mk="painel-recarregar">${ic('rotate-cw')}Tentar de novo</button>`);
     const todos = M.itens || [], pub = todos.filter((i) => i.publicado), rasc = todos.length - pub.length;
@@ -905,6 +913,13 @@
         case 'recarregar': M.itens = null; renderMktRoute(M.container, M.tab); break;
         case 'pasta': M.pasta = b.dataset.pasta; pintar(); break;
         case 'ir-pasta': M.pasta = b.dataset.pasta; M.q = ''; setTab('biblioteca'); break;
+        case 'visao': {
+          M.visao = b.dataset.v === 'unidade' ? 'unidade' : 'rede';
+          try { localStorage.setItem('mkt_visao', M.visao); } catch (_) {}
+          if (M.painel && M.painel.dias !== (verRede() ? M.painelDias : 30)) M.painel = null;
+          pintar();
+          break;
+        }
         case 'periodo': M.painelDias = Number(b.dataset.dias) || 30; M.painel = null; pintar(); break;
         case 'painel-recarregar': M.painel = null; pintar(); break;
         case 'lembrar': {
