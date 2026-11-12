@@ -655,6 +655,7 @@
     ACEITA: ['badge-check', 'Aceita, venda vinculada', 'gr'],
   };
   const timeAgo = (d) => (has('crmTimeAgo') ? crmTimeAgo(d) : formatDate(d));
+  const PROP_COR = { GERADA: '#808284', ENVIADA: '#008FD4', VISTA: '#FAA519', ACEITA: '#1FA971' };
 
   function renderPropostasListV2(container) {
     container.className = 'v2s';
@@ -685,17 +686,23 @@
     const showSeller = canUseDashVendedorFilter();
 
     const kpi = (label, value, icon, color, sub, hero) => `<div class="v2-card v2-kpi ${hero ? 'hero' : ''}" style="cursor:default"><div class="h"><span>${label}</span><div class="ic" style="background:${color}1F;color:${color}">${ic(icon)}</div></div><div class="v">${value}</div><div class="foot"><span>${sub}</span></div></div>`;
-    const vista = celular() ? 'lista' : modo('propostas', 'kanban', ['kanban', 'lista']);
+    // No celular o modo é guardado à parte (padrão: lista). Lá o kanban não tem
+    // colunas: um cartão por proposta com a etapa dentro, e a fileira de etapas
+    // de cima faz o papel das colunas.
+    const cel = celular();
+    const telaModo = cel ? 'propostas_m' : 'propostas';
+    const vista = cel ? modo(telaModo, 'lista', ['lista', 'kanban']) : modo(telaModo, 'kanban', ['kanban', 'lista']);
+    const kanbanCol = vista === 'kanban' && !cel;
     // Lista: lote único sobre o filtro. Kanban: o lote vale POR COLUNA — antes era um
     // lote só (as mais recentes de todas as etapas) repartido nas colunas, e as etapas
     // pequenas (Enviadas, Vistas, Aceitas) perdiam as propostas mais antigas e a soma.
     const porEtapa = {};
     filtered.forEach((p) => { const st = propostaStatus(p); (porEtapa[st] = porEtapa[st] || []).push(p); });
     const limiteCol = _propostasRenderLimit; // 10 por coluna; "Carregar mais" soma 10 em cada
-    const visible = vista === 'kanban'
+    const visible = kanbanCol
       ? Object.keys(PROP_ST).flatMap((st) => (porEtapa[st] || []).slice(0, limiteCol))
       : filtered.slice(0, _propostasRenderLimit);
-    const pill = (v, label) => `<button class="${status === v ? 'on' : ''}" onclick="setPropostasFiltro('status','${v}')">${label}<em>${count[v] || 0}</em></button>`;
+    const pill = (v, label) => `<button class="${status === v ? 'on' : ''}" onclick="setPropostasFiltro('status','${v}')">${PROP_COR[v] ? `<i class="v2-pdot" style="background:${PROP_COR[v]}"></i>` : ''}${label}<em>${count[v] || 0}</em></button>`;
     const acoes = (p) => `<div class="v2-acts">
             <button class="v2-sq" title="Copiar link da proposta" onclick="event.stopPropagation(); uiV2Screens.copiarLink('${esc(p.id)}')">${ic('link')}</button>
             <a class="v2-sq" title="Baixar PDF" href="proposta-pdf.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('file-down')}</a>
@@ -714,9 +721,37 @@
       const todos = porEtapa[s] || [];
       const items = todos.slice(0, limiteCol);
       const soma = todos.reduce((a, p) => a + propostaPreco(p), 0);
-      return `<div class="v2-col"><div class="v2-colh"><i class="dot" style="background:${{ GERADA: '#808284', ENVIADA: '#008FD4', VISTA: '#FAA519', ACEITA: '#1FA971' }[s]}"></i><b>${PROP_ST[s][0]}s</b><em>${count[s] || 0}</em><small title="${soma ? money(soma) : ''}">${soma ? moneyC(soma) : ''}</small></div>
+      return `<div class="v2-col"><div class="v2-colh"><i class="dot" style="background:${PROP_COR[s]}"></i><b>${PROP_ST[s][0]}s</b><em>${count[s] || 0}</em><small title="${soma ? money(soma) : ''}">${soma ? moneyC(soma) : ''}</small></div>
         ${items.length ? items.map(kcard).join('') : '<div class="v2-drop">Nenhuma proposta</div>'}</div>`;
     }).join('')}</div>`;
+    // kanban do celular: mesmo cartão de Vendas (.v2-vm), barra de 4 passos e a
+    // faixa da etapa embaixo, com copiar link e PDF
+    const pmInfo = (p, st) => {
+      if (st === 'VISTA') { const v = Number(p.vista_count) || 0; const q = timeAgo(p.vista_em || p.created_at); return v > 1 ? `abriu ${v}× · 1ª vez ${q}` : `abriu ${q}`; }
+      if (st === 'ENVIADA') return p.enviada_em ? `ainda não abriu · ${timeAgo(p.enviada_em)}` : 'aguardando o cliente abrir';
+      if (st === 'ACEITA') return 'venda vinculada';
+      return 'ainda não enviada';
+    };
+    const pmcard = (p) => {
+      const st = PROP_ST[propostaStatus(p)] ? propostaStatus(p) : 'GERADA';
+      const passo = Object.keys(PROP_ST).indexOf(st) + 1;
+      const info = PROP_INFO[st];
+      return `<article class="v2-vm v2-pm" style="--pc:${PROP_COR[st]}" ${abrir(p)}>
+        <div class="v2-vm-in">
+          <div class="v2-vm-top"><b class="v2-vm-nm">${esc(p.cliente_nome || 'Sem cliente')}</b><div class="v2-vm-val"><b title="${money(propostaPreco(p))}">${moneyC(propostaPreco(p))}</b><small>${esc(timeAgo(p.created_at))}</small></div></div>
+          ${showSeller ? `<div class="v2-vm-vend">${ic('user')}${esc(vendNome(p.vendedor_email) || '—')}</div>` : ''}
+          <div class="v2-vm-kit"><span class="v2-vm-kwp">${ic('zap')}${kwpTx(p)}</span><span class="tx">${p.numero ? '#' + esc(p.numero) + ' · ' : ''}${esc(p.kit_nome ? (has('crmPropostaTitulo') ? crmPropostaTitulo(p.kit_nome) : p.kit_nome) : 'Proposta personalizada')}</span></div>
+          <div class="v2-vm-bar">${[1, 2, 3, 4].map((i) => `<i class="${i < passo ? 'ok' : i === passo ? 'cur' : ''}"></i>`).join('')}<em>${passo} de 4</em></div>
+        </div>
+        <div class="v2-vm-ft v2-pm-ft s-${info[2]}">${ic(info[0])}<b>${PROP_ST[st][0]}</b><span>${esc(pmInfo(p, st))}</span>
+          <div class="v2-pm-acts"><button title="Copiar link da proposta" onclick="event.stopPropagation(); uiV2Screens.copiarLink('${esc(p.id)}')">${ic('link')}</button><a title="Baixar PDF" href="proposta-pdf.html?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${ic('file-down')}</a></div></div>
+      </article>`;
+    };
+    const kanbanCel = () => {
+      const soma = filtered.reduce((a, p) => a + propostaPreco(p), 0);
+      const rot = PROP_ST[status] ? `<i style="background:${PROP_COR[status]}"></i><b>${PROP_ST[status][0]}s</b>` : '<b>Todas as etapas</b>';
+      return `<div class="v2-vmlista v2-pmlista"><div class="v2-pmres">${rot}<span>· ${filtered.length} proposta${filtered.length === 1 ? '' : 's'}</span><strong title="${money(soma)}">${moneyC(soma)}</strong></div>${visible.map(pmcard).join('')}</div>`;
+    };
     const lista = () => `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
         <thead><tr><th>Cliente e kit</th><th class="hide-m">Potência</th><th class="hide-m">Status</th>${showSeller ? '<th class="hide-m">Vendedor</th>' : ''}<th class="hide-m">Criada</th><th class="hide-m">Valor</th><th></th></tr></thead>
         <tbody>${visible.map((p) => { const [stl, stc] = PROP_ST[propostaStatus(p)] || PROP_ST.GERADA; return `<tr ${abrir(p)}>
@@ -742,11 +777,11 @@
         <select class="v2-select ${mes !== 'all' ? 'on' : ''}" onchange="setPropostasFiltro('mes', this.value)"><option value="all">Todos os meses</option>${mesOpts.map((m) => `<option value="${m}" ${m === mes ? 'selected' : ''}>${cap(formatMonthLabel(m))}</option>`).join('')}</select>
         ${filtrosAtivos ? `<button class="v2-pill v2-fclear" onclick="limparPropostasFiltros()">${ic('filter-x')}Limpar · ${filtered.length} de ${escopo.length}</button>` : ''}
         <div class="v2-grow"></div>
-        ${viewSeg('propostas', vista, ['kanban', 'lista'])}
+        ${viewSeg(telaModo, vista, cel ? ['lista', 'kanban'] : ['kanban', 'lista'])}
         <button class="v2-btno hide-m" style="width:auto;height:44px" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button>
       </div>
       <div class="v2-pills">${pill('ALL', 'Todas')}${pill('GERADA', 'Geradas')}${pill('ENVIADA', 'Enviadas')}${pill('VISTA', 'Vistas')}${pill('ACEITA', 'Aceitas')}</div>
-      ${visible.length ? (vista === 'kanban' ? kanban() : lista()) : `<div class="v2-card v2-empty">${filtrosAtivos ? 'Nenhuma proposta com esses filtros.' : 'Nenhuma proposta gerada ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button></div></div>`}
+      ${visible.length ? (kanbanCol ? kanban() : vista === 'kanban' ? kanbanCel() : lista()) : `<div class="v2-card v2-empty">${filtrosAtivos ? 'Nenhuma proposta com esses filtros.' : 'Nenhuma proposta gerada ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openNovaPropostaPicker()">${ic('plus')}Nova proposta</button></div></div>`}
       ${visible.length ? rodapeLista(visible.length, filtered.length, 'uiV2Screens.maisPropostas()', 'proposta|propostas') : ''}`;
     if (window.lucide) window.lucide.createIcons();
   }
