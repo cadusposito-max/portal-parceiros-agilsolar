@@ -52,21 +52,34 @@
   const iniciais = (nome) => String(nome || '?').trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
   // ---- recortes -----------------------------------------------------------------
+  // automática = criada pela Plataforma (migration 20261113120000_tarefas_automaticas)
+  const auto = (t) => !t.de_user;
   const paraMim = () => TF.lista.filter((t) => t.para_user === TF.uid);
-  const enviadas = () => TF.lista.filter((t) => t.de_user === TF.uid && t.para_user !== TF.uid);
+  // gestor/admin acompanham em "Enviadas" as automáticas da equipe da unidade dele
+  // (menos as da gestão, que ele mesmo recebeu)
+  const autoDaEquipe = (t) => auto(t) && ehGestor() && t.para_user !== TF.uid
+    && state.franquiaId && String(t.franquia_id) === String(state.franquiaId)
+    && !TF.lista.some((x) => x.auto_grupo && x.auto_grupo === t.auto_grupo && x.para_user === TF.uid);
+  const enviadas = () => TF.lista.filter((t) => (t.de_user === TF.uid && t.para_user !== TF.uid) || autoDaEquipe(t));
   const abertasMinhas = () => paraMim().filter((t) => !t.feita_em);
   const atrasada = (t) => !t.feita_em && t.prazo && dias(t.prazo) < 0;
   const ehGestor = () => !!(state.isAdmin || state.isGestor);
 
   // ---- dados ----------------------------------------------------------------------
-  const COLS = 'id,de_user,de_nome,para_user,para_nome,titulo,detalhes,cliente_id,cliente_nome,prazo,urgente,feita_em,created_at,updated_at';
+  const COLS_BASE = 'id,de_user,de_nome,para_user,para_nome,titulo,detalhes,cliente_id,cliente_nome,prazo,urgente,feita_em,created_at,updated_at';
+  const COLS_AUTO = COLS_BASE + ',auto_regra,auto_grupo,franquia_id,concluida_por';
+  let COLS = COLS_AUTO;
+  const semColuna = (e) => e && (e.code === '42703' || /column .* does not exist/i.test(e.message || ''));
 
   async function carregar() {
-    // RLS já devolve só as tarefas em que a pessoa mandou ou recebeu
+    // RLS devolve as tarefas em que a pessoa mandou ou recebeu (+ automáticas da unidade, p/ gestão)
     const desde = new Date(Date.now() - 30 * 864e5).toISOString();
-    const { data, error } = await supabaseClient.from('tarefas').select(COLS)
+    const buscar = () => supabaseClient.from('tarefas').select(COLS)
       .or(`feita_em.is.null,feita_em.gte.${desde}`)
       .order('created_at', { ascending: false }).limit(400);
+    let { data, error } = await buscar();
+    // banco ainda sem as colunas das automáticas: segue com as de antes
+    if (semColuna(error) && COLS !== COLS_BASE) { COLS = COLS_BASE; ({ data, error } = await buscar()); }
     if (error) {
       TF.semTabela = /PGRST20|42P01|does not exist|schema cache/i.test(`${error.code} ${error.message}`);
       console.warn('[tarefas] indisponível:', error.message);
@@ -122,14 +135,19 @@
     const t = TF.lista.find((x) => x.id === id);
     if (!t || t.para_user !== TF.uid) return;
     const antes = t.feita_em;
-    t.feita_em = feita ? new Date().toISOString() : null;
+    const agora = feita ? new Date().toISOString() : null;
+    // tarefa da gestão: concluir aqui conclui a dos outros gestores também (o banco faz o mesmo)
+    const irmas = t.auto_grupo ? TF.lista.filter((x) => x !== t && x.auto_grupo === t.auto_grupo && (feita ? !x.feita_em : x.feita_em === antes)) : [];
+    const voltar = irmas.map((x) => [x, x.feita_em]);
+    t.feita_em = agora;
+    irmas.forEach((x) => { x.feita_em = agora; });
     if (feita && TF.aberta === id) TF.aberta = null;
     atualizarTudo();
     const { error } = await supabaseClient.rpc('tarefa_concluir', { p_id: id, p_feita: feita });
-    if (error) { t.feita_em = antes; atualizarTudo(); toast(msgErro(error)); return; }
+    if (error) { t.feita_em = antes; voltar.forEach(([x, v]) => { x.feita_em = v; }); atualizarTudo(); toast(msgErro(error)); return; }
     atualizarTimeline(t.cliente_id);
     if (feita) {
-      const quem = t.de_user !== TF.uid ? ` ${primeiro(t.de_nome)} foi avisado.` : '';
+      const quem = t.de_user && t.de_user !== TF.uid ? ` ${primeiro(t.de_nome)} foi avisado.` : '';
       aviso(`Tarefa concluída.${quem}`, () => concluir(id, false));
     }
   }
@@ -213,10 +231,14 @@
     const mandei = t.de_user === TF.uid;
     const lembrete = minha && mandei;
     const p = prazoTx(t.prazo);
-    const origem = lembrete ? 'Lembrete seu' : minha ? `De ${esc(primeiro(t.de_nome))}` : `Para ${esc(primeiro(t.para_nome))}`;
+    const selo = `<span class="tf-auto">${ic('sparkles')}Automática</span>`;
+    const origem = lembrete ? 'Lembrete seu'
+      : minha ? (auto(t) ? selo : `De ${esc(primeiro(t.de_nome))}`)
+        : `${auto(t) ? selo + ' · ' : ''}Para ${esc(primeiro(t.para_nome))}`;
+    const sozinha = t.feita_em && t.concluida_por === 'auto';
 
     let estado;
-    if (t.feita_em) estado = `<span>${feitaTx(t.feita_em)}</span>`;
+    if (t.feita_em) estado = `<span>${sozinha ? 'concluída sozinha' : feitaTx(t.feita_em)}</span>`;
     else estado = `<span class="tf-due ${p.cls}">${p.tx}</span>`;
 
     const lado = minha
@@ -234,7 +256,7 @@
         <div class="tf-acts">
           ${t.cliente_id ? `<button type="button" class="tf-btn" data-tf="cli" data-id="${t.cliente_id}">${ic('external-link')}Abrir cliente</button>` : ''}
           ${mandei && !t.feita_em ? `<button type="button" class="tf-btn" data-tf="editar" data-id="${t.id}">${ic('pencil')}Editar</button>` : ''}
-          ${mandei || state.isAdmin ? `<button type="button" class="tf-btn tf-del" data-tf="excluir" data-id="${t.id}">${ic('trash-2')}Excluir</button>` : ''}
+          ${mandei || state.isAdmin || (auto(t) && state.isGestor) ? `<button type="button" class="tf-btn tf-del" data-tf="excluir" data-id="${t.id}">${ic('trash-2')}Excluir</button>` : ''}
           ${minha && !t.feita_em ? `<button type="button" class="tf-btn azul" data-tf="ck" data-id="${t.id}">${ic('check')}Concluir</button>` : ''}
         </div>
       </div>` : '';
@@ -521,11 +543,20 @@
   // ---- faixa na ficha do cliente ------------------------------------------------------------------
   function fichaHTML(client) {
     const id = client && String(client.id);
-    const l = TF.lista.filter((t) => !t.feita_em && String(t.cliente_id) === id);
+    // tarefa da gestão chega uma para cada gestor: na faixa aparece uma só (a minha, se houver)
+    const doCliente = TF.lista.filter((t) => !t.feita_em && String(t.cliente_id) === id);
+    const l = doCliente.filter((t) => {
+      if (!t.auto_grupo) return true;
+      const irmas = doCliente.filter((x) => x.auto_grupo === t.auto_grupo);
+      const minhaIrma = irmas.find((x) => x.para_user === TF.uid);
+      return minhaIrma ? minhaIrma === t : irmas[0] === t;
+    });
     const itens = l.map((t) => {
       const minha = t.para_user === TF.uid;
       const p = prazoTx(t.prazo);
-      const quem = minha ? (t.de_user === TF.uid ? 'Lembrete seu' : `Tarefa de ${esc(primeiro(t.de_nome))} para você`) : `Tarefa com ${esc(primeiro(t.para_nome))}`;
+      const quem = minha
+        ? (t.de_user === TF.uid ? 'Lembrete seu' : auto(t) ? 'Tarefa automática para você' : `Tarefa de ${esc(primeiro(t.de_nome))} para você`)
+        : `${auto(t) ? 'Tarefa automática' : 'Tarefa'} com ${esc(primeiro(t.para_nome))}`;
       return `<div class="tf-faixa ${atrasada(t) ? 'late' : ''}">
           <span class="tf-fi">${ic('list-checks')}</span>
           <button type="button" class="tf-ftx" onclick="tarefasAbrir('${t.id}')"><b>${esc(t.titulo)}</b><small>${quem} · ${p.tx}</small></button>
@@ -572,9 +603,15 @@
       const m = ult.meta;
       const criada = evs.find((e) => e.meta.evento === 'criada') || evs[0];
       const fim = [...evs].reverse().find((e) => ['concluida', 'excluida', 'saiu'].includes(e.meta.evento));
-      const viva = TF.lista.find((t) => t.id === id && String(t.cliente_id) === String(clienteId));
+      // tarefa da gestão: o cartão usa o id do grupo; vale a minha cópia, se eu também recebi
+      const doCli = (t) => String(t.cliente_id) === String(clienteId);
+      const viva = TF.lista.find((t) => doCli(t) && t.para_user === TF.uid && (t.id === id || t.auto_grupo === id))
+        || TF.lista.find((t) => t.id === id && doCli(t));
+      const gestao = !!(criada.meta && criada.meta.gestao);
       const t = {
-        id, viva: !!viva,
+        id, viva: !!viva, vivaId: viva ? viva.id : id,
+        vivaMinha: !!(viva && viva.para_user === TF.uid),
+        auto: !!(criada.meta && criada.meta.auto), gestao,
         titulo: (viva && viva.titulo) || m.titulo || tituloDaDescricao(ult.descricao),
         detalhes: viva ? viva.detalhes : m.detalhes,
         de_user: viva ? viva.de_user : m.de_user, de: viva ? viva.de_nome : m.de,
@@ -585,6 +622,12 @@
       };
       if (viva) t.estado = viva.feita_em ? 'feita' : 'aberta';
       else t.estado = !fim ? 'aberta' : fim.meta.evento === 'concluida' ? 'feita' : fim.meta.evento;
+      // quem concluiu (na gestão pode ter sido outra pessoa) ou se concluiu sozinha
+      const fimFeito = fim && fim.meta.evento === 'concluida' ? fim : null;
+      t.sozinha = !!((viva && viva.concluida_por === 'auto') || (fimFeito && fimFeito.meta.auto_fechou));
+      t.motivo = fimFeito && fimFeito.meta.motivo;
+      t.feitaPor = fimFeito ? { uid: fimFeito.meta.para_user, nome: fimFeito.meta.para } : { uid: t.para_user, nome: t.para };
+      if (gestao) { t.para_user = null; t.para = 'Gestão'; }
       if (t.estado === 'feita') {
         t.feitaEm = (viva && viva.feita_em) || (fim && fim.created_at);
       } else if (t.estado !== 'aberta') {
@@ -616,7 +659,8 @@
       : `<span class="tf-quem">${esc(quemTx(t.de_user, t.de))}${ic('arrow-right')}${esc(quemTx(t.para_user, t.para))}</span>`;
     const data = (ts) => `${has('formatDate') ? formatDate(ts) : new Date(ts).toLocaleDateString('pt-BR')} ${new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     const eu = String((state.currentUser && state.currentUser.email) || '').toLowerCase();
-    const autor = (email) => (String(email || '').toLowerCase() === eu ? 'você' : has('crmNomeAutor') ? crmNomeAutor(email) : email);
+    const autor = (email) => (String(email || '').toLowerCase() === 'sistema' ? 'Plataforma'
+      : String(email || '').toLowerCase() === eu ? 'você' : has('crmNomeAutor') ? crmNomeAutor(email) : email);
 
     let resultado = '';
     if (t.estado === 'feita' && t.feitaEm) {
@@ -627,7 +671,10 @@
         prazo = n > 0 ? ` · ${n} dia${n > 1 ? 's' : ''} antes do prazo` : n === 0 ? ' · no dia do prazo' : ` · ${-n} dia${n < -1 ? 's' : ''} depois do prazo`;
       }
       const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      resultado = `<div class="tf-res">${ic('circle-check')}<div>Concluída por ${esc(quemTx(t.para_user, t.para))} em ${ddmm(iso(d))} às ${hora}<span>${prazo}</span></div></div>`;
+      const como = t.sozinha
+        ? `Concluída sozinha${t.motivo ? ` (${esc(t.motivo)})` : ''}`
+        : `Concluída por ${esc(quemTx(t.feitaPor.uid, t.feitaPor.nome))}`;
+      resultado = `<div class="tf-res">${ic('circle-check')}<div>${como} em ${ddmm(iso(d))} às ${hora}<span>${prazo}</span></div></div>`;
     } else if (!aberta && t.fimEm) {
       resultado = `<div class="tf-res mudo">${ic('list-x')}<div>${t.estado === 'saiu' ? 'Passou para outro cliente' : 'Excluída'} por ${esc(autor(t.fimPor))} · ${esc(data(t.fimEm))}</div></div>`;
     }
@@ -635,12 +682,12 @@
     const hist = t.mudancas.slice(-3).map((x) => `<div class="tf-hist">${ic('pencil')}<span>${esc(x.campo)}:</span><s>${esc(x.de)}</s>${ic('arrow-right')}<b>${esc(x.para)}</b></div>`).join('');
 
     const acoes = [];
-    if (t.viva && aberta && t.para_user === TF.uid) acoes.push(`<button type="button" class="tf-btn verde" onclick="tarefasConcluir('${t.id}')">${ic('check')}Concluir</button>`);
-    if (t.viva && aberta && t.de_user === TF.uid && t.para_user !== TF.uid) {
-      acoes.push(`<button type="button" class="tf-lk" onclick="tarefasEditar('${t.id}')">Editar</button>`);
-      acoes.push(`<button type="button" class="tf-lk" onclick="tarefasExcluir('${t.id}')">Excluir</button>`);
+    if (t.vivaMinha && aberta) acoes.push(`<button type="button" class="tf-btn verde" onclick="tarefasConcluir('${t.vivaId}')">${ic('check')}Concluir</button>`);
+    if (t.viva && aberta && t.de_user && t.de_user === TF.uid && !t.vivaMinha) {
+      acoes.push(`<button type="button" class="tf-lk" onclick="tarefasEditar('${t.vivaId}')">Editar</button>`);
+      acoes.push(`<button type="button" class="tf-lk" onclick="tarefasExcluir('${t.vivaId}')">Excluir</button>`);
     }
-    if (t.viva && t.estado === 'feita' && t.para_user === TF.uid) acoes.push(`<button type="button" class="tf-lk" onclick="tarefasReabrir('${t.id}')">Reabrir</button>`);
+    if (t.vivaMinha && t.estado === 'feita') acoes.push(`<button type="button" class="tf-lk" onclick="tarefasReabrir('${t.vivaId}')">Reabrir</button>`);
 
     return `<div class="tf-tl ${s.cls}" id="crm-ev-${esc(ev.id)}">
         <span class="tf-tl-ico">${ic(s.ico)}</span>

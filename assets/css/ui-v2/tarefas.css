@@ -51,6 +51,7 @@
 .tf-item.feita .tf-ttl { text-decoration: line-through; color: var(--v2-gray); font-weight: 600; }
 .tf-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 10px; margin-top: 4px; font-size: 12px; color: var(--v2-ink-2); }
 #tf-painel .tf-meta svg { width: 13px; height: 13px; }
+.tf-auto { display: inline-flex; align-items: center; gap: 3px; }
 .tf-due.late { color: var(--v2-red); font-weight: 700; }
 .tf-due.today { color: var(--v2-orange-text); font-weight: 700; }
 .tf-urg { display: inline-flex; align-items: center; gap: 3px; color: var(--v2-orange-text); font-weight: 800; }
