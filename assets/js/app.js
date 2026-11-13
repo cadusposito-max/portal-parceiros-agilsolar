@@ -468,8 +468,10 @@ const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
 function getActiveTabsForEnvironment() {
   // Técnico: vive no O&M e enxerga todas as abas (os dados são escopados a ele no backend).
   if (state.isTecnico) return OM_TABS;
-  // Marketing (artes + documentação): abas conforme as chaves do login; as de gestão só pro admin.
+  // Marketing (artes): abas conforme a chave do login; as de gestão só pro admin.
   if (state.environment === 'marketing' && podeConteudo('marketing')) return mktAbasVisiveis();
+  // Arquivos (documentações e treinamentos): "Quem já leu" só pro admin.
+  if (state.environment === 'arquivos' && podeDocs()) return arqAbasVisiveis();
   // Parceiro: só o Comercial, e só Clientes e Propostas.
   if (state.isParceiro) return TABS.filter((t) => TABS_PARCEIRO.includes(t.id));
   if (state.environment === 'rede' && state.isAdmin) return REDE_TABS;
@@ -510,6 +512,7 @@ function getActiveTabId() {
   if (state.environment === 'engenharia') return state.engActiveTab;
   if (state.environment === 'rede') return state.redeActiveTab;
   if (state.environment === 'marketing') return state.mktActiveTab;
+  if (state.environment === 'arquivos') return state.arqActiveTab;
   return state.activeTab;
 }
 
@@ -641,13 +644,17 @@ function podeRede() {
   return Boolean(state.isAdmin || state.isFranqueado);
 }
 
-// Marketing (artes + documentação): liberado por login (user_accounts.mkt_enabled
-// abre as artes, docs_enabled a documentação). Admin sempre; técnico fica no O&M.
-const ENVS_CONTEUDO = ['marketing'];
+// Marketing (artes) e Arquivos (documentações e treinamentos): liberados por login
+// (user_accounts.mkt_enabled abre o Marketing, docs_enabled os Arquivos). Admin sempre; técnico fica no O&M.
+const ENVS_CONTEUDO = ['marketing', 'arquivos'];
 function podeConteudo(env) {
+  if (env === 'arquivos') return podeDocs();
   if (!state.currentUser || state.isTecnico) return false;
   if (state.isAdmin) return true;
-  return !!state.canMkt; // Documentação guardada: só a chave das artes abre o ambiente
+  return !!state.canMkt;
+}
+function arqAbasVisiveis() {
+  return ARQ_TABS.filter((t) => !t.admin || state.isAdmin);
 }
 function mktAbasVisiveis() {
   const tem = (t) => state.isAdmin || (t.chave === 'docs' ? state.canDocs : state.canMkt);
@@ -671,12 +678,12 @@ async function conteudoRefreshAccess() {
   docsRefreshPendentes();
 }
 
-// Documentação: ícone de livro no topo (ui-v2-shell) que abre em tela cheia por cima
-// do ambiente atual (docs.js). Vê quem tem docs_enabled no cadastro; admin sempre; técnico não.
+// Documentação (docs.js): mora no ambiente Arquivos desde 13/11 (antes era o ícone de livro no topo).
+// Vê quem tem docs_enabled no cadastro; admin sempre; técnico não.
 function podeDocs() {
   return !!state.currentUser && !state.isTecnico && !!(state.isAdmin || state.canDocs);
 }
-// Número laranja no ícone = leituras obrigatórias pendentes (admin não tem).
+// Número laranja no ambiente Arquivos = leituras obrigatórias pendentes (admin não tem).
 // Consulta leve no login; o docs.js atualiza quando a pessoa confirma uma leitura.
 async function docsRefreshPendentes() {
   const antes = state.docsPend || 0;
@@ -694,19 +701,23 @@ async function docsRefreshPendentes() {
   }
   if (state.docsPend !== antes && window.uiV2Shell) window.uiV2Shell.refresh();
 }
-// Abre (ou fecha, se já estiver aberta) a Documentação; com id, abre direto o documento.
+// Vai pro ambiente Arquivos; com id (sininho), abre direto o documento.
 async function abrirDocumentacao(id) {
   if (!podeDocs()) return;
+  if (state.environment !== 'arquivos') {
+    state.arqActiveTab = 'inicio';
+    setEnvironment('arquivos');
+  } else if (!id && state.arqActiveTab !== 'inicio') {
+    setTab('inicio');
+  }
+  if (!id) return;
   try {
     await carregarConteudo();
   } catch (_) {
-    if (typeof showToast === 'function') showToast('Não deu pra abrir a Documentação. Verifique a internet.');
+    if (typeof showToast === 'function') showToast('Não deu pra abrir os Arquivos. Verifique a internet.');
     return;
   }
-  if (window.DOCS) window.DOCS.abrirCamada(id, !id);
-}
-function fecharDocumentacao() {
-  if (window.DOCS && window.DOCS.aberta()) window.DOCS.fechar();
+  if (window.DOCS) window.DOCS.abrir(id);
 }
 
 // mkt.js, docs.js e conteudo.js só são baixados quando o ambiente é aberto.
@@ -1005,6 +1016,8 @@ function setEnvironment(env) {
   if (env === 'vistoria' && !state.canVis) return; // sem acesso à Vistoria
   if (env === 'engenharia' && !state.canEng) return; // sem acesso à Engenharia
   if (state.environment === env) return;
+  // saindo dos Arquivos com um documento sendo escrito: pergunta antes
+  if (state.environment === 'arquivos' && window.DOCS && window.DOCS.podeSair && !window.DOCS.podeSair()) return;
 
   // Não fecha o menu: ao trocar de seção, o usuário vê as abas da nova seção.
   if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
@@ -1013,6 +1026,10 @@ function setEnvironment(env) {
   state.environment = env;
   launcherGuardarUltimoEnv(env);
   if (env === 'marketing' && !mktAbasVisiveis().some((t) => t.id === state.mktActiveTab)) state.mktActiveTab = mktAbaInicial();
+  if (env === 'arquivos') {
+    if (!arqAbasVisiveis().some((t) => t.id === state.arqActiveTab)) state.arqActiveTab = 'inicio';
+    if (window.DOCS && window.DOCS.inicioDaAba) window.DOCS.inicioDaAba();
+  }
   renderTabs();
   renderContent();
   appRouteSync(true);
@@ -1131,6 +1148,7 @@ function enterEnvironment(env) {
   state.environment = env;
   launcherGuardarUltimoEnv(env);
   if (env === 'om') state.omActiveTab = 'central';
+  if (env === 'arquivos') state.arqActiveTab = 'inicio';
   if (env === 'financeiro') state.finActiveTab = 'visao';
   if (env === 'vistoria') state.vistoriaActiveTab = 'visao';
   if (env === 'engenharia') state.engActiveTab = 'visao';
@@ -1212,9 +1230,12 @@ function setTab(tabId) {
     closeMobileMenu();
     if (typeof chatHandleAppTabChange === 'function') chatHandleAppTabChange();
     stopDashboardClock();
-    state.mktActiveTab = tabId;
+    const arq = state.environment === 'arquivos';
+    // documento sendo escrito: pergunta antes de sair dele
+    if (arq && window.DOCS && window.DOCS.podeSair && !window.DOCS.podeSair()) return;
+    if (arq) state.arqActiveTab = tabId; else state.mktActiveTab = tabId;
     // clicar numa aba volta pro começo dela (fecha documento/editor aberto)
-    const mod = MKT_TABS_DOCS.includes(tabId) ? window.DOCS : window.MKT;
+    const mod = arq ? window.DOCS : window.MKT;
     if (mod && mod.inicioDaAba) mod.inicioDaAba();
     renderTabs();
     renderContent();
@@ -1261,6 +1282,7 @@ function appRouteCurrentHash() {
     engenharia: state.engActiveTab,
     rede: state.redeActiveTab,
     marketing: state.mktActiveTab,
+    arquivos: state.arqActiveTab,
   };
   return `${APP_ROUTE_PREFIX}${state.environment}/${tabByEnv[state.environment] || ''}`;
 }
@@ -1284,8 +1306,9 @@ function appRouteParse(rawHash) {
   if (state.isTecnico) return null; // técnico tem ambiente/aba fixos
 
   let [env, tab] = raw.slice(APP_ROUTE_PREFIX.length).split('/');
-  // link antigo do ambiente Documentação: hoje é aba do Marketing
-  if (env === 'docs') { env = 'marketing'; if (tab === 'inicio') tab = 'docs'; }
+  // links antigos da Documentação (ambiente próprio / aba do Marketing): hoje é o ambiente Arquivos
+  if (env === 'docs') env = 'arquivos';
+  if (env === 'marketing' && MKT_TABS_DOCS.includes(tab)) { env = 'arquivos'; if (tab === 'docs') tab = 'inicio'; }
 
   const tabsByEnv = {
     comercial: (typeof TABS !== 'undefined' ? TABS : []).map((t) => t.id),
@@ -1295,6 +1318,7 @@ function appRouteParse(rawHash) {
     engenharia: (typeof ENG_TABS !== 'undefined' ? ENG_TABS : []).map((t) => t.id),
     rede: (typeof REDE_TABS !== 'undefined' ? REDE_TABS : []).map((t) => t.id),
     marketing: (typeof MKT_TABS !== 'undefined' ? mktAbasVisiveis() : []).map((t) => t.id),
+    arquivos: (typeof ARQ_TABS !== 'undefined' ? arqAbasVisiveis() : []).map((t) => t.id),
   };
 
   if (!Object.prototype.hasOwnProperty.call(tabsByEnv, env)) return null;
@@ -1961,19 +1985,20 @@ function _renderContentImpl() {
     return;
   }
 
-  // Ambiente Marketing: artes (mkt.js) e documentação (docs.js), baixados na primeira vez
+  // Ambientes Marketing (mkt.js) e Arquivos (docs.js), baixados na primeira vez
   if (ENVS_CONTEUDO.includes(state.environment)) {
     stopDashboardClock();
     if (typeof stopOmClock === 'function') stopOmClock();
     mainToolbar.classList.add('hidden');
     toggleContainer.classList.add('hidden');
     if (adminBar) adminBar.classList.add('hidden');
-    const env = state.environment;
-    if (!mktAbasVisiveis().some((t) => t.id === state.mktActiveTab)) state.mktActiveTab = mktAbaInicial();
-    const aba = state.mktActiveTab, ehDoc = MKT_TABS_DOCS.includes(aba);
+    const env = state.environment, ehDoc = env === 'arquivos';
+    if (ehDoc) {
+      if (!arqAbasVisiveis().some((t) => t.id === state.arqActiveTab)) state.arqActiveTab = 'inicio';
+    } else if (!mktAbasVisiveis().some((t) => t.id === state.mktActiveTab)) state.mktActiveTab = mktAbaInicial();
     const fn = ehDoc ? 'renderDocsRoute' : 'renderMktRoute';
     if (typeof window[fn] === 'function') {
-      window[fn](container, ehDoc ? (aba === 'docs' ? 'inicio' : aba) : aba);
+      window[fn](container, ehDoc ? state.arqActiveTab : state.mktActiveTab);
     } else {
       container.innerHTML = '<div class="text-neutral-500 font-bold p-8">Carregando…</div>';
       carregarConteudo()

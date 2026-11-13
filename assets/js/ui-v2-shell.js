@@ -39,15 +39,14 @@
     engenharia: { n: 'Engenharia', i: 'ruler', d: 'Projetos, OS e catálogo técnico', cta: null },
     // franqueado entra no mesmo ambiente, só com a unidade dele
     rede: { get n() { return state.isAdmin ? 'Rede' : 'Minha unidade'; }, i: 'network', get d() { return state.isAdmin ? 'Unidades, CNPJs, impostos e resultado' : 'Resultado, custos e taxas da sua unidade'; }, cta: null },
-    // Marketing: artes + documentação; só o admin sobe material / escreve documento (botão segue a aba)
-    marketing: { n: 'Marketing', i: 'megaphone', d: 'Artes e campanhas da marca', get cta() {
-      if (!state.isAdmin) return null;
-      return typeof MKT_TABS_DOCS !== 'undefined' && MKT_TABS_DOCS.includes(state.mktActiveTab) ? ['Novo documento', 'docsNovo'] : ['Subir material', 'mktSubir'];
-    } },
+    // Marketing: artes e campanhas; só o admin sobe material
+    marketing: { n: 'Marketing', i: 'megaphone', d: 'Artes e campanhas da marca', get cta() { return state.isAdmin ? ['Subir material', 'mktSubir'] : null; } },
+    // Arquivos: documentações e treinamentos (docs.js); só o admin escreve documento
+    arquivos: { n: 'Arquivos', i: 'folder-open', d: 'Documentações e treinamentos', get cta() { return state.isAdmin ? ['Novo documento', 'docsNovo'] : null; } },
   };
   function envAllowed(k) {
     if (state.isTecnico) return k === 'om';
-    if (k === 'marketing') return has('podeConteudo') && podeConteudo(k);
+    if (k === 'marketing' || k === 'arquivos') return has('podeConteudo') && podeConteudo(k);
     if (state.isParceiro) return k === 'comercial';
     if (k === 'comercial') return true;
     if (k === 'om') return !!state.canOM;
@@ -120,10 +119,13 @@
   }
 
   // ---------- pintura ----------
+  // número laranja = leituras obrigatórias pendentes nos Arquivos (na lista de ambientes e no botão de trocar)
+  const docsPendN = () => (envAllowed('arquivos') ? (state.docsPend || 0) : 0);
+  const pendHTML = (n) => (n ? `<span class="v2-envcnt" title="Leituras obrigatórias pendentes">${n > 99 ? '99+' : n}</span>` : '');
   function envListHTML() {
     return Object.entries(ENVS).filter(([k]) => envAllowed(k)).map(([k, v]) => `
       <button class="v2-envopt ${k === envKey() ? 'on' : ''}" data-v2="env" data-env="${k}">
-        <span class="v2-envic">${ic(v.i)}</span><span class="tx"><b>${v.n}</b><small>${v.d}</small></span>${ic('check', 'class="ck"')}
+        <span class="v2-envic">${ic(v.i)}</span><span class="tx"><b>${v.n}</b><small>${v.d}</small></span>${k === 'arquivos' ? pendHTML(docsPendN()) : ''}${ic('check', 'class="ck"')}
       </button>`).join('');
   }
   // celular: o menu da foto (folha) também abre a central de ajuda, que lá não tem "?" no topo
@@ -162,9 +164,8 @@
     const notifOn = has('notifAbrir') && has('notifDisponivel') && notifDisponivel();
     const notifCnt = notifOn && has('notifNaoLidas') ? notifNaoLidas() : 0;
     const tarefasOn = has('tarefasToggle') && has('tarefasDisponivel') && tarefasDisponivel();
-    const docsOn = has('podeDocs') && podeDocs();
-    const docsPend = docsOn ? (state.docsPend || 0) : 0;
-    const docsAberta = !!(window.DOCS && window.DOCS.aberta && window.DOCS.aberta());
+    const docsPend = docsPendN();
+    const envPend = k === 'arquivos' ? 0 : docsPend; // fora dos Arquivos, o botão de trocar de ambiente avisa
     const canAdmin = has('userCanAccessAdminPanel') && userCanAccessAdminPanel();
     const multiEnv = Object.keys(ENVS).filter(envAllowed).length > 1;
     const meta = window.uiV2PageMeta;
@@ -175,7 +176,7 @@
     // Troca de aba, título e contador do chat não mudam a estrutura: só
     // atualiza esses pontos, sem recriar menu e ícones (era ~40ms por vez).
     const sig = JSON.stringify([k, T.map((t) => [t.id, t.label, t.icon]), u.nome, u.email, u.role, u.avatar, u.unidade, cta && cta[0], chatOn, canAdmin, multiEnv,
-      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn, tarefasOn, docsOn, docsPend, docsAberta]);
+      state.adminViewAll, state.gestorViewAll, has('getThemePreference') ? getThemePreference() : '', notifOn, tarefasOn, docsPend]);
     // celular: a tela inicial do Comercial ganha a barra de busca grande (ver shell.css);
     // nos outros ambientes a tela inicial já tem a busca dela e a geral fica na lupa
     const top = $('#v2-top');
@@ -185,7 +186,7 @@
 
     $('#v2-side').innerHTML = `
       <div class="v2-brand">${LOGO}<button class="v2-collapse" data-v2="rail" title="Recolher menu">${ic('chevrons-left')}</button></div>
-      ${multiEnv ? `<div class="v2-rel"><button class="v2-envbtn" data-v2="open" data-target="v2-pop-env" title="Trocar de ambiente"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${ic('chevrons-up-down', 'class="chev"')}</button>
+      ${multiEnv ? `<div class="v2-rel"><button class="v2-envbtn" data-v2="open" data-target="v2-pop-env" title="Trocar de ambiente"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${pendHTML(envPend)}${ic('chevrons-up-down', 'class="chev"')}</button>
         <div class="v2-pop" id="v2-pop-env"><h6>Trocar de ambiente</h6>${envListHTML()}</div></div>` : ''}
       ${cta ? `<button class="v2-cta" data-v2="cta" title="${cta[0]}">${ic('plus')}<span>${cta[0]}</span></button>` : ''}
       <nav class="v2-nav has-ind"><span class="v2-navind" aria-hidden="true"></span><div class="lbl">Menu</div>${T.map((t) => `<button class="${t.id === cur ? 'on' : ''}" data-v2="tab" data-tab="${t.id}" title="${esc(sentence(t.label))}">${ic(t.icon || 'circle')}<span class="t">${esc(sentence(t.label))}</span></button>`).join('')}</nav>
@@ -197,13 +198,11 @@
     // tarefas (tarefas.js pinta o contador depois; aqui o botão já nasce com o valor atual)
     const tc = tarefasOn && has('tarefasContagem') ? tarefasContagem() : { n: 0, late: false };
     const tarefasHTML = tarefasOn ? `<button class="v2-icb" data-v2="tarefas" title="Tarefas" aria-label="Tarefas" aria-expanded="false">${ic('list-checks')}${tc.n ? `<span class="cnt${tc.late ? ' tf-late' : ''}">${tc.n > 99 ? '99+' : tc.n}</span>` : ''}</button>` : '';
-    // documentação (docs.js abre em tela cheia; o número laranja = leituras obrigatórias pendentes)
-    const docsHTML = docsOn ? `<button class="v2-icb v2-docsb${docsAberta ? ' on' : ''}" data-v2="docs" title="Documentação" aria-label="Documentação" aria-pressed="${docsAberta}">${ic('book-open')}${docsPend ? `<span class="cnt or">${docsPend > 99 ? '99+' : docsPend}</span>` : ''}</button>` : '';
     $('#v2-mtop').classList.toggle('multi', multiEnv);
     $('#v2-mtop').innerHTML = `${LOGO}
-      ${multiEnv ? `<button class="v2-envbtn" data-v2="sheet" data-target="v2-sheet-env"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${ic('chevron-down', 'class="chev"')}</button>` : ''}
+      ${multiEnv ? `<button class="v2-envbtn" data-v2="sheet" data-target="v2-sheet-env"><span class="v2-envic">${ic(E.i)}</span><span class="tx"><small>Ambiente</small><b>${E.n}</b></span>${pendHTML(envPend)}${ic('chevron-down', 'class="chev"')}</button>` : ''}
       <span class="v2-grow"></span>
-      <button class="v2-icb v2-reload" data-v2="reload" title="Atualizar" aria-label="Atualizar a plataforma">${ic('rotate-cw')}</button>${docsHTML}${tarefasHTML}${sinoHTML}
+      <button class="v2-icb v2-reload" data-v2="reload" title="Atualizar" aria-label="Atualizar a plataforma">${ic('rotate-cw')}</button>${tarefasHTML}${sinoHTML}
       <button class="v2-av" data-v2="sheet" data-target="v2-sheet-user" aria-label="Menu da conta">${u.avatar}</button>`;
 
     $('#v2-top').innerHTML = `
@@ -213,7 +212,7 @@
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>
       ${scopeButton()}
       ${has('ajudaAbrir') ? `<button class="v2-icb" data-v2="ajuda" title="Central de ajuda" aria-label="Central de ajuda" aria-expanded="false">${ic('circle-help')}</button>` : ''}
-      ${docsHTML}${tarefasHTML}${sinoHTML}
+      ${tarefasHTML}${sinoHTML}
       ${chatOn ? `<button class="v2-icb" data-v2="chat" title="Mensagens da equipe">${ic('message-circle')}${unread ? `<span class="cnt">${unread > 99 ? '99+' : unread}</span>` : ''}</button>` : ''}
       ${canAdmin ? `<button class="v2-icb v2-admin" data-v2="admin" title="Painel administrativo">${ic('settings')}</button>` : ''}`;
 
@@ -373,7 +372,7 @@
     }
     Object.entries(ENVS).filter(([k]) => envAllowed(k)).forEach(([k, v]) => {
       const list = withEnv(k, () => tabs());
-      list.forEach((t) => items.push({ g: 'nav', t: sentence(t.label), s: `Ir para ${v.n} › ${sentence(t.label)}`, k: v.n + ' tela aba', i: t.icon || 'circle', run: () => { setEnvironmentIf(k); setTab(t.id); } }));
+      list.forEach((t) => items.push({ g: 'nav', t: sentence(t.label), s: `Ir para ${v.n} › ${sentence(t.label)}`, k: v.n + ' tela aba' + (k === 'arquivos' ? ' documentação documentacao treinamentos manuais' : ''), i: t.icon || 'circle', run: () => { setEnvironmentIf(k); setTab(t.id); } }));
     });
     const acts = [];
     const cta = ctaFor('comercial');
@@ -474,10 +473,7 @@
     const a = t.dataset.v2;
     if (a === 'theme') { e.stopPropagation(); setThemePreference(t.dataset.theme); paint(); return; }
     closeAll();
-    // trocar de aba/ambiente (ou abrir o admin) fecha a Documentação aberta por cima
-    if (['tab', 'env', 'cta', 'admin'].includes(a) && has('fecharDocumentacao')) fecharDocumentacao();
     switch (a) {
-      case 'docs': if (has('abrirDocumentacao')) abrirDocumentacao(); break;
       case 'open': toggleOpen(t, t.dataset.target); break;
       case 'sheet': openSheet(t.dataset.target); break;
       case 'env': if (has('setEnvironment')) setEnvironment(t.dataset.env); break;

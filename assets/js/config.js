@@ -97,9 +97,11 @@ let state = {
   canEng: false,
   // Ambiente Rede (6º ambiente — gestão das unidades da rede). Só admin (state.isAdmin).
   redeActiveTab: 'visao',
-  // Ambiente Marketing (artes + documentação): liberado por login (ver podeConteudo em app.js)
+  // Ambiente Marketing (artes): liberado por login (ver podeConteudo em app.js)
   mktActiveTab: 'biblioteca',
   canMkt: false,
+  // Ambiente Arquivos (documentações e treinamentos, docs.js): chave docs_enabled no cadastro
+  arqActiveTab: 'inicio',
   canDocs: false,
   // Sub-estado da Engenharia: inputs, último resultado calculado, presets e projetos (estado local até o banco).
   eng: {
@@ -392,8 +394,7 @@ const REDE_TABS_FRANQUEADO = [
 ];
 
 // Ambiente Marketing (mkt.js). `chave` = qual liberação do cadastro abre a aba; `admin` = só admin vê.
-// A Documentação (docs.js) não é aba: desde 12/11 abre pelo ícone de livro no topo, em tela cheia
-// (abrirDocumentacao em app.js), com as abas dela lá dentro.
+// A Documentação (docs.js) não é aba daqui: desde 13/11 mora no ambiente Arquivos (ARQ_TABS abaixo).
 const MKT_TABS = [
   { id: 'inicio',      label: 'INÍCIO',              icon: 'layout-dashboard', chave: 'mkt' },
   { id: 'biblioteca',  label: 'ARTES',               icon: 'layout-grid',    chave: 'mkt' },
@@ -401,5 +402,12 @@ const MKT_TABS = [
   { id: 'montar',      label: 'MONTAR ARTE',         icon: 'pencil-ruler',   chave: 'mkt', admin: true },
   { id: 'uso',         label: 'QUEM BAIXOU',         icon: 'chart-column',   chave: 'mkt', admin: true }
 ];
-// Abas do Marketing que são da documentação (docs.js desenha)
+// Ids de documentação que não são do Marketing (o mkt.js ignora essas abas)
 const MKT_TABS_DOCS = ['docs', 'obrigatoria', 'leituras'];
+
+// Ambiente Arquivos — documentações e treinamentos (docs.js). Vê quem tem docs_enabled; admin sempre.
+const ARQ_TABS = [
+  { id: 'inicio',      label: 'INÍCIO',              icon: 'house' },
+  { id: 'obrigatoria', label: 'LEITURA OBRIGATÓRIA', icon: 'triangle-alert' },
+  { id: 'leituras',    label: 'QUEM JÁ LEU',         icon: 'eye', admin: true }
+];

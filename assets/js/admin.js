@@ -1057,9 +1057,9 @@ async function openAdminUsuarioForm(userId) {
         <input type="checkbox" id="au-mkt-enabled" ${defaultMktEnabled ? 'checked' : ''} class="w-4 h-4 accent-orange-500">
         <span class="text-white font-bold text-sm uppercase">Permitir acesso ao Marketing</span>
       </label>
-      <label class="col-span-2 flex items-center gap-3 cursor-pointer"><!-- Documentação: ícone de livro no topo -->
+      <label class="col-span-2 flex items-center gap-3 cursor-pointer"><!-- Arquivos (documentações e treinamentos): ambiente próprio -->
         <input type="checkbox" id="au-docs-enabled" ${defaultDocsEnabled ? 'checked' : ''} class="w-4 h-4 accent-cyan-500">
-        <span class="text-white font-bold text-sm uppercase">Permitir acesso à Documentação</span>
+        <span class="text-white font-bold text-sm uppercase">Permitir acesso aos Arquivos (documentações e treinamentos)</span>
       </label>
       <div class="col-span-2 bg-cyan-950/20 border border-cyan-700/30 p-3">
         <p class="text-cyan-200/90 text-[10px] font-bold">Quem tem a chave ve o ambiente Marketing (artes e campanhas). Vale para qualquer perfil, inclusive parceiro. Admin sempre ve.</p>

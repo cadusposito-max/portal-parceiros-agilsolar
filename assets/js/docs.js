@@ -1,10 +1,9 @@
 // ==========================================================================
 // DOCUMENTAÇÃO — manuais, processos e treinamentos da rede
 // --------------------------------------------------------------------------
-// Abre pelo ícone de livro no topo (ui-v2-shell → abrirDocumentacao) em tela
-// cheia por cima do ambiente atual; "Fechar"/Esc volta pra onde a pessoa estava.
-// Abas internas: Início (busca + pastas + atualizados), Leitura obrigatória e
-// Quem já leu (admin). Tipos de documento (doc_documentos.tipo):
+// Mora no ambiente Arquivos ("Documentações e treinamentos"; app.js → renderDocsRoute).
+// Abas no menu lateral (ARQ_TABS): Início (busca + pastas + atualizados),
+// Leitura obrigatória e Quem já leu (admin). Tipos de documento (doc_documentos.tipo):
 //   pagina — texto escrito aqui (HTML do editor; imagens e anexos guardados
 //            em conteudo_arquivos e referenciados por data-arq);
 //   slides — igual à página, mas o corpo é uma imagem por slide (convertidos do SULTS);
@@ -88,73 +87,56 @@
       `<button class="ct-btn gh" data-dc="recarregar">${ic('rotate-cw')}Tentar de novo</button>`);
   }
 
-  // ------------------------------------------------------------ camada (tela cheia)
-  // Fica dentro do <main>; com #app-content.docs-aberta o resto do <main> some (conteudo.css).
-  function naDoc() { return D.aberta; }
-  function camada() {
-    let el = document.getElementById('v2-docs');
-    if (!el) {
-      const main = document.querySelector('#app-content > main');
-      if (!main) return null;
-      el = document.createElement('section');
-      el.id = 'v2-docs';
-      el.className = 'v2-docs';
-      el.setAttribute('aria-label', 'Documentação');
-      main.appendChild(el);
-    }
-    return el;
-  }
+  // ------------------------------------------------------------ ambiente Arquivos
+  // Desde 13/11 a Documentação é o ambiente Arquivos: o app.js chama renderDocsRoute(container, aba)
+  // e as abas (Início, Leitura obrigatória, Quem já leu) ficam no menu lateral (ARQ_TABS).
+  function naDoc() { return state.environment === 'arquivos' && !!D.container && D.container.isConnected; }
   function avisarShell() { if (window.uiV2Shell) window.uiV2Shell.refresh(); }
   function atualizarPendentes() {
     if (CT.admin() || !D.docs) return;
     const n = pendentes().length;
     if (state.docsPend !== n) { state.docsPend = n; avisarShell(); }
   }
-  // alternar = clique no ícone: se já estiver aberta, fecha
-  async function abrirCamada(id, alternar) {
-    if (D.aberta && alternar) { fechar(); return; }
-    const el = camada();
-    if (!el) return;
-    if (!D.aberta) { D.rolagem = window.scrollY; D.tab = 'inicio'; D.view = 'lista'; D.pasta = null; D.q = ''; D.achados = null; }
-    D.aberta = true;
-    D.container = el;
-    document.getElementById('app-content').classList.add('docs-aberta');
-    avisarShell();
-    window.scrollTo(0, 0);
+  async function renderDocsRoute(container, tab) {
+    if (!container) return;
+    D.container = container;
+    D.tab = tab === 'leituras' && !CT.admin() ? 'inicio' : (tab || 'inicio');
     if (!D.docs) {
-      const casca = (miolo) => { el.innerHTML = `<div class="ct-root">${cabecalho()}${miolo}</div>`; ligar(el.firstChild); CT.icons(); };
+      const casca = (miolo) => { meta(); container.innerHTML = `<div class="ct-root">${miolo}</div>`; ligar(container.firstChild); CT.icons(); };
       casca(CT.carregando());
-      try { await carregar(); } catch (e) { if (D.aberta) casca(erroHTML(e)); return; }
-      if (!D.aberta) return;
+      try { await carregar(); } catch (e) { if (naDoc()) casca(erroHTML(e)); return; }
+      if (!naDoc() || D.container !== container) return;
       atualizarPendentes();
     }
-    if (id) return abrirDoc(id);
+    if (D.abrirDepois) { const id = D.abrirDepois; D.abrirDepois = null; return abrirDoc(id); }
     pintar();
   }
-  function fechar() {
-    if (!D.aberta) return;
-    if (D.view === 'editar' && !confirm('Sair sem salvar o documento?')) return;
-    D.aberta = false; D.view = 'lista'; D.editId = null; D.pdfNovo = null;
-    const el = document.getElementById('v2-docs');
-    if (el) el.innerHTML = '';
-    document.getElementById('app-content').classList.remove('docs-aberta');
-    avisarShell();
-    window.scrollTo(0, D.rolagem || 0);
+  // documento sendo escrito: confirma antes de trocar de aba ou de ambiente
+  function podeSair() {
+    if (!naDoc() || D.view !== 'editar') return true;
+    if (!confirm('Sair sem salvar o documento?')) return false;
+    D.view = 'lista'; D.editId = null; D.pdfNovo = null;
+    return true;
   }
-  // compatibilidade: a rota antiga do Marketing (#app/docs) só abre a camada
-  function renderDocsRoute() { abrirCamada(); }
 
-  function cabecalho() {
-    const adm = CT.admin(), nOb = pendentes().length;
-    const aba = (id, icone, nome, extra) => `<button data-dc="aba" data-tab="${id}" class="${D.tab === id && D.view !== 'doc' && D.view !== 'editar' ? 'on' : ''}">${ic(icone)}${nome}${extra || ''}</button>`;
-    return `<div class="dcx-head"><span class="dcx-ico">${ic('book-open')}</span>
-      <div class="dcx-tt"><h1>Documentação</h1><p>Manuais, processos e treinamentos da rede</p></div>
-      ${adm ? `<button class="ct-btn gh" data-dc="importar" title="Importar documentos convertidos do SULTS">${ic('folder-down')}<span>Importar do SULTS</span></button>
-        <button class="ct-btn or" data-dc="novo">${ic('plus')}<span>Novo documento</span></button>` : ''}
-      <button class="ct-btn gh" data-dc="fechar" title="Voltar pra onde você estava (Esc)">${ic('x')}<span>Fechar</span></button></div>
-      <div class="dcx-tabs">${aba('inicio', 'house', 'Início')}${aba('obrigatoria', 'triangle-alert', 'Leitura obrigatória', nOb ? `<span class="n">${nOb}</span>` : '')}${adm ? aba('leituras', 'eye', 'Quem já leu') : ''}</div>`;
+  // título e subtítulo no topo da plataforma (o shell mostra "Arquivos" em cima)
+  const TITULOS = {
+    inicio: ['Documentações e treinamentos', 'Manuais, processos e treinamentos da rede'],
+    obrigatoria: ['Leitura obrigatória', 'O que a Matriz pediu pra toda a rede ler'],
+    leituras: ['Quem já leu', 'Quem confirmou as leituras obrigatórias'],
+  };
+  function meta() {
+    const [t, s] = TITULOS[D.tab] || TITULOS.inicio;
+    CT.meta('arquivos:' + D.tab, t, s);
   }
+  // admin: importar do SULTS fica no começo do Início ("Novo documento" é o botão do menu)
+  function cabecalho() {
+    if (!CT.admin() || D.tab !== 'inicio' || D.view !== 'lista') return '';
+    return `<div class="dcx-acoes"><button class="ct-btn gh" data-dc="importar" title="Importar documentos convertidos do SULTS">${ic('folder-down')}<span>Importar do SULTS</span></button></div>`;
+  }
+  // troca de aba pelo menu da plataforma (assim o menu lateral acompanha)
   function setAba(t) {
+    if (typeof setTab === 'function' && state.environment === 'arquivos') { setTab(t || 'inicio'); window.scrollTo(0, 0); return; }
     D.tab = t === 'leituras' && !CT.admin() ? 'inicio' : (t || 'inicio');
     D.view = 'lista'; D.pasta = null; D.editId = null; D.pdfNovo = null;
     pintar();
@@ -164,6 +146,7 @@
   function pintar() {
     const c = D.container;
     if (!c || !naDoc()) return;
+    meta();
     let html;
     if (D.view === 'editar') html = vEditar();
     else if (D.view === 'doc' && doc(D.docId)) html = vDoc();
@@ -227,7 +210,7 @@
   }
   function vPasta() {
     const lista = visiveis().filter((d) => d.pasta === D.pasta);
-    return `<div class="ct-crumb"><button data-dc="inicio">Documentação</button>›<span>${esc(pasta(D.pasta)[1])}</span></div>
+    return `<div class="ct-crumb"><button data-dc="inicio">Documentações</button>›<span>${esc(pasta(D.pasta)[1])}</span></div>
       ${CT.admin() ? `<div class="ct-tools"><span style="flex:1"></span><button class="ct-btn or" data-dc="novo">${ic('plus')}Novo aqui</button></div>` : ''}
       ${lista.length ? `<div class="dc-list">${lista.map((d) => linhaDoc(d, false)).join('')}</div>` : CT.vazio('folder-open', 'Pasta vazia', 'Nenhum documento nesta pasta ainda.')}`;
   }
@@ -256,7 +239,7 @@
   // ------------------------------------------------------------ documento
   function vDoc() {
     const d = doc(D.docId), f = D.full[D.docId], [ti, tn] = TIPO[d.tipo] || TIPO.pagina;
-    const crumb = `<div class="ct-crumb"><button data-dc="inicio">Documentação</button>›<button data-dc="pasta" data-pasta="${d.pasta}">${esc(pasta(d.pasta)[1])}</button></div>`;
+    const crumb = `<div class="ct-crumb"><button data-dc="inicio">Documentações</button>›<button data-dc="pasta" data-pasta="${d.pasta}">${esc(pasta(d.pasta)[1])}</button></div>`;
     if (!f) return crumb + CT.carregando();
     let corpo = '';
     if (d.tipo === 'pdf') {
@@ -583,7 +566,7 @@
     const tipo = d ? d.tipo : D.novoTipo;
     const arq = d && d.arquivo_id ? CT._arq.get(d.arquivo_id) : null;
     const pastaSel = d ? d.pasta : (D.pasta || 'comercial');
-    return `<div class="ct-crumb"><button data-dc="inicio">Documentação</button>›<span>${d ? 'Editar documento' : 'Novo documento'}</span></div>
+    return `<div class="ct-crumb"><button data-dc="inicio">Documentações</button>›<span>${d ? 'Editar documento' : 'Novo documento'}</span></div>
     <div class="dc-doc"><div class="dc-art">
       <div class="ct-segw dc-tipo">${Object.entries(TIPO).filter(([k]) => k !== 'slides' || tipo === 'slides').map(([k, [i, n]]) => `<button data-dc="tipo" data-tipo="${k}" class="${tipo === k ? 'on' : ''}">${ic(i)}${n}</button>`).join('')}</div>
       <input class="dc-tit" id="dc-tit" placeholder="Título do documento" value="${esc(d ? d.titulo : '')}" maxlength="140">
@@ -743,8 +726,7 @@
       if (!b) return;
       const a = b.dataset.dc, id = b.dataset.id;
       switch (a) {
-        case 'recarregar': D.docs = null; abrirCamada(); break;
-        case 'fechar': fechar(); break;
+        case 'recarregar': D.docs = null; renderDocsRoute(D.container, D.tab); break;
         case 'importar': importarEscolher(); break;
         case 'pubtodos': publicarTodos(b); break;
         case 'inicio': setAba('inicio'); break;
@@ -853,16 +835,11 @@
   // Botão "+" (só admin)
   function docsNovo() { if (naDoc() && CT.admin()) abrirEditor(null); }
 
-  // Sininho: abre o documento por cima da tela atual
-  function abrir(id) { abrirCamada(id); }
-
-  // Esc fecha (menos dentro do editor ou com janela aberta por cima)
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || !D.aberta || D.view === 'editar' || document.getElementById('ct-scrim')) return;
-    const a = document.activeElement;
-    if (a && (/INPUT|TEXTAREA|SELECT/.test(a.tagName) || a.isContentEditable)) { a.blur(); return; }
-    fechar();
-  });
+  // Sininho: o app.js já trocou pro ambiente Arquivos; abre o documento (ou espera a lista carregar)
+  function abrir(id) {
+    if (naDoc() && D.docs) abrirDoc(id);
+    else D.abrirDepois = id;
+  }
 
   // ------------------------------------------------------------ publicar rascunhos (admin)
   async function publicarTodos(btn) {
@@ -998,7 +975,7 @@
   window.renderDocsRoute = renderDocsRoute;
   window.docsNovo = docsNovo;
   window.DOCS = {
-    abrir, abrirCamada, fechar, aberta: () => D.aberta, pendentes: () => pendentes().length,
+    abrir, podeSair, aberta: naDoc, pendentes: () => pendentes().length,
     recarregar: () => { D.docs = null; D.full = {}; D.resumo = null; },
     inicioDaAba: () => { D.view = 'lista'; D.pasta = null; D.editId = null; D.pdfNovo = null; },
   };

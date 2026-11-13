@@ -58,6 +58,13 @@ html[data-ui="v2"] .v2-envbtn .tx { flex: 1; min-width: 0; line-height: 1.25; }
 html[data-ui="v2"] .v2-envbtn small { display: block; font-size: 11px; color: var(--v2-gray); font-weight: 600; }
 html[data-ui="v2"] .v2-envbtn b { font-size: 14px; font-weight: 800; white-space: nowrap; }
 html[data-ui="v2"] .v2-envbtn .chev { color: var(--v2-gray); width: 16px; height: 16px; }
+/* número laranja = leituras obrigatórias pendentes no ambiente Arquivos */
+html[data-ui="v2"] .v2-envbtn { position: relative; }
+html[data-ui="v2"] .v2-envcnt {
+  min-width: 20px; height: 20px; border-radius: 999px; background: var(--v2-orange); color: var(--v2-orange-ink);
+  font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 6px; flex-shrink: 0; line-height: 1;
+}
+html[data-ui="v2"] .v2-envbtn .v2-envcnt { position: absolute; top: -5px; right: -5px; border: 2px solid var(--v2-bg); }
 
 html[data-ui="v2"] .v2-cta {
   border: 0; border-radius: 16px; background: var(--v2-orange); color: var(--v2-orange-ink);

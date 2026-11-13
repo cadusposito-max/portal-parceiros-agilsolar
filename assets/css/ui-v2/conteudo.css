@@ -485,23 +485,8 @@ html[data-ui="v2"] .mk-chart i:hover { opacity: 1; }
 html[data-ui="v2"] .mk-chart i:hover::after { content: attr(data-v); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: var(--v2-ink); color: var(--v2-card); font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 8px; white-space: nowrap; z-index: 3; pointer-events: none; }
 html[data-ui="v2"] .mk-ax { display: flex; justify-content: space-between; font-size: 10px; color: var(--v2-gray); font-weight: 700; margin-top: 6px; }
 
-/* ---------- Documentação em tela cheia (ícone de livro no topo; docs.js) ---------- */
-html[data-ui="v2"] .v2-docs { display: none; }
-html[data-ui="v2"] #app-content.docs-aberta > main > *:not(#v2-docs) { display: none !important; }
-html[data-ui="v2"] #app-content.docs-aberta .v2-docs { display: block; }
-html[data-ui="v2"] .v2-icb.v2-docsb.on { background: var(--v2-blue); color: #fff; }
-html[data-ui="v2"] .v2-mtop .v2-icb.v2-docsb.on { background: var(--v2-blue-50); color: var(--v2-blue); }
-html[data-ui="v2"] .dcx-head { display: flex; align-items: center; gap: 12px; margin: 2px 0 16px; flex-wrap: wrap; }
-html[data-ui="v2"] .dcx-ico { width: 46px; height: 46px; border-radius: 14px; background: var(--v2-blue); color: #fff; display: grid; place-items: center; flex-shrink: 0; }
-html[data-ui="v2"] .dcx-ico svg.lucide { width: 22px; height: 22px; }
-html[data-ui="v2"] .dcx-tt { flex: 1; min-width: 180px; }
-html[data-ui="v2"] .dcx-tt h1 { font-size: 28px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 0; color: var(--v2-ink); }
-html[data-ui="v2"] .dcx-tt p { font-size: 14px; color: var(--v2-gray); font-weight: 500; margin: 2px 0 0; }
-html[data-ui="v2"] .dcx-tabs { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
-html[data-ui="v2"] .dcx-tabs button { border: 0; background: var(--v2-card); box-shadow: var(--v2-shadow); border-radius: 999px; padding: 9px 16px; font-size: 13px; font-weight: 700; color: var(--v2-ink-2); display: flex; gap: 6px; align-items: center; }
-html[data-ui="v2"] .dcx-tabs button svg.lucide { width: 15px; height: 15px; }
-html[data-ui="v2"] .dcx-tabs button.on { background: var(--v2-ink); color: var(--v2-card); }
-html[data-ui="v2"] .dcx-tabs .n { font-size: 11px; font-weight: 800; background: var(--v2-orange); color: var(--v2-orange-ink); border-radius: 99px; padding: 1px 7px; }
+/* ---------- Ambiente Arquivos (documentações e treinamentos; docs.js) ---------- */
+html[data-ui="v2"] .dcx-acoes { display: flex; justify-content: flex-end; gap: 8px; margin: -4px 0 14px; flex-wrap: wrap; }
 html[data-ui="v2"] .dc-ti.slides { background: var(--v2-orange-50); color: var(--v2-orange-text); }
 html[data-ui="v2"] .dc-rasc { display: flex; align-items: center; gap: 14px; background: var(--v2-card); border: 1.5px dashed var(--v2-line-strong); border-radius: 20px; padding: 14px 18px; margin-bottom: 20px; }
 html[data-ui="v2"] .dc-rasc .ico { width: 42px; height: 42px; border-radius: 14px; background: var(--v2-blue-50); color: var(--v2-blue); display: grid; place-items: center; flex-shrink: 0; }
@@ -601,13 +586,7 @@ html[data-ui="v2"] .dci-errs { display: flex; flex-direction: column; gap: 4px; 
   html[data-ui="v2"] .dc-obrig .ct-btn, html[data-ui="v2"] .dc-leu .ct-btn { width: 100%; }
   html[data-ui="v2"] .dc-lcards { grid-template-columns: 1fr; }
   html[data-ui="v2"] .dc-tb { top: 64px; }
-  html[data-ui="v2"] .dcx-ico, html[data-ui="v2"] .dcx-tt p { display: none; }
-  html[data-ui="v2"] .dcx-tt h1 { font-size: 23px; }
-  html[data-ui="v2"] .dcx-tt { min-width: 0; }
-  html[data-ui="v2"] .dcx-head .ct-btn > span { display: none; }
-  html[data-ui="v2"] .dcx-head .ct-btn { width: 42px; padding: 0; }
-  html[data-ui="v2"] .dcx-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  html[data-ui="v2"] .dcx-tabs button { white-space: nowrap; }
+  html[data-ui="v2"] .dcx-acoes { margin-top: 0; }
   html[data-ui="v2"] .dc-rasc { flex-wrap: wrap; }
   html[data-ui="v2"] .dc-rasc .ct-btn { width: 100%; }
   html[data-ui="v2"] .dci-eco { display: none; }
