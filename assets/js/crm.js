@@ -1447,6 +1447,7 @@ function crmVendaExcluir(id) {
     '• a venda sai do total do mês, do ranking e da Rede',
     outrasDoCliente ? '• o cliente continua Fechado (tem outra venda)' : '• o cliente volta para Proposta enviada',
     prop && propostaStatus(prop) === 'ACEITA' ? `• a proposta volta de Aceita para ${_crmEtapaNome[_crmEtapaSemAceite(prop)]}` : null,
+    '• o Financeiro dela sai junto (título, o que foi recebido e a comissão); comissão já paga fica',
     '• fica registrado na timeline quem excluiu',
   ].filter((l) => l !== null);
   showConfirmModal(linhas.join('\n'), async () => {
