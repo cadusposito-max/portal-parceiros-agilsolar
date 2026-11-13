@@ -60,6 +60,15 @@
     return `<small class="vfin-q">em ${d} dias</small>`;
   }
   // "Venda · KIT ..." → "KIT ..."; o documento só aparece se não for o mesmo texto
+  // como o cliente pagou: um selinho por recebimento (+ desconto, se teve)
+  function formasRec(t) {
+    const bx = Array.isArray(t.baixas) ? t.baixas : [];
+    const des = Number(t.desconto) || 0;
+    if (!bx.length && !des) return '';
+    const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+    const tit = (b) => `${b.meio || 'Sem forma'} · ${fmt(b.valor)}${b.data ? ' em ' + dataBR(b.data) : ''}`;
+    return `<span class="vfin-formas">${bx.map((b) => `<em title="${esc(tit(b))}">${esc(b.meio || 'Sem forma')} ${fmt(b.valor)}</em>`).join('')}${des ? `<em class="des" title="${esc('Desconto' + (t.desconto_motivo ? ': ' + t.desconto_motivo : ''))}">Desconto ${fmt(des)}</em>` : ''}</span>`;
+  }
   function descricao(t) {
     const d = String(t.desc_raw || '').replace(/^Venda · /, '').trim();
     const doc = String(t.doc_raw || '').trim();
@@ -159,7 +168,7 @@
         <td><div class="v2-who">${avatar(t.cli)}<div style="min-width:0"><span class="v2-nmrow"><span class="v2-nm">${esc(t.cli)}</span><b class="v2-mval">${curto(t.st === 'pago' ? valor : t.saldo)}</b></span><small class="vfin-kit">${esc(descricao(t))}</small>${parcChip}<span class="show-m v2-mline"><span class="v2-chip dot ${s[1]}">${s[0]}</span><span class="v2-minfo" style="color:var(--v2-gray)">${ic('calendar')}${dataBR(t.venc_iso)}</span></span></div></div></td>
         <td class="hide-m"><b class="vfin-d">${dataBR(t.venc_iso)}</b>${quando(t)}</td>
         <td class="hide-m" style="font-weight:800">${brl(valor)}</td>
-        <td class="hide-m"><div class="vfin-prog"><div class="t"><i style="width:${pct}%"></i></div><small>${pago ? brl(pago) + ' recebido' : 'nada recebido'}</small></div></td>
+        <td class="hide-m"><div class="vfin-prog"><div class="t"><i style="width:${pct}%"></i></div><small>${pago ? brl(pago) + ' recebido' : 'nada recebido'}</small>${formasRec(t)}</div></td>
         <td class="hide-m"><span class="v2-chip dot ${s[1]}">${s[0]}</span></td>
         <td><div class="v2-acts">${acts}</div></td></tr>`;
     }).join('');
@@ -357,6 +366,163 @@
     if (window.finToast) finToast('Parcela recebida', 'ok');
     await atualizarTelaAberta();
   }
+  // ---- receber título: integral, bipartido, parcial ou com desconto (13/11/2026) ----
+  // Tudo vai numa chamada só (receber_fin_titulo): várias baixas, desconto e novo
+  // vencimento entram juntos ou nada entra.
+  const MEIOS_REC = ['PIX', 'Transferência', 'Boleto', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro', 'Financiamento', 'Cheque'];
+  const MODOS_REC = {
+    integral: ['circle-check', 'Integral', 'O cliente pagou o saldo todo de uma vez, numa forma só.'],
+    bipartido: ['split', 'Bipartido', 'Pagou em mais de uma forma (ex.: parte PIX, parte cartão). A soma fecha o saldo.'],
+    parcial: ['circle-dashed', 'Parcial', 'Entrou só uma parte. O resto continua em aberto, com o vencimento que você escolher.'],
+    desconto: ['badge-percent', 'Com desconto', 'O cliente pagou menos e o título fecha mesmo assim. O desconto fica registrado e não conta como recebido.'],
+  };
+  const brl2 = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const r2 = (v) => Math.round((Number(v) || 0) * 100) / 100;
+  const fmt2 = (v) => r2(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // aceita "1.234,56", "1234,56" e "1234.56"
+  const num2 = (s) => { s = String(s || '').replace(/[^\d,.-]/g, ''); if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); return r2(parseFloat(s) || 0); };
+  let RX = null;
+  const parteNova = (meio, valor) => ({ meio, valor: fmt2(valor), data: hojeIso(), x: '1' });
+
+  function receberTitulo(t) {
+    if (!t) return;
+    const s = r2(t.saldo);
+    RX = { t, s, modo: 'integral', partes: [parteNova('PIX', s)],
+      parc: { meio: 'PIX', valor: '', data: hojeIso(), venc: '' },
+      desc: { meio: 'PIX', valor: fmt2(s), data: hojeIso(), motivo: '' } };
+    abrirDlg('');
+    const card = document.querySelector('#vfin-dlg .card'); if (card) card.classList.add('vfin-rx');
+    pintarRx();
+  }
+  function rxModo(m) {
+    if (!RX || !MODOS_REC[m]) return;
+    RX.modo = m;
+    if (m === 'bipartido' && RX.partes.length < 2) {
+      const metade = r2(RX.s / 2);
+      RX.partes = [parteNova(RX.partes[0].meio, metade), parteNova(RX.partes[0].meio === 'PIX' ? 'Cartão de crédito' : 'PIX', RX.s - metade)];
+    }
+    if (m === 'integral') RX.partes = [{ ...RX.partes[0], valor: fmt2(RX.s) }];
+    pintarRx();
+  }
+  const rxSel = (v, on) => `<select onchange="${on}">${MEIOS_REC.map((m) => `<option ${m === v ? 'selected' : ''}>${m}</option>`).join('')}</select>`;
+  const rxX = (p, i) => (p.meio === 'Cartão de crédito'
+    ? `<div class="vfin-rx-x">${ic('credit-card')}em <select onchange="uiV2Fin.rxParte(${i},'x',this.value)">${Array.from({ length: 18 }, (_, k) => k + 1).map((n) => `<option value="${n}" ${String(n) === p.x ? 'selected' : ''}>${n === 1 ? 'à vista' : n + '×'}</option>`).join('')}</select><span>só pra registro</span></div>`
+    : '');
+  const rxData = (v, on) => `<input type="date" value="${esc(v)}" max="${hojeIso()}" onchange="${on}">`;
+
+  function pintarRx() {
+    const card = document.querySelector('#vfin-dlg .card'); if (!card || !RX) return;
+    const { t, s } = RX, m = RX.modo;
+    let corpo = '';
+    if (m === 'integral') {
+      const p = RX.partes[0];
+      corpo = `<div class="vfin-grid2">
+          <label class="vfin-campo"><span>Forma</span>${rxSel(p.meio, "uiV2Fin.rxParte(0,'meio',this.value,1)")}</label>
+          <label class="vfin-campo"><span>Data do recebimento</span>${rxData(p.data, "uiV2Fin.rxParte(0,'data',this.value)")}</label>
+        </div>${rxX(p, 0)}`;
+    } else if (m === 'bipartido') {
+      corpo = `<div class="vfin-rx-partes"><div class="vfin-rx-cab"><span>Forma</span><span>Valor</span><span>Data</span><span></span></div>${RX.partes.map((p, i) => `
+        <div class="vfin-rx-pt"><div class="vfin-rx-lin">
+          ${rxSel(p.meio, `uiV2Fin.rxParte(${i},'meio',this.value,1)`)}
+          <input type="text" inputmode="decimal" class="vfin-rx-rs" value="${esc(p.valor)}" oninput="uiV2Fin.rxParte(${i},'valor',this.value)" onblur="this.value=uiV2Fin.rxFmt(this.value)">
+          ${rxData(p.data, `uiV2Fin.rxParte(${i},'data',this.value)`)}
+          ${RX.partes.length > 2 ? `<button class="vfin-rx-rm" title="Tirar esta forma" onclick="uiV2Fin.rxTirar(${i})">${ic('x')}</button>` : '<span></span>'}
+        </div>${rxX(p, i)}</div>`).join('')}
+        <button class="vfin-rx-add" onclick="uiV2Fin.rxAdd()">${ic('plus')}Mais uma forma</button></div>`;
+    } else if (m === 'parcial') {
+      const p = RX.parc;
+      corpo = `<div class="vfin-grid2">
+          <label class="vfin-campo"><span>Quanto entrou</span><input type="text" inputmode="decimal" class="vfin-rx-rs" placeholder="0,00" value="${esc(p.valor)}" oninput="uiV2Fin.rxCampo('parc','valor',this.value)" onblur="this.value=this.value?uiV2Fin.rxFmt(this.value):''"></label>
+          <label class="vfin-campo"><span>Forma</span>${rxSel(p.meio, "uiV2Fin.rxCampo('parc','meio',this.value)")}</label>
+          <label class="vfin-campo"><span>Data do recebimento</span>${rxData(p.data, "uiV2Fin.rxCampo('parc','data',this.value)")}</label>
+          <label class="vfin-campo"><span>Vencimento do restante <em>opcional</em></span><input type="date" value="${esc(p.venc)}" min="${hojeIso()}" onchange="uiV2Fin.rxCampo('parc','venc',this.value)"></label>
+        </div>`;
+    } else {
+      const p = RX.desc;
+      corpo = `<div class="vfin-grid2">
+          <label class="vfin-campo"><span>Quanto o cliente pagou</span><input type="text" inputmode="decimal" class="vfin-rx-rs" value="${esc(p.valor)}" oninput="uiV2Fin.rxCampo('desc','valor',this.value)" onblur="this.value=uiV2Fin.rxFmt(this.value)"></label>
+          <label class="vfin-campo"><span>Forma</span>${rxSel(p.meio, "uiV2Fin.rxCampo('desc','meio',this.value)")}</label>
+          <label class="vfin-campo"><span>Data do recebimento</span>${rxData(p.data, "uiV2Fin.rxCampo('desc','data',this.value)")}</label>
+          <label class="vfin-campo"><span>Motivo do desconto</span><input type="text" maxlength="200" placeholder="Ex.: pagamento à vista" value="${esc(p.motivo)}" oninput="uiV2Fin.rxCampo('desc','motivo',this.value)"></label>
+        </div>`;
+    }
+    card.innerHTML = `
+      <header><div><small>Receber</small><h3>${esc(t.cli)}</h3><span>${esc(descricao(t))}</span></div><button class="v2-sq" title="Fechar" onclick="uiV2Fin.fecharDlg()">${ic('x')}</button></header>
+      <div class="vfin-rx-saldo"><span>Saldo em aberto</span><b>${brl2(s)}</b></div>
+      <div class="vfin-rx-modos" role="tablist">${Object.entries(MODOS_REC).map(([k, [i, n]]) => `<button role="tab" aria-selected="${k === m}" class="${k === m ? 'on' : ''}" onclick="uiV2Fin.rxModo('${k}')">${ic(i)}${n}</button>`).join('')}</div>
+      <div class="vfin-rx-corpo"><div class="vfin-rx-expl">${MODOS_REC[m][2]}</div>${corpo}<div id="vfin-rx-st"></div></div>
+      <div class="vfin-dlg-acts"><button class="v2-btn2" onclick="uiV2Fin.fecharDlg()">Cancelar</button><button class="v2-btnp vfin-receber" id="vfin-rx-ok" onclick="uiV2Fin.rxOk()">${ic('check')}<span>Confirmar recebimento</span></button></div>`;
+    icons();
+    pintarRxSt();
+  }
+  // faixa de situação + botão (sem redesenhar os campos, pra não perder o foco)
+  function rxConta() {
+    const { s } = RX, m = RX.modo;
+    if (m === 'integral') return { ok: s > 0, cls: 'ok', ico: 'circle-check', txt: `Recebe ${brl2(s)} e o título fica quitado.` };
+    if (m === 'bipartido') {
+      const soma = r2(RX.partes.reduce((a, p) => a + num2(p.valor), 0)), dif = r2(s - soma);
+      const zero = RX.partes.some((p) => !(num2(p.valor) > 0));
+      if (Math.abs(dif) < 0.01 && !zero) return { ok: true, cls: 'ok', ico: 'circle-check', txt: `Soma ${brl2(soma)} · fecha o saldo certinho.`, btn: `Confirmar ${RX.partes.length} recebimentos` };
+      if (zero) return { ok: false, cls: 'falta', ico: 'circle-alert', txt: 'Toda forma precisa de um valor. Tire a que sobrou.' };
+      if (dif > 0) return { ok: false, cls: 'falta', ico: 'circle-alert', txt: `Soma ${brl2(soma)} · faltam <b>${brl2(dif)}</b>. Se entrou só isso, use <b>Parcial</b>.` };
+      return { ok: false, cls: 'passa', ico: 'triangle-alert', txt: `Soma ${brl2(soma)} · passou ${brl2(-dif)} do saldo.` };
+    }
+    if (m === 'parcial') {
+      const v = num2(RX.parc.valor), resta = r2(s - v);
+      if (!(v > 0)) return { ok: false, cls: 'falta', ico: 'info', txt: 'Informe quanto entrou.' };
+      if (resta <= 0) return { ok: false, cls: 'passa', ico: 'triangle-alert', txt: 'Esse valor já quita o título. Use <b>Integral</b>.' };
+      return { ok: true, cls: 'falta', ico: 'clock', txt: `Entra ${brl2(v)} · continuam em aberto <b>${brl2(resta)}</b>${RX.parc.venc ? ', vencendo ' + dataBR(RX.parc.venc) : ' (vencimento atual)'}.`, btn: 'Confirmar recebimento parcial' };
+    }
+    const v = num2(RX.desc.valor), d = r2(s - v);
+    if (!(v > 0)) return { ok: false, cls: 'falta', ico: 'info', txt: 'Informe quanto o cliente pagou.' };
+    if (d <= 0) return { ok: false, cls: 'falta', ico: 'info', txt: `Coloque um valor menor que o saldo (${brl2(s)}).` };
+    const pc = (d / s * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+    // desconto grande costuma ser valor digitado errado: deixa passar, mas avisa
+    if (d / s > 0.2) return { ok: true, cls: 'passa', ico: 'triangle-alert', txt: `Desconto alto: <b>${brl2(d)}</b> (${pc}%). Confira se o valor pago está certo.`, btn: 'Confirmar com desconto' };
+    return { ok: true, cls: 'ok', ico: 'badge-percent', txt: `Recebe ${brl2(v)} · desconto de <b>${brl2(d)}</b> (${pc}%) · título quitado.`, btn: 'Confirmar com desconto' };
+  }
+  function pintarRxSt() {
+    const el = document.getElementById('vfin-rx-st'); if (!el || !RX) return;
+    const c = rxConta();
+    el.innerHTML = `<div class="vfin-rx-st ${c.cls}">${ic(c.ico)}<span>${c.txt}</span></div>`;
+    const b = document.getElementById('vfin-rx-ok');
+    if (b) { b.disabled = !c.ok; const sp = b.querySelector('span'); if (sp) sp.textContent = c.btn || 'Confirmar recebimento'; }
+    icons();
+  }
+  function rxParte(i, k, v, repintar) { if (!RX || !RX.partes[i]) return; RX.partes[i][k] = v; if (repintar) pintarRx(); else pintarRxSt(); }
+  function rxCampo(o, k, v) { if (!RX || !RX[o]) return; RX[o][k] = v; pintarRxSt(); }
+  function rxAdd() {
+    if (!RX) return;
+    const soma = RX.partes.reduce((a, p) => a + num2(p.valor), 0);
+    RX.partes.push(parteNova('Dinheiro', Math.max(0, RX.s - soma)));
+    pintarRx();
+  }
+  function rxTirar(i) { if (!RX || RX.partes.length <= 2) return; RX.partes.splice(i, 1); pintarRx(); }
+  const rxMeio = (p) => (p.meio === 'Cartão de crédito' && Number(p.x) > 1 ? `Cartão de crédito ${p.x}×` : p.meio);
+  async function rxOk() {
+    if (!RX) return;
+    const c = rxConta(); if (!c.ok) return;
+    const m = RX.modo;
+    let partes, desconto = 0, motivo = null, venc = null;
+    if (m === 'integral') partes = [{ valor: RX.s, meio: rxMeio(RX.partes[0]), data: RX.partes[0].data }];
+    else if (m === 'bipartido') partes = RX.partes.map((p) => ({ valor: num2(p.valor), meio: rxMeio(p), data: p.data }));
+    else if (m === 'parcial') { partes = [{ valor: num2(RX.parc.valor), meio: RX.parc.meio, data: RX.parc.data }]; venc = RX.parc.venc || null; }
+    else { const v = num2(RX.desc.valor); partes = [{ valor: v, meio: RX.desc.meio, data: RX.desc.data }]; desconto = r2(RX.s - v); motivo = RX.desc.motivo || null; }
+    const fut = partes.find((p) => !p.data || p.data > hojeIso());
+    if (fut) { if (window.finToast) finToast(fut.data ? 'A data do recebimento não pode ser no futuro' : 'Informe a data do recebimento', 'warn'); return; }
+    const btn = document.getElementById('vfin-rx-ok'); if (btn) btn.disabled = true;
+    try {
+      await window.finRpc('receber_fin_titulo', { p_id: RX.t.id, p_partes: partes, p_desconto: desconto, p_motivo: motivo, p_novo_venc: venc });
+    } catch (_) { if (btn) btn.disabled = false; return; }
+    const msg = m === 'parcial' ? 'Recebimento parcial registrado'
+      : m === 'bipartido' ? `${partes.length} recebimentos registrados · título quitado`
+      : m === 'desconto' ? 'Recebido com desconto · título quitado' : 'Recebido · título quitado';
+    RX = null;
+    fecharDlg();
+    if (window.finToast) finToast(msg, 'ok');
+    await atualizarTelaAberta();
+  }
+
   // relê e redesenha o que estiver aberto (A receber, Parcelamentos ou Visão geral)
   async function atualizarTelaAberta() {
     const t = state.finActiveTab;
@@ -1046,6 +1212,9 @@
     parcSet(k, v) { parcEstado()[k] = v; pintarParcelamentos(); if (k === 'q') { const i = document.getElementById('vfin-parc-q'); if (i && i.value !== v) i.value = v; } },
     parcAbrir(id) { const st = parcEstado(); st.aberto = st.aberto === id ? null : id; pintarParcelamentos(); },
     parcReceber, parcReceberOk, parcNovo, parcNovoVenda, parcPrevia, parcNovoOk, parcNovoDoTitulo, parcVerDoTitulo,
+    // receber título (integral, bipartido, parcial, com desconto)
+    receberTitulo: (t) => (v2on() ? (receberTitulo(t), true) : false),
+    rxModo, rxParte, rxCampo, rxAdd, rxTirar, rxOk, rxFmt: (s) => fmt2(num2(s)),
     focoLimpar() { state.finFoco = null; renderContent(); },
     menu,
     fecharMenu,

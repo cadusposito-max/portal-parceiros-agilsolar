@@ -255,3 +255,61 @@ html[data-ui="v2"] #vfin-ficha .vfin-pedido.enviando { opacity: .6; pointer-even
   html[data-ui="v2"] .v2s .vfin-need .v2-btn2 { padding: 0 10px; }
   html[data-ui="v2"] .v2s .vfin-need .v2-lst b { white-space: normal; line-height: 1.3; }
 }
+
+/* ==========================================================================
+   Receber título: Integral / Bipartido / Parcial / Com desconto — 13/11/2026
+   ========================================================================== */
+html[data-ui="v2"] #vfin-dlg .card.vfin-rx { width: min(580px, 100%); max-height: calc(100dvh - 32px); overflow: hidden; display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-corpo { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; margin: 0 -6px; padding: 2px 6px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx .vfin-dlg-acts { margin-top: 0; padding-top: 4px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx .vfin-dlg-acts .v2-btnp[disabled] { opacity: .45; cursor: not-allowed; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx input[type="text"], html[data-ui="v2"] #vfin-dlg .vfin-rx input[type="date"], html[data-ui="v2"] #vfin-dlg .vfin-rx select { width: 100%; min-width: 0; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-rs { font-weight: 800 !important; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-saldo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--v2-soft); font-weight: 700; font-size: 13px; color: var(--v2-ink-2); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-saldo b { font-size: 18px; color: var(--v2-ink); font-weight: 800; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-modos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: var(--v2-bg); padding: 4px; border-radius: 14px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-modos button { border: 0; background: transparent; border-radius: 11px; padding: 8px 4px; font: inherit; font-size: 13px; font-weight: 700; color: var(--v2-ink-2); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; line-height: 1.2; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-modos button svg { width: 18px; height: 18px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-modos button.on { background: var(--v2-card); color: var(--v2-ink); box-shadow: var(--v2-shadow); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-modos button.on svg { color: var(--v2-blue); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-expl { font-size: 12.5px; color: var(--v2-gray); font-weight: 600; line-height: 1.45; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-partes { display: flex; flex-direction: column; gap: 10px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-pt { background: var(--v2-soft); border: 1px solid var(--v2-line); border-radius: 16px; padding: 12px 12px 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+html[data-ui="v2"] #vfin-dlg :is(.vfin-rx-cab, .vfin-rx-lin) { display: grid; grid-template-columns: 1.45fr 1fr 1fr 32px; gap: 10px; align-items: center; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-cab { padding: 0 13px 0 15px; margin-bottom: -4px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-cab span { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-lin :is(input, select) { padding: 0 11px; background: var(--v2-card); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-rm { width: 32px; height: 32px; border: 0; border-radius: 10px; background: none; color: var(--v2-gray); cursor: pointer; display: grid; place-items: center; padding: 0; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-rm:hover { background: rgba(209,67,67,.1); color: var(--v2-red); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-rm svg { width: 16px; height: 16px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-x { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--v2-gray); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-x svg { width: 16px; height: 16px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-x select { height: 34px; width: auto; font-size: 13px; padding: 0 10px; border-radius: 10px; background: var(--v2-card); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-pt .vfin-rx-x select { width: auto; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-add { height: 44px; border: 1.5px dashed var(--v2-line-strong); background: none; border-radius: 12px; font: inherit; font-weight: 700; font-size: 13px; color: var(--v2-blue-text); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-add:hover { border-color: var(--v2-blue); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-add svg { width: 16px; height: 16px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-st { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 12px; font-size: 13px; font-weight: 700; line-height: 1.45; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-st svg { width: 17px; height: 17px; flex: none; margin-top: 1px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-st.ok { background: rgba(31,169,113,.12); color: #12764E; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-st.falta { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-st.passa { background: rgba(209,67,67,.1); color: var(--v2-red); }
+html[data-ui="v2"][data-theme="dark"] #vfin-dlg .vfin-rx-st.ok { color: #4FD49A; }
+html[data-ui="v2"][data-theme="dark"] #vfin-dlg .vfin-rx-st.passa { color: #F08080; }
+/* formas de cada recebimento na lista de A receber */
+html[data-ui="v2"] .v2s .vfin-formas { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; max-width: 230px; }
+html[data-ui="v2"] .v2s .vfin-formas em { font-style: normal; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--v2-bg); color: var(--v2-ink-2); white-space: nowrap; }
+html[data-ui="v2"] .v2s .vfin-formas em.des { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+
+@media (max-width: 760px) {
+  html[data-ui="v2"] #vfin-dlg:has(.vfin-rx) { place-items: end center; padding: 0; }
+  html[data-ui="v2"] #vfin-dlg .card.vfin-rx { width: 100%; max-height: calc(100dvh - 24px); border-radius: 24px 24px 0 0; padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); }
+  html[data-ui="v2"] #vfin-dlg .vfin-rx-modos button { font-size: 12px; }
+  html[data-ui="v2"] #vfin-dlg .vfin-rx-cab { display: none; }
+  html[data-ui="v2"] #vfin-dlg .vfin-rx-pt { padding: 10px; }
+  html[data-ui="v2"] #vfin-dlg .vfin-rx-lin { grid-template-columns: 1fr 1fr 28px; gap: 8px; }
+  html[data-ui="v2"] #vfin-dlg .vfin-rx-lin > select { grid-column: 1 / 3; }
+  html[data-ui="v2"] #vfin-dlg .vfin-rx-lin > :last-child { grid-column: 3; grid-row: 1; }
+  html[data-ui="v2"] #vfin-dlg .vfin-rx-lin > input { grid-row: 2; }
+  html[data-ui="v2"] #vfin-dlg .vfin-rx-lin > input[type="date"] { grid-column: 2 / 4; }
+}

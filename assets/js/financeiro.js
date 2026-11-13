@@ -455,6 +455,8 @@
   }
   function finTitBaixar(id) {
     const t = finTitById(id); if (!t) return;
+    // visual novo: janela com Integral / Bipartido / Parcial / Com desconto (ui-v2-fin.js)
+    if (window.uiV2Fin && window.uiV2Fin.receberTitulo && window.uiV2Fin.receberTitulo(t)) return;
     finEnsureChrome();
     document.getElementById('fin-modal-card').innerHTML = `
       <div class="sticky top-0 bg-[#0a0a0a] border-b border-neutral-800 px-5 py-4 flex items-start justify-between gap-3">
