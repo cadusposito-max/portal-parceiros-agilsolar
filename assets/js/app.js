@@ -623,6 +623,19 @@ async function franqRefreshAccess() {
   }
 }
 
+// Editar o kit da venda: só quem está em venda_kit_editores (lista mantida pelo
+// SQL Editor). O banco confere de novo no trigger da venda.
+async function kitVendaRefreshAccess() {
+  state.podeEditarKitVenda = false;
+  if (!state.isAdmin) return;
+  try {
+    const { data, error } = await supabaseClient.rpc('pode_editar_kit_venda');
+    state.podeEditarKitVenda = !error && data === true;
+  } catch (_) {
+    state.podeEditarKitVenda = false;
+  }
+}
+
 // Ambiente Rede: admin vê a rede inteira; franqueado vê só a unidade dele.
 function podeRede() {
   return Boolean(state.isAdmin || state.isFranqueado);

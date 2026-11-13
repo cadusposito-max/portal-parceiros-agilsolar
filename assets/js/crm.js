@@ -1302,13 +1302,20 @@ function crmVendaCardHTML(v) {
   const forma = (VENDA_FORMAS_PAGAMENTO.find(([k]) => k === v.forma_pagamento) || [])[1] || '';
   const temInfo = Boolean(forma || v.pagamento_detalhes || v.observacoes);
   const vendedor = String(v.vendedor_nome || '').split(' ')[0];
-  const equip = typeof vendaKitResumo === 'function' ? vendaKitResumo(v).equipamentos : [];
+  const resumo = typeof vendaKitResumo === 'function' ? vendaKitResumo(v) : null;
+  const equip = resumo ? resumo.equipamentos : [];
   const itens = [];
+  if (state.podeEditarKitVenda) itens.push(['package', 'Editar kit', `crmVendaKitEditar('${v.id}')`]);
   if (podeObs) itens.push(['pencil', 'Editar pagamento e observações', `crmVendaEditar('${v.id}')`]);
   if (podeGerir) itens.push(['trash-2', 'Excluir venda', `crmVendaExcluir('${v.id}')`, true]);
+  const seloKit = resumo && resumo.kitEditado
+    ? `<span class="crm-kit-selo" title="${escapeHTML(`Kit editado${v.kit_editado_por ? ' por ' + crmNomeAutor(v.kit_editado_por) : ''}${v.kit_editado_em ? ' em ' + formatDate(v.kit_editado_em) : ''}`)}"><i data-lucide="pencil"></i>kit editado</span>`
+    : '';
 
   let det = '';
-  if (_crmVendaEditando === v.id) {
+  if (_crmVendaKitEditando === v.id && state.podeEditarKitVenda) {
+    det = crmVendaKitFormHTML(v);
+  } else if (_crmVendaEditando === v.id) {
     det = `<div class="crm-venda-form">
         <div class="space-y-1"><label>Forma de pagamento</label>
           <select id="crmv-forma" class="crm360-input"><option value="">—</option>${VENDA_FORMAS_PAGAMENTO.map(([k, l]) => `<option value="${k}" ${v.forma_pagamento === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -1340,7 +1347,7 @@ function crmVendaCardHTML(v) {
     <div class="crm-venda">
       <div class="crm-venda-h">
         <div class="t">
-          <p class="text-white font-black text-xs uppercase">${escapeHTML(v.kit_nome || 'Venda')}</p>
+          <p class="text-white font-black text-xs uppercase">${escapeHTML(v.kit_nome || 'Venda')}${seloKit}</p>
           <p class="text-neutral-600 text-[10px] font-mono lg:font-sans lg:font-semibold lg:text-neutral-400 mt-0.5">${formatDate(v.created_at)} · ${escapeHTML(String(v.kit_power || '-'))} kWp${vendedor ? ' · vendedor ' + escapeHTML(vendedor) : ''}</p>
           ${equip.length ? `<div class="crm-venda-pay crm-venda-equip">${equip.map((e) => `<span class="chip" title="${escapeHTML(e.titulo)}"><i data-lucide="${e.tipo === 'modulo' ? 'solar-panel' : 'cpu'}"></i>${e.qtd}× ${e.tipo === 'modulo' ? 'Módulo' : 'Inversor'} ${escapeHTML(e.label)}</span>`).join('')}</div>` : ''}
         </div>
@@ -1363,7 +1370,179 @@ function crmNomeAutor(email) {
   return email;
 }
 
+// ---- Editar kit da venda (só quem tem pode_editar_kit_venda) ----
+// Rascunho: { nome, kwp, modulos:[{qtd,marca,modelo,potencia_wp}], inversores:[{qtd,marca,modelo,potencia_kw}] }
+let _crmVendaKitEditando = null;
+let _crmKitRasc = null;
+
+function _crmKitNum(s) {
+  const n = Number(String(s ?? '').trim().replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+function _crmKitKwpAuto(modulos) {
+  const t = (modulos || []).reduce((s, m) => s + (_crmKitNum(m.qtd) || 0) * (_crmKitNum(m.potencia_wp) || 0), 0) / 1000;
+  return t ? Math.round(t * 100) / 100 : null;
+}
+function _crmKitTexto(lista, potKey, un) {
+  return (lista || []).filter((x) => _crmKitNum(x.qtd) && (x.marca || x.modelo))
+    .map((x) => `${_crmKitNum(x.qtd)}× ${[x.marca, x.modelo].filter(Boolean).join(' ')}${_crmKitNum(x[potKey]) ? ' ' + String(_crmKitNum(x[potKey])).replace('.', ',') + un : ''}`)
+    .join(' + ');
+}
+
+function crmVendaKitEditar(id) {
+  const v = (state.vendas || []).find((x) => x.id === id);
+  if (!v || !state.podeEditarKitVenda) return;
+  const k = typeof vendaKitParaEditar === 'function' ? vendaKitParaEditar(v) : { modulos: [], inversores: [] };
+  if (!k.modulos.length) k.modulos.push({ qtd: '', marca: '', modelo: '', potencia_wp: '' });
+  if (!k.inversores.length) k.inversores.push({ qtd: '', marca: '', modelo: '', potencia_kw: '' });
+  _crmKitRasc = { nome: v.kit_nome || '', kwp: v.kit_power != null ? String(v.kit_power).replace('.', ',') : '', ...k };
+  _crmVendaEditando = null;
+  _crmVendaKitEditando = id;
+  renderCrm360();
+  document.getElementById('crmk-nome')?.focus();
+}
+function crmVendaKitCancelar() {
+  _crmVendaKitEditando = null;
+  _crmKitRasc = null;
+  renderCrm360();
+}
+function crmKitCampo(grupo, i, campo, valor) {
+  if (!_crmKitRasc) return;
+  if (grupo) { if (_crmKitRasc[grupo]?.[i]) _crmKitRasc[grupo][i][campo] = valor; }
+  else _crmKitRasc[campo] = valor;
+  if (grupo === 'modulos') {
+    const d = document.getElementById('crmk-kwp-dica');
+    const a = _crmKitKwpAuto(_crmKitRasc.modulos);
+    if (d) d.textContent = a ? `pelos módulos: ${String(a).replace('.', ',')} kWp` : '';
+  }
+}
+function crmKitMais(grupo) {
+  if (!_crmKitRasc) return;
+  _crmKitRasc[grupo].push(grupo === 'modulos' ? { qtd: '', marca: '', modelo: '', potencia_wp: '' } : { qtd: '', marca: '', modelo: '', potencia_kw: '' });
+  renderCrm360();
+}
+function crmKitTirar(grupo, i) {
+  if (!_crmKitRasc || _crmKitRasc[grupo].length < 2) return;
+  _crmKitRasc[grupo].splice(i, 1);
+  renderCrm360();
+}
+
+function crmVendaKitFormHTML(v) {
+  const k = _crmKitRasc || { nome: '', kwp: '', modulos: [], inversores: [] };
+  const val = (x) => escapeHTML(x == null ? '' : String(x));
+  const linha = (grupo, x, i, n) => {
+    const mod = grupo === 'modulos';
+    const pk = mod ? 'potencia_wp' : 'potencia_kw';
+    return `<div class="crm-kit-linha">
+        <div><label>Qtd</label><input type="number" min="1" step="1" inputmode="numeric" class="crm360-input" value="${val(x.qtd)}" oninput="crmKitCampo('${grupo}',${i},'qtd',this.value)"></div>
+        <div><label>Marca</label><input class="crm360-input" maxlength="60" value="${val(x.marca)}" oninput="crmKitCampo('${grupo}',${i},'marca',this.value)"></div>
+        <div class="f-modelo"><label>Modelo</label><input class="crm360-input" maxlength="120" value="${val(x.modelo)}" oninput="crmKitCampo('${grupo}',${i},'modelo',this.value)"></div>
+        <div class="f-pot"><label>${mod ? 'Potência (W)' : 'Potência (kW)'}</label><input class="crm360-input" inputmode="decimal" maxlength="10" value="${val(x[pk])}" oninput="crmKitCampo('${grupo}',${i},'${pk}',this.value)"></div>
+        <button type="button" class="crm-kit-x" title="Tirar" ${n < 2 ? 'disabled' : ''} onclick="crmKitTirar('${grupo}',${i})"><i data-lucide="x"></i></button>
+      </div>`;
+  };
+  const auto = _crmKitKwpAuto(k.modulos);
+  return `<div class="crm-kit-form">
+      <div class="crm-kit-cab"><h4>Kit da venda</h4><span class="so-admin"><i data-lucide="shield"></i>só você</span></div>
+      <div class="crm-kit-topo">
+        <div><label>Nome do kit</label><input id="crmk-nome" class="crm360-input" maxlength="200" value="${val(k.nome)}" oninput="crmKitCampo(null,0,'nome',this.value)"></div>
+        <div><label>Potência (kWp)</label><input id="crmk-kwp" class="crm360-input" inputmode="decimal" maxlength="10" value="${val(k.kwp)}" oninput="crmKitCampo(null,0,'kwp',this.value)">
+          <div class="dica" id="crmk-kwp-dica">${auto ? `pelos módulos: ${String(auto).replace('.', ',')} kWp` : ''}</div></div>
+      </div>
+      <div class="crm-kit-grupo"><div class="gt"><i data-lucide="solar-panel"></i>Módulos</div>
+        ${k.modulos.map((m, i) => linha('modulos', m, i, k.modulos.length)).join('')}
+        <button type="button" class="crm-kit-mais" onclick="crmKitMais('modulos')"><i data-lucide="plus"></i>Outro módulo</button>
+      </div>
+      <div class="crm-kit-grupo"><div class="gt"><i data-lucide="cpu"></i>Inversores</div>
+        ${k.inversores.map((x, i) => linha('inversores', x, i, k.inversores.length)).join('')}
+        <button type="button" class="crm-kit-mais" onclick="crmKitMais('inversores')"><i data-lucide="plus"></i>Outro inversor</button>
+      </div>
+      <div class="crm-kit-aviso"><i data-lucide="info"></i><div>O <b>valor da venda (${formatCurrency(v.kit_price || 0)}) não muda</b>. A proposta e o PDF ficam como foram enviados. O card da venda, a aba Vendas e a Jornada passam a mostrar este kit. Fica na timeline o que era e o que ficou.</div></div>
+    </div>
+    <div class="crm-venda-acts">
+      ${v.kit_equipamentos ? `<button type="button" class="crm-kit-voltar" onclick="crmVendaKitVoltar('${v.id}')">Voltar ao kit da proposta</button>` : ''}
+      <button type="button" class="btn btn-secondary btn-sm" onclick="crmVendaKitCancelar()">Cancelar</button>
+      <button type="button" id="crmk-salvar" class="btn btn-primary btn-sm" onclick="crmVendaKitSalvar('${v.id}')"><i data-lucide="check"></i> Salvar kit</button>
+    </div>`;
+}
+
+// Grava e registra na timeline (de → para). voltar = tira o kit editado (volta a valer o da proposta).
+async function _crmVendaKitGravar(v, payload, depois) {
+  const antes = typeof vendaKitParaEditar === 'function' ? vendaKitParaEditar(v) : { modulos: [], inversores: [] };
+  const btn = document.getElementById('crmk-salvar');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Salvando...'; lucide.createIcons(); }
+  const { data, error } = await supabaseClient.from('vendas').update(payload).eq('id', v.id)
+    .select('kit_nome, kit_power, kit_equipamentos, kit_editado_por, kit_editado_em').single();
+  if (error) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="check"></i> Salvar kit'; lucide.createIcons(); }
+    showToast('Não foi possível salvar o kit: ' + error.message);
+    return;
+  }
+  const kwpTxt = (n) => (n != null && n !== '' ? String(n).replace('.', ',') + ' kWp' : '');
+  const antesV = { ...v };
+  Object.assign(v, data);
+  const depoisK = typeof vendaKitParaEditar === 'function' ? vendaKitParaEditar(v) : { modulos: [], inversores: [] };
+  const mudancas = [
+    ['nome do kit', antesV.kit_nome, v.kit_nome],
+    ['potência', kwpTxt(antesV.kit_power), kwpTxt(v.kit_power)],
+    ['módulos', _crmKitTexto(antes.modulos, 'potencia_wp', 'W'), _crmKitTexto(depoisK.modulos, 'potencia_wp', 'W')],
+    ['inversores', _crmKitTexto(antes.inversores, 'potencia_kw', ' kW'), _crmKitTexto(depoisK.inversores, 'potencia_kw', ' kW')],
+  ].filter(([, de, para]) => String(de || '').trim() !== String(para || '').trim())
+    .map(([campo, de, para]) => ({ campo, de: de || '', para: para || '' }));
+  _crmVendaKitEditando = null;
+  _crmKitRasc = null;
+  if (v.cliente_id && mudancas.length) {
+    const { error: errTl } = await supabaseClient.from('crm_atividades').insert([{
+      cliente_id: v.cliente_id,
+      franquia_id: v.franquia_id || state.franquiaId,
+      autor_email: state.currentUser?.email || 'sistema',
+      tipo: 'venda',
+      descricao: `${depois} · ${crmDeParaTexto(mudancas)}`,
+      meta: { acao: 'venda_kit', venda_id: v.id, mudancas },
+    }]);
+    if (errTl) console.warn('[crmVendaKit] Salvo, mas falhou ao registrar na timeline.', errTl);
+    if (_crm360ClientId === v.cliente_id) crmFetchAtividades(v.cliente_id);
+  }
+  showToast(mudancas.length ? 'Kit da venda atualizado.' : 'Nada mudou no kit.');
+  if (typeof renderContent === 'function') renderContent();
+  renderCrm360();
+}
+
+async function crmVendaKitSalvar(id) {
+  const v = (state.vendas || []).find((x) => x.id === id);
+  const k = _crmKitRasc;
+  if (!v || !k) return;
+  const limpa = (lista, pk) => lista
+    .map((x) => ({ qtd: Math.round(_crmKitNum(x.qtd) || 0), marca: String(x.marca || '').trim(), modelo: String(x.modelo || '').trim(), [pk]: _crmKitNum(x[pk]) }))
+    .filter((x) => x.qtd > 0 && (x.marca || x.modelo));
+  const modulos = limpa(k.modulos, 'potencia_wp');
+  const inversores = limpa(k.inversores, 'potencia_kw');
+  if (!modulos.length && !inversores.length) { showToast('Informe pelo menos um módulo ou inversor, com quantidade.'); return; }
+  const kwp = _crmKitNum(k.kwp) ?? _crmKitKwpAuto(modulos) ?? v.kit_power ?? null;
+  await _crmVendaKitGravar(v, {
+    kit_nome: String(k.nome || '').trim() || v.kit_nome || null,
+    kit_power: kwp,
+    kit_equipamentos: { modulos, inversores },
+  }, 'Kit da venda alterado');
+}
+
+function crmVendaKitVoltar(id) {
+  const v = (state.vendas || []).find((x) => x.id === id);
+  if (!v) return;
+  const prop = v.proposta_id ? (state.propostas || []).find((p) => p.id === v.proposta_id) : null;
+  showConfirmModal('Voltar ao kit da proposta?\n\nO card da venda volta a mostrar os equipamentos da proposta' + (prop ? ', com o nome e a potência dela' : '') + '. Fica registrado na timeline.', async () => {
+    const payload = { kit_equipamentos: null };
+    if (prop) {
+      if (prop.kit_nome) payload.kit_nome = prop.kit_nome;
+      const kwp = Number(prop.kit_power || prop.custom_system_power_kwp) || null;
+      if (kwp) payload.kit_power = kwp;
+    }
+    await _crmVendaKitGravar(v, payload, 'Kit da venda voltou ao da proposta');
+  }, 'VOLTAR AO KIT DA PROPOSTA');
+}
+
 function crmVendaEditar(id) {
+  _crmVendaKitEditando = null;
   _crmVendaEditando = id;
   renderCrm360();
   const el = document.getElementById('crmv-forma');

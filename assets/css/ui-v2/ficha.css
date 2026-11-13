@@ -190,6 +190,40 @@ html[data-ui="v2"] .crm-menu-pop button:hover { background: var(--v2-hover); }
 html[data-ui="v2"] .crm-menu-pop button.perigo { color: var(--v2-red); }
 html[data-ui="v2"] .crm-menu-pop button svg { width: 16px; height: 16px; }
 @media (max-width: 600px) { html[data-ui="v2"] .crm-venda-form { grid-template-columns: 1fr; } }
+/* Editar kit da venda (só quem tem a permissão) */
+html[data-ui="v2"] .crm-kit-selo { display: inline-flex; gap: 5px; align-items: center; font-size: 10.5px; font-weight: 700; text-transform: none; color: var(--v2-orange-text); background: var(--v2-orange-50); border-radius: 99px; padding: 2px 9px; margin-left: 6px; vertical-align: middle; }
+html[data-ui="v2"] .crm-kit-selo svg { width: 12px; height: 12px; }
+html[data-ui="v2"] .crm-kit-form { display: flex; flex-direction: column; gap: 14px; }
+html[data-ui="v2"] .crm-kit-form label { display: block; font-size: 11.5px; font-weight: 700; color: var(--v2-ink-2); margin-bottom: 4px; }
+html[data-ui="v2"] .crm-kit-form input { width: 100%; box-sizing: border-box; }
+html[data-ui="v2"] .crm-kit-cab { display: flex; align-items: center; gap: 8px; }
+html[data-ui="v2"] .crm-kit-cab h4 { margin: 0; font-size: 13.5px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui="v2"] .crm-kit-cab .so-admin { font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; background: var(--v2-blue-50); color: var(--v2-blue-text); display: inline-flex; gap: 4px; align-items: center; }
+html[data-ui="v2"] .crm-kit-cab .so-admin svg { width: 12px; height: 12px; }
+html[data-ui="v2"] .crm-kit-topo { display: grid; grid-template-columns: 1fr 170px; gap: 12px; }
+html[data-ui="v2"] .crm-kit-form .dica { font-size: 11px; color: var(--v2-gray); margin-top: 4px; font-weight: 600; min-height: 1em; }
+html[data-ui="v2"] .crm-kit-grupo { background: var(--v2-card); border: 1px solid var(--v2-line); border-radius: 14px; padding: 12px; }
+html[data-ui="v2"] .crm-kit-grupo > .gt { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--v2-ink); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+html[data-ui="v2"] .crm-kit-grupo > .gt svg { color: var(--v2-green); width: 15px; height: 15px; }
+html[data-ui="v2"] .crm-kit-linha { display: grid; grid-template-columns: 70px 1fr 1.4fr 104px 36px; gap: 8px; align-items: end; }
+html[data-ui="v2"] .crm-kit-linha + .crm-kit-linha { margin-top: 8px; }
+html[data-ui="v2"] .crm-kit-x { width: 36px; height: 38px; border: 1px solid var(--v2-line); background: var(--v2-card); border-radius: 10px; color: var(--v2-gray); cursor: pointer; display: grid; place-items: center; }
+html[data-ui="v2"] .crm-kit-x:hover { color: var(--v2-red); border-color: var(--v2-red); }
+html[data-ui="v2"] .crm-kit-x[disabled] { visibility: hidden; }
+html[data-ui="v2"] .crm-kit-x svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .crm-kit-mais { margin-top: 10px; border: 1px dashed var(--v2-line-strong); background: none; color: var(--v2-blue-text); font: inherit; font-weight: 700; font-size: 12.5px; border-radius: 10px; padding: 7px 10px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+html[data-ui="v2"] .crm-kit-mais svg { width: 14px; height: 14px; }
+html[data-ui="v2"] .crm-kit-aviso { display: flex; gap: 8px; font-size: 12px; color: var(--v2-ink-2); line-height: 1.5; background: var(--v2-bg2); border-radius: 12px; padding: 10px 12px; }
+html[data-ui="v2"] .crm-kit-aviso svg { color: var(--v2-blue); margin-top: 1px; width: 15px; height: 15px; flex: none; }
+html[data-ui="v2"] .crm-kit-voltar { background: none; border: 0; padding: 0; font: inherit; font-size: 12px; font-weight: 700; color: var(--v2-gray); text-decoration: underline; cursor: pointer; margin-right: auto; }
+@media (max-width: 600px) {
+  html[data-ui="v2"] .crm-kit-topo { grid-template-columns: 1fr; }
+  html[data-ui="v2"] .crm-kit-linha { grid-template-columns: 64px 1fr 36px; }
+  html[data-ui="v2"] .crm-kit-linha .f-modelo,
+  html[data-ui="v2"] .crm-kit-linha .f-pot { grid-column: 1 / -1; }
+  html[data-ui="v2"] .crm-kit-x { grid-row: 1; grid-column: 3; }
+  html[data-ui="v2"] .crm-kit-linha + .crm-kit-linha { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--v2-line); }
+}
 
 /* ---------- trocar responsável (ficha) ---------- */
 html[data-ui="v2"] .v2f-sum .v2f-sumresp { cursor: pointer; transition: filter .12s; }

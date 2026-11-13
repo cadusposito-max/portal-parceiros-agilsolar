@@ -275,6 +275,7 @@ async function checkAuth() {
       if (typeof visRefreshAccess === 'function') await visRefreshAccess();
       if (typeof engRefreshAccess === 'function') await engRefreshAccess();
       if (typeof franqRefreshAccess === 'function') await franqRefreshAccess();
+      if (typeof kitVendaRefreshAccess === 'function') await kitVendaRefreshAccess();
       renderHeaderUser();
       renderTabs();                 // prepara o header atrás do overlay
       // F5 mantém onde o usuário estava: se o hash tem uma rota válida
@@ -668,6 +669,7 @@ async function _finishLogin(user, email) {
   if (typeof visRefreshAccess === 'function') await visRefreshAccess();
   if (typeof engRefreshAccess === 'function') await engRefreshAccess();
   if (typeof franqRefreshAccess === 'function') await franqRefreshAccess();
+  if (typeof kitVendaRefreshAccess === 'function') await kitVendaRefreshAccess();
   renderHeaderUser();
   renderTabs();                 // prepara o header atrás do overlay
   // Sessão expirou no meio do trabalho? Se o hash guarda uma rota válida,

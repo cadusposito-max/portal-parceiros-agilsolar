@@ -66,7 +66,15 @@ function _vendaEquipLabel(tipo, nome, marca, potenciaWp) {
 // Módulo e inversor da proposta da venda. Kit do catálogo: kit_snapshot (gravado
 // na criação); personalizada: custom_modulo/inversor ou os itens do tipo.
 // Propostas antigas sem nada disso → [] (o nome do kit já descreve).
-function _vendaEquipamentos(prop) {
+// Kit editado à mão na venda (vendas.kit_equipamentos) passa na frente da proposta.
+function _vendaEquipamentos(prop, sale) {
+  const ed = _vendaKitEditado(sale);
+  if (ed) {
+    const lista = [];
+    ed.modulos.forEach((m) => lista.push({ tipo: 'modulo', qtd: Number(m.qtd) || 1, ..._vendaEquipLabel('modulo', m.modelo, m.marca, m.potencia_wp) }));
+    ed.inversores.forEach((i) => lista.push({ tipo: 'inversor', qtd: Number(i.qtd) || 1, ..._vendaEquipLabel('inversor', i.modelo, i.marca) }));
+    return lista;
+  }
   if (!prop) return [];
   const snap = prop.kit_snapshot && typeof prop.kit_snapshot === 'object' ? prop.kit_snapshot : {};
   const itens = Array.isArray(snap.itens) ? snap.itens : (Array.isArray(prop.custom_config?.itens) ? prop.custom_config.itens : []);
@@ -88,12 +96,63 @@ function _vendaEquipamentos(prop) {
   return lista;
 }
 
+// Kit editado à mão na venda, já limpo: { modulos: [...], inversores: [...] } ou null.
+function _vendaKitEditado(sale) {
+  const k = sale?.kit_equipamentos;
+  if (!k || typeof k !== 'object') return null;
+  const ok = (x) => x && Number(x.qtd) > 0 && String(x.modelo || x.marca || '').trim();
+  const modulos = (Array.isArray(k.modulos) ? k.modulos : []).filter(ok);
+  const inversores = (Array.isArray(k.inversores) ? k.inversores : []).filter(ok);
+  return modulos.length || inversores.length ? { modulos, inversores } : null;
+}
+
+// Equipamentos da venda para preencher o "Editar kit": o editado ou, se não
+// tiver, o da proposta (snapshot do catálogo, personalizada ou itens).
+function vendaKitParaEditar(sale) {
+  const ed = _vendaKitEditado(sale);
+  if (ed) return JSON.parse(JSON.stringify(ed));
+  const prop = sale?.proposta_id ? (state.propostas || []).find((p) => p.id === sale.proposta_id) : null;
+  const out = { modulos: [], inversores: [] };
+  if (!prop) return out;
+  const snap = prop.kit_snapshot && typeof prop.kit_snapshot === 'object' ? prop.kit_snapshot : {};
+  const itens = Array.isArray(snap.itens) ? snap.itens : (Array.isArray(prop.custom_config?.itens) ? prop.custom_config.itens : []);
+  const separa = (nome, marca) => {
+    let n = String(nome || '').trim(), m = String(marca || '').trim();
+    if (!m && n.includes(' · ')) { const p = n.split(' · '); m = p.pop().trim(); n = p.join(' · ').trim(); }
+    return { marca: m, modelo: n };
+  };
+  ['modulo', 'inversor'].forEach((tipo) => {
+    const alvo = tipo === 'modulo' ? out.modulos : out.inversores;
+    const s = snap[tipo];
+    let linha = null;
+    if (s && typeof s === 'object' && (s.nome || s.marca)) {
+      linha = { qtd: Number(s.qtd) || 1, ...separa(s.nome, s.marca), potencia_wp: Number(s.potencia_wp) || null };
+    } else if (prop[`custom_${tipo}_nome`]) {
+      linha = { qtd: Number(prop[`custom_${tipo}_qty`]) || 1, ...separa(prop[`custom_${tipo}_nome`]) };
+    } else {
+      const it = itens.find((i) => i?.tipo === tipo && Number(i?.qtd) > 0 && String(i?.descricao || '').trim());
+      if (it) linha = { qtd: Number(it.qtd) || 1, ...separa(it.descricao) };
+    }
+    if (!linha) return;
+    if (tipo === 'modulo' && !linha.potencia_wp) linha.potencia_wp = Number((linha.modelo.match(/(\d{3,4})\s*W\b/i) || [])[1]) || null;
+    if (tipo === 'inversor') { delete linha.potencia_wp; linha.potencia_kw = null; }
+    alvo.push(linha);
+  });
+  return out;
+}
+
 // Kit vendido para os cards: nome, potência, marca e equipamentos. Proposta
 // personalizada sem nome de kit ("Proposta personalizada 4,96 kWp") mostra os itens dela.
 function vendaKitResumo(sale) {
   const prop = sale?.proposta_id ? (state.propostas || []).find((p) => p.id === sale.proposta_id) : null;
   let nome = String(sale?.kit_nome || prop?.kit_nome || '').trim();
-  if (!nome || /^proposta personalizada/i.test(nome)) {
+  const editado = _vendaKitEditado(sale);
+  if (editado && (!nome || /^proposta personalizada/i.test(nome))) {
+    const desc = [...editado.modulos, ...editado.inversores].slice(0, 2)
+      .map((x) => (Number(x.qtd) > 1 ? `${x.qtd}× ` : '') + [x.marca, x.modelo].filter(Boolean).join(' ').trim())
+      .join(' + ');
+    if (desc) nome = desc;
+  } else if (!nome || /^proposta personalizada/i.test(nome)) {
     const itens = prop?.kit_snapshot?.itens || prop?.custom_config?.itens || [];
     const desc = (Array.isArray(itens) ? itens : [])
       .filter((i) => Number(i?.qtd) > 0 && String(i?.descricao || '').trim())
@@ -103,7 +162,7 @@ function vendaKitResumo(sale) {
     if (desc) nome = desc;
   }
   const kwp = Number(sale?.kit_power || prop?.kit_power || prop?.custom_system_power_kwp) || 0;
-  const equipamentos = _vendaEquipamentos(prop);
+  const equipamentos = _vendaEquipamentos(prop, sale);
   const rotulo = { modulo: 'módulo', inversor: 'inversor' };
   return {
     nome: nome || '—',
@@ -111,6 +170,7 @@ function vendaKitResumo(sale) {
     kwpTexto: kwp ? `${String(kwp).replace('.', ',')} kWp` : '',
     marca: String(sale?.kit_brand || '').trim(),
     equipamentos,
+    kitEditado: Boolean(editado),
     // "7× módulo Ronma 620W · 1× inversor SOFAR 3300TL-G3"
     equipTexto: equipamentos.map((e) => `${e.qtd}× ${rotulo[e.tipo]} ${e.label}`).join(' · '),
     equipTitulo: equipamentos.map((e) => `${e.qtd}× ${e.titulo}`).join('\n'),
