@@ -184,7 +184,10 @@ html[data-ui="v2"] .v2s .v2-pdot { display: none; } /* bolinha da etapa na filei
   html[data-ui="v2"] .v2s .v2-vm { background: var(--v2-card); border: 1px solid var(--v2-line); border-radius: 20px; box-shadow: var(--v2-shadow); overflow: hidden; cursor: pointer; }
   html[data-ui="v2"] .v2s .v2-vm.late { border-color: rgba(209,67,67,.35); }
   html[data-ui="v2"] .v2s .v2-vm.on { border-color: var(--v2-blue); }
-  html[data-ui="v2"] .v2s .v2-vm:active { transform: scale(.995); }
+  /* o "aperto" só no cartão fechado: no aberto, mudar o transform ao encostar o dedo
+     cancelava a rolagem de lado da Jornada do cliente */
+  html[data-ui="v2"] .v2s .v2-vm:not(.on):active { transform: scale(.995); }
+  html[data-ui="v2"] .v2s .v2-vm .pv-jr-cp .pv-jr-trk { touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
   html[data-ui="v2"] .v2s .v2-vm-in { padding: 14px 16px 12px; }
   html[data-ui="v2"] .v2s .v2-vm-top { display: flex; gap: 12px; align-items: flex-start; }
   html[data-ui="v2"] .v2s .v2-vm-nm { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 800; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
