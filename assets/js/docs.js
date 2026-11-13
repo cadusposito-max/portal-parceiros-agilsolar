@@ -276,7 +276,7 @@
       : `<div class="dc-leu">${ic('triangle-alert')}<div class="tx"><b>Leitura obrigatória${d.prazo ? ' até ' + CT.dataCurta(d.prazo) : ''}</b>${D.lidos[d.id] ? 'O documento mudou desde a sua última leitura. ' : ''}Depois de ler, confirme. A Matriz acompanha quem já leu.</div><button class="ct-btn or" data-dc="li">${ic('check')}Li e entendi</button></div>`) : '';
     const r = CT.admin() && d.obrigatorio && D.resumo ? (D.resumo[d.id] || []) : null;
     return crumb + `<div class="dc-doc"><article class="dc-art">
-      <div class="dc-h1"><span>${esc(d.titulo)}</span>${CT.admin() ? `<button class="ct-btn gh" data-dc="editar">${ic('pencil')}Editar</button>` : ''}</div>
+      <div class="dc-h1"><span>${esc(d.titulo)}</span>${d.tipo === 'pagina' || d.tipo === 'slides' ? `<button class="ct-btn gh dc-pdfb" data-dc="pdf-baixar" title="Baixar este documento em PDF">${ic('file-down')}<b>Baixar PDF</b></button>` : ''}${CT.admin() ? `<button class="ct-btn gh" data-dc="editar">${ic('pencil')}Editar</button>` : ''}</div>
       <div class="dc-dm"><span>${ic(ti)}${tn}</span><span>${ic('clock')}Atualizado em ${CT.data(d.updated_at)}</span>${d.autor_nome ? `<span>por ${esc(d.autor_nome)}</span>` : ''}<span>versão ${d.versao}</span>${d.publicado ? '' : '<span class="ct-pill rasc">RASCUNHO</span>'}</div>
       ${corpo}${leitura}
     </article>
@@ -341,6 +341,239 @@
       if (!a.querySelector('button')) a.insertAdjacentHTML('beforeend', `<button class="ct-btn gh" data-dc="baixar" data-arq="${esc(a.dataset.arq)}" contenteditable="false">${ic('download')}Baixar</button>`);
     });
     CT.icons();
+  }
+
+  // ------------------------------------------------------------ PDF na hora
+  // O PDF é montado no navegador a partir do texto/slides e baixado direto;
+  // nada fica guardado. Texto vira texto de verdade (leve, dá pra buscar).
+  const pdfTx = (s) => String(s || '').normalize('NFC')
+    .replace(/[‘’‚′]/g, "'").replace(/[“”„″]/g, '"')
+    .replace(/[–—−]/g, '-').replace(/…/g, '...')
+    .replace(/[•●▪■‣⁃◦]/g, '-').replace(/[   ]/g, ' ')
+    .replace(/[^\x09\x0A\x0D\x20-\x7E\xA1-\xFF]/g, '');
+  async function pdfImg(arqId, max) {
+    const img = await CT.imagem(arqId);
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) throw new Error('imagem vazia');
+    const k = Math.min(1, max / Math.max(w, h));
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    return { data: c.toDataURL('image/jpeg', 0.82), w: c.width, h: c.height };
+  }
+  // slides: uma página por imagem, do tamanho do slide; carrega de 4 em 4
+  async function pdfSlides(J, ids, prog) {
+    let pdf = null;
+    for (let i = 0; i < ids.length; i += 4) {
+      const ims = await Promise.all(ids.slice(i, i + 4).map((id) => pdfImg(id, 1600).catch(() => null)));
+      ims.forEach((im) => {
+        if (!im) return;
+        const W = 297, H = Math.round(W * im.h / im.w * 10) / 10, ori = W >= H ? 'l' : 'p';
+        if (!pdf) pdf = new J({ unit: 'mm', format: [W, H], orientation: ori, compress: true });
+        else pdf.addPage([W, H], ori);
+        pdf.addImage(im.data, 'JPEG', 0, 0, W, H, undefined, 'FAST');
+      });
+      prog(Math.min(ids.length, i + 4) / ids.length);
+    }
+    if (!pdf) throw new Error('Não deu pra carregar os slides.');
+    return pdf;
+  }
+  // página de texto: A4, títulos, parágrafos com negrito, listas, avisos e imagens
+  const COR = { ink: [15, 27, 38], cinza: [110, 122, 133], azul: [0, 143, 212], lar: [250, 165, 25], dica: [0, 143, 212] };
+  const INLINE = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'A', 'SPAN', 'SMALL', 'CODE', 'MARK', 'SUB', 'SUP', 'FONT', 'BR']);
+  function pdfRuns(node, b, i, out) {
+    node.childNodes.forEach((n) => {
+      if (n.nodeType === 3) out.push({ t: pdfTx(n.textContent), b, i });
+      else if (n.nodeType === 1) {
+        if (n.tagName === 'BR') out.push({ br: true });
+        else if (n.tagName === 'UL' || n.tagName === 'OL') { /* lista aninhada: tratada à parte */ }
+        else pdfRuns(n, b || /^(B|STRONG|H\d)$/.test(n.tagName), i || /^(I|EM)$/.test(n.tagName), out);
+      }
+    });
+    return out;
+  }
+  function pdfPagina(J, titulo, meta) {
+    const pdf = new J({ unit: 'mm', format: 'a4', compress: true });
+    const P = { pdf, M: 18, W: 174, topo: 18, fim: 280, y: 18 };
+    P.novaPag = () => { pdf.addPage(); P.y = P.topo; };
+    P.cabe = (mm) => { if (P.y + mm > P.fim) { P.novaPag(); return false; } return true; };
+    // escreve trechos com quebra de linha; barra = desenha a faixa do aviso ao lado
+    P.texto = (runs, o) => {
+      const pt = o.pt || 10.5, x0 = o.x || P.M, w = o.w || P.W - (x0 - P.M), lh = pt * 0.3528 * 1.42;
+      const fonte = (r) => { pdf.setFont('helvetica', r.b && r.i ? 'bolditalic' : r.b ? 'bold' : r.i ? 'italic' : 'normal'); pdf.setFontSize(pt); };
+      const linhas = [[]];
+      let larg = 0;
+      const quebra = () => { linhas.push([]); larg = 0; };
+      runs.forEach((r) => {
+        if (r.br) { quebra(); return; }
+        String(r.t).split(/(\s+)/).forEach((p) => {
+          if (!p) return;
+          const esp = /^\s+$/.test(p);
+          const lin = linhas[linhas.length - 1];
+          if (esp) { if (lin.length) { fonte(r); const ww = pdf.getTextWidth(' '); lin.push({ t: ' ', r, w: ww }); larg += ww; } return; }
+          fonte(r);
+          let ww = pdf.getTextWidth(p);
+          if (larg + ww > w && lin.length) {
+            while (lin.length && lin[lin.length - 1].t === ' ') larg -= lin.pop().w;
+            quebra();
+          }
+          // palavra maior que a linha (link comprido): corta
+          while (ww > w) {
+            let n = p.length;
+            while (n > 1 && pdf.getTextWidth(p.slice(0, n)) > w) n--;
+            linhas[linhas.length - 1].push({ t: p.slice(0, n), r, w: pdf.getTextWidth(p.slice(0, n)) });
+            quebra(); p = p.slice(n); ww = pdf.getTextWidth(p);
+          }
+          linhas[linhas.length - 1].push({ t: p, r, w: ww }); larg += ww;
+        });
+      });
+      const usadas = linhas.filter((l) => l.some((s) => s.t.trim()));
+      usadas.forEach((l, k) => {
+        P.cabe(lh);
+        let x = x0;
+        if (k === 0 && o.marca) o.marca(P.y + lh * 0.72, lh);
+        l.forEach((s) => { fonte(s.r); pdf.setTextColor(...(o.cor || COR.ink)); pdf.text(s.t, x, P.y + lh * 0.72); x += s.w; });
+        if (o.barra) { pdf.setFillColor(...o.barra); pdf.rect(x0 - 5, P.y, 1.2, lh, 'F'); }
+        P.y += lh;
+      });
+      return usadas.length;
+    };
+    // cabeçalho
+    P.texto([{ t: pdfTx(titulo), b: true }], { pt: 18 });
+    P.y += 1;
+    P.texto([{ t: pdfTx(meta) }], { pt: 8.5, cor: COR.cinza });
+    P.y += 2;
+    pdf.setDrawColor(...COR.lar); pdf.setLineWidth(0.6); pdf.line(P.M, P.y, P.M + P.W, P.y);
+    P.y += 6;
+    return P;
+  }
+  async function pdfBlocos(P, el, o, prog) {
+    let buf = [];
+    const solta = () => {
+      const tem = buf.some((n) => (n.textContent || '').trim());
+      if (tem) {
+        const runs = [];
+        buf.forEach((n) => { if (n.nodeType === 3) runs.push({ t: pdfTx(n.textContent) }); else if (n.tagName === 'BR') runs.push({ br: true }); else pdfRuns({ childNodes: [n] }, false, false, runs); });
+        P.texto(runs, { x: o.x, barra: o.barra, cor: o.cor }); P.y += 2.2;
+      }
+      buf = [];
+    };
+    for (const n of [...el.childNodes]) {
+      if (n.nodeType === 3 || (n.nodeType === 1 && INLINE.has(n.tagName))) { buf.push(n); continue; }
+      if (n.nodeType !== 1) continue;
+      solta();
+      const tg = n.tagName, txt = (n.textContent || '').trim();
+      if (/^H[1-2]$/.test(tg)) {
+        if (!txt) continue;
+        P.y += 3; P.cabe(14);
+        P.texto(pdfRuns(n, true, false, []), { pt: 13.5, x: o.x, cor: COR.azul, barra: o.barra }); P.y += 2;
+      } else if (/^H[3-6]$/.test(tg) || tg === 'SUMMARY') {
+        if (!txt) continue;
+        P.y += 1.5; P.cabe(12);
+        P.texto(pdfRuns(n, true, false, []), { pt: 11.5, x: o.x, barra: o.barra }); P.y += 1.5;
+      } else if (tg === 'P') {
+        if (!txt) continue;
+        P.texto(pdfRuns(n, false, false, []), { x: o.x, barra: o.barra, cor: o.cor }); P.y += 2.2;
+      } else if (tg === 'UL' || tg === 'OL') {
+        let k = 0;
+        const x = (o.x || P.M) + 6;
+        for (const li of [...n.children].filter((c) => c.tagName === 'LI')) {
+          k++;
+          const num = k, ord = tg === 'OL';
+          P.texto(pdfRuns(li, false, false, []), {
+            x, barra: o.barra, cor: o.cor,
+            marca: (y, lh) => {
+              if (ord) { P.pdf.setFont('helvetica', 'bold'); P.pdf.setFontSize(10.5); P.pdf.setTextColor(...COR.azul); P.pdf.text(num + '.', x - 1.5, y, { align: 'right' }); }
+              else { P.pdf.setFillColor(...COR.lar); P.pdf.circle(x - 3.2, y - lh * 0.22, 0.75, 'F'); }
+            },
+          });
+          for (const sub of [...li.children].filter((c) => c.tagName === 'UL' || c.tagName === 'OL')) await pdfBlocos(P, { childNodes: [sub] }, { ...o, x }, prog);
+          P.y += 1.2;
+        }
+        P.y += 1.5;
+      } else if (n.classList.contains('ct-aviso')) {
+        P.y += 1.5;
+        const x = (o.x || P.M) + 6;
+        await pdfBlocos(P, n, { ...o, x, barra: n.classList.contains('dica') ? COR.dica : COR.lar }, prog);
+        P.y += 1.5;
+      } else if (n.classList.contains('ct-anexo')) {
+        const nome = (n.querySelector('b') || n).textContent.trim();
+        P.texto([{ t: pdfTx('Anexo: ' + nome + ' (baixe pela plataforma)'), i: true }], { x: o.x, cor: COR.cinza }); P.y += 2;
+      } else if (tg === 'IMG') {
+        if (!n.dataset.arq) continue;
+        const im = await pdfImg(n.dataset.arq, 1400).catch(() => null);
+        prog();
+        if (!im) continue;
+        const x = o.x || P.M, maxW = P.W - (x - P.M);
+        let w = Math.min(maxW, im.w * 0.2), h = w * im.h / im.w;
+        if (h > 150) { h = 150; w = h * im.w / im.h; }
+        if (P.y + h > P.fim) P.novaPag();
+        P.pdf.addImage(im.data, 'JPEG', x, P.y, w, h, undefined, 'FAST');
+        P.y += h + 4;
+      } else if (tg === 'TABLE') {
+        for (const tr of n.querySelectorAll('tr')) {
+          const cels = [...tr.children].map((c) => pdfTx(c.textContent.trim())).filter(Boolean);
+          if (cels.length) { P.texto([{ t: cels.join('  |  '), b: tr.querySelector('th') != null }], { x: o.x, pt: 9.5 }); P.y += 1; }
+        }
+        P.y += 2;
+      } else if (tg === 'HR') {
+        P.cabe(6); P.pdf.setDrawColor(220, 226, 232); P.pdf.setLineWidth(0.3); P.pdf.line(P.M, P.y + 2, P.M + P.W, P.y + 2); P.y += 5;
+      } else if (tg === 'BUTTON' || tg === 'SCRIPT' || tg === 'STYLE' || tg === 'IFRAME') {
+        continue;
+      } else {
+        await pdfBlocos(P, n, o, prog);
+      }
+    }
+    solta();
+  }
+  function pdfRodape(pdf, titulo) {
+    const n = pdf.getNumberOfPages();
+    for (let i = 1; i <= n; i++) {
+      pdf.setPage(i);
+      const w = pdf.internal.pageSize.getWidth(), h = pdf.internal.pageSize.getHeight();
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...COR.cinza);
+      pdf.text(pdfTx('Ágil Solar · ' + titulo).slice(0, 110), 18, h - 9);
+      pdf.text(`${i} / ${n}`, w - 18, h - 9, { align: 'right' });
+    }
+  }
+  async function baixarPDF(btn) {
+    const d = doc(D.docId), f = D.full[D.docId];
+    if (!d || !f || btn.disabled) return;
+    const rot = btn.innerHTML;
+    const msg = (t) => { const b = btn.querySelector('b'); if (b) b.textContent = t; };
+    btn.disabled = true;
+    msg('Gerando…');
+    try {
+      await carregarLib('jspdf');
+      const J = window.jspdf.jsPDF;
+      const cx = document.createElement('div');
+      cx.innerHTML = CT.limparHTML(f.html || '');
+      const ids = [...cx.querySelectorAll('img[data-arq]')].map((i) => i.dataset.arq);
+      if (ids.length) await CT.urls(ids).catch(() => {});
+      let feitas = 0;
+      const pct = (fr) => msg(`Gerando… ${Math.round(fr * 100)}%`);
+      let pdf;
+      if (d.tipo === 'slides') {
+        pdf = await pdfSlides(J, ids, pct);
+      } else {
+        const P = pdfPagina(J, d.titulo, `Documentação · versão ${d.versao} · atualizado em ${CT.data(d.updated_at)}`);
+        await pdfBlocos(P, cx, {}, () => { feitas++; pct(feitas / Math.max(1, ids.length)); });
+        pdf = P.pdf;
+        pdfRodape(pdf, d.titulo);
+      }
+      const nome = (String(d.titulo).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) || 'documento') + '.pdf';
+      CT.baixarBlob(pdf.output('blob'), nome);
+      CT.toast('PDF baixado.');
+    } catch (e) {
+      console.error('[docs] pdf', e);
+      CT.toast('Não deu pra gerar o PDF: ' + (e.message || 'erro'));
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = rot;
+      CT.icons();
+    }
   }
 
   // ------------------------------------------------------------ editor (admin)
@@ -579,6 +812,7 @@
           break;
         }
         case 'baixar': CT.baixarArquivo(b.dataset.arq); break;
+        case 'pdf-baixar': baixarPDF(b); break;
         case 'toc': { const h = root.querySelectorAll('#dc-corpo h2')[Number(b.dataset.i)]; if (h) h.scrollIntoView({ behavior: 'smooth', block: 'start' }); break; }
       }
     });
