@@ -150,7 +150,8 @@
       const prox = plano && plano.prox;
       const receber = prox ? `uiV2Fin.parcReceber('${esc(prox.id)}')` : `finTitBaixar('${id}')`;
       const acts = t.st === 'pago'
-        ? `<button class="v2-sq" title="Editar título" onclick="event.stopPropagation(); finTitEdit('${id}')">${ic('pencil')}</button>`
+        ? `<button class="v2-sq" title="Editar título" onclick="event.stopPropagation(); finTitEdit('${id}')">${ic('pencil')}</button>
+           <button class="v2-sq vfin-apagar" title="Apagar título (duplicado)" onclick="event.stopPropagation(); finTitExcluir('${id}')">${ic('trash-2')}</button>`
         : `<button class="v2-btnp vfin-receber" title="${prox ? `Receber a ${ordinal(prox.numero)} parcela` : 'Receber'}" onclick="event.stopPropagation(); ${receber}">${ic('check')}<span class="hide-m">Receber</span></button>
            <button class="v2-sq" title="Mais ações" onclick="event.stopPropagation(); uiV2Fin.menu(this, '${id}')">${ic('ellipsis')}</button>`;
       const parcChip = plano ? `<small class="vfin-parc-chip" title="Parcelado em ${plano.n}×">${ic('calendar-range')}Parcelado · ${plano.pagas} de ${plano.n} pagas${prox ? ` · próxima ${dataBR(prox.venc)}` : ''}</small>` : '';
@@ -185,13 +186,13 @@
     const r = btn.getBoundingClientRect();
     const m = document.createElement('div');
     m.id = 'vfin-menu'; m.dataset.id = id;
-    const baixo = window.innerHeight - r.bottom > 170;
-    m.style.top = (baixo ? r.bottom + 6 : r.top - 6 - 195) + 'px';
+    const baixo = window.innerHeight - r.bottom > 210;
+    m.style.top = (baixo ? r.bottom + 6 : r.top - 6 - 235) + 'px';
     m.style.left = Math.max(8, r.right - 220) + 'px';
     const op = (icone, txt, fn, cls = '') => `<button class="${cls}" onclick="uiV2Fin.fecharMenu(); ${fn}('${esc(id)}')">${ic(icone)}${txt}</button>`;
     const parcelado = !!planoDoTitulo(id);
     m.innerHTML = (parcelado ? op('calendar-range', 'Ver parcelas', 'uiV2Fin.parcVerDoTitulo') : op('calendar-range', 'Parcelar o saldo', 'uiV2Fin.parcNovoDoTitulo'))
-      + op('calendar-clock', 'Mudar vencimento', 'finTitReneg') + op('pencil', 'Editar título', 'finTitEdit') + op('x', 'Cancelar título', 'finTitCancelar', 'r');
+      + op('calendar-clock', 'Mudar vencimento', 'finTitReneg') + op('pencil', 'Editar título', 'finTitEdit') + op('x', 'Cancelar título', 'finTitCancelar', 'r') + op('trash-2', 'Apagar título', 'finTitExcluir', 'r');
     document.body.appendChild(m);
     icons();
   }

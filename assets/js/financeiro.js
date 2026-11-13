@@ -571,6 +571,19 @@
     try { await finRpc('cancelar_fin_titulo', { p_id: id }); } catch (_) { return; }
     finToast('Título cancelado', 'info'); renderRec();
   }
+  // apagar de vez (ex.: título duplicado de uma venda que foi refeita)
+  async function finTitExcluir(id) {
+    const t = (Array.isArray(finTitulos) ? finTitulos : []).find((r) => String(r.id) === String(id));
+    const nome = t ? (t.cli || t.cliente_nome || '') : '';
+    const msg = `Apagar este título${nome ? ` de ${nome}` : ''}?\n\n`
+      + 'Ele sai do Financeiro junto com o que foi recebido nele. Não dá para desfazer.\n'
+      + 'Use quando o título está duplicado (ex.: a venda foi refeita).';
+    if (!window.confirm(msg)) return;
+    let r;
+    try { r = await finRpc('excluir_fin_titulo', { p_id: id }); } catch (_) { return; }
+    finToast(r && r.projeto_apagado ? 'Título apagado (com a comissão da venda antiga)' : 'Título apagado', 'ok');
+    renderRec();
+  }
 
   /* Lançamento manual de título (com busca de cliente) */
   let finLancCliente = null;
@@ -2813,7 +2826,7 @@
     finResolveTab,
     finToast,
     // recebíveis (ações + lançamento + edição)
-    finTitBaixar, finBaixarSubmit, finTitReneg, finTitRenegSubmit, finTitCancelar,
+    finTitBaixar, finBaixarSubmit, finTitReneg, finTitRenegSubmit, finTitCancelar, finTitExcluir,
     finTitEdit, finTitEditSubmit,
     finLancamentoModal, finLancClienteSearch, finLancPick, finLancamentoSubmit,
     // funil

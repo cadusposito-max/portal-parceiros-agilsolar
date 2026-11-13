@@ -40,6 +40,8 @@ html[data-ui="v2"] #vfin-menu button:hover { background: var(--v2-bg); }
 html[data-ui="v2"] #vfin-menu button.r { color: #D14343; }
 html[data-ui="v2"][data-theme="dark"] #vfin-menu button.r { color: #F59A9A; }
 html[data-ui="v2"] #vfin-menu svg { width: 16px; height: 16px; flex-shrink: 0; }
+html[data-ui="v2"] .v2-sq.vfin-apagar:hover { color: #D14343; border-color: rgba(209,67,67,.35); }
+html[data-ui="v2"][data-theme="dark"] .v2-sq.vfin-apagar:hover { color: #F59A9A; }
 
 /* janelas do financeiro.js (baixar, mudar vencimento, editar, lançar): cantos e fundo do v2, sem MAIÚSCULAS */
 html[data-ui="v2"] #fin-modal > div:first-child { background: var(--v2-scrim) !important; backdrop-filter: blur(3px); }
