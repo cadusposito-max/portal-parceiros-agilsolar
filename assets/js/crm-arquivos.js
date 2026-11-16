@@ -61,6 +61,10 @@ let _crmArq = { clienteId: null, rows: [], urls: {}, loading: false, erro: null,
 let _crmArqUploadCtx = null;
 let _crmArqRep = {}; // tipo -> { trocado, rotulos } da reprovação da engenharia em aberto
 const CRM_CONTA_FUNCOES = { geradora: 'Geradora', compensacao: 'Compensação' };
+// "De quem é?" só nos documentos pessoais (pode haver mais de uma pessoa).
+// Arquivo de outro tipo que já tenha identificação continua mostrando o nome.
+const CRM_ARQ_TIPOS_QUEM = new Set(['rg_cnh', 'conta_energia']);
+const _crmArqPedeQuem = (row) => CRM_ARQ_TIPOS_QUEM.has(row.tipo) || !!row.identificacao;
 let _crmArqClassificando = null;
 
 // A mesma aba também aparece fora da ficha (card da obra, obras.js). O painel se
@@ -309,7 +313,7 @@ function _crmArqItemHTML(item, rows, client, obrigatorio) {
   // Slots têm o próprio quadro por foto; os demais anexam direto (múltiplos).
   const anexarBtn = item.slots ? '' : `<button type="button" class="arq-btn" onclick="event.stopPropagation(); crmArqEscolher('${item.tipo}')" ${enviando ? 'disabled' : ''}>
       <i data-lucide="${enviando ? 'loader-2' : 'upload'}" class="${enviando ? 'arq-spin' : ''}"></i><span>${enviando ? 'Enviando' : 'Anexar'}</span></button>`;
-  const semDono = !item.slots && doTipo.length > 1 && doTipo.some((r) => !r.identificacao);
+  const semDono = CRM_ARQ_TIPOS_QUEM.has(item.tipo) && doTipo.length > 1 && doTipo.some((r) => !r.identificacao);
   const toggle = obrigatorio ? `crmArqToggle('${item.tipo}')` : `crmArqPasta('${item.tipo}')`;
 
   return `
@@ -333,7 +337,7 @@ function _crmArqItemHTML(item, rows, client, obrigatorio) {
 const _crmArqEhImg = (row) => String(row.mime || '').startsWith('image/') && !/hei[cf]/.test(String(row.mime));
 const _crmArqExt = (row) => String(row.nome_original || row.storage_path || '').split('.').pop().toLowerCase().slice(0, 4) || 'arq';
 
-// Miniatura: prévia, "De quem é?" (opcional), nome original · data · autor, e ações ao passar o mouse.
+// Miniatura: prévia, "De quem é?" (opcional, só documentos pessoais), nome original · data · autor, e ações ao passar o mouse.
 function _crmArqThumbHTML(row, legenda, extraHTML) {
   const url = _crmArq.urls[row.storage_path] || '';
   const img = _crmArqEhImg(row);
@@ -344,7 +348,7 @@ function _crmArqThumbHTML(row, legenda, extraHTML) {
   const href = url ? `href="${escapeHTML(url)}" target="_blank" rel="noopener"` : '';
   const autor = row.uploaded_by_nome ? ` · ${escapeHTML(String(row.uploaded_by_nome).split(' ')[0])}` : '';
   const editando = _crmArq.editando === row.id;
-  const quem = editando
+  const quem = !_crmArqPedeQuem(row) ? '' : editando
     ? `<input id="arq-in-${row.id}" class="arq-in" maxlength="40" placeholder="Ex.: João (titular da conta)" value="${escapeHTML(row.identificacao || '')}"
         onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}else if(event.key==='Escape'){this.dataset.cancela='1';this.blur();}"
         onblur="crmArqIdentSalvar('${row.id}', this)">`
