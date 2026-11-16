@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-ui="v2" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src  'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net;
+    style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src    'self' https://fonts.gstatic.com;
+    img-src     'self' data: blob:;
+    connect-src 'self' https://tzwjxgprhorqrmpqudgg.supabase.co;
+    object-src  'none';
+    base-uri    'self';
+    form-action 'self';
+    upgrade-insecure-requests;
+  ">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>OS da equipe · Ágil Solar</title>
+  <link rel="icon" type="image/png" href="/assets/img/icon.png">
+  <meta name="theme-color" content="#FFFFFF">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/ui-v2/tokens.css?v=20261116-os-link">
+  <link rel="stylesheet" href="/assets/css/os-equipe.css?v=20261116-os-link">
+  <script src="https://unpkg.com/lucide@1.49.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <main id="app" class="osq"><div class="osq-load"><span class="osq-spin"></span>Abrindo a OS…</div></main>
+  <input type="file" id="osq-file" accept="image/*" capture="environment" hidden>
+  <script src="/assets/js/config.js?v=20261013-link"></script>
+  <script src="/assets/js/os-equipe.js?v=20261116-os-link"></script>
+</body>
+</html>

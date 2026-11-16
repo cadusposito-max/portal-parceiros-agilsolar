@@ -733,12 +733,22 @@
   }
 
   // ------------------------------------------------------------ agenda da obra
+  // OS por link (os-link.js): a equipe abre no celular sem login; a gestão confere aqui
+  function osLinkHTML(o, I, encerrado) {
+    if (!window.osLink || !pode()) return '';
+    return window.osLink.bloco('inst', o.venda_id, {
+      classe: 'rd-card', encerrado,
+      cliente: o.cliente_nome, quando: dataObra(I) ? 'Instalação: ' + dataObra(I) : '',
+      endereco: [o.endereco, o.cidade ? cidade(o) + (o.uf ? '/' + o.uf : '') : ''].filter(Boolean).join(' · '),
+    });
+  }
   function abaAgenda(o, I) {
     const pos = I.pos;
     const remarc = (O.tl[o.venda_id] || []).filter((x) => !x.nota && /Data da instalação:/.test(x.t) && !/Data da instalação: —/.test(x.t));
     const remHTML = remarc.length ? `<div class="ob-tl">${remarc.map((x) => `<div><span>${esc(x.t.split(' · ').filter((p) => /Data da instalação|Equipe|Duração/.test(p)).join(' · '))}<small>${esc(quando(x.em))} · ${esc(x.quem)}</small></span></div>`).join('')}</div>` : `<p class="ob-nota">${ic('info')}<span>Nenhuma remarcação.</span></p>`;
     if (I.etapa === 'concluida') {
       return `<div class="rd-card"><h3>${ic('circle-check')}Instalação feita</h3><div class="rd-kv">${kv('Concluída em', esc(dmy(pos.obra_concluida_em || pos.obra_data)))}${kv('Equipe', esc(equipeNome(o)))}${kv('Agendada para', esc(dataObra(I) || '—'))}</div></div>
+        ${osLinkHTML(o, I, true)}
         ${pagEquipeHTML(o, I)}
         <div class="rd-card"><h3>${ic('history')}Remarcações</h3>${remHTML}</div>`;
     }
@@ -754,6 +764,7 @@
         ${kv('Integrantes', esc((eq && eq.integrantes) || (eq && eq.terceirizada ? 'Terceirizada' : '—')))}${kv('Endereço', esc(o.endereco || '—'))}${kv('Telefone do cliente', esc(o.telefone || '—'))}</div>
         <div class="ob-linha"><span style="font-weight:700">Confirmado com o cliente</span>${segmHTML([['true', 'Sim'], ['false', 'Ainda não']], pos.obra_confirmada === true ? 'true' : 'false', `obras.salvar({obra_confirmada:$})`)}</div>
         <div class="ob-linha">${btnOk(`obras.concluirModal()`, 'circle-check', 'Concluir obra')}${btn(`obras.agendarModal('${o.venda_id}')`, 'calendar-clock', 'Reagendar')}<span class="rd-grow"></span><button type="button" class="rd-btn sm ghost" onclick="obras.desmarcar()">${ic('calendar-x')}Tirar da agenda</button></div></div>
+      ${osLinkHTML(o, I, false)}
       ${pagEquipeHTML(o, I)}
       <div class="rd-card"><h3>${ic('message-square')}Recado para a equipe</h3>
         <textarea id="ob-recado" class="ob-recado" maxlength="500" placeholder="Ex.: portão lateral, cliente só em casa depois das 8h, levar andaime" oninput="obras.recadoSujo()">${esc(pos.obra_recado || '')}</textarea>

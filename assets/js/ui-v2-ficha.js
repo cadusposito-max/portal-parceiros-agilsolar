@@ -103,6 +103,12 @@
         ${crm360Field('Observação', `<input id="v2f-vis-obs" value="${esc(client.vistoria_obs || '')}" class="crm360-input" placeholder="Ex.: telhado de fibrocimento, levar escada">`, 'full')}
       </div>
       <button type="button" class="v2f-save alt" onclick="uiV2Vistoria.salvar('${esc(client.id)}')">${ic('check')}Salvar vistoria</button>
+      ${window.osLink ? window.osLink.bloco('vist', client.id, {
+        encerrado: !cur || cur === 'realizada',
+        cliente: client.nome,
+        quando: client.vistoria_data ? 'Vistoria: ' + fmtData(client.vistoria_data) : '',
+        endereco: [[client.endereco, client.numero, client.bairro].filter(Boolean).join(', '), [client.cidade, client.uf].filter(Boolean).join('/')].filter(Boolean).join(' · '),
+      }) : ''}
     </div>`;
   }
   const fmtData = (iso) => { const d = new Date(iso); return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
