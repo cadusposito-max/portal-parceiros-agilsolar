@@ -21,12 +21,13 @@
   const { esc, ic } = CT;
 
   const PASTAS = [
-    ['comercial', 'Comercial', 'users', 'Proposta, atendimento e objeções'],
-    ['eng', 'Engenharia', 'ruler', 'Projetos, instalação e monitoramento'],
-    ['jur', 'Contratos e jurídico', 'scale', 'Modelos, procuração e garantias'],
-    ['fin', 'Financeiro', 'wallet', 'Financiamento e gestão do caixa'],
-    ['rede', 'Regras da rede', 'shield-check', 'Padrão, marca e conduta'],
-    ['trein', 'Treinamentos', 'graduation-cap', 'Treinamento inicial e cursos'],
+    // A chave (1ª coluna) é a gravada no banco: muda só o nome que aparece.
+    ['trein', 'Treinamento', 'graduation-cap', 'Cursos para estudar'],
+    ['comercial', 'Comercial', 'users', 'Material para usar com o cliente'],
+    ['eng', 'Técnico', 'ruler', 'Projeto, instalação e monitoramento'],
+    ['fin', 'Financeiro', 'wallet', 'Financiamento e caixa'],
+    ['jur', 'Jurídico', 'scale', 'Contratos e procurações'],
+    ['rede', 'Franquia', 'shield-check', 'Padrão, marca e conduta'],
   ];
   const pasta = (k) => PASTAS.find((p) => p[0] === k) || [k, k, 'folder', ''];
   const TIPO = { pagina: ['file-text', 'Página'], slides: ['presentation', 'Slides'], pdf: ['file-type', 'PDF'], video: ['circle-play', 'Vídeo'] };
