@@ -240,8 +240,8 @@
     const tag = `<span class="orc-adj" data-orc-adj="${def.key}" style="${ajustado(def.key) ? '' : 'display:none'}">ajustado<button type="button" data-orc-act="reset-linha" data-k="${def.key}" class="orc-adj-x" title="Voltar ao padrão da unidade"><i data-lucide="undo-2" class="w-3 h-3"></i></button></span>`;
     const nome = `<span class="orc-lbl font-bold text-neutral-300 text-sm">${escapeHTML(def.rotulo)}${def.contrato ? ' <span class="text-[10px] text-neutral-600 font-bold">· contrato</span>' : ''}</span>`;
     let ctrl;
-    if (!travada && l.t === 'brl' && l.b === 'faixa') {
-      ctrl = `<span class="orc-lock"><i data-lucide="table" class="w-3 h-3"></i>Tabela por kWp do centro de custo</span>`;
+    if (!travada && CentroCustoCalc.ehTabela(l)) {
+      ctrl = `<span class="orc-lock"><i data-lucide="table" class="w-3 h-3"></i>${l.b === 'faixa_kw_inversor' ? 'Tabela por kW do inversor' : 'Tabela por kWp'} do centro de custo</span>`;
     } else if (travada) {
       ctrl = `<span class="orc-lock"><i data-lucide="lock" class="w-3 h-3"></i>${l.t === 'pct' ? pctFmt(l.v) + '% · ' + (BASES[l.b] || '').toLowerCase() : money(l.v) + ' fixo'}</span>`;
     } else {
@@ -253,7 +253,7 @@
         </div>`;
       const base = l.t === 'pct'
         ? `<select data-orc-base="${def.key}" class="orc-base">${Object.entries(BASES).map(([k, n]) => `<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`
-        : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${Object.entries(CentroCustoCalc.bases).filter(([k]) => k !== 'faixa').map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
+        : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${Object.entries(CentroCustoCalc.bases).filter(([k]) => !k.startsWith('faixa')).map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
       ctrl = seg + inp + base + (limiteTxt(l) ? `<span class="text-[11px] text-neutral-500 font-bold">${limiteTxt(l)}</span>` : '');
     }
     if (cur._mob) return linhaRowMob(def, l, travada, tag, ctrl);
@@ -267,7 +267,7 @@
   // Regra da linha em texto curto ("13,8% da venda − kit", "R$ 70,00 por módulo").
   function regraTxt(l) {
     if (!l) return '';
-    if (l.t === 'brl' && l.b === 'faixa') return 'Tabela por faixa de kWp';
+    if (CentroCustoCalc.ehTabela(l)) return CentroCustoCalc.bases[l.b];
     return l.t === 'pct'
       ? pctFmt(l.v) + '% ' + (BASES[l.b] || '').replace(/^% /, '')
       : money(l.v) + ' ' + (CentroCustoCalc.bases[l.b] || '').replace(/^R\$ /, '') + (limiteTxt(l) ? ' · ' + limiteTxt(l) : '');

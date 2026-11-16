@@ -42,7 +42,7 @@
   function formas() {
     const c = calc();
     const out = [['brl:v', c.bases.v], ['brl:modulo', c.bases.modulo], ['brl:kwp', c.bases.kwp]];
-    if (temNovasBases()) out.push(['brl:inversor', c.bases.inversor], ['brl:kw_inversor', c.bases.kw_inversor], ['brl:faixa', c.bases.faixa]);
+    if (temNovasBases()) out.push(['brl:inversor', c.bases.inversor], ['brl:kw_inversor', c.bases.kw_inversor], ['brl:faixa_kw_inversor', c.bases.faixa_kw_inversor], ['brl:faixa', c.bases.faixa]);
     out.push(['pct:v', c.basesPct.v], ['pct:vk', c.basesPct.vk]);
     if (temNovasBases()) out.push(['pct:kit', c.basesPct.kit]);
     return out;
@@ -126,18 +126,20 @@
     const l = cc.linhas[k]; if (!l) return '';
     const extra = calc().ehExtra(k);
     const forma = `${l.t}:${l.b}`;
-    const valor = l.t === 'brl' && l.b === 'faixa' ? ''
+    const tabela = calc().ehTabela(l);
+    const unTab = l.b === 'faixa_kw_inversor' ? 'kW' : 'kWp';
+    const valor = tabela ? ''
       : `<label class="cc-val"><span>${l.t === 'pct' ? '%' : 'R$'}</span><input type="number" min="0" step="${l.t === 'pct' ? '0.1' : '0.01'}" value="${num(l.v)}" aria-label="Valor de ${esc(rotulo)}" oninput="CentroCustoTela.valor('${k}', this.value)"></label>`;
     const nome = extra
       ? `<input class="cc-nome" type="text" maxlength="40" value="${esc(l.nome || '')}" placeholder="Nome do custo (ex.: Frete local)" aria-label="Nome do custo" oninput="CentroCustoTela.nome('${k}', this.value)">`
       : `<span class="cc-rot">${esc(rotulo)}</span>`;
     const remover = extra ? `<button type="button" class="cc-x" title="Remover este custo" aria-label="Remover este custo" onclick="CentroCustoTela.remover('${k}')"><i data-lucide="trash-2"></i></button>` : '';
-    const faixas = l.t === 'brl' && l.b === 'faixa' ? `<div class="cc-faixas">${(l.faixas && l.faixas.length ? l.faixas : [{ ate: '', valor: '' }]).map((f, i) => `
-        <div class="cc-faixa"><span>até</span><input type="number" min="0" step="0.01" value="${f.ate}" aria-label="Até kWp" oninput="CentroCustoTela.faixa('${k}', ${i}, 'ate', this.value)"><span>kWp →</span>
+    const faixas = tabela ? `<div class="cc-faixas">${(l.faixas && l.faixas.length ? l.faixas : [{ ate: '', valor: '' }]).map((f, i) => `
+        <div class="cc-faixa"><span>até</span><input type="number" min="0" step="0.01" value="${f.ate}" aria-label="Até ${unTab}" oninput="CentroCustoTela.faixa('${k}', ${i}, 'ate', this.value)"><span>${unTab} →</span>
           <label class="cc-val"><span>R$</span><input type="number" min="0" step="0.01" value="${f.valor}" aria-label="Valor da faixa" oninput="CentroCustoTela.faixa('${k}', ${i}, 'valor', this.value)"></label>
           <button type="button" class="cc-x" aria-label="Remover faixa" onclick="CentroCustoTela.faixaRemover('${k}', ${i})"><i data-lucide="x"></i></button></div>`).join('')}
         <button type="button" class="cc-link" onclick="CentroCustoTela.faixaAdd('${k}')"><i data-lucide="plus"></i>Faixa</button>
-        <p class="cc-hint">Acima da última faixa, vale o valor da última.</p></div>` : '';
+        <p class="cc-hint">${l.b === 'faixa_kw_inversor' ? 'Vale a soma dos kW dos inversores do kit (2 × 5 kW = 10 kW). ' : ''}Acima da última faixa, vale o valor da última.</p></div>` : '';
     // Bases por quantidade: até o limite cobra um valor fixo; acima, o valor × a quantidade toda.
     const limite = calc().aceitaLimite(l) ? `<div class="cc-limite">até
         <input type="number" min="0" step="${l.b === 'modulo' || l.b === 'inversor' ? '1' : '0.01'}" value="${num(l.ate)}" aria-label="Limite de ${esc(rotulo)}" oninput="CentroCustoTela.limite('${k}', 'ate', this.value)">
@@ -318,7 +320,7 @@
       const l = cc.linhas[k]; if (!l) return;
       const [t, b] = String(valor).split(':');
       const novo = calc().linha(t, t === l.t ? l.v : 0, b, { faixas: l.faixas || [], nome: l.nome });
-      if (novo.b === 'faixa' && !novo.faixas.length) novo.faixas = [];
+      if (calc().ehTabela(novo) && !novo.faixas.length) novo.faixas = [];
       cc.linhas[k] = novo; marcarSujo(true); pintar();
     },
     faixa(k, i, campo, v) {
@@ -354,9 +356,9 @@
       for (const [k, l] of Object.entries(cc.linhas)) {
         if (l.t === 'pct' && l.v > 100) { toast(`${calc().ehExtra(k) ? (l.nome || 'Custo personalizado') : k}: percentual acima de 100.`); return; }
         if (calc().ehExtra(k) && !String(l.nome || '').trim()) { toast('Dê um nome a cada custo personalizado.'); return; }
-        if (l.t === 'brl' && l.b === 'faixa') {
+        if (calc().ehTabela(l)) {
           const fx = (l.faixas || []).filter((f) => num(f.ate) > 0);
-          if (!fx.length) { toast('Preencha a tabela por faixa de kWp.'); return; }
+          if (!fx.length) { toast(l.b === 'faixa_kw_inversor' ? 'Preencha a tabela por kW do inversor.' : 'Preencha a tabela por faixa de kWp.'); return; }
           linhas[k] = { ...l, faixas: fx.map((f) => ({ ate: num(f.ate), valor: num(f.valor) })) };
         } else linhas[k] = l;
       }

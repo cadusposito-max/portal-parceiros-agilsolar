@@ -58,3 +58,15 @@ test('Limite: até N cobra o fixo; acima, valor × a quantidade toda (sem somar 
   const v=c.calcular({...a,venda:d.vendaAlvo});assert.equal(v.valores.el,esperado);assert.ok(v.lucroLiq/v.receita>=.22-1e-7);
  }
 });
+test('Tabela por kW do inversor: faixa pelo kW somado (2 × 5 kW = 10 kW), igual ao banco',()=>{
+ const l=c.linha('brl',0,'faixa_kw_inversor',{faixas:[{ate:8,valor:700},{ate:3,valor:420},{ate:12,valor:900},{ate:5,valor:550}]});
+ assert.equal(l.b,'faixa_kw_inversor');assert.ok(c.ehTabela(l));assert.deepEqual(l.faixas.map(f=>f.ate),[3,5,8,12]);
+ // mesmos números conferidos no banco (private.cc_preco_dimensionado) em 16/11
+ [[2,420],[3,420],[3.01,550],[5,550],[7,700],[10,900],[12,900],[20,900]].forEach(([kw,v])=>assert.equal(c.valor(l,0,0,{kwp:99,kwInversor:kw}),v,kw+' kW'));
+ const base={imposto:{t:'pct',v:13.8,b:'vk'}};
+ const r=c.calcular({linhas:{...base,el:l},kit:5000,modulos:10,kwp:6.2,inversores:2,kwInversor:10,margem:22});
+ assert.equal(r.erros.length,0);assert.equal(c.calcular({linhas:{...base,el:l},kit:5000,venda:r.vendaAlvo,modulos:10,kwp:6.2,inversores:2,kwInversor:10,margem:22}).valores.el,900);
+ assert.equal(c.calcular({linhas:{...base,el:l},kit:5000,modulos:10,kwp:6.2,inversores:1,kwInversor:0,margem:22}).vendaAlvo,null);
+ assert.equal(c.calcular({linhas:{...base,el:c.linha('brl',0,'faixa_kw_inversor',{faixas:[]})},kit:5000,modulos:10,kwp:6.2,inversores:1,kwInversor:5,margem:22}).vendaAlvo,null);
+ assert.ok(!c.aceitaLimite(l)); // tabela não tem "até N cobra fixo"
+});
