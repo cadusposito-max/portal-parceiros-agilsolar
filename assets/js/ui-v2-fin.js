@@ -19,9 +19,10 @@
   const v2on = () => !!(window.uiV2 && window.uiV2.isActive());
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ic = (n, x = '') => `<i data-lucide="${n}" ${x}></i>`;
-  const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-  const brlC = (v) => (typeof formatCurrencyCompact === 'function' ? formatCurrencyCompact(Number(v) || 0) : brl(v));
-  const curto = (v) => (Math.abs(Number(v) || 0) >= 100000 ? brlC(v) : brl(v)); // sem centavos; "mil" só acima de 100 mil
+  // Financeiro nunca arredonda: todo valor aparece com os centavos
+  const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const brlC = brl;
+  const curto = brl;
   const icons = () => { if (window.lucide) window.lucide.createIcons(); };
   const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
   function setPageMeta(key, title, sub) {
@@ -65,7 +66,7 @@
     const bx = Array.isArray(t.baixas) ? t.baixas : [];
     const des = Number(t.desconto) || 0;
     if (!bx.length && !des) return '';
-    const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+    const fmt = brl;
     const tit = (b) => `${b.meio || 'Sem forma'} · ${fmt(b.valor)}${b.data ? ' em ' + dataBR(b.data) : ''}`;
     return `<span class="vfin-formas">${bx.map((b) => `<em title="${esc(tit(b))}">${esc(b.meio || 'Sem forma')} ${fmt(b.valor)}</em>`).join('')}${des ? `<em class="des" title="${esc('Desconto' + (t.desconto_motivo ? ': ' + t.desconto_motivo : ''))}">Desconto ${fmt(des)}</em>` : ''}</span>`;
   }

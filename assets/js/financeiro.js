@@ -55,7 +55,7 @@
     setTimeout(() => { t.style.transition='opacity .3s, transform .3s'; t.style.opacity='0'; t.style.transform='translateY(-8px)'; setTimeout(()=>t.remove(),300); }, 2800);
   }
   const finIcons = () => { if (window.lucide) lucide.createIcons(); };
-  const brMoney = n => 'R$ ' + Math.round(Number(n) || 0).toLocaleString('pt-BR');
+  const brMoney = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Chamador de RPC com tratamento de erro padrão.
   // Leituras (get_/list_/search_) ficam guardadas por 20s: trocar de aba e voltar
@@ -110,9 +110,9 @@
   function brCompact(thousands) {
     const v = thousands*1000;
     if (v>=1e6) return 'R$ '+(v/1e6).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' mi';
-    return 'R$ '+Math.round(v).toLocaleString('pt-BR');
+    return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
   }
-  const brFull = t => 'R$ '+Math.round(t*1000).toLocaleString('pt-BR');
+  const brFull = t => 'R$ '+(t*1000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 
   function smoothPath(pts) {
     if (pts.length<2) return pts.length?`M ${pts[0].x} ${pts[0].y}`:'';
@@ -1687,7 +1687,7 @@
   // Custos carregados via list_fin_custos e normalizados para o formato dos renderizadores
   // (cats:[{id,c,p,r}], recPrev/recReal = receita do projeto).
   let custosProjetos = [];
-  const fmtR = n => 'R$ ' + Math.round(Number(n)||0).toLocaleString('pt-BR');
+  const fmtR = n => 'R$ ' + (Number(n)||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   function custoCalc(pj) {
     const cp = pj.cats.reduce((s,c)=>s+c.p,0);
     const cr = pj.cats.reduce((s,c)=>s+c.r,0);
