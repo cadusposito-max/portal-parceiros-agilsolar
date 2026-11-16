@@ -326,3 +326,12 @@ html[data-ui="v2"] #vfin-dlg header span { display: block; line-height: 1.45; }
 html[data-ui="v2"] .v2s td.vfin-eq-ext { white-space: normal; min-width: 110px; max-width: 170px; }
 html[data-ui="v2"] .v2s td.vfin-eq-ext .vfin-s { white-space: normal; }
 html[data-ui="v2"] .v2s .vfin-pag-body .v2-who small { white-space: normal; }
+
+/* janela não pode passar da tela: a trilha do grid seguia o texto longo do <select> e empurrava o card pra direita no celular */
+html[data-ui="v2"] #vfin-dlg { grid-template-columns: minmax(0, 1fr); }
+html[data-ui="v2"] #vfin-dlg .card { min-width: 0; max-width: 100%; }
+html[data-ui="v2"] #vfin-dlg .vfin-campo, html[data-ui="v2"] #vfin-dlg .vfin-grid2 > * { min-width: 0; }
+html[data-ui="v2"] #vfin-dlg :is(input[type="text"], input[type="number"], input[type="date"], select) { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+html[data-ui="v2"] #vfin-dlg select { text-overflow: ellipsis; }
+html[data-ui="v2"] #vfin-dlg .vfin-check input { width: 18px; }
+html[data-ui="v2"] #vfin-dlg .vfin-rx-x select { width: auto; }
