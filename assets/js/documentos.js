@@ -178,9 +178,10 @@ function docPagamentosDaCondicao(condicao, total) {
 }
 
 // Textos dos modelos oficiais (à vista / 70-30 / financiamento)
-// tipos: 'entrada' | 'chegada_material' | 'financiamento' | 'livre'
-function docDescricaoPagamento(p, unico) {
-  const valor = `${docFormatBRL(p.valor)} (${docValorPorExtenso(p.valor)})`;
+// tipos: 'entrada' | 'chegada_material' | 'financiamento' | 'cartao' | 'livre'
+// Texto pronto do tipo, com `valor` já formatado (ou '{valor}' p/ virar texto livre).
+// Devolve null para 'livre' (o texto é o que foi digitado).
+function _docTextoModeloPagamento(p, unico, valor) {
   const forma = `depósito/ transferência/ ${p.forma || DOC_DEFAULTS.forma_pagamento}`;
   switch (p.tipo) {
     case 'entrada':
@@ -189,11 +190,19 @@ function docDescricaoPagamento(p, unico) {
       return `Pagamento no valor certo e ajustado de ${valor}, cujo vencimento se dará após a entrega do material, devendo o pagamento em questão ser realizado através de ${forma}.`;
     case 'financiamento':
       return `O saldo remanescente, no valor de ${valor}, será pago por intermédio de financiamento bancário junto à ${p.financeira || 'instituição financeira'}, em parcela única, mediante o crédito do respectivo valor na conta de titularidade da CONTRATADA, conforme os prazos e condições estabelecidos entre o CONTRATANTE e a respectiva instituição financeira.`;
-    default: {
-      const t = String(p.texto || '').replace(/\{valor\}/g, valor).trim();
-      return t && !/[.;]$/.test(t) ? t + '.' : t;
-    }
+    case 'cartao':
+      return `Pagamento no valor certo e ajustado de ${valor}, cujo vencimento se dará na assinatura da presente minuta, devendo o pagamento em questão ser realizado através de cartão de crédito, sendo a quantidade de parcelas e os respectivos encargos da operadora do cartão de responsabilidade do CONTRATANTE.`;
+    default:
+      return null;
   }
+}
+
+function docDescricaoPagamento(p, unico) {
+  const valor = `${docFormatBRL(p.valor)} (${docValorPorExtenso(p.valor)})`;
+  const pronto = _docTextoModeloPagamento(p, unico, valor);
+  if (pronto != null) return pronto;
+  const t = String(p.texto || '').replace(/\{valor\}/g, valor).trim();
+  return t && !/[.;]$/.test(t) ? t + '.' : t;
 }
 
 // ---------- montagem dos dados ----------
@@ -766,6 +775,7 @@ const DOC_TIPOS_PAGAMENTO = [
   ['entrada', 'Na assinatura (entrada / à vista)'],
   ['chegada_material', 'Após a entrega do material'],
   ['financiamento', 'Financiamento'],
+  ['cartao', 'Cartão de crédito'],
   ['livre', 'Texto livre'],
 ];
 const DOC_OPCOES_GENERO = [['', '—'], ['M', 'Masculino'], ['F', 'Feminino']];
@@ -805,14 +815,17 @@ function _docRender() {
     <div class="border border-neutral-800 p-3 space-y-2">
       <div class="flex gap-2 items-center">
         <span class="text-orange-500 font-black text-xs w-5">${String.fromCharCode(97 + i)})</span>
-        ${_docSelect(`doc-pag-tipo-${i}`, p.tipo, DOC_TIPOS_PAGAMENTO, "_docLer(); _docCtx.dados.condicao = 'personalizada'; _docRender()").replace(`class="${_docInp}"`, `class="${_docInp} flex-1"`)}
+        ${_docSelect(`doc-pag-tipo-${i}`, p.tipo, DOC_TIPOS_PAGAMENTO, `_docTrocarTipoPag(${i})`).replace(`class="${_docInp}"`, `class="${_docInp} flex-1"`)}
         <input id="doc-pag-valor-${i}" value="${_docNumInput(p.valor)}" oninput="_docOnValor(${i})" placeholder="Valor" class="${_docInp} w-32 font-mono text-right">
         <button type="button" onclick="_docRemover('pagamentos', ${i})" title="Remover" class="btn btn-secondary btn-icon"><i data-lucide="trash-2"></i></button>
       </div>
       ${p.tipo === 'financiamento'
         ? _docText(`doc-pag-fin-${i}`, p.financeira, 'uppercase" placeholder="Banco / financeira (ex.: SOLAGORA)')
         : p.tipo === 'livre'
-          ? `<textarea id="doc-pag-texto-${i}" rows="2" placeholder="Use {valor} onde entra o valor por extenso" class="${_docInp}">${escapeHTML(p.texto || '')}</textarea>`
+          ? `<textarea id="doc-pag-texto-${i}" rows="4" placeholder="Use {valor} onde entra o valor por extenso" class="${_docInp}">${escapeHTML(p.texto || '')}</textarea>
+             <p class="text-neutral-500 text-xs">O {valor} vira o valor com extenso no contrato.</p>`
+          : p.tipo === 'cartao'
+          ? `<p class="text-neutral-500 text-xs leading-snug">Texto pronto: cartão de crédito na assinatura, parcelas e juros da maquininha por conta do cliente. Para mudar o texto, escolha "Texto livre" (ele já vem preenchido).</p>`
           : _docText(`doc-pag-forma-${i}`, p.forma, `" placeholder="Forma: depósito/ transferência/ ${DOC_DEFAULTS.forma_pagamento}`)}
     </div>`).join('');
 
@@ -1172,6 +1185,21 @@ function _docTrocarOrigem(origem) {
   _docLer();
   const fonte = _docCtx.fontes.find((f) => f.id === origem) || null;
   Object.assign(_docCtx.dados, { origem: fonte ? fonte.id : 'manual' }, _docSistemaFinanceiro(fonte, _docCtx.dados.condicao));
+  _docRender();
+}
+
+// Troca o tipo de uma alínea. Indo para "Texto livre", já vem o texto do tipo
+// anterior (com {valor}) para só ajustar, em vez de digitar do zero.
+function _docTrocarTipoPag(i) {
+  const antes = { ...((_docCtx.dados.financeiro?.pagamentos || [])[i] || {}) };
+  _docLer();
+  const d = _docCtx.dados;
+  d.condicao = 'personalizada';
+  const p = d.financeiro.pagamentos[i];
+  if (p && p.tipo === 'livre' && !String(p.texto || '').trim()) {
+    const unico = d.financeiro.pagamentos.length === 1;
+    p.texto = _docTextoModeloPagamento({ ...antes, tipo: antes.tipo || 'entrada' }, unico, '{valor}') || '';
+  }
   _docRender();
 }
 
