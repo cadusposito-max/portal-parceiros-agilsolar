@@ -16,7 +16,9 @@
 // passa por RPC (obra_salvar, obra_kit, obra_equipe_salvar,
 // obra_pedir_prioridade), com o "de → para" na timeline do cliente.
 // Migrations: 20261021150000_obras.sql, 20261110150000_obra_liberacao.sql (a venda só
-// vira obra quando a gestão libera: venda_posvenda.obra_liberada_em, RPC obra_liberar).
+// vira obra quando a gestão libera: venda_posvenda.obra_liberada_em, RPC obra_liberar),
+// 20261116120000_pagamento_equipe.sql (equipe que recebe por obra: módulos × valor +
+// deslocamento + extras; concluir a obra cria a conta em Financeiro › A pagar › Equipes).
 // ==========================================================================
 (function () {
   'use strict';
@@ -52,6 +54,7 @@
     filtro: '', q: '', eq: '', semana: 0, mEtapa: '',
     aberta: null, aba: 'resumo', cheia: lsGet('obras_cheia') === '1', fsNosso: false,
     tl: {}, el: {}, arqCli: {}, conf: null, container: null, celular: null,
+    semPag: false, pg: {},
   };
 
   const sb = () => supabaseClient;
@@ -88,15 +91,24 @@
   const verTodas = () => !!(state.isAdmin && state.adminViewAll && String(state.adminScopeFranquiaId || 'all') === 'all');
 
   // ------------------------------------------------------------ dados
+  // pagamento por obra (migration 20261116120000_pagamento_equipe): sem as colunas novas no
+  // banco, a aba segue como antes e o pagamento da equipe não aparece (O.semPag)
+  const EQ_COLS = 'id, franquia_id, nome, integrantes, terceirizada, ativa';
+  const EQ_PAG = ', paga_por_obra, valor_modulo, deslocamento_padrao, prazo_pagamento_dias';
+  async function carregarEquipes() {
+    if (!O.semPag) {
+      const q = await sb().from('obra_equipes').select(EQ_COLS + EQ_PAG).order('nome');
+      if (!q.error || !/paga_por_obra|valor_modulo|42703/i.test(String(q.error.message || q.error.code || ''))) return q;
+      O.semPag = true;
+    }
+    return sb().from('obra_equipes').select(EQ_COLS).order('nome');
+  }
   async function carregar(forcar) {
     if (!forcar && O.lista && Date.now() - O.em < RECARGA_MS) return O.lista;
     if (O.carregando) return O.carregando;
     O.carregando = (async () => {
       try {
-        const [r, q] = await Promise.all([
-          sb().rpc('obras_listar'),
-          sb().from('obra_equipes').select('id, franquia_id, nome, integrantes, terceirizada, ativa').order('nome'),
-        ]);
+        const [r, q] = await Promise.all([sb().rpc('obras_listar'), carregarEquipes()]);
         if (r.error) throw r.error;
         if (q.error) throw q.error;
         O.lista = Array.isArray(r.data) ? r.data : [];
@@ -423,7 +435,7 @@
     if (O.cheia) telaCheia(true);
   }
   function fechar() {
-    O.aberta = null; O.conf = null;
+    O.aberta = null; O.conf = null; O.pg = {};
     if (typeof crmArqHostSet === 'function') crmArqHostSet(null);
     const d = document.getElementById('ob-drawer'); if (d) d.remove();
     const c = document.getElementById('ob-conf'); if (c) c.remove();
@@ -592,7 +604,7 @@
         ${kv('Potência', kwp(o.kwp))}${kv('Kit', esc(o.kit_nome || '—'))}${kv('Distribuidor', esc((o.oc && o.oc.fornecedor) || '—'))}
         ${kv('Projeto', o.eng ? esc(pnum(o.eng) + ' · ' + (ENG_ST[o.eng.status] || o.eng.status)) : 'Não enviado')}</div></div>
       <div class="rd-card"><h3>${ic('receipt')}Custo da obra<span class="r">entra no resultado da venda</span></h3><div class="rd-kv">
-        ${kv('Kit (ordem de compra)', custoKit)}${kv('Elétrica', Number(pos.eletrica_total) ? money(pos.eletrica_total) : I.e.ok ? '—' : 'a comprar')}</div></div>
+        ${kv('Kit (ordem de compra)', custoKit)}${kv('Elétrica', Number(pos.eletrica_total) ? money(pos.eletrica_total) : I.e.ok ? '—' : 'a comprar')}${custoEquipeKV(o)}</div></div>
       ${liberada(o) ? `<div class="rd-card"><h3>${ic('lock-keyhole-open')}Liberação para obra</h3><div class="rd-kv">
         ${kv('Liberada em', esc(quando(pos.obra_liberada_em)))}${kv('Por', esc(pos.obra_liberada_por || '—'))}${kv('Motivo', esc(pos.obra_liberacao_motivo || '—'))}${kv('Pagamento da venda', esc(FORMAS[o.pagamento] || '—'))}</div>
         <p class="ob-nota">${ic('info')}<span>A liberação (e a devolução) é feita no card da venda, em Vendas.</span></p></div>` : ''}`;
@@ -727,6 +739,7 @@
     const remHTML = remarc.length ? `<div class="ob-tl">${remarc.map((x) => `<div><span>${esc(x.t.split(' · ').filter((p) => /Data da instalação|Equipe|Duração/.test(p)).join(' · '))}<small>${esc(quando(x.em))} · ${esc(x.quem)}</small></span></div>`).join('')}</div>` : `<p class="ob-nota">${ic('info')}<span>Nenhuma remarcação.</span></p>`;
     if (I.etapa === 'concluida') {
       return `<div class="rd-card"><h3>${ic('circle-check')}Instalação feita</h3><div class="rd-kv">${kv('Concluída em', esc(dmy(pos.obra_concluida_em || pos.obra_data)))}${kv('Equipe', esc(equipeNome(o)))}${kv('Agendada para', esc(dataObra(I) || '—'))}</div></div>
+        ${pagEquipeHTML(o, I)}
         <div class="rd-card"><h3>${ic('history')}Remarcações</h3>${remHTML}</div>`;
     }
     if (I.etapa !== 'agendada') {
@@ -741,10 +754,154 @@
         ${kv('Integrantes', esc((eq && eq.integrantes) || (eq && eq.terceirizada ? 'Terceirizada' : '—')))}${kv('Endereço', esc(o.endereco || '—'))}${kv('Telefone do cliente', esc(o.telefone || '—'))}</div>
         <div class="ob-linha"><span style="font-weight:700">Confirmado com o cliente</span>${segmHTML([['true', 'Sim'], ['false', 'Ainda não']], pos.obra_confirmada === true ? 'true' : 'false', `obras.salvar({obra_confirmada:$})`)}</div>
         <div class="ob-linha">${btnOk(`obras.concluirModal()`, 'circle-check', 'Concluir obra')}${btn(`obras.agendarModal('${o.venda_id}')`, 'calendar-clock', 'Reagendar')}<span class="rd-grow"></span><button type="button" class="rd-btn sm ghost" onclick="obras.desmarcar()">${ic('calendar-x')}Tirar da agenda</button></div></div>
+      ${pagEquipeHTML(o, I)}
       <div class="rd-card"><h3>${ic('message-square')}Recado para a equipe</h3>
         <textarea id="ob-recado" class="ob-recado" maxlength="500" placeholder="Ex.: portão lateral, cliente só em casa depois das 8h, levar andaime" oninput="obras.recadoSujo()">${esc(pos.obra_recado || '')}</textarea>
         <div class="ob-linha" id="ob-recado-bt" style="display:none"><span class="rd-grow"></span>${btnPri(`obras.salvarRecado()`, 'save', 'Salvar recado')}</div></div>
       <div class="rd-card"><h3>${ic('history')}Remarcações</h3>${remHTML}</div>`;
+  }
+
+  // ------------------------------------------------------------ pagamento da equipe
+  // módulos × valor da equipe + deslocamento + custos extras. Ao concluir a obra o banco cria a
+  // conta em Financeiro › A pagar › Equipes (obra_pag_equipe), com tarefa para a gestão.
+  const eqDaObra = (o) => {
+    const id = (o.pos || {}).obra_equipe_id;
+    return (id && (O.equipes || []).find((e) => e.id === id)) || (o.equipe && o.equipe.id === id ? o.equipe : null);
+  };
+  function pagRascunho(o) {
+    const pos = o.pos || {}, eq = eqDaObra(o) || {};
+    if (!O.pg[o.venda_id]) {
+      O.pg[o.venda_id] = {
+        mod: pos.equipe_modulos != null ? pos.equipe_modulos : (Number(o.modulos_kit) || 0),
+        modProprio: pos.equipe_modulos != null,
+        desl: pos.equipe_deslocamento != null ? Number(pos.equipe_deslocamento) : (Number(eq.deslocamento_padrao) || 0),
+        extras: (Array.isArray(pos.equipe_extras) ? pos.equipe_extras : []).map((x) => ({ d: x.d || '', v: Number(x.v) || 0 })),
+      };
+    }
+    return O.pg[o.venda_id];
+  }
+  function pagConta(o) {
+    const eq = eqDaObra(o) || {}, R = pagRascunho(o);
+    const vm = o.pag && o.pag.status === 'pago' ? Number(o.pag.valor_modulo) : Number(eq.valor_modulo) || 0;
+    const mao = (Number(R.mod) || 0) * vm;
+    const ext = R.extras.reduce((a, x) => a + (Number(x.v) || 0), 0);
+    return { vm, mao, ext, total: Math.round((mao + (Number(R.desl) || 0) + ext) * 100) / 100 };
+  }
+  function pagEquipeHTML(o, I) {
+    if (O.semPag) return '';
+    const eq = eqDaObra(o);
+    if (!eq) return '';
+    const h = `<h3>${ic('hand-coins')}Pagamento da equipe`;
+    if (!eq.paga_por_obra) {
+      return `<div class="rd-card">${h}</h3><p class="ob-nota" style="margin:0">${ic('info')}<span><b>${esc(eq.nome)}</b> não recebe por obra${eq.terceirizada ? '' : ' (equipe própria)'}: nada vai para o A pagar. <button type="button" class="eg-link" onclick="obras.equipesModal('${eq.id}')">Mudar na equipe</button></span></p></div>`;
+    }
+    const pag = o.pag, pago = !!(pag && pag.status === 'pago');
+    const concl = I.etapa === 'concluida';
+    if (concl && !pag) {
+      return `<div class="rd-card">${h}</h3><p class="ob-nota" style="margin:0">${ic('info')}<span>Obra concluída antes do pagamento por obra existir: não gerou conta a pagar.</span></p></div>`;
+    }
+    const R = pagRascunho(o), C = pagConta(o);
+    const trava = pago ? 'disabled' : '';
+    const prazo = Number(eq.prazo_pagamento_dias != null ? eq.prazo_pagamento_dias : 7);
+    const vence = pag ? pag.vencimento : addDias(I.pos.obra_concluida_em || hojeIso(), prazo);
+    const selo = pago ? '<span class="r"><span class="ob-chip ok">Pago</span></span>' : pag ? '<span class="r"><span class="ob-chip wa">A pagar</span></span>' : '<span class="r">previsto</span>';
+    const extras = R.extras.map((x, i) => `<div class="ob-pag-ext">
+        <input class="ob-pag-in" maxlength="80" value="${esc(x.d)}" placeholder="O que foi? Ex.: telhado alto, andaime" ${trava} onchange="obras.pgSet('d', this.value, ${i})" aria-label="Descrição do custo extra">
+        <span class="ob-pag-rs"><em>R$</em><input class="ob-pag-in" inputmode="decimal" value="${x.v ? esc(nfBR(x.v)) : ''}" placeholder="0,00" ${trava} oninput="obras.pgVivo('v', this.value, ${i})" onchange="obras.pgSet('v', this.value, ${i})" aria-label="Valor do custo extra"></span>
+        ${pago ? '' : `<button type="button" class="ob-pag-x" title="Tirar" onclick="obras.pgTirar(${i})">${ic('x')}</button>`}</div>`).join('');
+    let nota;
+    if (pago) nota = `<div class="eg-aviso g">${ic('circle-check')}<span>Pago em ${esc(dmy(pag.pago_em))}${pag.pago_forma ? ' (' + esc(pag.pago_forma) + ')' : ''}: ${esc(money(pag.pago_valor))}${pag.pago_por ? ' · ' + esc(pag.pago_por) : ''}. Para mudar, desfaça o pagamento no Financeiro.</span></div>`;
+    else if (pag) nota = `<div class="eg-aviso g">${ic('circle-check')}<span>Conta a pagar criada no Financeiro, vence <b>${esc(dmy(vence))}</b>. ${state.canFin ? `<button type="button" class="eg-link" onclick="obras.irPagEquipes()">Ver no A pagar</button>` : ''}</span></div>`;
+    else nota = `<p class="ob-nota">${ic('info')}<span>Ao concluir a obra, esse valor vira uma conta a pagar no Financeiro, vencendo ${prazo} dia${prazo === 1 ? '' : 's'} depois.</span></p>`;
+    return `<div class="rd-card ob-pag">${h}${selo}</h3>
+      <div class="ob-pag-calc">
+        <div><small>Módulos${R.modProprio ? '' : ' (do kit)'}</small><input class="ob-pag-in big" inputmode="numeric" value="${esc(String(R.mod || ''))}" placeholder="0" ${trava} oninput="obras.pgVivo('mod', this.value)" onchange="obras.pgSet('mod', this.value)" aria-label="Módulos"></div>
+        <span class="op">×</span>
+        <div><small>Valor da equipe</small><b>${esc(money(C.vm))}</b></div>
+        <span class="op">=</span>
+        <div><small>Mão de obra</small><b id="ob-pag-mao">${esc(money(C.mao))}</b></div>
+      </div>
+      <div class="ob-pag-campos">
+        <label class="ob-pag-lbl">Deslocamento <small>opcional${Number(eq.deslocamento_padrao) ? ' · padrão da equipe ' + esc(money(eq.deslocamento_padrao)) : ''}</small></label>
+        <span class="ob-pag-rs" style="max-width:220px"><em>R$</em><input class="ob-pag-in" inputmode="decimal" value="${R.desl ? esc(nfBR(R.desl)) : ''}" placeholder="0,00" ${trava} oninput="obras.pgVivo('desl', this.value)" onchange="obras.pgSet('desl', this.value)" aria-label="Deslocamento"></span>
+        <label class="ob-pag-lbl" style="margin-top:6px">Custo extra <small>opcional</small></label>
+        ${extras}
+        ${pago ? (R.extras.length ? '' : '<small class="ob-pag-nada">Nenhum.</small>') : `<div><button type="button" class="rd-btn sm" onclick="obras.pgMais()">${ic('plus')}Adicionar custo extra</button></div>`}
+      </div>
+      <div class="ob-pag-tot"><span>Total para ${esc(eq.nome)}</span><b id="ob-pag-tot">${esc(money(pago ? pag.pago_valor : C.total))}</b></div>
+      ${nota}
+    </div>`;
+  }
+  function custoEquipeKV(o) {
+    if (O.semPag) return '';
+    const eq = eqDaObra(o);
+    if (!eq || !eq.paga_por_obra) return '';
+    const p = o.pag;
+    if (p) return kv('Equipe', esc(money(p.status === 'pago' ? p.pago_valor : p.total)) + (p.status === 'pago' ? ' · pago' : ' · a pagar'));
+    return info(o).etapa === 'concluida' ? '' : kv('Equipe', esc(money(pagConta(o).total)) + ' · previsto');
+  }
+  // digitando: só o total muda na tela; ao sair do campo grava
+  function pgVivo(campo, v, i) {
+    const o = achar(O.aberta); if (!o) return;
+    const R = pagRascunho(o);
+    if (campo === 'mod') R.mod = Math.max(0, parseInt(v, 10) || 0);
+    else if (campo === 'desl') R.desl = numIn(v);
+    else if (campo === 'v' && R.extras[i]) R.extras[i].v = numIn(v);
+    const C = pagConta(o);
+    const t = document.getElementById('ob-pag-tot'); if (t) t.textContent = money(C.total);
+    const m = document.getElementById('ob-pag-mao'); if (m) m.textContent = money(C.mao);
+  }
+  async function pgGravar(dados) {
+    const o = achar(O.aberta); if (!o) return;
+    try {
+      const r = await rpc('obra_equipe_custos', { p_venda_id: o.venda_id, p_dados: dados });
+      if (r && r.pos) o.pos = { ...(o.pos || {}), ...r.pos };
+      if (r) o.pag = r.pag || null;
+      carregarTimeline(o);
+      toast(o.pag ? 'Conta da equipe atualizada' : 'Pagamento da equipe salvo');
+    } catch (e) {
+      console.error('[obras] pagamento da equipe', e);
+      toast('Não foi possível salvar: ' + (e.message || e));
+      O.pg[o.venda_id] = null; pintarPainel();
+    }
+  }
+  const extrasLimpos = (R) => R.extras.filter((x) => Number(x.v) > 0 || String(x.d || '').trim()).map((x) => ({ d: String(x.d || '').trim(), v: Math.round((Number(x.v) || 0) * 100) / 100 }));
+  function pgSet(campo, v, i) {
+    const o = achar(O.aberta); if (!o) return;
+    const R = pagRascunho(o);
+    if (campo === 'mod') {
+      R.mod = Math.max(0, parseInt(v, 10) || 0);
+      const kit = Number(o.modulos_kit) || 0;
+      R.modProprio = R.mod !== kit;
+      return pgGravar({ modulos: R.modProprio ? R.mod : '' });
+    }
+    if (campo === 'desl') { R.desl = numIn(v); return pgGravar({ deslocamento: Math.round(R.desl * 100) / 100 }); }
+    if (!R.extras[i]) return;
+    if (campo === 'd') R.extras[i].d = String(v || '').trim(); else R.extras[i].v = numIn(v);
+    // só grava a linha quando tiver valor (a descrição sozinha espera o valor)
+    if (Number(R.extras[i].v) > 0 || campo === 'v') return pgGravar({ extras: extrasLimpos(R) });
+  }
+  function pgMais() {
+    const o = achar(O.aberta); if (!o) return;
+    pagRascunho(o).extras.push({ d: '', v: 0 });
+    pintarPainel();
+    setTimeout(() => { const l = document.querySelectorAll('.ob-pag-ext input'); const f = l[l.length - 2]; if (f) f.focus(); }, 30);
+  }
+  function pgTirar(i) {
+    const o = achar(O.aberta); if (!o) return;
+    const R = pagRascunho(o);
+    const tinha = Number((R.extras[i] || {}).v) > 0;
+    R.extras.splice(i, 1);
+    pintarPainel();
+    if (tinha) pgGravar({ extras: extrasLimpos(R) });
+  }
+  function irPagEquipes() {
+    if (!state.canFin) { toast('Você não tem acesso ao Financeiro.'); return; }
+    fechar();
+    state.finFoco = null;
+    state.finSub = state.finSub || {}; state.finSub.apagar = 'equipes';
+    if (state.environment !== 'financeiro') { state.finActiveTab = 'apagar'; setEnvironment('financeiro'); }
+    else setTab('apagar');
   }
 
   // ------------------------------------------------------------ timeline
@@ -867,6 +1024,7 @@
   }
   async function depoisDeGravar(msg) {
     const o = achar(O.aberta);
+    if (o) O.pg[o.venda_id] = null; // equipe/conclusão podem ter mudado o pagamento da equipe
     await carregar(true);
     if (o) await carregarTimeline(o);
     if (msg) toast(msg);
@@ -944,7 +1102,7 @@
     const alvo = achar(O.agAlvo); const sel = document.getElementById('ob-ag-eq'); if (!alvo || !sel) return;
     const eqs = equipesAtivas(alvo.franquia_id);
     const atual = sel.value || O.agEqPreset || '';
-    sel.innerHTML = `<option value="">${eqs.length ? 'Escolha a equipe' : 'Nenhuma equipe cadastrada'}</option>${eqs.map((e) => `<option value="${e.id}" ${atual === e.id ? 'selected' : ''}>${esc(e.nome)}${e.terceirizada ? ' · terceirizada' : ''}${e.integrantes ? ' · ' + esc(e.integrantes) : ''}</option>`).join('')}`;
+    sel.innerHTML = `<option value="">${eqs.length ? 'Escolha a equipe' : 'Nenhuma equipe cadastrada'}</option>${eqs.map((e) => `<option value="${e.id}" ${atual === e.id ? 'selected' : ''}>${esc(e.nome)}${e.terceirizada ? ' · terceirizada' : ''}${e.paga_por_obra ? ' · ' + esc(money(e.valor_modulo)) + '/módulo' : ''}${e.integrantes ? ' · ' + esc(e.integrantes) : ''}</option>`).join('')}`;
   }
   function agCheck() {
     const av = document.getElementById('ob-ag-av'); const alvo = achar(O.agAlvo); if (!av || !alvo) return;
@@ -984,6 +1142,12 @@
       <p class="sub"><b>${esc(o.cliente_nome)}</b> · ${esc(cidade(o))} · ${kwp(o.kwp)}</p>
       <div class="rd-fgrid"><div class="rd-fld"><label for="ob-cc-data">Concluída em</label><input id="ob-cc-data" type="date" value="${hojeIso()}" max="${hojeIso()}"></div></div>
       <div class="eg-aviso g">${ic('landmark')}<span>A engenharia é avisada para pedir a vistoria da concessionária. A etapa Obra da venda fica como concluída.</span></div>
+      ${(() => {
+        const eq = O.semPag ? null : eqDaObra(o);
+        if (!eq || !eq.paga_por_obra) return '';
+        const pz = Number(eq.prazo_pagamento_dias != null ? eq.prazo_pagamento_dias : 7);
+        return `<div class="eg-aviso">${ic('hand-coins')}<span>Vira conta a pagar no Financeiro: <b>${esc(eq.nome)} · ${esc(money(pagConta(o).total))}</b>, vencendo ${pz} dia${pz === 1 ? '' : 's'} depois. A gestão recebe a tarefa.</span></div>`;
+      })()}
       <div class="rd-err" id="ob-err"></div>
       <div class="rd-mfoot"><button type="button" class="rd-btn" onclick="obras.fecharModal()">Cancelar</button><button type="button" class="eg-btn ok" onclick="obras.ccConfirmar(this)">${ic('check')}Concluir obra</button></div>`);
   }
@@ -1107,9 +1271,11 @@
     const ed = editId ? lista.find((e) => e.id === editId) : null;
     const precisaFranquia = !ed && state.isAdmin && verTodas();
     const franquias = (state.franquiasCatalog || []).slice().sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
-    modal(`<h3>${ic('users')} Equipes de instalação</h3>
+    modal(`<button type="button" class="eg-sq ob-mx" onclick="obras.fecharModal()" title="Fechar (Esc)">${ic('x')}</button>
+      <h3>${ic('users')} Equipes de instalação</h3>
       <p class="sub">Cada equipe vira uma linha na agenda.</p>
       <div class="ob-eqs">${lista.length ? lista.map((e) => `<div class="row ${e.ativa ? '' : 'off'}"><div><b>${esc(e.nome)}${e.terceirizada ? ' <span class="ob-chip">Terceirizada</span>' : ''}</b><small>${esc(e.integrantes || 'Sem integrantes informados')}${verTodas() ? ' · ' + esc(franquiaNome(e.franquia_id)) : ''}${e.ativa ? '' : ' · desativada'}</small></div>
+          ${O.semPag ? '' : e.paga_por_obra ? `<span class="ob-chip ok ob-eq-val">${esc(money(e.valor_modulo))}/módulo</span>` : '<span class="ob-chip ob-eq-val">Não recebe por obra</span>'}
           <button type="button" class="rd-btn sm ghost" onclick="obras.equipesModal('${e.id}')">${ic('pencil')}Editar</button>
           <button type="button" class="rd-btn sm ghost" onclick="obras.eqAtiva('${e.id}', ${!e.ativa})">${ic(e.ativa ? 'eye-off' : 'eye')}${e.ativa ? 'Desativar' : 'Reativar'}</button></div>`).join('') : '<div class="ob-vazio">Nenhuma equipe ainda.</div>'}</div>
       <div class="rd-fsec" style="margin-top:16px"><b>${ed ? 'Editar ' + esc(ed.nome) : 'Nova equipe'}</b></div>
@@ -1119,14 +1285,58 @@
         <div class="rd-fld"><label for="ob-eq-int">Integrantes</label><input id="ob-eq-int" maxlength="120" value="${esc(ed ? ed.integrantes || '' : '')}" placeholder="Ex.: Marcos (líder), Paulo, Diego"></div>
         <label class="rd-check full"><input type="checkbox" id="ob-eq-ter" ${ed && ed.terceirizada ? 'checked' : ''}>Equipe terceirizada</label>
       </div>
+      ${O.semPag ? '' : eqPagHTML(ed)}
       <div class="rd-err" id="ob-err"></div>
-      <div class="rd-mfoot">${ed ? `<button type="button" class="rd-btn" onclick="obras.equipesModal()">Cancelar edição</button>` : `<button type="button" class="rd-btn" onclick="obras.fecharModal()">Fechar</button>`}<button type="button" class="rd-btn blue" onclick="obras.eqSalvar(this, ${ed ? `'${ed.id}'` : 'null'})">${ic('check')}${ed ? 'Salvar' : 'Cadastrar equipe'}</button></div>`);
+      <div class="rd-mfoot">${ed ? `<button type="button" class="rd-btn" onclick="obras.equipesModal()">Cancelar edição</button>` : ''}<button type="button" class="rd-btn blue" onclick="obras.eqSalvar(this, ${ed ? `'${ed.id}'` : 'null'})">${ic('check')}${ed ? 'Salvar' : 'Cadastrar equipe'}</button></div>`);
+    if (!O.semPag) eqEx();
+  }
+  // pagamento da equipe no cadastro: recebe por obra, valor por módulo, prazo e deslocamento padrão
+  const nfBR = (v) => (v == null || v === '' ? '' : nf(v, Number(v) % 1 ? 2 : 0));
+  function eqPagHTML(ed) {
+    const paga = !!(ed && ed.paga_por_obra);
+    return `<div class="rd-fsec ob-pag-sec" style="margin-top:16px"><b>Pagamento da equipe</b></div>
+      <label class="ob-pagtog"><span><b>Recebe por obra</b><small id="ob-eq-pag-dica">${paga ? 'Cada obra concluída vira uma conta a pagar no Financeiro.' : 'Desligado: a obra não gera pagamento (ex.: equipe própria, CLT).'}</small></span>
+        <input type="checkbox" id="ob-eq-paga" ${paga ? 'checked' : ''} onchange="obras.eqPagTog()"><i></i></label>
+      <div id="ob-eq-pag" ${paga ? '' : 'hidden'}>
+        <div class="rd-fgrid">
+          <div class="rd-fld"><label for="ob-eq-vm">Valor por módulo (R$)</label><input id="ob-eq-vm" inputmode="decimal" value="${esc(nfBR(ed && ed.valor_modulo))}" placeholder="Ex.: 70" oninput="obras.eqEx()"></div>
+          <div class="rd-fld"><label for="ob-eq-prazo">Pagar em (dias depois de concluir)</label><input id="ob-eq-prazo" inputmode="numeric" value="${esc(String(ed && ed.prazo_pagamento_dias != null ? ed.prazo_pagamento_dias : 7))}" oninput="obras.eqEx()"></div>
+          <div class="rd-fld"><label for="ob-eq-desl">Deslocamento padrão (R$, opcional)</label><input id="ob-eq-desl" inputmode="decimal" value="${esc(nfBR(ed && ed.deslocamento_padrao))}" placeholder="0" oninput="obras.eqEx()"></div>
+        </div>
+        <p class="ob-nota">${ic('info')}<span>O deslocamento já vem preenchido no card da obra, e dá para mudar obra a obra.</span></p>
+        <div class="ob-pag-ex" id="ob-eq-ex"></div>
+      </div>`;
+  }
+  function eqEx() {
+    const el = document.getElementById('ob-eq-ex'); if (!el) return;
+    const vm = numIn(val('ob-eq-vm')), d = numIn(val('ob-eq-desl')), pz = parseInt(val('ob-eq-prazo'), 10);
+    const mo = 20 * vm;
+    el.innerHTML = vm > 0 ? `Exemplo: obra de <b>20 módulos</b> × ${esc(money(vm))} = <b>${esc(money(mo))}</b>${d > 0 ? ` + deslocamento ${esc(money(d))} = <b>${esc(money(mo + d))}</b>` : ''}${Number.isFinite(pz) ? ` · vence <b>${pz} dia${pz === 1 ? '' : 's'}</b> depois de concluída` : ''}.` : 'Informe o valor por módulo para ver um exemplo.';
+  }
+  function eqPagTog() {
+    const on = !!(document.getElementById('ob-eq-paga') || {}).checked;
+    const box = document.getElementById('ob-eq-pag'); if (box) box.hidden = !on;
+    const dica = document.getElementById('ob-eq-pag-dica');
+    if (dica) dica.textContent = on ? 'Cada obra concluída vira uma conta a pagar no Financeiro.' : 'Desligado: a obra não gera pagamento (ex.: equipe própria, CLT).';
+    if (on) { eqEx(); const f = document.getElementById('ob-eq-vm'); if (f && !f.value && !celular()) f.focus(); }
   }
   async function eqSalvar(b, id) {
     const nome = val('ob-eq-nome');
     if (!nome) { erro('Informe o nome da equipe.'); return; }
     const dados = { nome, integrantes: val('ob-eq-int'), terceirizada: !!(document.getElementById('ob-eq-ter') || {}).checked };
     if (!id && document.getElementById('ob-eq-fr')) dados.franquia_id = val('ob-eq-fr');
+    if (document.getElementById('ob-eq-paga')) {
+      const paga = !!document.getElementById('ob-eq-paga').checked;
+      dados.paga_por_obra = paga;
+      if (paga) {
+        const vm = numIn(val('ob-eq-vm')), pz = parseInt(val('ob-eq-prazo') || '7', 10);
+        if (!(vm > 0)) { erro('Informe o valor por módulo.'); return; }
+        if (!Number.isFinite(pz) || pz < 0 || pz > 120) { erro('O prazo para pagar vai de 0 a 120 dias.'); return; }
+        dados.valor_modulo = Math.round(vm * 100) / 100;
+        dados.prazo_pagamento_dias = pz;
+        dados.deslocamento_padrao = Math.round(numIn(val('ob-eq-desl')) * 100) / 100 || '';
+      }
+    }
     await ocupado(b, async () => {
       try {
         await rpc('obra_equipe_salvar', { p_id: id, p_dados: dados });
@@ -1259,7 +1469,8 @@
     agAlvo: (id) => { O.agAlvo = id; agEquipes(); agCheck(); },
     agCheck, agConfirmar, concluirModal, ccConfirmar, prioridadeModal, prioEnviar, entregaModal, enConfirmar,
     liberarModal, libConfirmar, devolver,
-    equipesModal, eqSalvar, eqAtiva,
+    equipesModal, eqSalvar, eqAtiva, eqPagTog, eqEx,
+    pgVivo, pgSet, pgMais, pgTirar, irPagEquipes,
     elSet, elAdd, elDel, elForn, elGerar, elSalvar: () => elSalvar(), elStatus, confAbrir, confToque, confFechar, confFim,
   };
 })();

@@ -52,6 +52,8 @@ const CRM_ARQ_PASTAS_EXTRAS = [
   { tipo: 'inspecao', label: 'Inspeção', icon: 'scan-search', dica: 'Fotos e registros depois da instalação.' },
   // preenchida sozinha quando o Financeiro registra a compra do kit com o pedido anexado (ui-v2-fin.js)
   { tipo: 'pedido_compra', label: 'Pedido do kit', icon: 'package', dica: 'Pedido ou nota da distribuidora. Entra sozinho quando o Financeiro registra a compra.' },
+  // comprovante do pagamento da equipe de instalação (Financeiro › A pagar › Equipes)
+  { tipo: 'comprovante_equipe', label: 'Pagamento da equipe', icon: 'hard-hat', dica: 'Comprovante do pagamento da equipe de instalação. Entra sozinho quando o Financeiro marca como pago.' },
   { tipo: 'outros', label: 'Outros', icon: 'folder', dica: 'Qualquer outro arquivo do cliente.' },
 ];
 

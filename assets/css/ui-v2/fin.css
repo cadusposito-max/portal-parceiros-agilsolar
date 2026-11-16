@@ -313,3 +313,16 @@ html[data-ui="v2"] .v2s .vfin-formas em.des { background: var(--v2-orange-50); c
   html[data-ui="v2"] #vfin-dlg .vfin-rx-lin > input { grid-row: 2; }
   html[data-ui="v2"] #vfin-dlg .vfin-rx-lin > input[type="date"] { grid-column: 2 / 4; }
 }
+
+/* ==========================================================================
+   A pagar › Equipes (pagamento da equipe de instalação) — 16/11/2026
+   ========================================================================== */
+html[data-ui="v2"] .v2s .vfin-vt b.r { color: var(--v2-red); }
+html[data-ui="v2"] .v2s .vfin-nowrap { white-space: nowrap; }
+html[data-ui="v2"] #vfin-dlg input[type="date"] { height: 44px; border-radius: 12px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-bg); color: var(--v2-ink); padding: 0 12px; font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; }
+html[data-ui="v2"] #vfin-dlg .vfin-eq-soma { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px; border-radius: 12px; background: var(--v2-soft); font-size: 13px; font-weight: 700; color: var(--v2-ink-2); }
+html[data-ui="v2"] #vfin-dlg .vfin-eq-soma b { font-size: 18px; font-weight: 800; color: var(--v2-ink); }
+html[data-ui="v2"] #vfin-dlg header span { display: block; line-height: 1.45; }
+html[data-ui="v2"] .v2s td.vfin-eq-ext { white-space: normal; min-width: 110px; max-width: 170px; }
+html[data-ui="v2"] .v2s td.vfin-eq-ext .vfin-s { white-space: normal; }
+html[data-ui="v2"] .v2s .vfin-pag-body .v2-who small { white-space: normal; }

@@ -329,3 +329,53 @@ html[data-theme="dark"] .ob-conf-it.falta .t { color: #F59A9A; }
   .ob-panel.t-eletrica .eg-ph h2 { font-size: 16px; }
   .ob-panel.t-eletrica .eg-av { width: 36px; height: 36px; border-radius: 12px; }
 }
+
+/* pagamento da equipe (cadastro da equipe + card da obra) */
+.ob-eqs .row .ob-eq-val { flex: none; }
+.ob-pagtog { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: var(--v2-soft); cursor: pointer; }
+.ob-pagtog > span { min-width: 0; }
+.ob-pagtog b { display: block; font-size: 13.5px; }
+.ob-pagtog small { display: block; color: var(--v2-gray); font-size: 12px; font-weight: 600; margin-top: 2px; }
+.ob-pagtog input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ob-pagtog i { position: relative; width: 44px; height: 26px; flex: none; border-radius: 99px; background: var(--v2-line-strong); transition: background .15s; }
+.ob-pagtog i::after { content: ''; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .15s; }
+.ob-pagtog input:checked + i { background: var(--v2-green); }
+.ob-pagtog input:checked + i::after { transform: translateX(18px); }
+.ob-pagtog input:focus-visible + i { box-shadow: 0 0 0 3px var(--v2-blue-50); }
+#ob-eq-pag .rd-fgrid { margin-top: 12px; }
+.ob-pag-ex { margin-top: 12px; padding: 10px 12px; border-radius: 12px; border: 1.5px dashed var(--v2-line-strong); font-size: 12.5px; font-weight: 600; color: var(--v2-ink-2); line-height: 1.5; }
+.ob-pag-ex b { color: var(--v2-ink); }
+
+.ob-pag-calc { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: var(--v2-soft); }
+.ob-pag-calc small { display: block; font-size: 10.5px; font-weight: 800; color: var(--v2-gray); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+.ob-pag-calc b { display: block; font-size: 18px; font-weight: 800; line-height: 36px; white-space: nowrap; }
+.ob-pag-calc .op { color: var(--v2-gray); font-weight: 800; font-size: 16px; line-height: 36px; }
+.ob-pag-in { height: 38px; border-radius: 10px; border: 1.5px solid var(--v2-line-strong); background: var(--v2-card); color: var(--v2-ink); font: inherit; font-size: 13.5px; font-weight: 600; padding: 0 10px; width: 100%; min-width: 0; outline: 0; }
+.ob-pag-in:focus { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
+.ob-pag-in:disabled { background: var(--v2-soft); color: var(--v2-ink-2); }
+.ob-pag-in.big { width: 76px; height: 36px; font-size: 18px; font-weight: 800; text-align: center; padding: 0 6px; }
+.ob-pag-campos { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.ob-pag-lbl { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); }
+.ob-pag-lbl small { font-weight: 600; color: var(--v2-gray); }
+.ob-pag-rs { position: relative; display: block; width: 100%; }
+.ob-pag-rs em { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--v2-gray); pointer-events: none; }
+.ob-pag-rs .ob-pag-in { padding-left: 32px; }
+.ob-pag-ext { display: grid; grid-template-columns: minmax(0, 1fr) 150px 34px; gap: 8px; align-items: center; }
+.ob-pag-x { width: 34px; height: 34px; border-radius: 10px; border: 0; background: var(--v2-bg); color: var(--v2-ink-2); display: grid; place-items: center; cursor: pointer; }
+.ob-pag-x:hover { color: var(--v2-red); }
+.ob-pag-x svg.lucide { width: 16px; height: 16px; }
+.ob-pag-nada { color: var(--v2-gray); font-weight: 600; }
+.ob-pag-tot { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1.5px solid var(--v2-line); font-weight: 700; color: var(--v2-ink-2); font-size: 13px; }
+.ob-pag-tot b { font-size: 22px; font-weight: 800; color: var(--v2-ink); white-space: nowrap; }
+.ob-pag .eg-aviso { margin-top: 12px; }
+@media (max-width: 760px) {
+  .ob-pag-ext { grid-template-columns: minmax(0, 1fr) 110px 34px; }
+  .ob-pag-calc b { font-size: 16px; }
+  .ob-pag-tot b { font-size: 20px; }
+  .ob-eqs .row .ob-eq-val { display: none; }
+}
+/* X de fechar no topo da janela de equipes */
+.ob-modal { position: relative; }
+.ob-modal .ob-mx { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; }
+.ob-modal .ob-mx svg.lucide { width: 18px; height: 18px; }
+.ob-modal:has(.ob-mx) > h3 { padding-right: 44px; }

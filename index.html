@@ -60,7 +60,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/login.css?v=20260929-p23" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/rede.css?v=20261021-celular" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261104-titular-uc" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/obras.css?v=20261110-liberar" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/obras.css?v=20261116-pag-equipe" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/arquivos.css?v=20261109-arqv2" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261008-linha" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
@@ -74,7 +74,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/tarefas.css?v=20261113-auto" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/contatos.css?v=20261104-halo" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/om.css?v=20261105-om-central" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/fin.css?v=20261113-fin7-receber" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/fin.css?v=20261116-pag-equipe" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/conteudo.css?v=20261113-arquivos" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/mobile.css?v=20261113-jr-toque" data-ui-v2 media="not all">
   <!-- Launcher (escolha de ambiente): carrega sempre, usa os tokens do v2 com fallback claro -->
@@ -1252,7 +1252,7 @@
   local('timeline-unificada.js', '20261110-obra');
   local('crm.js',              '20261113-kit-venda');
   local('crm-mencao.js',       '20261027-timeline');
-  local('crm-arquivos.js',     '20261109-arqv2');
+  local('crm-arquivos.js',     '20261116-pag-equipe');
   local('crm-fila.js',         '20260917-modal-altura');
   local('crm-contatos.js',     '20261103-anim');
   local('crm-metas.js',        '20260716-crm-loop');
@@ -1269,7 +1269,7 @@
   local('orcamento-dre.js',    '20261013-franq');
   local('vendas.js',           '20261113-kit-venda');
   local('vendas-andamento.js', '20261110-liberar');
-  local('obras.js',            '20261110-liberar');
+  local('obras.js',            '20261116-pag-equipe');
   local('admin.js',            '20261113-arquivos');
   local('campanhas.js',        '20261111-tema-chave');
   local('profile.js',          '20260922-2fa-sobrio');
@@ -1278,7 +1278,7 @@
   local('om-os.js',            '20261103-om-fase3');
   // Financeiro: baixado sob demanda (só quem tem acesso) — ver carregarFinanceiro() em app.js
   sobDemanda('financeiro', 'financeiro.js', '20261113-fin7-receber');
-  sobDemanda('financeiro', 'ui-v2-fin.js',  '20261113-fin7-receber');
+  sobDemanda('financeiro', 'ui-v2-fin.js',  '20261116-pag-equipe');
   // Marketing e Documentação: baixados só quando o ambiente é aberto (carregarConteudo em app.js)
   sobDemanda('conteudo', 'conteudo.js', '20261112-docs-topo');
   sobDemanda('conteudo', 'mkt.js',      '20261112-grafico');

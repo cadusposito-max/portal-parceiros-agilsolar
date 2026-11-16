@@ -871,10 +871,10 @@
       <span class="vfin-anexo"><input id="${idInput}" type="file" accept="${ACEITA}" onchange="uiV2Fin.anexoNome(this)">${ic('paperclip')}<span class="nm">Anexar PDF ou foto do pedido</span></span></label>
       <small class="vfin-dica">Fica salvo sozinho na aba Arquivos do cliente.</small>`;
   }
-  function anexoNome(inp) {
+  function anexoNome(inp, padrao) {
     const nm = inp && inp.parentElement && inp.parentElement.querySelector('.nm');
     const f = inp && inp.files && inp.files[0];
-    if (nm) nm.textContent = f ? f.name : 'Anexar PDF ou foto do pedido';
+    if (nm) nm.textContent = f ? f.name : (padrao || 'Anexar PDF ou foto do pedido');
     if (inp && inp.parentElement) inp.parentElement.classList.toggle('on', !!f);
   }
   async function anexarPedido(v, file, fornecedor) {
@@ -936,9 +936,28 @@
   }
 
   // ==================== A PAGAR (compra dos kits + comissões) ====================
-  const PAG = { com: [] };
-  const pagEstado = () => (state.finPagV2 = state.finPagV2 || { cmp: 'todos', com: 'todos' });
-  const pagSub = () => ((state.finSub && state.finSub.apagar) === 'comissoes' ? 'comissoes' : 'compras');
+  // eq = contas das equipes de instalação (obra concluída → obra_pag_equipe); null = banco sem a migration
+  const PAG = { com: [], eq: null };
+  const pagEstado = () => (state.finPagV2 = state.finPagV2 || { cmp: 'todos', com: 'todos', eq: 'aberto' });
+  const pagSub = () => {
+    const s = state.finSub && state.finSub.apagar;
+    if (s === 'comissoes') return 'comissoes';
+    if (s === 'equipes' && PAG.eq) return 'equipes';
+    return 'compras';
+  };
+  // a lista das equipes não pode derrubar a tela: sem a função no banco, o segmento some
+  async function carregarEquipesPag() {
+    try {
+      const { data, error } = await supabaseClient.rpc('list_obra_pag_equipe');
+      if (error) throw error;
+      PAG.eq = Array.isArray(data) ? data : [];
+    } catch (e) {
+      if (!/list_obra_pag_equipe|PGRST202|42883/i.test(String((e && (e.message || e.code)) || ''))) console.warn('[ui-v2-fin] equipes', e);
+      PAG.eq = null;
+    }
+    return PAG.eq;
+  }
+  const eqAbertos = () => (PAG.eq || []).filter((p) => p.status !== 'pago');
   async function renderAPagar(container) {
     container.className = 'v2s';
     document.body.dataset.v2screen = 'fin-apagar';
@@ -948,20 +967,152 @@
   }
   async function pintarAPagar(buscar = true) {
     if (buscar) {
-      const [, com] = await Promise.all([carregarVendas(), window.finRpc('list_fin_comissoes', { p_filter: 'todos' }).catch(() => null)]);
+      const [, com] = await Promise.all([carregarVendas(), window.finRpc('list_fin_comissoes', { p_filter: 'todos' }).catch(() => null), carregarEquipesPag()]);
       if (com) { PAG.com = com; window.finUsarComissoes(com); }
     }
     if (!naTela('apagar', '.vfin-pag')) return;
     const b = box(), wrap = b.querySelector('.vfin-pag');
     const aComprar = VEN.rows.filter((v) => v.kitSt === 'a_comprar');
     const comAP = PAG.com.filter((x) => x.st !== 'pago');
+    const eqAP = eqAbertos();
     const semCusto = aComprar.filter((v) => v.custo_kit == null).length;
-    setPageMeta('fin:apagar', 'A pagar', `${plural(aComprar.length, 'kit a comprar', 'kits a comprar')} · ${curto(comAP.reduce((s, x) => s + (Number(x.valor) || 0), 0))} em comissões`);
+    setPageMeta('fin:apagar', 'A pagar', `${plural(aComprar.length, 'kit a comprar', 'kits a comprar')} · ${curto(comAP.reduce((s, x) => s + (Number(x.valor) || 0), 0))} em comissões${PAG.eq ? ` · ${curto(eqAP.reduce((s, p) => s + (Number(p.total) || 0), 0))} para equipes` : ''}`);
     const sub = pagSub();
     const seg = (id, lbl, icone, n) => `<button class="${sub === id ? 'on' : ''}" onclick="uiV2Fin.pagSeg('${id}')">${ic(icone)}${lbl}<em>${n}</em></button>`;
-    wrap.innerHTML = `<div class="v2-seg vfin-seg">${seg('compras', 'Compra dos kits', 'package', aComprar.length)}${seg('comissoes', 'Comissões', 'hand-coins', comAP.length)}</div>
+    wrap.innerHTML = `<div class="v2-seg vfin-seg">${seg('compras', 'Compra dos kits', 'package', aComprar.length)}${seg('comissoes', 'Comissões', 'hand-coins', comAP.length)}${PAG.eq ? seg('equipes', 'Equipes', 'hard-hat', eqAP.length) : ''}</div>
       <div class="vfin-pag-body"></div>`;
-    if (sub === 'compras') pintarCompras(semCusto); else pintarComissoes();
+    if (sub === 'compras') pintarCompras(semCusto); else if (sub === 'equipes') pintarEquipes(); else pintarComissoes();
+  }
+
+  // ---- equipes de instalação: cada obra concluída de equipe que recebe por obra ----
+  const ini2 = (nome) => esc(String(nome || '?').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase());
+  function eqSituacao(p) {
+    if (p.status === 'pago') return ['Pago ' + (p.pago_em ? dataBR(p.pago_em).slice(0, 5) : ''), 't-green'];
+    const d = diasAte(p.vencimento);
+    if (d == null) return ['A pagar', 't-blue'];
+    if (d < 0) return [`Vencido há ${plural(-d, 'dia', 'dias')}`, 't-red'];
+    if (d === 0) return ['Vence hoje', 't-orange'];
+    if (d === 1) return ['Vence amanhã', 't-orange'];
+    if (d <= 2) return [`Vence em ${d} dias`, 't-orange'];
+    return ['Vence ' + dataBR(p.vencimento).slice(0, 5), 't-blue'];
+  }
+  const eqExtras = (p) => (Array.isArray(p.extras) ? p.extras : []);
+  const eqExtraTotal = (p) => (Number(p.deslocamento) || 0) + eqExtras(p).reduce((s, x) => s + (Number(x.v) || 0), 0);
+  const eqValor = (p) => Number(p.status === 'pago' ? p.pago_valor : p.total) || 0;
+  function pintarEquipes() {
+    const host = box().querySelector('.vfin-pag-body'); if (!host) return;
+    const st = pagEstado(); st.eq = st.eq || 'aberto';
+    const rows = PAG.eq || [];
+    const venc = (p) => p.status !== 'pago' && diasAte(p.vencimento) != null && diasAte(p.vencimento) < 0;
+    const mesAtual = hoje().toISOString().slice(0, 7);
+    // um cartão por equipe com algo a pagar ou pago no mês
+    const porEq = {};
+    rows.forEach((p) => {
+      const k = p.equipe_id || p.equipe_nome;
+      const e = (porEq[k] = porEq[k] || { nome: p.equipe_nome, vm: p.equipe_valor_atual != null ? p.equipe_valor_atual : p.valor_modulo, aPagar: 0, venc: 0, pagoMes: 0, n: 0, ids: [] });
+      if (p.status === 'pago') { if (String(p.pago_em || '').slice(0, 7) === mesAtual) e.pagoMes += Number(p.pago_valor) || 0; return; }
+      e.aPagar += Number(p.total) || 0; e.n++; e.ids.push(p.id);
+      if (venc(p)) e.venc += Number(p.total) || 0;
+    });
+    const cards = Object.entries(porEq).filter(([, e]) => e.n || e.pagoMes).sort((a, b) => b[1].aPagar - a[1].aPagar);
+    const card = ([k, e]) => `<div class="v2-card vfin-vend">
+        <div class="v2-who" style="margin-bottom:14px"><i class="v2-ini round">${ini2(e.nome)}</i><div><span class="v2-nm">${esc(e.nome)}</span><small>${brlC2(e.vm)}/módulo · ${plural(e.n, 'obra a pagar', 'obras a pagar')}</small></div></div>
+        <div class="vfin-vt"><div><small>A pagar</small><b>${brl(e.aPagar)}</b></div><div><small>Vencido</small><b class="${e.venc ? 'r' : ''}">${brl(e.venc)}</b></div><div><small>Pago no mês</small><b class="g">${brl(e.pagoMes)}</b></div></div>
+        <button class="v2-btn2" style="width:100%;justify-content:center;margin-top:14px" ${e.n ? '' : 'disabled'} onclick="uiV2Fin.eqPagar('${esc(e.ids.join(','))}')">${ic('check-check')}Pagar tudo de ${esc(e.nome)}</button>
+      </div>`;
+    const cnt = { aberto: rows.filter((p) => p.status !== 'pago').length, vencido: rows.filter(venc).length, pago: rows.filter((p) => p.status === 'pago').length, todos: rows.length };
+    const lista = rows.filter((p) => st.eq === 'todos' || (st.eq === 'pago' ? p.status === 'pago' : st.eq === 'vencido' ? venc(p) : p.status !== 'pago'))
+      .sort((a, b) => (a.status === 'pago') - (b.status === 'pago') || (a.status === 'pago' ? String(b.pago_em).localeCompare(String(a.pago_em)) : String(a.vencimento).localeCompare(String(b.vencimento))));
+    const pill = (lbl, val) => `<button class="${st.eq === val ? 'on' : ''}" onclick="uiV2Fin.pagSet('eq','${val}')">${lbl}<em>${cnt[val] || 0}</em></button>`;
+    const extrasTxt = (p) => [Number(p.deslocamento) ? 'deslocamento ' + brlC2(p.deslocamento) : '', ...eqExtras(p).map((x) => esc(x.d || 'Custo extra'))].filter(Boolean).join(' · ');
+    host.innerHTML = `
+      ${cards.length ? `<div class="vfin-vends">${cards.map(card).join('')}</div>` : ''}
+      <div class="v2-pills">${pill('A pagar', 'aberto')}${pill('Vencidos', 'vencido')}${pill('Pagos', 'pago')}${pill('Todos', 'todos')}</div>
+      ${lista.length ? `<div class="v2-card v2-lista" style="padding:14px 16px"><div class="v2-tscroll"><table class="v2-table">
+        <thead><tr><th>Equipe e obra</th><th class="hide-m">Cálculo</th><th class="hide-m">Extras</th><th class="hide-m">Total</th><th class="hide-m">Situação</th><th></th></tr></thead>
+        <tbody>${lista.map((p) => { const s = eqSituacao(p), id = esc(p.id), ext = eqExtraTotal(p); return `<tr>
+          <td><div class="v2-who"><i class="v2-ini round">${ini2(p.equipe_nome)}</i><div style="min-width:0"><span class="v2-nmrow"><span class="v2-nm">${esc(p.equipe_nome)}</span><b class="v2-mval">${brlC2(eqValor(p))}</b></span><small>${esc(p.cliente_nome || '—')}${p.concluida_em ? ' · concluída ' + dataBR(p.concluida_em).slice(0, 5) : ''}</small>
+            <span class="show-m v2-mline"><span class="v2-chip dot ${s[1]}">${esc(s[0])}</span><span class="v2-minfo" style="color:var(--v2-gray)">${p.modulos} × ${brlC2(p.valor_modulo)}${ext ? ' + ' + brlC2(ext) : ''}</span></span></div></div></td>
+          <td class="hide-m vfin-nowrap">${p.modulos} × ${brlC2(p.valor_modulo)}<small class="vfin-s">${brlC2(p.modulos * p.valor_modulo)}</small></td>
+          <td class="hide-m vfin-eq-ext">${ext ? brlC2(ext) : '<span class="muted">—</span>'}${ext ? `<small class="vfin-s">${extrasTxt(p)}</small>` : ''}</td>
+          <td class="hide-m" style="font-weight:800">${brlC2(eqValor(p))}</td>
+          <td class="hide-m"><span class="v2-chip dot ${s[1]}">${esc(s[0])}</span>${p.status === 'pago' && p.pago_forma ? `<small class="vfin-s">${esc(p.pago_forma)}</small>` : ''}</td>
+          <td><div class="v2-acts">${p.comprovante_path ? `<button class="v2-sq" title="Ver comprovante" onclick="uiV2Fin.eqComprovante('${id}')">${ic('paperclip')}</button>` : ''}${p.status === 'pago'
+            ? `<button class="v2-btn2" onclick="uiV2Fin.eqDesfazer('${id}')">${ic('undo-2')}<span class="hide-m">Desfazer</span></button>`
+            : `<button class="v2-btnp vfin-acao" onclick="uiV2Fin.eqPagar('${id}')">${ic('check')}<span class="hide-m">Marcar pago</span></button>`}</div></td></tr>`; }).join('')}</tbody></table></div></div>`
+        : `<div class="v2-card v2-empty">${rows.length ? 'Nada com esse filtro.' : 'Nenhuma conta de equipe ainda. Ela aparece aqui quando uma obra de equipe que recebe por obra é concluída (cadastro da equipe, na aba Obras).'}</div>`}`;
+    icons();
+  }
+  // R$ com centavos (o valor da equipe é por módulo, centavo importa)
+  const brlC2 = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  function eqPagar(idsTxt) {
+    const ids = String(idsTxt || '').split(',').filter(Boolean);
+    const ps = (PAG.eq || []).filter((p) => ids.includes(p.id) && p.status !== 'pago');
+    if (!ps.length) return;
+    const um = ps.length === 1 ? ps[0] : null;
+    const total = ps.reduce((s, p) => s + (Number(p.total) || 0), 0);
+    const hojeIso = hoje().toISOString().slice(0, 10);
+    const det = um ? `${esc(um.cliente_nome || '')} · ${um.modulos} módulos × ${brlC2(um.valor_modulo)}${Number(um.deslocamento) ? ' + deslocamento ' + brlC2(um.deslocamento) : ''}${eqExtras(um).length ? ' + ' + eqExtras(um).map((x) => esc(x.d || 'extra') + ' ' + brlC2(x.v)).join(', ') : ''}`
+      : `${plural(ps.length, 'obra', 'obras')}: ${ps.map((p) => esc(p.cliente_nome || '')).join(', ')}`;
+    abrirDlg(`
+      <header><div><small>Pagamento da equipe</small><h3>Pagar ${esc(ps[0].equipe_nome)}</h3><span>${det}</span></div><button class="v2-sq" title="Fechar" onclick="uiV2Fin.fecharDlg()">${ic('x')}</button></header>
+      ${um ? `<label class="vfin-campo"><span>Valor pago (R$)</span><input id="vfin-eq-valor" type="number" step="0.01" min="0" inputmode="decimal" value="${Math.round(Number(um.total) * 100) / 100}"></label>`
+        : `<div class="vfin-eq-soma"><span>Total</span><b>${brlC2(total)}</b></div>`}
+      <label class="vfin-campo"><span>Data do pagamento</span><input id="vfin-eq-data" type="date" value="${hojeIso}" max="${hojeIso}"></label>
+      <label class="vfin-campo"><span>Forma</span><select id="vfin-eq-forma"><option>Pix</option><option>Transferência</option><option>Dinheiro</option><option>Boleto</option><option>Outra</option></select></label>
+      ${um ? `<label class="vfin-campo"><span>Comprovante <em>opcional</em></span>
+        <span class="vfin-anexo"><input id="vfin-eq-comp" type="file" accept="${ACEITA}" onchange="uiV2Fin.anexoNome(this, 'Anexar comprovante')">${ic('paperclip')}<span class="nm">Anexar comprovante</span></span></label>
+        <small class="vfin-dica">Fica salvo também na aba Arquivos do cliente.</small>` : ''}
+      <div class="vfin-dlg-acts"><button class="v2-btnp" id="vfin-eq-ok" onclick="uiV2Fin.eqPagarOk('${esc(ps.map((p) => p.id).join(','))}')">${ic('check')}Confirmar pagamento</button></div>`);
+  }
+  async function eqPagarOk(idsTxt) {
+    const ids = String(idsTxt || '').split(',').filter(Boolean);
+    const btn = document.getElementById('vfin-eq-ok'); if (btn) btn.disabled = true;
+    const data = (document.getElementById('vfin-eq-data') || {}).value || hoje().toISOString().slice(0, 10);
+    const forma = (document.getElementById('vfin-eq-forma') || {}).value || '';
+    const vEl = document.getElementById('vfin-eq-valor');
+    const valor = vEl ? parseFloat(String(vEl.value || '').replace(',', '.')) : null;
+    if (vEl && !(valor > 0)) { if (window.finToast) finToast('Informe o valor pago', 'warn'); if (btn) btn.disabled = false; return; }
+    const arq = ((document.getElementById('vfin-eq-comp') || {}).files || [])[0];
+    try { await window.finRpc('obra_pag_equipe_pagar', { p_ids: ids, p_data: data, p_forma: forma, p_valor: vEl ? valor : null, p_obs: null }); }
+    catch (_) { if (btn) btn.disabled = false; return; }
+    fecharDlg();
+    if (window.finToast) finToast(ids.length > 1 ? `${ids.length} pagamentos registrados` : 'Pagamento registrado', 'ok');
+    if (arq && ids.length === 1) await eqAnexar(ids[0], arq);
+    await recarregarEquipes();
+  }
+  async function eqAnexar(id, file) {
+    const p = (PAG.eq || []).find((x) => x.id === id);
+    if (!p || !p.cliente_id || typeof _crmArqUploadUm !== 'function') return;
+    try {
+      const { data: cli, error } = await supabaseClient.from('clientes').select('id, franquia_id').eq('id', p.cliente_id).maybeSingle();
+      if (error || !cli) throw error || new Error('Cliente não encontrado');
+      const row = await _crmArqUploadUm(cli, file, 'comprovante_equipe', null);
+      await window.finRpc('obra_pag_equipe_comprovante', { p_id: id, p_arquivo: row.id });
+      if (typeof _crmArqTimeline === 'function') _crmArqTimeline(cli, `Comprovante do pagamento da equipe (${p.equipe_nome}) anexado pelo Financeiro · ${file.name || 'arquivo'}`, { acao: 'anexado', tipo: 'comprovante_equipe', arquivos: [row.id] });
+    } catch (e) {
+      console.warn('[ui-v2-fin] comprovante da equipe', e);
+      if (window.finToast) finToast('Pagamento registrado, mas o comprovante não foi anexado.', 'warn');
+    }
+  }
+  async function eqDesfazer(id) {
+    const p = (PAG.eq || []).find((x) => x.id === id); if (!p) return;
+    if (!confirm(`Desfazer o pagamento de ${p.equipe_nome} (${p.cliente_nome || ''})? A conta volta para A pagar.`)) return;
+    try { await window.finRpc('obra_pag_equipe_desfazer', { p_id: id }); } catch (_) { return; }
+    if (window.finToast) finToast('Pagamento desfeito', 'ok');
+    await recarregarEquipes();
+  }
+  async function eqComprovante(id) {
+    const p = (PAG.eq || []).find((x) => x.id === id); if (!p || !p.comprovante_path || typeof CRM_ARQ_BUCKET === 'undefined') return;
+    const w = window.open('', '_blank');
+    const { data } = await supabaseClient.storage.from(CRM_ARQ_BUCKET).createSignedUrl(p.comprovante_path, 3600);
+    if (data && data.signedUrl) { if (w) w.location = data.signedUrl; else window.location.href = data.signedUrl; }
+    else { if (w) w.close(); if (window.finToast) finToast('Não deu para abrir o comprovante', 'warn'); }
+  }
+  async function recarregarEquipes() {
+    await carregarEquipesPag();
+    if (naTela('apagar', '.vfin-pag')) await pintarAPagar(false);
+    else if (naTela('visao', '.vfin-visao')) renderContent();
   }
   function pintarCompras() {
     const host = box().querySelector('.vfin-pag-body'); if (!host) return;
@@ -1049,7 +1200,7 @@
     const rpc = (n, a) => window.finRpc(n, a).catch(() => null);
     const [k, ag, serie, tits, com] = await Promise.all([
       rpc('get_fin_kpis_overview'), rpc('get_fin_aging'), rpc('get_fin_faturamento_series', { p_months: 24 }),
-      rpc('list_fin_titulos', { p_filter: 'todos' }), rpc('list_fin_comissoes', { p_filter: 'todos' }), carregarVendas(), carregarParcelamentos(),
+      rpc('list_fin_titulos', { p_filter: 'todos' }), rpc('list_fin_comissoes', { p_filter: 'todos' }), carregarVendas(), carregarParcelamentos(), carregarEquipesPag(),
     ]);
     if (tits) { REC.rows = tits; window.finUsarTitulos(tits); } // "Receber" do quadro abre a janela de baixa
     if (!naTela('visao', '.vfin-visao')) return;
@@ -1069,8 +1220,15 @@
     const liberadas = com.filter((x) => x.st === 'liberado');
     const aLiberar = com.filter((x) => x.st === 'liberar');
     const nomes = (a, f) => { const n = [...new Set(a.map(f))]; return n.slice(0, 3).join(' · ') + (n.length > 3 ? ` e mais ${n.length - 3}` : ''); };
+    // equipes de instalação: vencido (até pagar) e vencendo em até 2 dias
+    const eqAb = eqAbertos();
+    const eqVenc = eqAb.filter((p) => diasAte(p.vencimento) != null && diasAte(p.vencimento) < 0);
+    const eqLogo = eqAb.filter((p) => { const d = diasAte(p.vencimento); return d != null && d >= 0 && d <= 2; });
+    const eqTxt = (a) => a.map((p) => `${p.equipe_nome} (${p.cliente_nome || 'obra'})`);
     const need = [
       vencidos.length && { tom: 'r', icon: 'triangle-alert', t: vencidos.length + (vencidos.length === 1 ? ' recebimento atrasado' : ' recebimentos atrasados') + (vencidos.some((i) => i.tipo === 'parc') ? ' (títulos e parcelas)' : ''), s: nomes(vencidos, (x) => x.cli), v: soma(vencidos, (x) => x.valor), btn: 'Cobrar', run: vencidos.every((i) => i.tipo === 'parc') ? "uiV2Fin.irParc('atrasado')" : "uiV2Fin.irRec('vencido')" },
+      eqVenc.length && { tom: 'r', icon: 'hard-hat', t: `${plural(eqVenc.length, 'pagamento de equipe vencido', 'pagamentos de equipe vencidos')}`, s: nomes(eqVenc, (p) => eqTxt([p])[0]), v: soma(eqVenc, (p) => p.total), btn: 'Pagar', run: "uiV2Fin.irPag('equipes','vencido')" },
+      eqLogo.length && { tom: 'o', icon: 'hard-hat', t: `${plural(eqLogo.length, 'pagamento de equipe vence', 'pagamentos de equipe vencem')} ${eqLogo.every((p) => diasAte(p.vencimento) === 0) ? 'hoje' : 'nos próximos 2 dias'}`, s: nomes(eqLogo, (p) => eqTxt([p])[0]), v: soma(eqLogo, (p) => p.total), btn: 'Pagar', run: "uiV2Fin.irPag('equipes','aberto')" },
       comprar.length && { tom: 'o', icon: 'shopping-cart', t: `${plural(comprar.length, 'kit', 'kits')} para comprar (cliente já pagou)`, s: nomes(comprar, (x) => x.cli), v: soma(comprar, (x) => x.custo_kit), btn: 'Comprar', run: "uiV2Fin.irPag('compras')" },
       semana.length && { tom: 'o', icon: 'calendar-clock', t: `${semana.length} ${semana.length === 1 ? 'vence' : 'vencem'} nos próximos 7 dias`, s: nomes(semana, (x) => x.cli), v: soma(semana, (x) => x.valor), btn: 'Ver', run: "uiV2Fin.verProximos()" },
       liberadas.length && { tom: 'b', icon: 'hand-coins', t: `${plural(liberadas.length, 'comissão liberada', 'comissões liberadas')} para pagar`, s: nomes(liberadas, (x) => nomeVend(x.vendedor)), v: soma(liberadas, (x) => x.valor), btn: 'Pagar', run: "uiV2Fin.irPag('comissoes','liberado')" },
@@ -1084,12 +1242,13 @@
     const kpi = (o) => `<div class="v2-card v2-kpi ${o.hero ? 'hero' : ''}" onclick="${o.run}"><div class="h"><span>${o.label}</span><div class="ic" style="background:${o.cor}1F;color:${o.cor}">${ic(o.icon)}</div></div><div class="v">${o.v}</div><div class="foot"><span>${o.sub}</span></div></div>`;
     const kitsAC = vs.filter((v) => v.kitSt === 'a_comprar');
     const kitsVal = soma(kitsAC, (v) => v.custo_kit), kitsSem = kitsAC.filter((v) => v.custo_kit == null).length;
-    const aPagar = kitsVal + (Number(k.comissoes_a_pagar) || 0);
+    const eqVal = soma(eqAb, (p) => p.total);
+    const aPagar = kitsVal + (Number(k.comissoes_a_pagar) || 0) + eqVal;
     const kpis = `<div class="v2-kpis">
       ${kpi({ hero: 1, label: 'A receber', v: curto(k.saldo_a_receber), icon: 'arrow-down-left', cor: '#008FD4', sub: plural(Number(k.titulos_abertos) || 0, 'título em aberto', 'títulos em aberto'), run: "uiV2Fin.irRec('todos')" })}
       ${kpi({ label: 'Recebido no mês', v: curto(k.recebido_mes), icon: 'circle-check', cor: '#1FA971', sub: 'baixas registradas neste mês', run: "uiV2Fin.irRec('pago')" })}
       ${kpi({ label: 'Vencido', v: curto(k.vencido), icon: 'triangle-alert', cor: '#D14343', sub: Number(k.vencido_count) ? plural(Number(k.vencido_count), 'título em atraso', 'títulos em atraso') : 'nada em atraso', run: "uiV2Fin.irRec('vencido')" })}
-      ${kpi({ label: 'A pagar', v: curto(aPagar), icon: 'arrow-up-right', cor: '#FAA519', sub: `${plural(kitsAC.length, 'kit a comprar', 'kits a comprar')}${kitsSem ? ` (${kitsSem} sem custo)` : ''} + comissões`, run: "uiV2Fin.irPag('compras')" })}
+      ${kpi({ label: 'A pagar', v: curto(aPagar), icon: 'arrow-up-right', cor: '#FAA519', sub: `${plural(kitsAC.length, 'kit a comprar', 'kits a comprar')}${kitsSem ? ` (${kitsSem} sem custo)` : ''} + comissões${eqAb.length ? ' + equipes' : ''}`, run: "uiV2Fin.irPag('compras')" })}
     </div>`;
 
     const andamento = `<div class="v2-card"><div class="v2-ch"><div><h3>Andamento das vendas</h3><small>Cada venda anda sozinha conforme recebe, compra o kit e paga a comissão</small></div><button class="v2-btn2" onclick="uiV2Fin.irVendas()">Ver vendas${ic('arrow-right')}</button></div>${trilho(vs, null, 'uiV2Fin.irVendas')}</div>`;
@@ -1184,11 +1343,12 @@
     pagAberta,
     pagRecarregar: () => pintarAPagar(true),
     pagSeg(id) { state.finSub = state.finSub || {}; state.finSub.apagar = id; pintarAPagar(false); },
-    pagSet(k, v) { pagEstado()[k] = v; if (pagSub() === 'compras') pintarCompras(); else pintarComissoes(); },
+    pagSet(k, v) { pagEstado()[k] = v; const s = pagSub(); if (s === 'compras') pintarCompras(); else if (s === 'equipes') pintarEquipes(); else pintarComissoes(); },
     pagarLiberadas,
+    eqPagar, eqPagarOk, eqDesfazer, eqComprovante,
     // atalhos (Visão geral)
     irRec(f) { state.finRecV2 = { f: f || 'todos', q: '' }; state.finFoco = null; state.finSub = state.finSub || {}; state.finSub.recebiveis = 'titulos'; setTab('recebiveis'); window.scrollTo(0, 0); },
-    irPag(sub, filtro) { fecharFicha(); state.finFoco = null; state.finSub = state.finSub || {}; state.finSub.apagar = sub; if (filtro && sub === 'comissoes') pagEstado().com = filtro; setTab('apagar'); window.scrollTo(0, 0); },
+    irPag(sub, filtro) { fecharFicha(); state.finFoco = null; state.finSub = state.finSub || {}; state.finSub.apagar = sub; if (filtro && sub === 'comissoes') pagEstado().com = filtro; if (filtro && sub === 'equipes') pagEstado().eq = filtro; setTab('apagar'); window.scrollTo(0, 0); },
     irVendas(i) { const st = venEstado(); st.f = i == null ? null : i; setTab('vendas'); window.scrollTo(0, 0); },
     recSet(k, v) {
       recEstado()[k] = v;
