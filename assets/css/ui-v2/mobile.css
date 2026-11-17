@@ -119,7 +119,7 @@ html[data-ui="v2"] .v2s .v2-pdot { display: none; } /* bolinha da etapa na filei
   html[data-ui="v2"] .v2f.v2f-engnalinha .v2f-top h2 > .v2-chip[onclick*="'engenharia'"] { display: none; }
   html[data-ui="v2"] .v2f-acts { margin-top: 4px; }
   html[data-ui="v2"] .v2f-acts > .btn-primary { flex: none !important; height: 36px !important; padding: 0 12px !important; }
-  html[data-ui="v2"] .v2f-acts > .v2f-wa { height: 36px !important; }
+  html[data-ui="v2"] .v2f-acts > :is(.v2f-wa, .v2f-sec) { height: 36px !important; }
   html[data-ui="v2"] .v2f .v2-sq { width: 36px; height: 36px; }
   html[data-ui="v2"] body .v2f-mini { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 8px -16px 0; padding: 0 16px; }
   html[data-ui="v2"] body .v2f-mini::-webkit-scrollbar { display: none; }
@@ -136,9 +136,10 @@ html[data-ui="v2"] .v2s .v2-pdot { display: none; } /* bolinha da etapa na filei
   html[data-ui="v2"] .v2f.minimo .v2f-top .tx > :not(h2) { display: none !important; }
   html[data-ui="v2"] .v2f.minimo .v2f-stchip { flex: none; }
   html[data-ui="v2"] .v2f.minimo .v2f-acts { order: 2; width: auto; margin: 0; flex: none; }
-  html[data-ui="v2"] .v2f.minimo .v2f-acts > :not(.v2f-wa) { display: none !important; }
-  html[data-ui="v2"] .v2f.minimo .v2f-acts > .v2f-wa { width: 36px; padding: 0; font-size: 0; gap: 0; flex: none; justify-content: center; }
-  html[data-ui="v2"] .v2f.minimo .v2f-acts > .v2f-wa svg { width: 18px; height: 18px; }
+  /* fica um botão só: WhatsApp; depois da venda, na Matriz, o do contrato (.v2f-keep) */
+  html[data-ui="v2"] .v2f.minimo .v2f-acts > :not(.v2f-wa, .v2f-keep) { display: none !important; }
+  html[data-ui="v2"] .v2f.minimo .v2f-acts > :is(.v2f-wa, .v2f-keep) { width: 36px !important; padding: 0 !important; font-size: 0; gap: 0; flex: none !important; justify-content: center; }
+  html[data-ui="v2"] .v2f.minimo .v2f-acts > :is(.v2f-wa, .v2f-keep) svg { width: 18px; height: 18px; }
   html[data-ui="v2"] .v2f.minimo .v2f-top > .v2-sq.v2f-mob { order: 3; }
   html[data-ui="v2"] .v2f.minimo :is(.v2f-mini, .v2f-steps, .v2f-sum) { display: none !important; }
   html[data-ui="v2"] .v2f.minimo .v2f-tabs { margin-top: 8px; }

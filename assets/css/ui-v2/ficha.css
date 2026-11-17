@@ -40,6 +40,15 @@ html[data-ui="v2"][data-theme="dark"] .v2f .t-green { color: #4FD49A; }
 html[data-ui="v2"][data-theme="dark"] .v2f .t-red { color: #F59A9A; }
 html[data-ui="v2"] .v2f-wa { height: 40px; border-radius: 12px; background: #1FA971; color: #fff !important; font-weight: 800; font-size: 13px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 html[data-ui="v2"] .v2f-wa:hover { filter: brightness(1.05); }
+/* depois da venda (ui-v2-ficha.js): Criar tarefa em azul claro e WhatsApp em ícone verde */
+/* mesmo formato do btn-primary btn-sm ao lado (Gerar contrato), só muda a cor */
+html[data-ui="v2"] .v2f-sec { height: 34px; border-radius: 12px; border: 0; background: var(--v2-blue-50); color: var(--v2-blue-text); font-family: inherit; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 0 11px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; }
+html[data-ui="v2"] .v2f-sec svg.lucide { width: 16px; height: 16px; }
+html[data-ui="v2"] .v2f-sec:hover { background: var(--v2-blue); color: #fff; }
+html[data-ui="v2"] .v2f .v2-sq.v2f-wasq { background: rgba(31,169,113,.12); color: #12764E; }
+html[data-ui="v2"] .v2f .v2-sq.v2f-wasq:hover { background: var(--v2-green); color: #fff; }
+html[data-ui="v2"][data-theme="dark"] .v2f .v2-sq.v2f-wasq { color: #4FD49A; }
+html[data-ui="v2"][data-theme="dark"] .v2f .v2-sq.v2f-wasq:hover { color: #fff; }
 html[data-ui="v2"] .v2f-steps { display: flex; align-items: center; margin: 18px 0 2px; }
 html[data-ui="v2"] .v2f-step { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 6px 4px; font-size: 12.5px; font-weight: 700; color: var(--v2-gray); white-space: nowrap; border-radius: 12px; cursor: pointer; font-family: inherit; }
 html[data-ui="v2"] .v2f-step:hover { color: var(--v2-ink); }
@@ -416,7 +425,8 @@ html[data-ui="v2"] .v2f .v2f-mob { display: none; }
 
   html[data-ui="v2"] .v2f-acts { margin-top: 2px; }
   html[data-ui="v2"] .v2f-acts > .btn-primary,
-  html[data-ui="v2"] .v2f-acts > .v2f-wa { flex: 1 1 0; min-width: 0; height: 40px; justify-content: center; white-space: nowrap; border-radius: 12px; }
+  html[data-ui="v2"] .v2f-acts > .v2f-wa,
+  html[data-ui="v2"] .v2f-acts > .v2f-sec { flex: 1 1 0; min-width: 0; height: 40px; justify-content: center; white-space: nowrap; border-radius: 12px; }
   html[data-ui="v2"] .v2f .crm-menu-pop svg { width: 16px !important; height: 16px !important; }
 
   /* linha recolhida: vistoria fica só no resumo aberto, pra caber numa linha */

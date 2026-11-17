@@ -423,6 +423,39 @@
     const vendaRot = state.isParceiro ? 'Cliente fechou' : 'Registrar venda';
     const tarefaOk = tarefaBtn && !state.isParceiro;
 
+    // botões do topo. Depois da venda (Fechado + venda) os dois grandes viram o que
+    // importa no pós-venda: Gerar contrato (laranja, só Matriz) e Criar tarefa (azul claro);
+    // WhatsApp vira ícone verde e Nova proposta/Registrar venda seguem como ícones/menu.
+    // Sem contrato (unidade), Criar tarefa fica no laranja e o WhatsApp segue grande.
+    const cid = esc(client.id);
+    const posVenda = status === 'FECHADO' && vendas.length > 0 && !state.isParceiro && (docs || tarefaOk);
+    const bProposta = podeProposta ? `<button class="btn btn-primary btn-sm" onclick="openProposalBuilder('${cid}')">${ic('file-plus-2')}<span class="v2f-dsk">Nova </span>proposta</button>` : '';
+    const bWa = waLink ? `<a class="v2f-wa" href="${esc(waLink)}" target="_blank" rel="noopener noreferrer">${ic('message-circle')}WhatsApp</a>` : '';
+    const bTel = tel ? `<a class="v2-sq" href="tel:+55${tel}" title="Ligar">${ic('phone')}</a>` : '';
+    const bVendaSq = `<button class="v2-sq v2f-dsk" onclick="openFechaVenda('${cid}')" title="${vendaRot}">${ic('trophy')}</button>`;
+    const iVenda = `<button type="button" onclick="crmMenuFechar(); openFechaVenda('${cid}')">${ic('trophy')}${vendaRot}</button>`;
+    const menuMob = (itens) => `<div class="crm-menu v2f-mob">
+                <button type="button" class="v2-sq" title="Mais ações" onclick="crmMenuToggle(event, this)">${ic('ellipsis')}</button>
+                <div class="crm-menu-pop">${itens}</div>
+              </div>`;
+    let acoesTopo;
+    if (posVenda) {
+      const bContrato = docs ? `<button class="btn btn-primary btn-sm v2f-keep" onclick="abrirDocumentosCliente('${cid}')" title="Contrato e procuração">${ic('file-signature')}<span class="v2f-dsk">Gerar </span>contrato</button>` : '';
+      const bTarefa = tarefaOk ? `<button class="${docs ? 'v2f-sec' : 'btn btn-primary btn-sm'}" onclick="${tarefaBtn}" title="Criar tarefa sobre este cliente">${ic('list-plus')}<span class="v2f-dsk">Criar </span>tarefa</button>` : '';
+      const bWaTopo = docs ? (waLink ? `<a class="v2-sq v2f-wasq" href="${esc(waLink)}" target="_blank" rel="noopener noreferrer" title="WhatsApp">${ic('message-circle')}</a>` : '') : bWa;
+      const bPropSq = podeProposta ? `<button class="v2-sq v2f-dsk" onclick="openProposalBuilder('${cid}')" title="Nova proposta">${ic('file-plus-2')}</button>` : '';
+      const iProp = podeProposta ? `<button type="button" onclick="crmMenuFechar(); openProposalBuilder('${cid}')">${ic('file-plus-2')}Nova proposta</button>` : '';
+      acoesTopo = `${bContrato}${bTarefa}${bWaTopo}${bTel}${bPropSq}${bVendaSq}${menuMob(iProp + iVenda)}`;
+    } else {
+      acoesTopo = `${bProposta}${bWa}${bTel}
+              ${docs ? `<button class="v2-sq v2f-dsk" onclick="abrirDocumentosCliente('${cid}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}
+              ${bVendaSq}
+              ${tarefaOk ? `<button class="v2-sq v2f-dsk" onclick="${tarefaBtn}" title="Criar tarefa sobre este cliente">${ic('list-plus')}</button>` : ''}
+              ${menuMob(`${docs ? `<button type="button" onclick="crmMenuFechar(); abrirDocumentosCliente('${cid}')">${ic('file-signature')}Contrato e procuração</button>` : ''}
+                  ${iVenda}
+                  ${tarefaOk ? `<button type="button" onclick="crmMenuFechar(); ${tarefaBtn}">${ic('list-plus')}Criar tarefa</button>` : ''}`)}`;
+    }
+
     // barra de etapas: clicar usa crmSetClientStatus (Perdido pede motivo; Fechado abre a venda)
     const seq = CLIENT_STATUS_SEQUENCE;
     const cur = seq.indexOf(status);
@@ -518,21 +551,7 @@
               ${lost && client.perdido_motivo ? `<div class="v2f-lost">${ic('info')}Motivo da perda: ${esc(client.perdido_motivo)}</div>` : ''}
             </div>
             <button class="v2-sq v2f-mob" onclick="closeCrm360()" title="Fechar">${ic('x')}</button>
-            <div class="v2f-acts">
-              ${podeProposta ? `<button class="btn btn-primary btn-sm" onclick="openProposalBuilder('${esc(client.id)}')">${ic('file-plus-2')}<span class="v2f-dsk">Nova </span>proposta</button>` : ''}
-              ${waLink ? `<a class="v2f-wa" href="${esc(waLink)}" target="_blank" rel="noopener noreferrer">${ic('message-circle')}WhatsApp</a>` : ''}
-              ${tel ? `<a class="v2-sq" href="tel:+55${tel}" title="Ligar">${ic('phone')}</a>` : ''}
-              ${docs ? `<button class="v2-sq v2f-dsk" onclick="abrirDocumentosCliente('${esc(client.id)}')" title="Contrato e procuração">${ic('file-signature')}</button>` : ''}
-              <button class="v2-sq v2f-dsk" onclick="openFechaVenda('${esc(client.id)}')" title="${vendaRot}">${ic('trophy')}</button>
-              ${tarefaOk ? `<button class="v2-sq v2f-dsk" onclick="${tarefaBtn}" title="Criar tarefa sobre este cliente">${ic('list-plus')}</button>` : ''}
-              <div class="crm-menu v2f-mob">
-                <button type="button" class="v2-sq" title="Mais ações" onclick="crmMenuToggle(event, this)">${ic('ellipsis')}</button>
-                <div class="crm-menu-pop">
-                  ${docs ? `<button type="button" onclick="crmMenuFechar(); abrirDocumentosCliente('${esc(client.id)}')">${ic('file-signature')}Contrato e procuração</button>` : ''}
-                  <button type="button" onclick="crmMenuFechar(); openFechaVenda('${esc(client.id)}')">${ic('trophy')}${vendaRot}</button>
-                  ${tarefaOk ? `<button type="button" onclick="crmMenuFechar(); ${tarefaBtn}">${ic('list-plus')}Criar tarefa</button>` : ''}
-                </div>
-              </div>
+            <div class="v2f-acts">${acoesTopo}
               <button class="v2-sq v2f-exp" onclick="uiV2Ficha.cheia()" title="${full ? 'Voltar ao painel lateral' : 'Abrir em tela cheia'}">${ic(full ? 'minimize-2' : 'maximize-2')}</button>
               <button class="v2-sq v2f-dsk" onclick="closeCrm360()" title="Fechar (Esc)">${ic('x')}</button>
             </div>
