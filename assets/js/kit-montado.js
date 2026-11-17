@@ -11,12 +11,23 @@
 // Na proposta o kit vira cotação (cotacao_id): preço travado, custo no DRE.
 
 const _km = {
-  ativo: false, dist: '', mod: '', placas: 10, fase: 'mono', estrutura: '', linhas: null,
+  ativo: false, dist: '', mod: '', fase: 'mono', estrutura: '', linhas: null,
   opcoes: {},                       // distribuidora_id -> { carregando, erro, provedor, modulos, inversores }
   calc: null, calcChave: '', calcSeq: 0, calcCarregando: false,
   cot: null, cotChave: '', cotando: false, cotErro: '', cotSeq: 0,
 };
 let _kmCalcTimer = null;
+// Placas: o controle único do orçamento (sugerido pelo consumo; à mão vale pra todos os
+// modos). _km.placas continua funcionando como antes, mas lê/grava state.pbPlacas.
+Object.defineProperty(_km, 'placas', {
+  get() {
+    const o = _km.opcoes[_km.dist];
+    const mod = o?.modulos?.find((m) => m.id === _km.mod) || o?.modulos?.[0];
+    const micro = (_km.linhas || []).some((l) => o?.inversores?.find((i) => i.id === l.id)?.fase === 'micro');
+    return typeof pbPlacasValor === 'function' ? pbPlacasValor(mod?.w || 620, micro ? 'kitsMicro' : 'kitsInversor', 10) : 10;
+  },
+  set(v) { state.pbPlacas = v; },
+});
 
 function kitMontadoPermitido() {
   return Boolean(state.isAdmin || state.isGestor || state.isFranqueado);
@@ -340,11 +351,16 @@ function kitMontadoCamposHTML() {
   _kmEstrutura(o, mod);
   const opt = (v, t, sel, dis) => `<option value="${escapeHTML(v)}" ${sel ? 'selected' : ''} ${dis ? 'disabled' : ''}>${escapeHTML(t)}</option>`;
   const carregando = !o || o.carregando || o.erro;
-  return _kmCampo('warehouse', '1 · Distribuidora', `<select class="pbd-input v2-select" data-km="dist" data-titulo="Distribuidora">${dists.map((d) => opt(d.id, d.nome, d.id === _km.dist)).join('') || opt('', 'Nenhuma distribuidora monta kit')}</select>`)
-    + _kmCampo('solar-panel', '2 · Módulo', `<select class="pbd-input v2-select" data-km="mod" data-titulo="Módulo" ${carregando ? 'disabled' : ''}>${carregando ? opt('', o?.erro ? 'Indisponível' : 'Carregando…') : o.modulos.map((m) => opt(m.id, m.nome, m.id === _km.mod)).join('')}</select>`)
-    + _kmCaixa('hash', '3 · Quantidade de placas',`<div class="km-qtd"><button type="button" data-km-placas="-1" aria-label="Uma placa a menos">−</button><input type="number" min="1" max="150" value="${_km.placas}" data-km="placas" aria-label="Quantidade de placas"><button type="button" data-km-placas="1" aria-label="Uma placa a mais">+</button><span>placas${mod ? ` · ${_kmFmtKw(_km.placas * mod.w / 1000)} kWp` : ''}</span></div>`)
+  // Mesma ordem do resto do orçamento: 1 Telhado · 2 Distribuidora · 3 Módulo · 4 Fase · 5 Placas.
+  const legenda = mod && typeof pbPlacasLegenda === 'function' ? pbPlacasLegenda(mod.w, 'kitsInversor') : '';
+  const placas = typeof pbPlacasControleHTML === 'function'
+    ? pbPlacasControleHTML(mod?.w || 0, 'kitsInversor', { min: 1, compacto: true })
+    : `<div class="km-qtd"><input type="number" value="${_km.placas}" disabled></div>`;
+  return _kmCampo('home', '1 · Telhado do cliente',`<select class="pbd-input v2-select" data-km="estrutura" data-titulo="Telhado do cliente" ${tels.length ? '' : 'disabled'}>${tels.length ? tels.map((t) => opt(t.id, t.nome, t.id === _km.estrutura)).join('') : opt('', 'Carregando…')}</select>`)
+    + _kmCampo('warehouse', '2 · Distribuidora', `<select class="pbd-input v2-select" data-km="dist" data-titulo="Distribuidora">${dists.map((d) => opt(d.id, d.nome, d.id === _km.dist)).join('') || opt('', 'Nenhuma distribuidora monta kit')}</select>`)
+    + _kmCampo('solar-panel', '3 · Módulo', `<select class="pbd-input v2-select" data-km="mod" data-titulo="Módulo" ${carregando ? 'disabled' : ''}>${carregando ? opt('', o?.erro ? 'Indisponível' : 'Carregando…') : o.modulos.map((m) => opt(m.id, m.nome, m.id === _km.mod)).join('')}</select>`)
     + _kmCaixa('zap', '4 · Fase do inversor',`<div class="km-fase" role="group" aria-label="Fase do inversor"><button type="button" data-km-fase="mono" class="${_km.fase !== 'tri' ? 'is-on' : ''}">Monofásico</button><button type="button" data-km-fase="tri" class="${_km.fase === 'tri' ? 'is-on' : ''}">Trifásico</button></div><span class="km-tensao">220 V</span>`)
-    + _kmCampo('home', '5 · Telhado do cliente',`<select class="pbd-input v2-select" data-km="estrutura" data-titulo="Telhado do cliente" ${tels.length ? '' : 'disabled'}>${tels.length ? tels.map((t) => opt(t.id, t.nome, t.id === _km.estrutura)).join('') : opt('', 'Carregando…')}</select>`);
+    + _kmCaixa('hash', `5 · Placas${legenda ? ' · ' + legenda : ''}`, placas);
 }
 
 function kitMontadoBindCampos(root) {
@@ -355,11 +371,7 @@ function kitMontadoBindCampos(root) {
     if (campo === 'estrutura') _km.estrutura = s.value;
     _kmMudou();
   }));
-  const inp = root.querySelector('input[data-km="placas"]');
-  if (inp) inp.addEventListener('change', () => { _km.placas = Math.max(1, Math.min(150, Math.round(Number(inp.value) || 1))); _kmMudou(); });
-  root.querySelectorAll('[data-km-placas]').forEach((b) => b.addEventListener('click', () => {
-    _km.placas = Math.max(1, Math.min(150, _km.placas + Number(b.dataset.kmPlacas))); _kmMudou();
-  }));
+  // Placas: controle único do orçamento (eventos em pb-dimensionar.js).
   root.querySelectorAll('[data-km-fase]').forEach((b) => b.addEventListener('click', () => {
     if (_km.fase === b.dataset.kmFase) return;
     _km.fase = b.dataset.kmFase; _km.linhas = null; _kmMudou();

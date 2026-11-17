@@ -119,6 +119,9 @@ html[data-ui="v2"] .km-caixa {
 html[data-ui="v2"] .km-caixa:hover { border-color: var(--v2-blue); }
 html[data-ui="v2"] .km-caixa:focus-within { border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
 html[data-ui="v2"] .km-qtd { display: flex; align-items: center; gap: 4px; min-width: 0; }
+/* Controle único de placas (cotação, híbrido, kit montado). */
+html[data-ui="v2"] .pb-placas .pb-placas-dica { margin-top: 4px; }
+html[data-ui="v2"] body .pb-placas .km-qtd .orc-link { margin-left: 6px; white-space: nowrap; font-size: 12px; }
 html[data-ui="v2"] .km-qtd button {
   width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; border: 0; background: var(--v2-blue-50);
   font-size: 16px; font-weight: 800; color: var(--v2-blue); cursor: pointer; line-height: 1; transition: background .12s, color .12s;

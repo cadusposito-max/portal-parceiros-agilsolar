@@ -49,7 +49,7 @@ function pbCotAgendarRetomada(ate, seq, cot, auto) {
   const timer = setTimeout(() => {
     _pbCotRetomar = null;
     // Mudou a escolha, o cliente ou saiu da tela: não cota por conta própria.
-    if (seq !== _pbCotSeq || cot !== _pbCot || cot.carregando || !cot.erro || !document.getElementById('pb-cot-placas')) return;
+    if (seq !== _pbCotSeq || cot !== _pbCot || cot.carregando || !cot.erro || !document.querySelector('.pb-cot-campos')) return;
     pbIntegracaoCotar(true);
   }, em - Date.now());
   _pbCotRetomar = { timer, em };
@@ -170,7 +170,7 @@ async function pbIntegracaoCarregarOpcoes(force = false) {
   if (!id || !provedor || (_pbCotOpcoes[id] && !force)) return;
   _pbCotOpcoes[id] = { carregando: true };
   try {
-    const { data, error } = await invocarDistribuidoras({ acao: 'opcoes', provedor, placas: Number(_pbCot.placas) || 10 });
+    const { data, error } = await invocarDistribuidoras({ acao: 'opcoes', provedor, placas: (typeof pbPlacasValor === 'function' && pbPlacasValor(620, 'kitsInversor', 10)) || 10 });
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.error || 'Não foi possível buscar os equipamentos.');
     _pbCotOpcoes[id] = { modulos: data.modulos || [], padrao: data.padrao, marcas_inversor: data.marcas_inversor || [], marcas_micro: data.marcas_micro || [] };
@@ -342,11 +342,18 @@ function pbIntegracaoLadoHTML(kit) {
   return html + avisoOpcoes;
 }
 
-function pbIntegracaoPainelHTML(placasSugeridas) {
+// Placas da cotação: o controle único do orçamento (sugerido pelo consumo, com o módulo escolhido).
+function _pbCotPlacas() {
+  const cat = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
+  return typeof pbPlacasValor === 'function' ? pbPlacasValor(pbIntegracaoModuloW(), cat, 10) : (Number(_pbCot.placas) || 10);
+}
+
+function pbIntegracaoPainelHTML() {
   const { info, telhadoFora, kits, cotadoAs, status, avisoOpcoes } = _pbCotEstado();
-  const placas = _pbCot.placas || (placasSugeridas ? String(placasSugeridas) : '');
-  const campoPlacas = `<label class="pbd-mes"><span>Quantidade de placas</span>
-        <input id="pb-cot-placas" type="number" min="4" max="150" step="1" class="pbd-input" value="${escapeHTML(placas)}" oninput="_pbCot.placas=this.value" onchange="pbIntegracaoPlacas(this.value)" placeholder="Ex.: 13"></label>`;
+  const cat = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
+  const campoPlacas = `<div class="pbd-mes"><span>Quantidade de placas</span>${typeof pbPlacasControleHTML === 'function'
+    ? pbPlacasControleHTML(pbIntegracaoModuloW(), cat, { min: 4 })
+    : `<input id="pb-cot-placas" type="number" min="4" max="150" class="pbd-input" value="${_pbCotPlacas()}">`}</div>`;
   // Na tela do orçamento o botão de cotar e as opções ficam na coluna da direita (pbIntegracaoLadoHTML).
   if (typeof orcamentoAberto === 'function' && orcamentoAberto()) {
     return `<div class="pbd-sec">Cotar na ${escapeHTML(info.nome)}</div>
@@ -394,7 +401,7 @@ async function pbIntegracaoCotar(auto = false) {
   const provedor = pbIntegracaoAtual();
   if (!provedor || _pbCot.carregando) return;
   pbCotCancelarRetomada();
-  const placas = Math.round(Number(document.getElementById('pb-cot-placas')?.value || _pbCot.placas));
+  const placas = Math.round(_pbCotPlacas());
   if (!Number.isFinite(placas) || placas < 4 || placas > 150) { showToast('Informe de 4 a 150 placas.'); return; }
   _pbCot.placas = String(placas);
   const telhado = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.telhado) || 'ceramico';

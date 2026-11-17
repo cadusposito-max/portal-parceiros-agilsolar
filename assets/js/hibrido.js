@@ -142,7 +142,8 @@ function _hbPlacasSugeridas(mod) {
 }
 
 function _hbPlacas(mod) {
-  return _hb.placas ?? _hbPlacasSugeridas(mod) ?? 8;
+  if (mod && typeof pbPlacasValor === 'function') return pbPlacasValor(mod.w, 'kitsInversor', 8);
+  return _hbPlacasSugeridas(mod) ?? 8;
 }
 
 function hibridoCalc() {
@@ -341,7 +342,7 @@ function hibridoRenderPainel(panel) {
     + _hbCampo('warehouse', '2 · Distribuidora', `<select class="pbd-input v2-select" data-titulo="Distribuidora do kit"><option selected>${escapeHTML(dist.nome)}</option>${outras.map((d) => `<option disabled>${escapeHTML(d.nome)} (sem híbrido por enquanto)</option>`).join('')}</select>`)
     + _hbCampo('solar-panel', '3 · Módulo / painel', `<select class="pbd-input v2-select" data-hb="mod" data-titulo="Módulo / painel" ${!o || o.carregando || o.erro ? 'disabled' : ''}>${mods}</select>`, ' hb-largo');
   box.querySelector('[data-hb="telhado"]')?.addEventListener('change', (e) => { if (e.target.value) pbEstruturaEscolherValor(e.target.value); });
-  box.querySelector('[data-hb="mod"]')?.addEventListener('change', (e) => { _hb.mod = e.target.value; _hb.placas = null; _hbMudou(); });
+  box.querySelector('[data-hb="mod"]')?.addEventListener('change', (e) => { _hb.mod = e.target.value; _hbMudou(); });
 
   const aviso = document.getElementById('pb-fornecimento-aviso');
   if (aviso && o?.erro) {
@@ -364,10 +365,10 @@ function hibridoCorpoHTML() {
   const sug = _hbPlacasSugeridas(c.mod);
   const chips = (lista, atual, attr, rot) => `<div class="hb-chips" role="group">${lista.map((v) =>
     `<button type="button" data-${attr}="${v}" class="${String(v) === String(atual) ? 'is-on' : ''}" aria-pressed="${String(v) === String(atual)}">${rot(v)}</button>`).join('')}</div>`;
-  const placasHTML = `<div class="hb-grid2">
-      <div><div class="hb-lbl">Placas${sug ? ` <small>(sugerido pelo consumo: ${sug})</small>` : ' <small>(informe o consumo no topo pra sugerir)</small>'}</div>
-        <div class="km-qtd hb-placas"><button type="button" data-hb-placas="-1" aria-label="Uma placa a menos">−</button><input type="number" min="4" max="150" value="${c.placas}" data-hb-in="placas" aria-label="Quantidade de placas"><button type="button" data-hb-placas="1" aria-label="Uma placa a mais">+</button><span>${c.mod ? `${_hbKw(c.kwp)} kWp` : 'placas'}</span></div></div>
-    </div>`;
+  // Placas: o controle único do orçamento (o mesmo da cotação e do kit montado).
+  const placasHTML = typeof pbPlacasControleHTML === 'function' && c.mod
+    ? `<div class="hb-lbl">Placas</div>${pbPlacasControleHTML(c.mod.w, 'kitsInversor', { min: 4, padrao: 8 })}`
+    : `<div class="hb-lbl">Placas${sug ? ` <small>(sugerido pelo consumo: ${sug})</small>` : ''}</div><p class="hb-ref">${c.placas} placas</p>`;
   const bateria = `<div class="km-box">
       <div class="km-head"><span class="km-t"><i data-lucide="battery-charging"></i> 4 · Bateria</span></div>
       ${chips(['com', 'sem'], _hb.bateria, 'hb-bat', (v) => (v === 'com' ? 'Com bateria' : 'Sem bateria agora'))}
@@ -433,12 +434,7 @@ function hibridoBindCorpo(root) {
     _hbMudou();
     setTimeout(() => { const ins = document.querySelectorAll('#pb-products-container .hb-nm-in'); ins[ins.length - 1]?.focus(); }, 0);
   });
-  root.querySelector('input[data-hb-in="placas"]')?.addEventListener('change', (e) => {
-    _hb.placas = Math.max(4, Math.min(150, Math.round(Number(e.target.value) || 4))); _hbMudou();
-  });
-  root.querySelectorAll('[data-hb-placas]').forEach((b) => b.addEventListener('click', () => {
-    _hb.placas = Math.max(4, Math.min(150, _hbPlacas(_hbModulo()) + Number(b.dataset.hbPlacas))); _hbMudou();
-  }));
+  // Placas: controle único do orçamento (eventos em pb-dimensionar.js).
 }
 
 function hibridoRenderCorpo(container) {

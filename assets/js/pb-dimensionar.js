@@ -110,6 +110,7 @@ function pbDimMount() {
 }
 
 function _pbdConsumoMudou() {
+  state.pbPlacas = null; // placas voltam a seguir o consumo
   if (typeof _orcamentoKitId !== 'undefined' && _orcamentoKitId && !String(_orcamentoKitId).startsWith('cot:')) _orcamentoKitId = null;
   if (typeof _pbListaTodos !== 'undefined') _pbListaTodos = false;
 }
@@ -121,6 +122,7 @@ function pbDimSetup(client) {
   pbDimMount();
   if (!_pbd || !client || _pbd.clienteId !== client.id) {
     _pbd = _pbdNovoEstado(client);
+    state.pbPlacas = null;
     _pbdCarregarHsp(client);
   }
   // A porta "Pelo consumo × Lista de kits" saiu: a lista está sempre aberta e o consumo fica em cima.
@@ -378,6 +380,74 @@ function pbPlacasPeloConsumo(w, categoria = 'kitsInversor') {
   const porPlaca = calcularGeracaoEstimada(Number(w) / 1000, categoria, _pbdHspCliente());
   if (!(porPlaca > 0)) return null;
   return Math.max(4, Math.min(150, Math.ceil(media / porPlaca)));
+}
+
+// ---------- quantidade de placas: um controle só (17/11) ----------
+// Cotação na distribuidora, híbrido e kit montado usam o mesmo número: o sugerido pelo
+// consumo, até o vendedor mudar à mão (state.pbPlacas). Mudou o consumo ou o cliente,
+// volta a seguir a sugestão.
+function pbPlacasValor(w, categoria, padrao = 10) {
+  const manual = Number(state.pbPlacas);
+  if (manual > 0) return manual;
+  return pbPlacasPeloConsumo(w, categoria) ?? padrao;
+}
+
+function pbPlacasControleHTML(w, categoria, opts = {}) {
+  const min = opts.min || 4;
+  const padrao = opts.padrao ?? 10;
+  const n = pbPlacasValor(w, categoria, padrao);
+  const sug = pbPlacasPeloConsumo(w, categoria);
+  const manual = Number(state.pbPlacas) > 0;
+  const kwp = Number(w) > 0 ? (n * Number(w) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWp' : '';
+  const voltar = manual && sug && sug !== n;
+  const qtd = `<div class="km-qtd"><button type="button" data-pb-placas="-1" aria-label="Uma placa a menos">−</button><input type="number" min="${min}" max="150" value="${n}" data-pb-placas-in aria-label="Quantidade de placas"><button type="button" data-pb-placas="1" aria-label="Uma placa a mais">+</button><span>placas${kwp ? ' · ' + kwp : ''}</span>`;
+  // Compacto (cartão do kit montado): sem a linha de baixo; volta à sugestão por um botão pequeno.
+  if (opts.compacto) {
+    return `<div class="pb-placas" data-pb-placas-min="${min}">${qtd}${voltar ? `<button type="button" class="orc-link" data-pb-placas-sug title="Voltar às ${sug} placas sugeridas pelo consumo">↺ ${sug}</button>` : ''}</div></div>`;
+  }
+  const dica = sug
+    ? (voltar
+      ? `Sugerido pelo consumo: ${sug} · <button type="button" class="orc-link" data-pb-placas-sug>voltar à sugestão</button>`
+      : `Sugerido pelo consumo (${_pbdInt(pbConsumoMedia())} kWh/mês)`)
+    : 'Informe o consumo no topo pra sugerir';
+  return `<div class="pb-placas" data-pb-placas-min="${min}">
+      ${qtd}</div>
+      <p class="pbd-hint pb-placas-dica">${dica}</p>
+    </div>`;
+}
+
+// Texto curto pra legenda do cartão: "sugerido 6" / "à mão".
+function pbPlacasLegenda(w, categoria) {
+  const sug = pbPlacasPeloConsumo(w, categoria);
+  if (Number(state.pbPlacas) > 0) return sug && sug !== Number(state.pbPlacas) ? 'à mão' : (sug ? 'sugerido pelo consumo' : '');
+  return sug ? 'sugerido pelo consumo' : '';
+}
+
+// Placas mudaram: o kit/cotação da vez valia pra outra quantidade.
+function pbPlacasMudou() {
+  if (typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual() && typeof pbIntegracaoInvalidar === 'function') { pbIntegracaoInvalidar(); return; }
+  if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
+  if (typeof pbFornecimentoSync === 'function') pbFornecimentoSync();
+}
+
+{
+  const minDe = (el) => Number(el.closest('[data-pb-placas-min]')?.dataset.pbPlacasMin) || 4;
+  document.addEventListener('click', (e) => {
+    const sug = e.target.closest('[data-pb-placas-sug]');
+    if (sug) { state.pbPlacas = null; pbPlacasMudou(); return; }
+    const b = e.target.closest('[data-pb-placas]');
+    if (!b || (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando)) return;
+    const inp = b.closest('.pb-placas')?.querySelector('[data-pb-placas-in]');
+    const atual = Math.round(Number(inp?.value) || 0);
+    state.pbPlacas = Math.max(minDe(b), Math.min(150, atual + Number(b.dataset.pbPlacas)));
+    pbPlacasMudou();
+  });
+  document.addEventListener('change', (e) => {
+    const inp = e.target.closest('[data-pb-placas-in]');
+    if (!inp) return;
+    state.pbPlacas = Math.max(minDe(inp), Math.min(150, Math.round(Number(inp.value) || minDe(inp))));
+    pbPlacasMudou();
+  });
 }
 
 // Consumo mudou: refaz a lista (% e kits perto do consumo) e a coluna da direita.

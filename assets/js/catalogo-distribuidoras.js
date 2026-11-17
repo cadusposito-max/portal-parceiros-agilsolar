@@ -457,10 +457,10 @@ function pbFornecimentoMount() {
         </div></div>
       <p id="pb-fornecimento-hint" class="pbd-hint"></p>
       <div id="pb-forn-simples" class="pbd-fornecimento-fields">
-        <label class="pbd-forn-campo"><i data-lucide="warehouse" class="pbd-forn-ic"></i><span class="pbd-forn-cap">1 · Distribuidora</span><select id="pb-filtro-distribuidora" class="pbd-input v2-select" data-titulo="Distribuidora do kit" onchange="pbFornecimentoEscolher('distribuidora',this.value)"></select></label>
-        <label class="pbd-forn-campo"><i data-lucide="solar-panel" class="pbd-forn-ic"></i><span class="pbd-forn-cap">2 · Módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
-        <label class="pbd-forn-campo"><i data-lucide="zap" class="pbd-forn-ic"></i><span class="pbd-forn-cap">3 · Inversor / micro</span><select id="pb-filtro-inversor" class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor" onchange="pbFornecimentoEscolher('inversor',this.value)"></select></label>
-        <label id="pb-forn-telhado" class="pbd-forn-campo hidden"><i data-lucide="home" class="pbd-forn-ic"></i><span class="pbd-forn-cap">4 · Telhado do cliente</span><select id="pb-filtro-telhado" class="pbd-input v2-select" data-titulo="Telhado do cliente" onchange="pbEstruturaEscolherValor(this.value)"></select></label>
+        <label id="pb-forn-telhado" class="pbd-forn-campo hidden"><i data-lucide="home" class="pbd-forn-ic"></i><span class="pbd-forn-cap" data-pb-cap="Telhado do cliente">1 · Telhado do cliente</span><select id="pb-filtro-telhado" class="pbd-input v2-select" data-titulo="Telhado do cliente" onchange="pbEstruturaEscolherValor(this.value)"></select></label>
+        <label class="pbd-forn-campo"><i data-lucide="warehouse" class="pbd-forn-ic"></i><span class="pbd-forn-cap" data-pb-cap="Distribuidora">2 · Distribuidora</span><select id="pb-filtro-distribuidora" class="pbd-input v2-select" data-titulo="Distribuidora do kit" onchange="pbFornecimentoEscolher('distribuidora',this.value)"></select></label>
+        <label class="pbd-forn-campo"><i data-lucide="solar-panel" class="pbd-forn-ic"></i><span class="pbd-forn-cap" data-pb-cap="Módulo / painel">3 · Módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
+        <label class="pbd-forn-campo"><i data-lucide="zap" class="pbd-forn-ic"></i><span class="pbd-forn-cap" data-pb-cap="Inversor / micro">4 · Inversor / micro</span><select id="pb-filtro-inversor" class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor" onchange="pbFornecimentoEscolher('inversor',this.value)"></select></label>
       </div>
       <div id="pb-forn-avancado" class="pbd-fornecimento-fields is-avancado hidden"></div>
       <p id="pb-km-info" class="pbd-km-info hidden"></p>
@@ -522,6 +522,13 @@ function pbFornecimentoRender() {
   panel.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || !(pbLinhaAtual() === 'catalogo' || ehCampanha));
   const catalogo = state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo';
   document.getElementById('pb-forn-telhado')?.classList.toggle('hidden', !catalogo);
+  // Numeração dos cartões visíveis (telhado é o 1º quando aparece; na campanha não tem telhado).
+  let nCap = 0;
+  document.querySelectorAll('#pb-forn-simples > .pbd-forn-campo').forEach((c) => {
+    const cap = c.querySelector('[data-pb-cap]');
+    if (!cap || c.classList.contains('hidden')) return;
+    cap.textContent = `${++nCap} · ${cap.dataset.pbCap}`;
+  });
   document.getElementById('pb-forn-simples')?.classList.toggle('quatro', catalogo || ehCampanha);
   if (typeof hibridoRenderPainel === 'function' && hibridoRenderPainel(panel)) return;
   if (typeof kitMontadoRenderPainel === 'function' && kitMontadoRenderPainel(panel)) return;
