@@ -426,6 +426,8 @@ html[data-ui="v2"] .v2s .v2-kcard .f .v2-sq svg { width: 14px !important; height
 html[data-ui="v2"] .v2s .v2-kinfo { font-size: 12px; font-weight: 700; color: var(--v2-orange-text); background: var(--v2-orange-50); border-radius: 10px; padding: 5px 8px; display: flex; gap: 6px; align-items: center; }
 html[data-ui="v2"] .v2s .v2-kinfo svg { width: 13px !important; height: 13px !important; }
 html[data-ui="v2"] .v2s .v2-kanban4 { grid-auto-columns: minmax(220px, 1fr); }
+/* Clientes › filtro Perdido: uma coluna só, sem esticar a tela toda */
+html[data-ui="v2"] .v2s .v2-kanban.v2-kanban-solo { grid-auto-columns: minmax(272px, 360px); }
 html[data-ui="v2"] .v2s .v2-kanban4 .v2-kcard { cursor: pointer; }
 html[data-ui="v2"] .v2s .v2-pcard .hd .v2-eqic { color: var(--v2-blue-text); }
 @media (max-width: 760px) {

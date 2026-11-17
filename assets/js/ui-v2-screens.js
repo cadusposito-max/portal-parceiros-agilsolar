@@ -447,9 +447,10 @@
   const statusFilter = () => (state.isAdmin ? (state.adminClientesFilters?.status || 'TODOS') : (state.clienteFilter || 'TODOS'));
   // etapa e "Leads Meta" são escolhas da mesma fileira: uma de cada vez
   const setStatusJs = (s) => `uiV2Screens.soLeadMeta=false;${state.isAdmin ? `setAdminClientesFilter('status','${s}')` : `setClienteFilter('${s}')`}`;
-  function statusPills(source, current, extra = '') {
-    const counts = { TODOS: source.length };
-    source.forEach((c) => { const s = normalizeClientStatus(c.status); counts[s] = (counts[s] || 0) + 1; });
+  // semPerdidos: no Kanban os perdidos ficam fora do "Todos" (só aparecem pelo filtro Perdido)
+  function statusPills(source, current, extra = '', semPerdidos = false) {
+    const counts = { TODOS: 0 };
+    source.forEach((c) => { const s = normalizeClientStatus(c.status); counts[s] = (counts[s] || 0) + 1; if (!(semPerdidos && s === 'PERDIDO')) counts.TODOS += 1; });
     return `<div class="v2-pills">${CLIENT_STATUS_OPTIONS.map((s) => `<button class="${current === s ? 'on' : ''}" onclick="${setStatusJs(s)}">${s === 'TODOS' ? 'Todos' : ST_CLI[s][0]}<em>${counts[s] || 0}</em></button>`).join('')}${extra}</div>`;
   }
   // "Leads Meta" liga/desliga por cima do filtro de status (só aparece se houver lead do Meta)
@@ -498,18 +499,26 @@
     const filtered = window.uiV2Screens.soLeadMeta ? rows.filtered.filter((c) => c.origem === 'meta') : rows.filtered;
     state.lastFilteredClientes = filtered;
     const cur = statusFilter();
-    setPageMeta('comercial:clientes', 'Clientes', `${filtered.length} de ${source.length} · ${scopeLabel(source)}`);
+    // no celular é sempre lista (o quadro fica no Funil)
+    const vista = celular() ? 'lista' : modo('clientes', 'lista', ['lista', 'kanban']);
+    // Kanban: perdidos saem do quadro; só aparecem com o filtro "Perdido" ligado
+    const kanbanSemPerdidos = vista === 'kanban' && cur !== 'PERDIDO';
+    const ehPerdido = (c) => normalizeClientStatus(c.status) === 'PERDIDO';
+    const naTela = kanbanSemPerdidos ? filtered.filter((c) => !ehPerdido(c)) : filtered;
+    const totalBase = kanbanSemPerdidos ? source.filter((c) => !ehPerdido(c)).length : source.length;
+    setPageMeta('comercial:clientes', 'Clientes', `${naTela.length} de ${totalBase} · ${scopeLabel(source)}`);
 
     const adminBtns = state.isAdmin ? `
       <button class="v2-btn2 hide-m" onclick="openCrmDuplicatas()" title="Revisar cadastros com o mesmo telefone">${ic('merge')}Duplicatas</button>
       <button class="v2-btn2 hide-m" onclick="adminEnriquecerCidades()" title="Preenche coordenadas e HSP dos clientes antigos">${ic('sun')}HSP</button>` : '';
     const sortSeg = !state.isAdmin ? `<div class="v2-seg flat v2-fx" data-titulo="Ordenar por">${CLIENT_SORT_OPTIONS.map((o) => `<button class="${state.clienteSort === o.v ? 'on' : ''}" onclick="setClienteSort('${o.v}')">${o.v === 'alpha' ? 'A–Z' : 'Mais recentes'}</button>`).join('')}</div>` : '';
 
-    // no celular é sempre lista (o quadro fica no Funil)
-    const vista = celular() ? 'lista' : modo('clientes', 'lista', ['lista', 'kanban']);
     const vazio = `<div class="v2-card v2-empty">${source.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum cliente na carteira ainda.'}<div style="margin-top:12px"><button class="v2-btnp" onclick="openClientModal()">${ic('user-plus')}Cadastrar cliente</button></div></div>`;
+    // buscou alguém e o resultado tem perdido escondido: avisa com atalho pro filtro
+    const perdidosOcultos = kanbanSemPerdidos && String(searchValue()).trim() ? filtered.filter(ehPerdido).length : 0;
+    const avisoPerdidos = perdidosOcultos ? `<div class="v2-pills"><button class="warn" onclick="${setStatusJs('PERDIDO')}">${ic('eye')}${perdidosOcultos} perdido${perdidosOcultos > 1 ? 's' : ''} nessa busca · ver</button></div>` : '';
 
-    container.dataset.v2total = String(filtered.length); container.dataset.v2nome = 'cliente|clientes';
+    container.dataset.v2total = String(naTela.length); container.dataset.v2nome = 'cliente|clientes';
     container.innerHTML = `
       <div class="v2-toolbar">
         ${searchBox(state.isAdmin ? 'Nome, telefone, cidade ou vendedor' : 'Buscar por nome, telefone ou cidade')}
@@ -521,9 +530,10 @@
         <button class="v2-btn2 hide-m" onclick="exportClientesXLSX()">${ic('download')}XLSX</button>
         <button class="v2-btnp v2-novocli" onclick="openClientModal()" title="Novo cliente">${ic('user-plus')}<span>Novo cliente</span></button>
       </div>
-      ${statusPills(source, window.uiV2Screens.soLeadMeta ? null : cur, leadMetaPill(source))}
+      ${statusPills(source, window.uiV2Screens.soLeadMeta ? null : cur, leadMetaPill(source), vista === 'kanban')}
       ${adminFiltersRow(source)}
-      ${!filtered.length ? vazio : vista === 'kanban' ? clientesKanbanHTML(filtered, showSeller, false) : clientesTabelaHTML(filtered, showSeller)}`;
+      ${avisoPerdidos}
+      ${!naTela.length ? vazio : vista === 'kanban' ? clientesKanbanHTML(naTela, showSeller, false, { colunas: cur === 'PERDIDO' ? ['PERDIDO'] : CLIENT_STATUS_ALL.filter((s) => s !== 'PERDIDO') }) : clientesTabelaHTML(filtered, showSeller)}`;
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -559,7 +569,9 @@
 
   // Kanban por etapa. editavel=true no Funil (arrasta e muda etapa);
   // na aba Clientes é só visualização.
-  function clientesKanbanHTML(filtered, showSeller, editavel) {
+  // opts.colunas: quais etapas desenhar (padrão: todas). Na aba Clientes o
+  // Perdido só entra quando o filtro "Perdido" está ligado.
+  function clientesKanbanHTML(filtered, showSeller, editavel, opts = {}) {
     const vendaPorCliente = has('vendasMaisRecentesPorCliente') ? vendasMaisRecentesPorCliente() : {};
     // Cliente com venda: kit vendido em destaque no card (o mais recente).
     const kitVendido = (c) => {
@@ -595,7 +607,8 @@
           ${editavel ? `<button class="v2-chip dot ${st[1]} v2-stbtn" onclick="openClientStatusMenu(event, '${esc(c.id)}')" title="Mudar etapa">${st[0]}</button>` : `<span class="v2-chip dot ${st[1]}">${st[0]}</span>`}</div>
       </article>`;
     };
-    const cols = CLIENT_STATUS_ALL.map((s) => {
+    const etapas = Array.isArray(opts.colunas) && opts.colunas.length ? opts.colunas : CLIENT_STATUS_ALL;
+    const cols = etapas.map((s) => {
       const items = filtered.filter((c) => normalizeClientStatus(c.status) === s);
       const limite = _funilColLimit[s] || CLIENTES_RENDER_LOTE;
       const vis = items.slice(0, limite);
@@ -607,7 +620,7 @@
         ${items.length > vis.length ? `<button class="v2-colmore" onclick="funilMostrarMaisColuna('${s}')">${ic('chevrons-down')}Ver mais ${items.length - vis.length}</button>` : ''}
       </div>`;
     }).join('');
-    return `<div class="v2-kanban">${cols}</div>`;
+    return `<div class="v2-kanban ${etapas.length === 1 ? 'v2-kanban-solo' : ''}">${cols}</div>`;
   }
 
   function renderFunilV2(container) {
