@@ -328,6 +328,13 @@ function pbDimResumo() {
     return r;
   }
 
+  // Ainda buscando os kits da aba: não recomenda com a lista pela metade.
+  if (typeof pbBuscandoKits === 'function' && pbBuscandoKits()) {
+    r.buscando = true;
+    r.motivo = 'Buscando os kits…';
+    return r;
+  }
+
   const tipo = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
   const tipoNome = tipo === 'kitsMicro' ? 'com microinversor' : 'com inversor';
   let { recomendado, menorQueCobre } = _pbdRecomendar(tipo, c.media);

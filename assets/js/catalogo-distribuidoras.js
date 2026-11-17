@@ -475,6 +475,14 @@ function pbGarantirLinhaCompleta() {
   });
 }
 
+// A aba ainda está buscando todos os kits: a lista e o "Pelo consumo" esperam
+// (lista pela metade engana o vendedor e recomenda kit errado).
+function pbBuscandoKits() {
+  if (typeof linhaCompletaCarregando !== 'function' || state.pbProposalMode !== 'PROMOCIONAL') return false;
+  pbGarantirLinhaCompleta();
+  return linhaCompletaCarregando(pbLinhaAtual());
+}
+
 function pbFornecimentoRender() {
   pbGarantirLinhaCompleta();
   const panel = document.getElementById('pb-fornecimento-panel');

@@ -1124,6 +1124,21 @@ function renderModalProducts() {
     return;
   }
 
+  // Enquanto a aba busca todos os kits, só o aviso (nada de lista pela metade).
+  if (typeof pbBuscandoKits === 'function' && pbBuscandoKits()) {
+    container.classList.add('hidden');
+    emptyEl.classList.add('is-buscando');
+    emptyEl.innerHTML = '<i data-lucide="loader-circle"></i><p>Buscando os kits…</p><small>A lista aparece completa em instantes.</small>';
+    emptyEl.classList.remove('hidden');
+    lucide.createIcons();
+    return;
+  }
+  if (emptyEl.classList.contains('is-buscando')) {
+    emptyEl.classList.remove('is-buscando');
+    emptyEl.innerHTML = '<i data-lucide="search-x"></i><p>Nenhum kit atende a este filtro</p>';
+    lucide.createIcons();
+  }
+
   // Kits fora de linha (ativo=false) não aparecem para o vendedor.
   let list = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter(k => k.categoria === state.pbCategory && k.ativo !== false
     && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k)));
@@ -1160,9 +1175,7 @@ function renderModalProducts() {
 
   if (list.length === 0) {
     container.classList.add('hidden');
-    const carregando = typeof linhaCompletaCarregando === 'function' && typeof pbLinhaAtual === 'function' && linhaCompletaCarregando(pbLinhaAtual());
-    const motivo = carregando ? 'Carregando os kits…'
-      : !state.pbSearch && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(state.pbCategory) : '';
+    const motivo = !state.pbSearch && typeof pbMotivoSemKit === 'function' ? pbMotivoSemKit(state.pbCategory) : '';
     const txt = emptyEl.querySelector('p');
     if (txt) txt.textContent = motivo || 'Nenhum kit atende a este filtro';
     emptyEl.classList.remove('hidden');
@@ -1208,8 +1221,7 @@ function renderModalProducts() {
   const ordenar = list.length > 1
     ? `<label class="pbl-ordem"><span>Ordenar por</span><select aria-label="Ordenar os kits" onchange="pbOrdenar(this.value)">${Object.entries(PB_ORDENS)
       .map(([v, t]) => `<option value="${v}"${v === ordem ? ' selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
-  const carregandoResto = typeof linhaCompletaCarregando === 'function' && typeof pbLinhaAtual === 'function' && linhaCompletaCarregando(pbLinhaAtual());
-  const cabecalho = `<div class="pbl-topo"><p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${carregandoResto ? ' · <b class="pbl-carregando">carregando os outros kits…</b>' : ''}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>${ordenar}</div>`;
+  const cabecalho = `<div class="pbl-topo"><p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>${ordenar}</div>`;
 
   container.innerHTML = cabecalho
     + `<div class="pbl-lista">${visiveis.map((item) => _pbKitLinhaHTML(item, geracaoDe(item), r)).join('')}</div>`
