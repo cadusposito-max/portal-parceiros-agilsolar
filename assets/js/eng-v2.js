@@ -65,7 +65,7 @@
     ev: {}, os: {}, crm: {}, tab: 'visao', ctx: 'eng', container: null,
     view: lsGet('eng_view') || 'kanban', busca: '', fr: '', fst: '', soComp: false, soAtraso: false, soAlerta: false, trilhoAberto: {}, concTodos: false,
     aberto: null, ptab: 'dim', dimRodando: false,
-    kitBusca: '', kitFiltro: '', kitLimite: 8, catDist: '',
+    kitBusca: '', kitFiltro: '', kitLimite: 8, catDist: '', catBusca: '', catTipo: '', catLimite: 30,
   };
 
   // ------------------------------------------------------------ utilidades
@@ -463,8 +463,12 @@
   async function carregarTela(container, comCatalogo) {
     const precisa = !E.projetos || (comCatalogo && !E.catalogo) || (E.tab === 'os' && !E.osLista);
     if (precisa) {
-      container.innerHTML = `<div class="rd"><div class="rd-loading">${ic('loader-2')}Carregando a engenharia...</div></div>`;
-      icons();
+      // catálogo: o topo da tela aparece na hora e a lista entra quando os dados chegam
+      if (E.ctx === 'eng' && E.tab === 'catalogo') pintar();
+      else {
+        container.innerHTML = `<div class="rd"><div class="rd-loading">${ic('loader-2')}Carregando a engenharia...</div></div>`;
+        icons();
+      }
       try {
         await Promise.all([
           carregarProjetos(),
@@ -496,10 +500,14 @@
     if (!naTela) { pintarDrawer(); return; }
     const corpo = E.ctx === 'com' ? telaFunil() : ({ visao: telaVisao, funil: telaFunil, os: telaOS, catalogo: telaCatalogo, calculadora: telaCalc }[E.tab] || telaVisao)();
     const y = window.scrollY;
+    // quem estava digitando na busca continua digitando depois de repintar
+    const foco = document.activeElement && document.activeElement.id && c.contains(document.activeElement) ? document.activeElement : null;
+    const fId = foco && foco.id, fPos = foco && foco.selectionStart;
     c.innerHTML = `<div class="rd eg">${corpo}</div>`;
     pintarDrawer();
     icons();
     window.scrollTo(0, y);
+    if (fId) { const el = document.getElementById(fId); if (el) { el.focus(); try { el.setSelectionRange(fPos, fPos); } catch (_) { /* campo sem cursor */ } } }
     ajustarKanban();
   }
 
@@ -684,7 +692,14 @@
   const fichaOk = (c) => !camposFaltando(c, c.tipo === 'modulo' ? 'modulo' : (ehMicro(c) ? 'micro' : 'inversor')).length;
   const nomeEq = (id) => { const c = (E.catalogo || []).find((x) => x.id === id); return c ? c.nome : '—'; };
 
+  // Catálogo: o topo (botões, busca, filtros) sai na hora; a lista mostra
+  // 30 equipamentos por vez, com "Carregar mais". Os dados continuam vindo
+  // inteiros, porque a calculadora e o vínculo dos kits usam o catálogo todo.
+  const CAT_PASSO = 30;
+  const tipoEq = (c) => (c.tipo === 'modulo' ? 'modulo' : (ehMicro(c) ? 'micro' : 'inversor'));
+  const daDist = (c, d) => (d === '-' ? !(c.dists || []).length : (c.dists || []).includes(d));
   function telaCatalogo() {
+    const pronto = !!E.catalogo;
     const cat = E.catalogo || [];
     const kits = (E.kits || []).filter((k) => k.ativo !== false);
     const pend = cat.filter((c) => c.ativo !== false && !fichaOk(c)).length;
@@ -693,34 +708,23 @@
     // filtro por distribuidora ('-' = sem nenhuma)
     const ativos = cat.filter((c) => c.ativo !== false);
     const nomesDist = [...new Set(ativos.flatMap((c) => c.dists || []))].sort();
-    const daDist = (c, d) => (d === '-' ? !(c.dists || []).length : (c.dists || []).includes(d));
-    if (E.catDist && !nomesDist.includes(E.catDist) && E.catDist !== '-') E.catDist = '';
-    const visiveis = E.catDist ? ativos.filter((c) => daDist(c, E.catDist)) : ativos;
+    if (pronto && E.catDist && !nomesDist.includes(E.catDist) && E.catDist !== '-') E.catDist = '';
     const semDist = ativos.filter((c) => daDist(c, '-')).length;
-    const distChips = nomesDist.length ? `<div class="rd-chips rd-mb">${[['', 'Todas', ativos.length], ...nomesDist.map((d) => [d, d, ativos.filter((c) => daDist(c, d)).length]), ...(semDist ? [['-', 'Sem distribuidora', semDist]] : [])]
+    const distChips = nomesDist.length ? `<div class="rd-chips">${[['', 'Todas', ativos.length], ...nomesDist.map((d) => [d, d, ativos.filter((c) => daDist(c, d)).length]), ...(semDist ? [['-', 'Sem distribuidora', semDist]] : [])]
       .map(([v, l, n]) => `<button class="rd-chip ${E.catDist === v ? 'on' : ''}" onclick="EV.catFiltrar('${esc(v)}')">${esc(l)} ${n}</button>`).join('')}</div>` : '';
-    const linhaEq = (c) => {
-      const tipo = c.tipo === 'modulo' ? 'Módulo' : (ehMicro(c) ? 'Micro' : 'Inversor');
-      const f = c.ficha || {};
-      const resumo = c.tipo === 'modulo'
-        ? `Voc ${nf(f.voc, 1)} V · Vmp ${nf(f.vmp, 1)} V · Isc ${nf(f.isc, 2)} A · ${nf(f.coef_voc, 2)} %/°C`
-        : ehMicro(c) ? `${nf(f.modulos_por_micro)} módulos/micro · ${nf(f.potencia)} W · ${nf(f.v_max_entrada)} V máx`
-          : `${nf(f.potencia)} W · ${nf(f.mppts)} MPPT (${esc(f.entradas || '—')}) · ${nf(f.v_max)} V · ${nf(f.i_max_mppt, 1)} A/MPPT`;
-      const usados = kits.filter((k) => k.modulo_id === c.id || k.inversor_id === c.id).length;
-      return `<tr class="click" onclick="EV.fichaModal('${c.id}')"><td class="first"><span class="rd-tag">${tipo}</span></td>
-        <td data-l="Equipamento"><div class="rd-name">${esc(c.nome)}</div><div class="rd-muted">${esc(c.marca || '')}${(c.dists || []).map((d) => ` <span class="rd-tag">${esc(d)}</span>`).join('')}</div></td>
-        <td data-l="Ficha técnica" class="rd-muted">${fichaOk(c) ? resumo : '<span style="color:var(--v2-red)">Ficha incompleta</span>'}</td>
-        <td data-l="Kits" class="r">${usados}</td>
-        <td data-l="Situação">${!fichaOk(c) ? pill('Pendente', 'bad') : c.ficha_conferida ? pill('Conferida', 'ok') : pill('A conferir', 'at')}</td></tr>`;
-    };
+    const tipoChips = `<div class="rd-chips">${[['', 'Todos'], ['modulo', 'Módulo'], ['inversor', 'Inversor'], ['micro', 'Micro']]
+      .map(([v, l]) => `<button class="rd-chip ${E.catTipo === v ? 'on' : ''}" onclick="EV.catTipo('${v}')">${l}</button>`).join('')}</div>`;
     return `<div class="rd-bar"><span class="rd-grow"></span>
         <button class="rd-btn ghost" onclick="EV.recarregar()">${ic('refresh-cw')}<span class="rd-hide-m">Atualizar</span></button>
-        <button class="rd-btn pri" onclick="EV.fichaModal()">${ic('plus')}Equipamento</button></div>
+        <button class="rd-btn pri" onclick="EV.fichaModal()" ${pronto ? '' : 'disabled'}>${ic('plus')}Equipamento</button></div>
       ${pend || naoConf || semVinc ? `<div class="rd-note" style="background:var(--v2-orange-50);color:var(--v2-orange-text)">${ic('triangle-alert')}<span>${[pend ? `${pend} equipamento(s) com ficha incompleta` : '', naoConf ? `${naoConf} ficha(s) a conferir` : '', semVinc ? `${semVinc} kit(s) sem vínculo técnico` : ''].filter(Boolean).join(' · ')}. Projeto com esses equipamentos cai em "Precisa revisão".</span></div>` : ''}
       <div class="rd-card rd-mb"><h3>${ic('cpu')}Equipamentos</h3><p class="rd-sub">Um catálogo só: o Comercial usa o preço, a engenharia usa a ficha técnica</p>
-        ${distChips}
-        ${cat.length ? `<table class="rd-t cards"><thead><tr><th>Tipo</th><th>Equipamento</th><th>Ficha técnica</th><th class="r">Kits</th><th>Situação</th></tr></thead><tbody>${visiveis.map(linhaEq).join('') || '<tr><td colspan="5" class="rd-empty">Nenhum equipamento nesta distribuidora.</td></tr>'}</tbody></table>`
-          : `<div class="rd-empty"><div class="ic">${ic('cpu')}</div><b>Nenhum equipamento</b>Cadastre os módulos e inversores dos kits com a ficha técnica.</div>`}
+        <div class="rd-bar" style="margin:4px 0 8px">
+          <label class="rd-sel" style="flex:1;min-width:200px">${ic('search')}<input id="eg-cat-busca" placeholder="Buscar por nome, marca ou distribuidora" value="${esc(E.catBusca)}" oninput="EV.catBuscar(this.value)" style="width:100%"></label>
+          ${tipoChips}
+        </div>
+        ${distChips ? `<div class="rd-mb">${distChips}</div>` : ''}
+        <div id="eg-cat">${pronto ? catLista() : `<div class="rd-loading">${ic('loader-2')}Carregando equipamentos...</div>`}</div>
       </div>
       <div class="rd-card"><div class="rd-ch"><div><h3>${ic('package')}Vínculo dos kits</h3><p class="rd-sub">Quais equipamentos cada kit tem. É daqui que sai o dimensionamento automático.</p></div>
         ${semVinc ? `<button class="rd-btn sm" onclick="EV.vincularTodos()">${ic('wand-sparkles')}Ligar pelo nome do kit</button>` : ''}</div>
@@ -728,8 +732,46 @@
           <label class="rd-sel" style="flex:1;min-width:200px">${ic('search')}<input id="eg-kit-busca" placeholder="Buscar kit, módulo ou inversor" value="${esc(E.kitBusca)}" oninput="EV.kitBuscar(this.value)" style="width:100%"></label>
           <div class="rd-chips">${[['', 'Todos'], ['sem', 'Sem vínculo'], ['inv', 'Inversor'], ['micro', 'Micro']].map(([v, l]) => `<button class="rd-chip ${E.kitFiltro === v ? 'on' : ''}" onclick="EV.kitFiltrar('${v}')">${l}</button>`).join('')}</div>
         </div>
-        <div id="eg-kits">${kitsLista()}</div></div>`;
+        <div id="eg-kits">${pronto ? kitsLista() : `<div class="rd-loading">${ic('loader-2')}Carregando kits...</div>`}</div></div>`;
   }
+
+  // Lista dos equipamentos: busca + tipo + distribuidora, 30 por vez.
+  function catLista() {
+    const cat = E.catalogo || [];
+    if (!cat.length) return `<div class="rd-empty"><div class="ic">${ic('cpu')}</div><b>Nenhum equipamento</b>Cadastre os módulos e inversores dos kits com a ficha técnica.</div>`;
+    const kits = (E.kits || []).filter((k) => k.ativo !== false);
+    const usos = {};
+    kits.forEach((k) => { [k.modulo_id, k.inversor_id].forEach((id) => { if (id) usos[id] = (usos[id] || 0) + 1; }); });
+    const termos = String(E.catBusca || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/).filter(Boolean);
+    const ROT = { modulo: 'Módulo', inversor: 'Inversor', micro: 'Micro' };
+    const lista = cat.filter((c) => {
+      if (c.ativo === false) return false;
+      if (E.catTipo && tipoEq(c) !== E.catTipo) return false;
+      if (E.catDist && !daDist(c, E.catDist)) return false;
+      if (!termos.length) return true;
+      const txt = `${c.nome} ${c.marca || ''} ${(c.dists || []).join(' ')} ${ROT[tipoEq(c)]} ${c.potencia_wp || ''}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      return termos.every((t) => txt.includes(t));
+    });
+    if (!lista.length) return `<div class="rd-empty">Nenhum equipamento encontrado${termos.length ? ` para "${esc(E.catBusca.trim())}"` : ''}.</div>`;
+    const vis = lista.slice(0, E.catLimite);
+    const linhaEq = (c) => {
+      const f = c.ficha || {};
+      const resumo = c.tipo === 'modulo'
+        ? `Voc ${nf(f.voc, 1)} V · Vmp ${nf(f.vmp, 1)} V · Isc ${nf(f.isc, 2)} A · ${nf(f.coef_voc, 2)} %/°C`
+        : ehMicro(c) ? `${nf(f.modulos_por_micro)} módulos/micro · ${nf(f.potencia)} W · ${nf(f.v_max_entrada)} V máx`
+          : `${nf(f.potencia)} W · ${nf(f.mppts)} MPPT (${esc(f.entradas || '—')}) · ${nf(f.v_max)} V · ${nf(f.i_max_mppt, 1)} A/MPPT`;
+      return `<tr class="click" onclick="EV.fichaModal('${c.id}')"><td class="first"><span class="rd-tag">${ROT[tipoEq(c)]}</span></td>
+        <td data-l="Equipamento"><div class="rd-name">${esc(c.nome)}</div><div class="rd-muted">${esc(c.marca || '')}${(c.dists || []).map((d) => ` <span class="rd-tag">${esc(d)}</span>`).join('')}</div></td>
+        <td data-l="Ficha técnica" class="rd-muted">${fichaOk(c) ? resumo : '<span style="color:var(--v2-red)">Ficha incompleta</span>'}</td>
+        <td data-l="Kits" class="r">${usos[c.id] || 0}</td>
+        <td data-l="Situação">${!fichaOk(c) ? pill('Pendente', 'bad') : c.ficha_conferida ? pill('Conferida', 'ok') : pill('A conferir', 'at')}</td></tr>`;
+    };
+    return `<table class="rd-t cards"><thead><tr><th>Tipo</th><th>Equipamento</th><th>Ficha técnica</th><th class="r">Kits</th><th>Situação</th></tr></thead><tbody>${vis.map(linhaEq).join('')}</tbody></table>
+      <div class="eg-mais"><span class="rd-muted">Mostrando ${vis.length} de ${lista.length}</span>
+        ${lista.length > vis.length ? `<button class="rd-btn sm" onclick="EV.catMais()">${ic('chevron-down')}Carregar mais ${Math.min(CAT_PASSO, lista.length - vis.length)}</button>` : ''}
+        ${E.catLimite > CAT_PASSO ? `<button class="rd-btn sm ghost" onclick="EV.catMenos()">${ic('chevron-up')}Recolher</button>` : ''}</div>`;
+  }
+  function pintarCat() { const box = document.getElementById('eg-cat'); if (box) { box.innerHTML = catLista(); icons(); } }
 
   // Lista do vínculo dos kits: filtrada pela busca e mostrada aos poucos.
   const KITS_PASSO = 8;
@@ -2715,7 +2757,11 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
     fichaModal, fichaTipo, salvarFicha, kitModal, salvarKit, vincularTodos, fecharModal,
     kitBuscar: (q) => { E.kitBusca = q; E.kitLimite = KITS_PASSO; clearTimeout(EV._tk); EV._tk = setTimeout(pintarKits, 150); },
     kitFiltrar: (v) => { E.kitFiltro = v; E.kitLimite = KITS_PASSO; pintar(); },
-    catFiltrar: (v) => { E.catDist = v; pintar(); },
+    catFiltrar: (v) => { E.catDist = v; E.catLimite = CAT_PASSO; pintar(); },
+    catTipo: (v) => { E.catTipo = v; E.catLimite = CAT_PASSO; pintar(); },
+    catBuscar: (q) => { E.catBusca = q; E.catLimite = CAT_PASSO; clearTimeout(EV._tc); EV._tc = setTimeout(pintarCat, 150); },
+    catMais: () => { E.catLimite += CAT_PASSO; pintarCat(); },
+    catMenos: () => { E.catLimite = CAT_PASSO; pintarCat(); },
     kitMais: () => { E.kitLimite += KITS_PASSO; pintarKits(); },
     kitMenos: () => { E.kitLimite = KITS_PASSO; pintarKits(); },
     envioModal, envioKit, enviar,
