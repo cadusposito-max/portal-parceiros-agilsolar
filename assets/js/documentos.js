@@ -442,12 +442,17 @@ function baixarDocumento(blob, nomeArquivo) {
 let _docConfigCache = null;
 async function docCarregarConfig() {
   if (_docConfigCache && _docConfigCache.franquia_id === state.franquiaId) return _docConfigCache;
-  const { data, error } = await supabaseClient
+  // unidade sem linha própria usa a da Matriz SÓ pelo procurador (mesmo engenheiro);
+  // a contratada da Matriz é descartada — o contrato da unidade sai com o CNPJ dela.
+  const ids = [...new Set([state.franquiaId, FRANQUIA_MATRIZ_ID].filter(Boolean))];
+  const { data: linhas, error } = await supabaseClient
     .from('documentos_config')
     .select('franquia_id, contratada, procurador')
-    .eq('franquia_id', state.franquiaId)
-    .maybeSingle();
+    .in('franquia_id', ids);
   if (error) throw error;
+  const propria = (linhas || []).find((l) => l.franquia_id === state.franquiaId);
+  const matriz = (linhas || []).find((l) => l.franquia_id === FRANQUIA_MATRIZ_ID);
+  const data = propria || (matriz ? { franquia_id: state.franquiaId, contratada: {}, procurador: matriz.procurador } : null);
   if (!data) throw new Error('Dados da empresa para documentos não cadastrados.');
   // CNPJs da unidade (ambiente Rede). Com mais de um, o contrato deixa escolher
   // por qual deles sai; sem nenhum, vale só a contratada do documentos_config.
@@ -459,6 +464,11 @@ async function docCarregarConfig() {
     .order('principal', { ascending: false })
     .order('razao_social', { ascending: true });
   if (errEmp) console.warn('[documentos] Falha ao carregar os CNPJs da unidade.', errEmp);
+  if (!(empresas || []).length && !data.contratada?.nome) {
+    const e = new Error('Unidade sem CNPJ cadastrado.');
+    e.semCnpj = true;
+    throw e;
+  }
   _docConfigCache = { ...data, empresas: empresas || [] };
   return _docConfigCache;
 }
@@ -491,15 +501,14 @@ function _docContratada() {
 }
 
 // ==========================================
-// UI — modal "Documentos" (ficha do cliente). Só admin/gestor da Ágil Solar Matriz.
+// UI — modal "Documentos" (ficha do cliente). Admin/gestor de qualquer unidade
+// (17/11; antes só Matriz). Cada unidade sai com o CNPJ dela (ambiente Rede).
 // ==========================================
 
-// A mesma regra vale no banco: a RLS de documentos_config só libera admin/gestor
-// da própria franquia, então vendedor não gera nem contornando a tela.
+// A mesma regra vale no banco: a RLS de documentos_config só libera admin/gestor,
+// então vendedor não gera nem contornando a tela. Parceiro nunca.
 function canGerarDocumentos() {
-  return typeof FRANQUIA_MATRIZ_ID !== 'undefined'
-    && state.franquiaId === FRANQUIA_MATRIZ_ID
-    && Boolean(state.isAdmin || state.isGestor);
+  return !state.isParceiro && Boolean(state.isAdmin || state.isGestor);
 }
 
 // "55.000,00" | "55000" | "55000.5" → número
@@ -671,7 +680,7 @@ function _crm360ClientIdAtual() {
 // Abre o formulário a partir do cliente — não precisa de venda.
 // `origem` = 'venda:<id>' | 'proposta:<id>' | 'manual' | undefined (escolhe sozinho)
 async function abrirDocumentosCliente(clientId, origem) {
-  if (!canGerarDocumentos()) { showToast('Contrato e procuração: disponível só para gestor/admin da Matriz.'); return; }
+  if (!canGerarDocumentos()) { showToast('Contrato e procuração: disponível só para gestor/admin.'); return; }
   const client = (state.clientes || []).find((c) => c.id === clientId);
   if (!client) { showToast('Cliente não encontrado.'); return; }
 
@@ -685,7 +694,9 @@ async function abrirDocumentosCliente(clientId, origem) {
     config = await docCarregarConfig();
   } catch (err) {
     console.error('[documentos] Falha ao carregar documentos_config.', err);
-    showToast('Não foi possível carregar os dados da empresa para os documentos.');
+    showToast(err && err.semCnpj
+      ? 'Esta unidade ainda não tem CNPJ cadastrado. Peça para a administração cadastrar no ambiente Rede.'
+      : 'Não foi possível carregar os dados da empresa para os documentos.');
     return;
   }
 

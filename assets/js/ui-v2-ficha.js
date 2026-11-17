@@ -424,9 +424,9 @@
     const tarefaOk = tarefaBtn && !state.isParceiro;
 
     // botões do topo. Depois da venda (Fechado + venda) os dois grandes viram o que
-    // importa no pós-venda: Gerar contrato (laranja, só Matriz) e Criar tarefa (azul claro);
+    // importa no pós-venda: Gerar contrato (laranja, gestor/admin) e Criar tarefa (azul claro);
     // WhatsApp vira ícone verde e Nova proposta/Registrar venda seguem como ícones/menu.
-    // Sem contrato (unidade), Criar tarefa fica no laranja e o WhatsApp segue grande.
+    // Sem contrato (vendedor), Criar tarefa fica no laranja e o WhatsApp segue grande.
     const cid = esc(client.id);
     const posVenda = status === 'FECHADO' && vendas.length > 0 && !state.isParceiro && (docs || tarefaOk);
     const bProposta = podeProposta ? `<button class="btn btn-primary btn-sm" onclick="openProposalBuilder('${cid}')">${ic('file-plus-2')}<span class="v2f-dsk">Nova </span>proposta</button>` : '';
