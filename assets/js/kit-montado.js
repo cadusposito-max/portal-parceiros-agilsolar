@@ -56,11 +56,10 @@ function kitMontadoModo(modo) {
   pbFornecimentoSync();
 }
 
-// Busca/tipo da lista não valem no avançado nem no híbrido. (A porta "Pelo consumo × Lista" saiu em 17/11.)
+// Busca/tipo da lista não valem no kit montado nem no híbrido.
 function kitMontadoSyncTela() {
   if (state.pbProposalMode !== 'PROMOCIONAL') return;
   const av = kitMontadoAtivo() || (typeof hibridoAtivo === 'function' && hibridoAtivo());
-  document.getElementById('pb-porta')?.classList.add('hidden');
   document.getElementById('pb-promocional-toolbar')?.classList.toggle('hidden', av);
 }
 
@@ -464,24 +463,13 @@ function kitMontadoEstruturaNome() {
   return t ? t.nome : '';
 }
 
-// Painel de equipamentos: chave Simples/Avançado e, no avançado, os cinco cartões.
-// Devolve true quando desenhou o avançado (o painel simples fica escondido).
+// Painel de equipamentos do Montar kit (aba do topo; a chave Simples × Avançado saiu em 17/11).
+// Devolve true quando desenhou os cartões do kit montado (o painel simples fica escondido).
 function kitMontadoRenderPainel(panel) {
-  const seg = document.getElementById('pb-modo');
   const simples = document.getElementById('pb-forn-simples');
   const box = document.getElementById('pb-forn-avancado');
   const info = document.getElementById('pb-km-info');
-  const pode = kitMontadoPermitido() && state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo'
-    && typeof orcamentoAberto === 'function' && orcamentoAberto();
   const ativo = kitMontadoAtivo();
-  // Simples × Avançado saiu do catálogo (17/11): o avançado é a aba "Montar kit" do topo.
-  seg?.classList.add('hidden');
-  seg?.querySelectorAll('[data-pb-modo]').forEach((b) => {
-    const on = (b.dataset.pbModo === 'avancado') === ativo;
-    b.classList.toggle('is-on', on);
-    b.setAttribute('aria-pressed', String(on));
-    b.disabled = typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando;
-  });
   simples?.classList.toggle('hidden', ativo);
   box?.classList.toggle('hidden', !ativo);
   info?.classList.toggle('hidden', !ativo);

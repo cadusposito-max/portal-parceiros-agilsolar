@@ -62,11 +62,11 @@
   <link rel="stylesheet" href="assets/css/ui-v2/eng.css?v=20261104-titular-uc" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/obras.css?v=20261116-os-link" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/arquivos.css?v=20261109-arqv2" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261117-consumo" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261117-limpeza" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261117-montar-kit" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261117-limpeza" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261006-pers2" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261117-placas" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261117-limpeza" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/hibrido.css?v=20261023-hibrido" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/campanhas.css?v=20261112-camp-proposta" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/tour.css?v=20261007-treino" data-ui-v2 media="not all">
@@ -629,39 +629,16 @@
 <div id="pb-parking" class="hidden">
   <div id="pb-embedded-panel" class="border border-neutral-800 bg-[#050505]">
 
-      <!-- ===== BARRA DE MODO ===== -->
-      <div id="pb-mode-bar" class="p-3 bg-black border-b border-neutral-800 flex flex-wrap gap-2 items-center">
-        <div class="flex bg-neutral-900 border border-neutral-800 shrink-0">
-          <button id="pb-mode-promocional-btn" onclick="setPBProposalMode('PROMOCIONAL')"
-            class="flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase transition-all bg-orange-500 text-black whitespace-nowrap">
-            PROMOCIONAL
-          </button>
-          <button id="pb-mode-personalizada-btn" onclick="setPBProposalMode('PERSONALIZADA')"
-            class="flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase transition-all text-neutral-500 hover:text-white whitespace-nowrap border-l border-neutral-800">
-            PERSONALIZADA
-          </button>
-
-        </div>
-        <p id="pb-mode-helper" class="text-[10px] text-neutral-500 font-medium">Promocional selecionado. Fluxo atual de kits prontos.</p>
-      </div>
-
-      <!-- ===== LINHA DE KITS: PROMOCIONAIS × CATÁLOGO (só no PROMOCIONAL · catalogo-distribuidoras.js) ===== -->
+      <!-- O seletor Promocionais · Catálogo · Montar kit fica no topo da tela (orcamento-tela.js). -->
+      <!-- ===== DESCRIÇÃO DA LINHA + chave On-grid/Híbrido (catalogo-distribuidoras.js, hibrido.js) ===== -->
       <div id="pb-linha" class="pbd-linha hidden">
-        <div class="pbd-linha-seg" role="group" aria-label="Lista de kits">
-          <button type="button" data-pb-linha="promocional"><i data-lucide="tag"></i> Kits promocionais</button>
-          <button type="button" data-pb-linha="catalogo"><i data-lucide="layout-grid"></i> Catálogo completo</button>
-        </div>
         <p id="pb-linha-hint" class="pbd-hint"></p>
       </div>
 
-      <!-- ===== PORTA: PELO CONSUMO × LISTA DE KITS (só no PROMOCIONAL · pb-dimensionar.js) ===== -->
-      <div id="pb-porta" class="pbd-porta hidden" role="group" aria-label="Como escolher o kit">
-        <button type="button" data-pb-porta="dim" class="pbd-porta-btn"><i data-lucide="calculator"></i><span class="pbd-porta-t">Pelo consumo</span></button>
-        <button type="button" data-pb-porta="kit" class="pbd-porta-btn"><i data-lucide="list"></i><span class="pbd-porta-t">Lista de kits</span></button>
-      </div>
+      <!-- ===== CONSUMO DO CLIENTE: um lugar só, opcional (pb-dimensionar.js) ===== -->
       <div id="pb-dim-panel" class="pbd hidden"></div>
 
-      <!-- ===== LISTA DE KITS: busca + tipo (só no PROMOCIONAL, porta "Lista de kits") ===== -->
+      <!-- ===== LISTA DE KITS: busca + tipo (inversor / micro) ===== -->
       <div id="pb-promocional-toolbar" class="pbl-barra">
         <label class="pbl-busca">
           <i data-lucide="search"></i>
@@ -1258,12 +1235,12 @@
   local('crm-metas.js',        '20260716-crm-loop');
   local('etiquetas.js',        '20261006-etq');
   local('analise.js',          '20261006-etq');
-  local('catalogo-distribuidoras.js', '20261117-montar-kit');
-  local('distribuidoras-integracao.js', '20261117-placas');
-  local('kit-montado.js',     '20261117-montar-kit');
+  local('catalogo-distribuidoras.js', '20261117-limpeza');
+  local('distribuidoras-integracao.js', '20261117-limpeza');
+  local('kit-montado.js',     '20261117-limpeza');
   local('produtos.js',         '20261110-campanhas');
-  local('pb-dimensionar.js',   '20261117-placas');
-  local('proposta-builder.js', '20261117-montar-kit');
+  local('pb-dimensionar.js',   '20261117-limpeza');
+  local('proposta-builder.js', '20261117-limpeza');
   local('centro-custo-calc.js', '20261116-tabinv');
   local('centro-custo-tela.js', '20261116-tabinv');
   local('orcamento-dre.js',    '20261117-tabedit');
@@ -1300,8 +1277,8 @@
   local('ui-v2-ficha.js',      '20261116-os-link');
   local('ui-v2-modais.js',     '20261006-fluxo');
   local('ui-v2-admin.js',      '20261110-campanhas');
-  local('orcamento-tela.js',   '20261117-montar-kit');
-  local('hibrido.js',         '20261117-montar-kit');
+  local('orcamento-tela.js',   '20261117-limpeza');
+  local('hibrido.js',         '20261117-limpeza');
   local('update-notice.js',    '20260929-rel3');
   local('push.js',             '20261007-notif');
   local('leads-meta-avisos.js', '20261006-sw');

@@ -356,31 +356,12 @@ function updatePBModeUI() {
   const mode            = state.pbProposalMode;
   const isPersonalizada = mode === PB_PROPOSAL_MODES.PERSONALIZADA;
 
-  const btnPromo   = document.getElementById('pb-mode-promocional-btn');
-  const btnCustom  = document.getElementById('pb-mode-personalizada-btn');
-  const helperText = document.getElementById('pb-mode-helper');
-
+  // (a escolha de modo mora no topo da tela de orçamento: orcamento-tela.js)
   const promoToolbar      = document.getElementById('pb-promocional-toolbar');
   const equipPanel        = document.getElementById('pb-equip-panel');
   const persHead          = document.getElementById('pb-pers-head');
   const productsContainer = document.getElementById('pb-products-container');
   const emptyEl           = document.getElementById('pb-empty');
-
-  const INACTIVE = 'flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase transition-all text-neutral-500 hover:text-white whitespace-nowrap border-l border-neutral-800';
-  const ACTIVE   = 'flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase transition-all bg-orange-500 text-black whitespace-nowrap';
-  const ACTIVE_BL = ACTIVE + ' border-l border-neutral-800';
-
-  if (btnPromo)  btnPromo.className  = (mode === 'PROMOCIONAL') ? ACTIVE : INACTIVE;
-  if (btnCustom) {
-    btnCustom.className = isPersonalizada ? ACTIVE_BL : INACTIVE;
-    btnCustom.classList.toggle('hidden', !canUsePersonalizada());
-  }
-
-  if (helperText) {
-    helperText.innerText = isPersonalizada
-      ? 'Modo personalizada ativo. Informe valor e potencia do sistema para gerar a proposta.'
-      : 'Promocional selecionado. Fluxo atual de kits prontos.';
-  }
 
   const hidePromo = isPersonalizada;
   if (promoToolbar)      promoToolbar.classList.toggle('hidden', hidePromo);

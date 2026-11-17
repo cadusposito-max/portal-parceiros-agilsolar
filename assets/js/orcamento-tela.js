@@ -315,11 +315,6 @@ function orcamentoLimparKit() {
   orcamentoAtualizarResumo();
 }
 
-function orcamentoVerLista() {
-  if (typeof pbSetPorta === 'function') pbSetPorta('kit');
-  document.getElementById('orcamento-builder-slot')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
 function orcamentoAtualizarResumo() {
   if (!orcamentoAberto()) return;
   const personalizada = state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA;

@@ -33,8 +33,8 @@ const HB_OVERLOAD = 1.6;      // placas até 160% do inversor (como nas cotaçõ
 const HB_MARCAS = { SAJ: 'SAJ', SUNGROW: 'Sungrow', 'LUXPOWER TEK': 'Luxpower', GROWATT: 'Growatt', 'FOX ESS': 'FoxESS', SECPOWER: 'Secpower', UNIPOWER: 'Unipower' };
 
 const _hb = {
-  ativo: false, cliente: null, portaAntes: null,
-  bateria: 'com', horas: 4, consumo: '', placas: null, mod: '', cargas: null,
+  ativo: false, cliente: null,
+  bateria: 'com', horas: 4, mod: '', cargas: null, // consumo e placas: os do topo do orçamento (pb-dimensionar.js)
   opcoes: null,                    // { carregando, erro, modulos, padrao } da Belenus (espelho, sem consultar a Belenus)
   cot: null, cotChave: '', cotando: false, cotErro: '', cotSeq: 0, escolha: 0,
 };
@@ -60,7 +60,7 @@ function hibridoAtivo() {
 
 function _hbNovoCliente() {
   Object.assign(_hb, {
-    cliente: _orcamentoClientId, bateria: 'com', horas: 4, placas: null, cot: null, cotChave: '', cotErro: '', escolha: 0,
+    cliente: _orcamentoClientId, bateria: 'com', horas: 4, cot: null, cotChave: '', cotErro: '', escolha: 0,
     cargas: HB_SUGERIDOS.map(([k, q]) => _hbAparelho(k, q)),
   });
 }
@@ -77,8 +77,6 @@ function hibridoModo(modo) {
   if (ligar) {
     if (_hb.cliente !== _orcamentoClientId || !_hb.cargas) _hbNovoCliente();
     _hb.ativo = true;
-    _hb.portaAntes = state.pbPorta;
-    state.pbPorta = 'kit';             // "Pelo consumo / Lista de kits" não valem no híbrido
     if (typeof _km !== 'undefined') _km.ativo = false;
     _hbCarregarOpcoes();
     if (typeof pbEstruturaCarregarOpcoes === 'function') pbEstruturaCarregarOpcoes();
@@ -93,8 +91,6 @@ function hibridoModo(modo) {
 function _hbDesligar() {
   if (!_hb.ativo) return;
   _hb.ativo = false;
-  if (_hb.portaAntes) state.pbPorta = _hb.portaAntes;
-  _hb.portaAntes = null;
 }
 
 // O próximo orçamento abre sempre em On-grid.
@@ -328,7 +324,7 @@ function hibridoRenderPainel(panel) {
     const ref = document.getElementById('pb-forn-avancado') || document.getElementById('pb-forn-simples');
     ref?.parentElement?.insertBefore(box, ref.nextSibling);
   }
-  ['pb-modo', 'pb-forn-simples', 'pb-forn-avancado', 'pb-km-info', 'pb-estrutura-hint', 'pb-fornecimento-aviso'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
+  ['pb-forn-simples', 'pb-forn-avancado', 'pb-km-info', 'pb-estrutura-hint', 'pb-fornecimento-aviso'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
   box.classList.remove('hidden');
   const hint = document.getElementById('pb-fornecimento-hint');
   if (hint) hint.textContent = 'A Belenus cota inversor híbrido, placas e, se tiver, a bateria (a plataforma calcula pelas cargas e pelo tempo de autonomia).';

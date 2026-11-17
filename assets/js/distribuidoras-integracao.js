@@ -219,12 +219,6 @@ function pbIntegracaoEscolher(campo, value) {
   pbIntegracaoInvalidar();
 }
 
-// Mudou a quantidade de placas (ao sair do campo): os kits cotados eram pra outra quantidade.
-function pbIntegracaoPlacas(value) {
-  _pbCot.placas = String(value || '');
-  if (_pbCot.kits.length || _pbCot.erro || _pbCot.carregando) pbIntegracaoInvalidar();
-}
-
 // Parâmetro mudou: some com os kits e o kit escolhido, e descarta a cotação em andamento.
 function pbIntegracaoInvalidar() {
   _pbCotSeq++;
@@ -581,6 +575,6 @@ async function integracaoTestar(provedor, btn) {
 }
 
 Object.assign(window, {
-  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoModuloW, pbIntegracaoTelhados, pbIntegracaoTelhadoOk, pbIntegracaoTelhadoOpcoesHTML, pbIntegracaoPainelHTML, pbIntegracaoLadoHTML, pbIntegracaoKitsDaVez, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoPlacas, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
+  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoModuloW, pbIntegracaoTelhados, pbIntegracaoTelhadoOk, pbIntegracaoTelhadoOpcoesHTML, pbIntegracaoPainelHTML, pbIntegracaoLadoHTML, pbIntegracaoKitsDaVez, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoInvalidar, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
   renderAdminDistribuidoras, integracaoSalvar, integracaoTestar,
 });

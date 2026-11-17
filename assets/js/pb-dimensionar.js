@@ -12,27 +12,16 @@
 // "Recomendado" = o mais barato deles que gera pelo menos a média.
 
 const PBD_MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const PBD_MESES_NOME = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const PBD_MESES_NASA = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-const PBD_DIAS = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-// Mesmos fatores do geracao-chart.js (fallback quando a cidade não tem HSP mensal).
-const PBD_FATORES_SAZONAIS = [1.15, 1.1, 1.05, 0.95, 0.85, 0.8, 0.8, 0.85, 0.95, 1.05, 1.1, 1.15];
 const PBD_LIGACOES = [
   { v: 'mono', label: 'Monofásico', taxa: 30 },
   { v: 'bi',   label: 'Bifásico',   taxa: 50 },
   { v: 'tri',  label: 'Trifásico',  taxa: 100 },
-];
-// Mesmas categorias das abas da lista (state.pbCategory): trocar aqui troca lá.
-const PBD_TIPOS = [
-  { v: 'kitsInversor', label: 'Inversor' },
-  { v: 'kitsMicro',    label: 'Microinversor' },
 ];
 // Faixa de geração (em relação à média) dos kits listados no resultado.
 const PBD_FAIXA_MIN = 0.95;
 const PBD_FAIXA_MAX = 1.30;
 
 let _pbd = null;              // estado do dimensionamento do cliente em atendimento
-const _pbdHspCache = {};      // ibge -> { anual, mensal } | null
 
 function _pbdNovoEstado(client) {
   return {
@@ -41,7 +30,6 @@ function _pbdNovoEstado(client) {
     meses: Array(12).fill(''),
     media: '',
     ligacao: 'mono',
-    hsp: null,                // { anual, mensal[12] } da cidade do cliente
   };
 }
 
@@ -117,64 +105,28 @@ function _pbdConsumoMudou() {
 
 // ---------- ciclo de vida (chamado pelo proposta-builder) ----------
 
-// Cliente novo na ficha: zera o dimensionamento e busca o HSP mensal da cidade.
+// Cliente novo no orçamento: zera o consumo e as placas.
+// (O HSP mensal da cidade só servia ao gráfico do antigo "Pelo consumo"; a geração usa client.hsp.)
 function pbDimSetup(client) {
   pbDimMount();
   if (!_pbd || !client || _pbd.clienteId !== client.id) {
     _pbd = _pbdNovoEstado(client);
     state.pbPlacas = null;
-    _pbdCarregarHsp(client);
   }
-  // A porta "Pelo consumo × Lista de kits" saiu: a lista está sempre aberta e o consumo fica em cima.
-  state.pbPorta = 'kit';
+  state.pbPorta = 'kit'; // a lista está sempre aberta (a porta "Pelo consumo × Lista" saiu em 17/11)
   pbDimSync();
-}
-
-// Compatibilidade: quem ainda chama (orcamentoVerLista) só cai na lista, que é a única porta.
-function pbSetPorta() {
-  state.pbPorta = 'kit';
-  pbDimSync();
-  renderModalProducts();
 }
 
 // Painel do consumo: aparece em todo orçamento de kit (promocionais, campanha, catálogo,
-// híbrido e kit montado). A personalizada tem a própria tela.
+// híbrido e kit montado). Os itens livres (personalizada) têm a própria tela.
 function pbDimSync() {
   const panel = document.getElementById('pb-dim-panel');
   if (!panel) return;
   const promo = state.pbProposalMode === PB_PROPOSAL_MODES.PROMOCIONAL;
-  document.getElementById('pb-porta')?.classList.add('hidden');
   panel.classList.toggle('hidden', !promo);
   if (typeof pbFornecimentoMount === 'function') pbFornecimentoMount();
   if (promo) pbDimRender();
   if (typeof kitMontadoSyncTela === 'function') kitMontadoSyncTela();
-}
-
-async function _pbdCarregarHsp(client) {
-  const ibge = Number(client?.cidade_ibge);
-  if (!ibge) return;
-  if (!(ibge in _pbdHspCache)) {
-    _pbdHspCache[ibge] = null;
-    try {
-      const { data, error } = await supabaseClient
-        .from('cidades_hsp')
-        .select('hsp_anual, hsp_mensal')
-        .eq('ibge_code', ibge)
-        .maybeSingle();
-      if (error) throw error;
-      const serie = data?.hsp_mensal;
-      const mensal = serie ? PBD_MESES_NASA.map((m) => Number(serie[m])) : null;
-      const anual = Number(data?.hsp_anual) || Number(serie?.ANN) || 0;
-      if (mensal && anual > 0 && mensal.every((v) => Number.isFinite(v) && v > 0)) {
-        _pbdHspCache[ibge] = { anual, mensal };
-      }
-    } catch (err) {
-      console.warn('[pb-dimensionar] HSP mensal indisponível; usando curva típica.', err);
-    }
-  }
-  if (_pbd && _pbd.clienteId === client.id) {
-    _pbd.hsp = _pbdHspCache[ibge];
-  }
 }
 
 // ---------- cálculo ----------
@@ -228,26 +180,6 @@ function _pbdRecomendar(categoria, media) {
     || kits.slice().sort((a, b) => (b.g - a.g) || porPreco(a, b))[0]
     || null;
   return { recomendado, outros: faixa.filter((x) => x !== recomendado), menorQueCobre };
-}
-
-function pbDimSetTipo(categoria) {
-  if (!PBD_TIPOS.some((t) => t.v === categoria) || state.pbCategory === categoria) return;
-  if (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando) return;
-  state.pbCategory = categoria;
-  if (typeof updatePBTabsUI === 'function') updatePBTabsUI();
-  if (typeof pbFornecimentoRender === 'function') pbFornecimentoRender(); // opções do filtro dependem do tipo
-  if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
-  pbDimRender();
-  _pbdRenderResultado();
-}
-
-// Distribui a geração média pelos 12 meses (mesma regra do geracao-chart.js).
-function _pbdGeracaoMensal(media) {
-  const hsp = _pbd.hsp;
-  const fatores = hsp ? hsp.mensal.map((v) => v / hsp.anual) : PBD_FATORES_SAZONAIS.slice();
-  const pesos = fatores.map((f, i) => f * PBD_DIAS[i] / 30);
-  const soma = pesos.reduce((a, b) => a + b, 0) || 12;
-  return pesos.map((p) => media * p * 12 / soma);
 }
 
 // ---------- render ----------
@@ -463,72 +395,4 @@ function _pbdRenderResultadoLogo() {
   _pbdRegraTexto();
   clearTimeout(_pbdTimer);
   _pbdTimer = setTimeout(_pbdRenderResultado, 180);
-}
-
-// Barras = consumo; linha = geração do kit recomendado. Cada mês tem uma
-// faixa invisível por cima (.pbd-hit) que mostra a caixinha do mês no hover/toque.
-function _pbdChartSVG(consumo, geracao) {
-  // Em tela estreita o viewBox encolhe para o texto não ficar miúdo.
-  const largura = document.getElementById('pbd-resultado')?.clientWidth || 640;
-  const W = largura < 520 ? 380 : 640, H = largura < 520 ? 190 : 200, L = 36, B = 24, T = 10;
-  const max = Math.max(1, ...consumo.map((v) => v || 0), ...geracao) * 1.12;
-  const cw = (W - L) / 12;
-  const y = (v) => H - B - (v / max) * (H - B - T);
-  const cx = (i) => L + i * cw + cw / 2;
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Consumo mensal do cliente e geração estimada do kit" data-w="${W}" data-h="${H}" data-l="${L}" data-b="${B}" data-t="${T}" data-max="${max}">`;
-  consumo.forEach((_, i) => { s += `<rect class="pbd-band" data-i="${i}" x="${L + i * cw}" y="${T}" width="${cw}" height="${H - B - T}" rx="6"/>`; });
-  [0, 0.5, 1].forEach((t) => {
-    const v = (max / 1.12) * t;
-    s += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--v2-line)" stroke-width="1"/>`;
-    s += `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--v2-ink-2)">${_pbdInt(v)}</text>`;
-  });
-  consumo.forEach((v, i) => {
-    if (v) s += `<rect class="pbd-bar" data-i="${i}" x="${L + i * cw + cw * 0.2}" y="${y(v)}" width="${cw * 0.6}" height="${Math.max(0, H - B - y(v))}" rx="4"/>`;
-    s += `<text x="${cx(i)}" y="${H - 6}" text-anchor="middle" font-size="11" fill="var(--v2-ink-2)">${PBD_MESES[i]}</text>`;
-  });
-  s += `<polyline fill="none" stroke="var(--v2-blue)" stroke-width="2.5" stroke-linejoin="round" points="${geracao.map((g, i) => `${cx(i)},${y(g)}`).join(' ')}"/>`;
-  geracao.forEach((g, i) => { s += `<circle class="pbd-dot" data-i="${i}" cx="${cx(i)}" cy="${y(g)}" r="3.5"/>`; });
-  consumo.forEach((_, i) => { s += `<rect class="pbd-hit" data-i="${i}" x="${L + i * cw}" y="0" width="${cw}" height="${H}"/>`; });
-  return s + '</svg>';
-}
-
-// Caixinha do mês: consumo e geração daquele mês (mouse no computador, toque no celular).
-function _pbdBindChart(host, consumo, geracao, media) {
-  const box = host.querySelector('.pbd-chart');
-  const svg = box?.querySelector('svg');
-  const tip = box?.querySelector('.pbd-tip');
-  if (!svg || !tip) return;
-  const W = Number(svg.dataset.w), H = Number(svg.dataset.h), L = Number(svg.dataset.l);
-  const B = Number(svg.dataset.b), T = Number(svg.dataset.t), max = Number(svg.dataset.max);
-  const cw = (W - L) / 12;
-  const y = (v) => H - B - (v / max) * (H - B - T);
-  let atual = -1;
-
-  const mostrar = (i) => {
-    if (i === atual) return;
-    atual = i;
-    svg.querySelectorAll('.pbd-band, .pbd-bar, .pbd-dot').forEach((el) => el.classList.toggle('is-on', Number(el.dataset.i) === i));
-    const c = consumo[i], g = geracao[i];
-    tip.innerHTML = `
-      <b class="pbd-tip-m">${PBD_MESES_NOME[i]}</b>
-      <span><i class="pbd-tip-c"></i>Consumo${media ? ' (média)' : ''} <b>${c ? _pbdInt(c) + ' kWh' : '—'}</b></span>
-      <span><i class="pbd-tip-g"></i>Geração <b>~${_pbdInt(g)} kWh</b></span>`;
-    tip.hidden = false;
-    const r = svg.getBoundingClientRect(), br = box.getBoundingClientRect();
-    const escala = r.width / W;
-    const x = (L + i * cw + cw / 2) * escala + (r.left - br.left);
-    const topo = Math.min(y(c || 0), y(g)) * escala + (r.top - br.top);
-    const tw = tip.offsetWidth, th = tip.offsetHeight;
-    tip.style.left = Math.min(Math.max(x - tw / 2, 0), br.width - tw) + 'px';
-    tip.style.top = Math.max(topo - th - 10, 0) + 'px';
-  };
-  const esconder = () => {
-    atual = -1;
-    tip.hidden = true;
-    svg.querySelectorAll('.is-on').forEach((el) => el.classList.remove('is-on'));
-  };
-  const alvo = (e) => e.target.closest && e.target.closest('.pbd-hit');
-  svg.addEventListener('pointermove', (e) => { const h = alvo(e); if (h) mostrar(Number(h.dataset.i)); });
-  svg.addEventListener('pointerdown', (e) => { const h = alvo(e); if (h) mostrar(Number(h.dataset.i)); });
-  svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') esconder(); });
 }

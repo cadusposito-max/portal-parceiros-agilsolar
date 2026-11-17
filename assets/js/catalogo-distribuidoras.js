@@ -150,11 +150,7 @@ function pbLinhaRender() {
   const campBox = pbCampanhaNoAr();
   box.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || (Boolean(state.isParceiro) && !(campBox && pbLinhaAtual() === campBox.linha))
     || (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()));
-  box.querySelectorAll('[data-pb-linha]').forEach((b) => {
-    const on = b.dataset.pbLinha === pbLinhaAtual();
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-pressed', String(on));
-  });
+  // (o seletor de linha mora no topo da tela: orcamento-tela.js)
   const hint = document.getElementById('pb-linha-hint');
   if (hint) {
     // campanha: faixa com a contagem no lugar do texto
@@ -453,11 +449,7 @@ function pbFornecimentoMount() {
     panel.id = 'pb-fornecimento-panel';
     panel.className = 'pbd-fornecimento';
     // Modo simples: filtros da lista de kits. Avançado (kit-montado.js): o vendedor monta o kit.
-    panel.innerHTML = `<div class="pbd-forn-topo"><div class="pbd-sec"><i data-lucide="boxes"></i> Equipamentos e distribuidora</div>
-        <div id="pb-modo" class="pbd-modo hidden" role="group" aria-label="Modo do orçamento">
-          <button type="button" data-pb-modo="simples" onclick="kitMontadoModo('simples')">Simples</button>
-          <button type="button" data-pb-modo="avancado" onclick="kitMontadoModo('avancado')">Avançado</button>
-        </div></div>
+    panel.innerHTML = `<div class="pbd-forn-topo"><div class="pbd-sec"><i data-lucide="boxes"></i> Equipamentos e distribuidora</div></div>
       <p id="pb-fornecimento-hint" class="pbd-hint"></p>
       <div id="pb-forn-simples" class="pbd-fornecimento-fields">
         <label id="pb-forn-telhado" class="pbd-forn-campo hidden"><i data-lucide="home" class="pbd-forn-ic"></i><span class="pbd-forn-cap" data-pb-cap="Telhado do cliente">1 · Telhado do cliente</span><select id="pb-filtro-telhado" class="pbd-input v2-select" data-titulo="Telhado do cliente" onchange="pbEstruturaEscolherValor(this.value)"></select></label>
@@ -471,14 +463,6 @@ function pbFornecimentoMount() {
       <div id="pb-fornecimento-aviso" class="pbd-hint" aria-live="polite"></div>`;
     document.getElementById('pb-kit-fornecimento-slot')?.appendChild(panel);
     if (window.lucide) lucide.createIcons();
-  }
-  const linha = document.getElementById('pb-linha');
-  if (linha && !linha.dataset.bound) {
-    linha.dataset.bound = '1';
-    linha.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-pb-linha]');
-      if (b) pbLinhaEscolher(b.dataset.pbLinha);
-    });
   }
   pbFornecimentoRender();
   if (!_catalogoDistrib.carregado && !_catalogoDistrib.erro) carregarCatalogoDistribuidoras().then(() => {
