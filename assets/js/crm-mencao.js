@@ -52,7 +52,7 @@
       return null;
     }
     // eng = engenharia central (sem a migration 20261027150000 a coluna não vem: deduz pelo papel)
-    const lista = (data || []).map((p) => ({ id: p.user_id, nome: nomeBonito(p.nome), papel: p.papel || '', eng: p.eng === undefined ? /^Matriz/.test(p.papel || '') : p.eng === true }));
+    const lista = (data || []).map((p) => ({ id: p.user_id, nome: nomeBonito(p.nome), papel: p.papel || '', eng: p.eng === undefined ? /^(Matriz|Engenharia)/.test(p.papel || '') : p.eng === true }));
     pessoas.set(clienteId, lista);
     return lista;
   }
