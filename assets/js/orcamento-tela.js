@@ -117,8 +117,14 @@ function orcamentoVerFicha() {
   openCrm360(id, 'propostas');
 }
 
-// Seletor do topo: a campanha no ar (quando tem) + as duas linhas de kits +
-// a Personalizada (admin e franqueado).
+// "Montar kit" (17/11) junta o antigo modo Avançado (equipamentos da distribuidora, preço
+// calculado) e a Personalizada (itens livres, preço digitado). Gestor monta pela
+// distribuidora; itens livres seguem só admin e franqueado.
+let _orcMontarFonte = '';
+function orcamentoPodeMontarDist() { return typeof kitMontadoPermitido === 'function' && kitMontadoPermitido(); }
+function orcamentoPodeMontar() { return !state.isParceiro && (orcamentoPodeMontarDist() || canUsePersonalizada()); }
+
+// Seletor do topo: a campanha no ar (quando tem) + Promocionais · Catálogo completo · Montar kit.
 function _orcamentoLinhasHTML() {
   const camp = window.Campanhas ? Campanhas.noAr() : null;
   // parceiro só tem os promocionais: sem seletor (com campanha, Campanha × Promocionais)
@@ -128,7 +134,7 @@ function _orcamentoLinhasHTML() {
     : [
       ['promocional', 'tag', 'Promocionais'],
       ['catalogo', 'layout-grid', 'Catálogo completo'],
-      ...(canUsePersonalizada() ? [['personalizada', 'lock', 'Personalizada']] : []),
+      ...(orcamentoPodeMontar() ? [['montar', 'wrench', 'Montar kit']] : []),
     ];
   const botaoCamp = camp
     ? `<button type="button" class="orc-camp" data-orc-linha="${escapeHTML(camp.linha)}" style="${Campanhas.vars(camp.cor)}" onclick="orcamentoEscolherLinha(this.dataset.orcLinha)" title="${escapeHTML(camp.nome)}">${Campanhas.tagHTML(camp)}<span class="ate">até ${escapeHTML(new Date(camp.fim).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }))}</span></button>`
@@ -138,20 +144,78 @@ function _orcamentoLinhasHTML() {
 }
 
 function _orcamentoLinhaAtual() {
-  if (state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA) return 'personalizada';
+  if (state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA) return 'montar';
+  if (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()) return 'montar';
   return typeof pbLinhaAtual === 'function' ? pbLinhaAtual() : 'promocional';
 }
 
 function orcamentoEscolherLinha(v) {
+  if (v === 'personalizada') v = 'montar'; // nome antigo (atalhos e tour)
   if (_orcamentoGerando || v === _orcamentoLinhaAtual()) return;
   if (state.isParceiro && v !== 'promocional' && !(window.Campanhas && Campanhas.daLinha(v))) return;
-  if (v === 'personalizada') {
-    setPBProposalMode(PB_PROPOSAL_MODES.PERSONALIZADA);
+  if (v === 'montar') {
+    const fonte = _orcMontarFonte || (orcamentoPodeMontarDist() ? 'dist' : 'livre');
+    orcamentoMontarFonte(fonte);
     return;
   }
+  // Saindo do Montar kit: o catálogo volta a ser a lista simples.
+  if (typeof _km !== 'undefined' && _km.ativo) {
+    _km.ativo = false;
+    if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
+  }
   if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL) setPBProposalMode(PB_PROPOSAL_MODES.PROMOCIONAL);
-  if (typeof pbLinhaEscolher === 'function') pbLinhaEscolher(v);
+  if (typeof pbLinhaEscolher === 'function' && pbLinhaAtual() !== v) pbLinhaEscolher(v);
+  else if (typeof pbFornecimentoSync === 'function') pbFornecimentoSync();
+  if (typeof pbDimSync === 'function') pbDimSync();
   orcamentoAtualizarResumo();
+}
+
+// Montar kit: "dist" = equipamentos da distribuidora (kit-montado.js); "livre" = itens livres (personalizada).
+function orcamentoMontarFonte(fonte) {
+  if (_orcamentoGerando) return;
+  if (fonte === 'livre' && !canUsePersonalizada()) return;
+  if (fonte === 'dist' && !orcamentoPodeMontarDist()) return;
+  _orcMontarFonte = fonte;
+  if (fonte === 'livre') {
+    if (typeof _km !== 'undefined') _km.ativo = false;
+    if (state.pbProposalMode !== PB_PROPOSAL_MODES.PERSONALIZADA) setPBProposalMode(PB_PROPOSAL_MODES.PERSONALIZADA);
+    else orcamentoAtualizarResumo();
+    return;
+  }
+  if (typeof hibridoAtivo === 'function' && hibridoAtivo()) hibridoModo('ongrid');
+  if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL) setPBProposalMode(PB_PROPOSAL_MODES.PROMOCIONAL);
+  if (typeof pbLinhaAtual === 'function' && pbLinhaAtual() !== 'catalogo') pbLinhaEscolher('catalogo');
+  if (typeof kitMontadoModo === 'function') kitMontadoModo('avancado');
+  orcamentoAtualizarResumo();
+}
+
+// Cabeçalho do Montar kit: como montar (distribuidora × itens livres). Fica no topo do painel.
+function _orcamentoMontarRender() {
+  const panel = document.getElementById('pb-embedded-panel');
+  if (!panel) return;
+  let box = document.getElementById('pb-montar');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'pb-montar';
+    box.className = 'pb-montar';
+    panel.insertBefore(box, document.getElementById('pb-linha') || panel.firstChild);
+    box.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-montar]');
+      if (b && !b.disabled) orcamentoMontarFonte(b.dataset.montar);
+    });
+  }
+  const ativo = _orcamentoLinhaAtual() === 'montar';
+  box.classList.toggle('hidden', !ativo);
+  if (!ativo) return;
+  const fonte = state.pbProposalMode === PB_PROPOSAL_MODES.PERSONALIZADA ? 'livre' : 'dist';
+  const pDist = orcamentoPodeMontarDist(), pLivre = canUsePersonalizada();
+  const btn = (v, ic, t, pode, trava) => `<button type="button" data-montar="${v}" class="${fonte === v ? 'is-on' : ''}" aria-pressed="${fonte === v}" ${pode ? '' : 'disabled'}><i data-lucide="${ic}"></i>${t}${pode ? '' : ` <small class="pb-montar-trava">${trava}</small>`}</button>`;
+  box.innerHTML = `<div class="pbd-sec">Como montar</div>
+    <div class="pbl-tipo" role="group" aria-label="Como montar o kit">${btn('dist', 'warehouse', 'Equipamentos da distribuidora', pDist, 'admin, gestor e franqueado')}${btn('livre', 'list-plus', 'Itens livres', pLivre, 'admin e franqueado')}</div>
+    <p class="pbd-hint">${fonte === 'dist'
+      ? 'Preço calculado pela plataforma (custo da distribuidora + margem da unidade). Fica travado e o custo vai pro DRE.'
+      : 'Você digita o preço de cada item: serviço, equipamento fora do catálogo ou kit com condição especial.'}</p>`;
+  if (window.lucide) lucide.createIcons();
 }
 
 function renderOrcamento() {
@@ -267,6 +331,7 @@ function orcamentoAtualizarResumo() {
     b.disabled = _orcamentoGerando && !on;
   });
   document.querySelector('.orcamento-tela')?.classList.toggle('is-personalizada', personalizada);
+  _orcamentoMontarRender();
 
   const r = personalizada ? null : _orcamentoResumoDim();
   const kit = personalizada ? null : _orcamentoKitAtual(r);
@@ -285,7 +350,7 @@ function orcamentoAtualizarResumo() {
   const label = document.getElementById('orcamento-selecao-label');
   const resumo = document.getElementById('orcamento-selecao');
   const btn = document.getElementById('orcamento-gerar');
-  if (label) label.textContent = personalizada ? 'Personalizada' : (kit && r?.recomendado && String(r.recomendado.id) === String(kit.id) && !_orcamentoKitId ? 'Recomendado' : 'Selecionado');
+  if (label) label.textContent = personalizada ? 'Itens livres' : (kit && r?.recomendado && String(r.recomendado.id) === String(kit.id) && !_orcamentoKitId ? 'Recomendado' : 'Selecionado');
   if (resumo) resumo.textContent = texto;
   if (btn) btn.disabled = !valido || _orcamentoGerando;
 

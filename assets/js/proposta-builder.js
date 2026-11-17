@@ -242,6 +242,7 @@ function pbEmbedSetup(client) {
   state.pbSearch       = '';
   state.pbProposalMode = PB_PROPOSAL_MODES.PROMOCIONAL;
   _pbListaTodos        = false;
+  if (typeof _km !== 'undefined') _km.ativo = false; // cliente novo começa fora do Montar kit
   resetPBEquipDraft();
   if (typeof pbFornecimentoReset === 'function') pbFornecimentoReset();
   if (typeof pbEstruturaReset === 'function') pbEstruturaReset();

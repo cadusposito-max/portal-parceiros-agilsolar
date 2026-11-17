@@ -474,7 +474,8 @@ function kitMontadoRenderPainel(panel) {
   const pode = kitMontadoPermitido() && state.pbProposalMode === 'PROMOCIONAL' && pbLinhaAtual() === 'catalogo'
     && typeof orcamentoAberto === 'function' && orcamentoAberto();
   const ativo = kitMontadoAtivo();
-  seg?.classList.toggle('hidden', !pode);
+  // Simples × Avançado saiu do catálogo (17/11): o avançado é a aba "Montar kit" do topo.
+  seg?.classList.add('hidden');
   seg?.querySelectorAll('[data-pb-modo]').forEach((b) => {
     const on = (b.dataset.pbModo === 'avancado') === ativo;
     b.classList.toggle('is-on', on);

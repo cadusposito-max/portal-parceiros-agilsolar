@@ -48,8 +48,10 @@ function hibridoDistribuidora() {
 }
 
 function hibridoPode() {
+  // Só no Catálogo completo (no Montar kit não: lá o kit é montado à mão).
   return typeof orcamentoAberto === 'function' && orcamentoAberto() && state.pbProposalMode === 'PROMOCIONAL'
-    && typeof pbLinhaAtual === 'function' && pbLinhaAtual() === 'catalogo' && Boolean(hibridoDistribuidora());
+    && typeof pbLinhaAtual === 'function' && pbLinhaAtual() === 'catalogo' && Boolean(hibridoDistribuidora())
+    && !(typeof _km !== 'undefined' && _km.ativo);
 }
 
 function hibridoAtivo() {

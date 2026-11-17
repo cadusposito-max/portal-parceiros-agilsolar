@@ -52,6 +52,17 @@ html[data-ui="v2"] body #orcamento-builder-slot .orcamento-kit-selecionado butto
 
 /* Linha de kits: o seletor mora no topo; aqui fica só a descrição da linha. */
 html[data-ui="v2"] body #orcamento-builder-slot #pb-linha { padding: 16px 18px 0; }
+/* Montar kit (17/11): "Como montar" no topo do painel. */
+html[data-ui="v2"] body #orcamento-builder-slot #pb-montar { padding: 4px 18px 14px; border-bottom: 1px solid var(--v2-line); }
+html[data-ui="v2"] body #orcamento-builder-slot #pb-montar.hidden { display: none !important; }
+html[data-ui="v2"] #pb-montar .pbl-tipo { flex-wrap: wrap; }
+html[data-ui="v2"] #pb-montar .pbl-tipo svg { width: 15px; height: 15px; }
+html[data-ui="v2"] body #pb-montar .pbl-tipo button:disabled { opacity: .55; cursor: not-allowed; }
+html[data-ui="v2"] #pb-montar .pb-montar-trava { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: var(--v2-card); color: var(--v2-ink-2); }
+html[data-ui="v2"] #pb-montar .pbd-hint { margin-top: 8px; }
+/* Itens livres: o "Como montar" já diz o que é e quem pode; o cabeçalho antigo da personalizada sai. */
+html[data-ui="v2"] body #orcamento-builder-slot #pb-pers-head { display: none !important; }
+@media (max-width: 640px) { html[data-ui="v2"] #pb-montar .pbl-tipo { display: flex; width: 100%; } html[data-ui="v2"] body #pb-montar .pbl-tipo button { flex: 1 1 100%; } }
 html[data-ui="v2"] body #orcamento-builder-slot #pb-linha.hidden { display: none !important; }
 html[data-ui="v2"] #orcamento-builder-slot #pb-linha .pbd-linha-seg { display: none; }
 html[data-ui="v2"] #orcamento-builder-slot #pb-linha .pbd-hint { margin-top: 0; }

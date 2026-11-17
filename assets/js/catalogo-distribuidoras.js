@@ -148,7 +148,8 @@ function pbLinhaRender() {
   if (!box) return;
   // parceiro não tem o texto da linha; a faixa da campanha aparece para ele também
   const campBox = pbCampanhaNoAr();
-  box.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || (Boolean(state.isParceiro) && !(campBox && pbLinhaAtual() === campBox.linha)));
+  box.classList.toggle('hidden', state.pbProposalMode !== 'PROMOCIONAL' || (Boolean(state.isParceiro) && !(campBox && pbLinhaAtual() === campBox.linha))
+    || (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()));
   box.querySelectorAll('[data-pb-linha]').forEach((b) => {
     const on = b.dataset.pbLinha === pbLinhaAtual();
     b.classList.toggle('on', on);
@@ -162,6 +163,8 @@ function pbLinhaRender() {
     hint.classList.toggle('tem-camp', naCampanha);
     if (naCampanha) {
       if (hint.dataset.camp !== camp.id) { hint.innerHTML = Campanhas.faixaHTML(camp); hint.dataset.camp = camp.id; }
+    } else if (typeof kitMontadoAtivo === 'function' && kitMontadoAtivo()) {
+      hint.textContent = ''; // Montar kit: o "Como montar" do topo já explica
     } else {
       hint.textContent = pbLinhaAtual() === 'promocional' ? pbTextoPromocionais() : (PB_LINHAS[pbLinhaAtual()] || '');
       delete hint.dataset.camp;
