@@ -46,6 +46,13 @@ function openOrcamento(clientId, pickerTab = null) {
       : null;
   }
   if (typeof closeCrm360 === 'function') closeCrm360();
+  // Admin: a proposta é gravada na unidade dele (state.franquiaId) e o banco não confere o
+  // preço do admin. Se a tela de Kits ficou em outra unidade, o orçamento cotava com o preço
+  // dela. Aqui volta pra unidade da proposta (o orcamentoAtualizarCatalogo abaixo recarrega).
+  if (state.isAdmin && state.franquiaId && state.adminKitsFranquia && state.adminKitsFranquia !== state.franquiaId) {
+    state.adminKitsFranquia = state.franquiaId;
+    _orcamentoKitId = null;
+  }
   if (_orcamentoClientId !== clientId) _orcamentoKitId = null;
   _orcamentoClientId = clientId;
   renderContent();
@@ -213,7 +220,11 @@ function orcamentoSelecionarKit(kitId) {
 // Kit da tabela (ativo e compatível com a seleção) ou kit cotado na distribuidora.
 function _orcamentoAcharKit(id) {
   if (!id) return null;
-  if (String(id).startsWith('cot:')) return typeof pbAcharKit === 'function' ? pbAcharKit(id) : null;
+  // Kit cotado vale só no tipo em que foi cotado: trocou Inversor ↔ Micro, ele sai da escolha.
+  if (String(id).startsWith('cot:')) {
+    const cot = typeof pbAcharKit === 'function' ? pbAcharKit(id) : null;
+    return cot && cot.categoria === state.pbCategory ? cot : null;
+  }
   const kit = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).find((k) => String(k.id) === String(id) && k.ativo !== false);
   return kit && (typeof pbKitCompativel !== 'function' || pbKitCompativel(kit)) ? kit : null;
 }

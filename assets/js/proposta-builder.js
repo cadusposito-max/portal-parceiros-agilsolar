@@ -457,6 +457,16 @@ function calcularTotaisPersonalizada(draft) {
   return { itens, subtotal, servicos, equipamentos, desconto, frete, total, potenciaAuto };
 }
 
+// Tipo do sistema pra conta da geração: micro só quando toda a potência vem de kits com
+// microinversor (o catálogo de equipamentos não tem micro avulso). Senão, inversor.
+function _pbCategoriaPersonalizada(itens) {
+  const comPotencia = (itens || []).filter((i) => _pbNum(i.qtd) > 0 && _pbNum(i.potencia_kwp_un) > 0);
+  if (!comPotencia.length) return undefined;
+  const micro = comPotencia.every((i) => i.origem === 'kit'
+    && (state.data || []).some((k) => String(k.id) === String(i.ref_id) && k.categoria === 'kitsMicro'));
+  return micro ? 'kitsMicro' : undefined;
+}
+
 function _pbPotenciaEfetiva(draft, tot) {
   if (draft.potenciaManual) return _pbNum(draft.potencia);
   return tot.potenciaAuto;
@@ -724,7 +734,7 @@ function updateEquipamentosPreview() {
   setTxt('pb-equip-potencia-valor', potencia > 0 ? `${_pbKwp(potencia)} kWp` : '—');
   const hint = document.getElementById('pb-equip-potencia-hint');
   if (hint) {
-    const geracao = potencia > 0 ? calcularGeracaoEstimada(potencia, undefined, state.pbActiveClient?.hsp) : 0;
+    const geracao = potencia > 0 ? calcularGeracaoEstimada(potencia, _pbCategoriaPersonalizada(tot.itens), state.pbActiveClient?.hsp) : 0;
     const gerTxt = geracao > 0 ? ` · ≈ ${Math.round(geracao).toLocaleString('pt-BR')} kWh/mês` : '';
     hint.textContent = draft.potenciaManual
       ? `Digitada à mão${tot.potenciaAuto > 0 ? ` (pelos itens: ${_pbKwp(tot.potenciaAuto)} kWp)` : ''}${gerTxt}`
@@ -970,7 +980,7 @@ async function handleEquipamentosProposalSubmit(event) {
       kit_power:               potencia,
       kit_price:               tot.total,
       kit_list_price:          tot.total,
-      geracao_estimada:        calcularGeracaoEstimada(potencia, undefined, client.hsp),
+      geracao_estimada:        calcularGeracaoEstimada(potencia, _pbCategoriaPersonalizada(tot.itens), client.hsp),
       consumo_medio:           typeof pbConsumoMedioProposta === 'function' ? pbConsumoMedioProposta() : null,
       custom_system_power_kwp: potencia,
       custom_equipment_price:  tot.equipamentos,
@@ -1262,6 +1272,11 @@ async function copyProposalLink(kit, event) {
   if (!kit._cotacaoId && !kit._montado && typeof pbKitCompativel === 'function' && !pbKitCompativel(kit)) return showToast('Este kit não está disponível na seleção atual. Escolha outro kit.');
   const client = state.pbActiveClient;
   if (!client) return showToast('Nenhum cliente em atendimento!');
+  // Admin com preços de outra unidade na tela: o banco gravaria esse preço na unidade do admin.
+  if (state.isAdmin && !kit._cotacaoId && !kit._montado && state.franquiaId && state.adminKitsFranquia
+    && state.adminKitsFranquia !== state.franquiaId) {
+    return showToast('Os preços na tela são de outra unidade. Feche e abra o orçamento de novo.');
+  }
 
   const btnCopiar   = event.currentTarget;
   const originalText= btnCopiar.innerHTML;

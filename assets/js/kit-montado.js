@@ -485,7 +485,9 @@ function kitMontadoRenderPainel(panel) {
   if (info) {
     const kwp = mod ? _km.placas * mod.w / 1000 : 0;
     const hsp = Number(state.pbActiveClient?.hsp) || undefined;
-    const ger = mod && typeof calcularGeracaoEstimada === 'function' ? Number(calcularGeracaoEstimada(kwp, 'kitsInversor', hsp)) || 0 : 0;
+    // Mesma conta da proposta: kit com microinversor usa a eficiência do micro.
+    const micro = (_km.linhas || []).some((l) => o?.inversores?.find((i) => i.id === l.id)?.fase === 'micro');
+    const ger = mod && typeof calcularGeracaoEstimada === 'function' ? Number(calcularGeracaoEstimada(kwp, micro ? 'kitsMicro' : 'kitsInversor', hsp)) || 0 : 0;
     info.innerHTML = mod ? `<i data-lucide="sun"></i><span>Sistema de <b>${_kmFmtKw(kwp)} kWp</b>${ger ? ` · ~<b>${Math.round(ger).toLocaleString('pt-BR')} kWh/mês</b>` : ''} · o kit sai com exatamente <b>${_km.placas}</b> ${_km.placas === 1 ? 'placa' : 'placas'}</span>` : '';
     info.classList.toggle('hidden', !mod);
   }
