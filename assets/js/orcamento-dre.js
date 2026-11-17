@@ -240,20 +240,21 @@
     const tag = `<span class="orc-adj" data-orc-adj="${def.key}" style="${ajustado(def.key) ? '' : 'display:none'}">ajustado<button type="button" data-orc-act="reset-linha" data-k="${def.key}" class="orc-adj-x" title="Voltar ao padrão da unidade"><i data-lucide="undo-2" class="w-3 h-3"></i></button></span>`;
     const nome = `<span class="orc-lbl font-bold text-neutral-300 text-sm">${escapeHTML(def.rotulo)}${def.contrato ? ' <span class="text-[10px] text-neutral-600 font-bold">· contrato</span>' : ''}</span>`;
     let ctrl;
-    if (!travada && CentroCustoCalc.ehTabela(l)) {
-      ctrl = `<span class="orc-lock"><i data-lucide="table" class="w-3 h-3"></i>${l.b === 'faixa_kw_inversor' ? 'Tabela por kW do inversor' : 'Tabela por kWp'} do centro de custo</span>`;
-    } else if (travada) {
+    if (travada) {
       ctrl = `<span class="orc-lock"><i data-lucide="lock" class="w-3 h-3"></i>${l.t === 'pct' ? pctFmt(l.v) + '% · ' + (BASES[l.b] || '').toLowerCase() : money(l.v) + ' fixo'}</span>`;
     } else {
+      // Tabela (faixa de kWp / kW do inversor): mostra o valor equivalente desta proposta, editável.
+      // Mexeu no valor ou na base → vira R$ normal ("ajustado"); o desfazer volta para a tabela.
+      const tab = CentroCustoCalc.ehTabela(l);
       const seg = `<span class="orc-seg"><button type="button" data-orc-tipo="pct" data-k="${def.key}" class="${l.t === 'pct' ? 'on' : ''}">%</button><button type="button" data-orc-tipo="brl" data-k="${def.key}" class="${l.t === 'brl' ? 'on' : ''}">R$</button></span>`;
       const inp = `<div class="relative orc-money orc-money-sm">
           <span class="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-neutral-500 font-bold">${l.t === 'pct' ? '%' : 'R$'}</span>
-          <input type="text" inputmode="decimal" autocomplete="off" data-orc-linha="${def.key}" value="${fmtIn(l.v)}"
+          <input type="text" inputmode="decimal" autocomplete="off" data-orc-linha="${def.key}" value="${fmtIn(tab ? valorTabela(l) : l.v)}"
             class="w-full pl-7 pr-2 py-1.5 lg:py-1 bg-neutral-950 border border-neutral-800 focus:border-emerald-500/60 outline-none text-white num font-black text-right text-sm">
         </div>`;
       const base = l.t === 'pct'
         ? `<select data-orc-base="${def.key}" class="orc-base">${Object.entries(BASES).map(([k, n]) => `<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`
-        : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${Object.entries(CentroCustoCalc.bases).filter(([k]) => !k.startsWith('faixa')).map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
+        : `<select aria-label="Base de ${escapeHTML(def.rotulo)}" data-orc-base="${def.key}" class="orc-base">${tab ? `<option value="${l.b}" data-orc-tab selected>${escapeHTML(tabelaTxt(l))}</option>` : ''}${Object.entries(CentroCustoCalc.bases).filter(([k]) => !k.startsWith('faixa')).map(([k,n])=>`<option value="${k}"${k === l.b ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
       ctrl = seg + inp + base + (limiteTxt(l) ? `<span class="text-[11px] text-neutral-500 font-bold">${limiteTxt(l)}</span>` : '');
     }
     if (cur._mob) return linhaRowMob(def, l, travada, tag, ctrl);
@@ -267,10 +268,20 @@
   // Regra da linha em texto curto ("13,8% da venda − kit", "R$ 70,00 por módulo").
   function regraTxt(l) {
     if (!l) return '';
-    if (CentroCustoCalc.ehTabela(l)) return CentroCustoCalc.bases[l.b];
+    if (CentroCustoCalc.ehTabela(l)) return money(valorTabela(l)) + ' ' + tabelaTxt(l).replace(/^Pela/, 'pela');
     return l.t === 'pct'
       ? pctFmt(l.v) + '% ' + (BASES[l.b] || '').replace(/^% /, '')
       : money(l.v) + ' ' + (CentroCustoCalc.bases[l.b] || '').replace(/^R\$ /, '') + (limiteTxt(l) ? ' · ' + limiteTxt(l) : '');
+  }
+  // Tabela do centro de custo: valor da faixa para esta proposta (kWp ou kW de inversor somado).
+  const valorTabela = (l) => valorLinha(l, num(cur.receita), num(cur.kit));
+  const tabelaTxt = (l) => `Pela tabela (${l.b === 'faixa_kw_inversor' ? pctFmt(cur.kwInversor) + ' kW de inversor' : pctFmt(cur.kwp) + ' kWp'})`;
+  // Sai da tabela mantendo o resultado: base nova com o valor que dá o mesmo total.
+  function soltarTabela(l, base, valor) {
+    const eq = valor != null ? valor : valorTabela(l);
+    const q = base === 'v' ? 1 : valorLinha(linha('brl', 1, base), 0, 0);
+    delete l.faixas; delete l.ate; delete l.ate_valor;
+    Object.assign(l, linha('brl', valor != null || !(q > 0) ? eq : r2(eq / q), base));
   }
   // "até 6 módulos: R$ 400,00" (fixo até o limite; acima, valor × quantidade toda)
   const UNID_LIMITE = { modulo: 'módulos', kwp: 'kWp', inversor: 'inversores', kw_inversor: 'kW' };
@@ -596,6 +607,12 @@
       if (tag) tag.style.display = ajustado(l.key) ? '' : 'none';
       const regra = document.querySelector(`[data-orc-regra="${l.key}"]`);
       if (regra) regra.textContent = regraTxt(cur.linhas[l.key]);
+      if (CentroCustoCalc.ehTabela(cur.linhas[l.key])) {
+        const inp = document.querySelector(`[data-orc-linha="${l.key}"]`);
+        if (inp && inp !== document.activeElement) inp.value = fmtIn(d.valores[l.key]);
+        const op = document.querySelector(`[data-orc-base="${l.key}"] [data-orc-tab]`);
+        if (op) op.textContent = tabelaTxt(cur.linhas[l.key]);
+      }
     });
     const curto = (v) => cur._mob ? 'R$ ' + Math.round(Number(v) || 0).toLocaleString('pt-BR') : money(v);
 
@@ -679,7 +696,7 @@
     const l = cur.linhas[key]; if (!l || l.t === tipo) return;
     const venda = num(cur.receita), kit = num(cur.kit);
     const atual = valorLinha(l, venda, kit);
-    delete l.ate; delete l.ate_valor;
+    delete l.ate; delete l.ate_valor; delete l.faixas;
     if (tipo === 'brl') { l.t = 'brl'; l.b = 'v'; l.v = r2(atual); }
     else {
       l.t = 'pct'; l.b = 'v';
@@ -706,8 +723,13 @@
         else if (key === 'kit') cur.kit = numIn(t.value);
         recalc();
       } else if (t.matches('[data-orc-linha]')) {
-        const l = cur.linhas[t.getAttribute('data-orc-linha')];
-        if (l) { l.v = Math.max(0, numIn(t.value)); recalc(); }
+        const k = t.getAttribute('data-orc-linha'), l = cur.linhas[k];
+        if (l && CentroCustoCalc.ehTabela(l)) {
+          soltarTabela(l, 'v', Math.max(0, numIn(t.value)));
+          const sel = root.querySelector(`[data-orc-base="${k}"]`);
+          if (sel) { sel.querySelector('[data-orc-tab]')?.remove(); sel.value = 'v'; }
+          recalc();
+        } else if (l) { l.v = Math.max(0, numIn(t.value)); recalc(); }
       } else if (t.matches('[data-orc-alvo]')) {
         cur.margem_alvo = Math.min(99, Math.max(0, numIn(t.value)));
         recalc();
@@ -724,7 +746,8 @@
       if (t.matches('[data-orc-base]')) {
         const l = cur.linhas[t.getAttribute('data-orc-base')];
         // O limite é na unidade da base antiga: trocar a base zera o limite.
-        if (l) { const novo = linha(l.t, l.v, t.value, { ...l, ate: t.value === l.b ? l.ate : 0 }); delete l.ate; delete l.ate_valor; Object.assign(l, novo); recalc(); }
+        if (l && CentroCustoCalc.ehTabela(l)) { if (t.value !== l.b) { soltarTabela(l, t.value); renderLinhas(); } }
+        else if (l) { const novo = linha(l.t, l.v, t.value, { ...l, ate: t.value === l.b ? l.ate : 0 }); delete l.ate; delete l.ate_valor; Object.assign(l, novo); recalc(); }
       } else if (t.matches('[data-orc-ex-field="tipo"]')) {
         const wrap = t.closest('[data-orc-extra]'); if (!wrap) return;
         const i = parseInt(wrap.getAttribute('data-orc-extra'), 10);
