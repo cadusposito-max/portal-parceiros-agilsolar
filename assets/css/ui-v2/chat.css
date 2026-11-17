@@ -46,3 +46,25 @@ html[data-ui="v2"] body .chat-directory-card { border: 0 !important; border-radi
 html[data-ui="v2"] body .chat-directory-item { border: 0 !important; border-radius: 14px !important; }
 html[data-ui="v2"] body .chat-directory-item:hover { background: var(--v2-bg) !important; }
 html[data-ui="v2"] body .chat-thread-profile-card { border: 0 !important; border-radius: 18px !important; background: var(--v2-card) !important; box-shadow: var(--v2-shadow-pop) !important; }
+
+/* Celular: bolinha do chat sempre visível e arrastável (chat.js _chatBindFabDrag).
+   Começa no canto de baixo, logo acima da barra de navegação; fica abaixo das
+   folhas (Mais / conta) e das janelas. No PC continua no topo, sem bolinha. */
+@media (max-width: 760px) {
+  html[data-ui="v2"] body #chat-fab-container:not(.hidden) {
+    display: block !important; z-index: 40 !important;
+    right: 10px; bottom: calc(96px + env(safe-area-inset-bottom));
+    transition: top .22s cubic-bezier(.2,.8,.2,1), left .22s cubic-bezier(.2,.8,.2,1);
+  }
+  html[data-ui="v2"] body #chat-fab-container.is-dragging { transition: none; }
+  html[data-ui="v2"] body .chat-fab-btn {
+    width: 52px !important; height: 52px !important; touch-action: none; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; cursor: grab;
+  }
+  html[data-ui="v2"] body .chat-fab-btn svg { width: 24px; height: 24px; }
+  html[data-ui="v2"] body .chat-fab-btn:hover { transform: none; }
+  html[data-ui="v2"] body #chat-fab-container.is-dragging .chat-fab-btn { transform: scale(1.08); cursor: grabbing; }
+  html[data-ui="v2"] body .chat-fab-badge { border-color: var(--v2-bg) !important; min-width: 20px; height: 20px; }
+  /* a bolinha já faz o papel: o botão ao lado do título sai (a busca ganha a largura) */
+  html[data-ui="v2"] .v2-top [data-v2="chat"] { display: none !important; }
+}

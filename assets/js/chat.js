@@ -374,7 +374,12 @@ function _chatUpdateFab() {
 
   if (wrap) {
     const show = _chatHasSession() && chat.hasAccess === true;
+    const estava = !wrap.classList.contains('hidden');
     wrap.classList.toggle('hidden', !show);
+    if (show && !estava && typeof _chatFabAplicarPos === 'function') {
+      _chatFabAplicarPos();
+      setTimeout(_chatFabAplicarPos, 800); // de novo quando as barras do celular já estiverem na tela
+    }
   }
 
   if (!badge) return;
@@ -1058,6 +1063,97 @@ function _chatStopPolling() {
   }
 }
 
+// Celular: a bolinha do chat pode ser arrastada. Ao soltar, gruda na borda
+// (esquerda ou direita) mais perto, sem invadir a barra de cima nem a de baixo.
+// A posição fica guardada neste aparelho. Toque sem arrastar = abre o chat.
+const CHAT_FAB_POS_KEY = 'chat-fab-pos';
+const CHAT_FAB_MOBILE = '(max-width: 760px)';
+
+function _chatFabLimites(size) {
+  const mtop = document.getElementById('v2-mtop');
+  const mnav = document.getElementById('v2-mnav');
+  // (offsetParent não serve: a barra de baixo é position:fixed e ele vem sempre null)
+  const visivel = (el) => el && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none';
+  // na 1ª carga as barras podem ainda não existir: reserva o espaço delas mesmo assim
+  const topo = Math.max(64, visivel(mtop) ? mtop.getBoundingClientRect().bottom : 0) + 8;
+  const baixo = Math.min(window.innerHeight - 92, visivel(mnav) ? mnav.getBoundingClientRect().top : Infinity) - 8 - size;
+  return { topo, baixo: Math.max(topo, baixo) };
+}
+
+function _chatFabAplicarPos() {
+  const wrap = _chatEl('chat-fab-container');
+  if (!wrap) return;
+  const limpar = () => { wrap.style.left = wrap.style.right = wrap.style.top = wrap.style.bottom = ''; };
+  if (!window.matchMedia(CHAT_FAB_MOBILE).matches) { limpar(); return; }
+  let pos = null;
+  try { pos = JSON.parse(localStorage.getItem(CHAT_FAB_POS_KEY) || 'null'); } catch (_) { pos = null; }
+  if (!pos || (pos.lado !== 'esq' && pos.lado !== 'dir') || typeof pos.y !== 'number') { limpar(); return; }
+  const size = wrap.offsetHeight || 52;
+  const { topo, baixo } = _chatFabLimites(size);
+  const y = Math.min(baixo, Math.max(topo, topo + pos.y * (baixo - topo)));
+  // sempre por left/top em px: assim o "grudar na borda" desliza (CSS transition)
+  const w = wrap.offsetWidth || size;
+  wrap.style.bottom = wrap.style.right = 'auto';
+  wrap.style.top = y + 'px';
+  wrap.style.left = (pos.lado === 'esq' ? 10 : window.innerWidth - w - 10) + 'px';
+}
+
+function _chatBindFabDrag() {
+  const wrap = _chatEl('chat-fab-container');
+  const btn = _chatEl('chat-fab-btn');
+  if (!wrap || !btn || btn.dataset.drag === '1') return;
+  btn.dataset.drag = '1';
+  let ini = null, arrastou = false;
+
+  btn.addEventListener('pointerdown', (e) => {
+    if (!window.matchMedia(CHAT_FAB_MOBILE).matches || (e.button && e.button !== 0)) return;
+    const r = wrap.getBoundingClientRect();
+    ini = { x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height };
+    arrastou = false;
+    try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  btn.addEventListener('pointermove', (e) => {
+    if (!ini) return;
+    if (!arrastou && Math.hypot(e.clientX - ini.x, e.clientY - ini.y) < 8) return;
+    arrastou = true;
+    wrap.classList.add('is-dragging');
+    const { topo, baixo } = _chatFabLimites(ini.h);
+    const x = Math.min(window.innerWidth - ini.w - 4, Math.max(4, e.clientX - ini.dx));
+    const y = Math.min(baixo, Math.max(topo, e.clientY - ini.dy));
+    wrap.style.right = wrap.style.bottom = 'auto';
+    wrap.style.left = x + 'px';
+    wrap.style.top = y + 'px';
+  });
+  const soltar = () => {
+    if (!ini) return;
+    const tam = ini.h;
+    ini = null;
+    wrap.classList.remove('is-dragging');
+    if (!arrastou) return;
+    const r = wrap.getBoundingClientRect();
+    const { topo, baixo } = _chatFabLimites(tam);
+    const lado = r.left + r.width / 2 < window.innerWidth / 2 ? 'esq' : 'dir';
+    const y = baixo > topo ? (Math.min(baixo, Math.max(topo, r.top)) - topo) / (baixo - topo) : 0;
+    try { localStorage.setItem(CHAT_FAB_POS_KEY, JSON.stringify({ lado, y: Math.round(y * 1000) / 1000 })); } catch (_) {}
+    _chatFabAplicarPos();
+  };
+  btn.addEventListener('pointerup', soltar);
+  btn.addEventListener('pointercancel', soltar);
+  // o "click" que vem depois de arrastar não abre o chat
+  btn.addEventListener('click', (e) => {
+    if (!arrastou) return;
+    arrastou = false;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+  }, true);
+
+  let t = null;
+  const reaplicar = () => { clearTimeout(t); t = setTimeout(_chatFabAplicarPos, 120); };
+  window.addEventListener('resize', reaplicar);
+  document.addEventListener('uiv2:change', reaplicar); // barras do celular (re)desenhadas
+  _chatFabAplicarPos();
+}
+
 function _chatBindEvents() {
   const fabBtn = _chatEl('chat-fab-btn');
   const closeBtn = _chatEl('chat-shell-close-btn');
@@ -1074,6 +1170,7 @@ function _chatBindEvents() {
   const dirList = _chatEl('chat-directory-list');
 
   if (fabBtn) fabBtn.addEventListener('click', _chatToggleShell);
+  _chatBindFabDrag();
   if (closeBtn) closeBtn.addEventListener('click', _chatCloseShell);
   if (backdrop) backdrop.addEventListener('click', _chatCloseShell);
   if (backBtn) backBtn.addEventListener('click', _chatBackToList);
