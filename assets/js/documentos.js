@@ -453,7 +453,6 @@ async function docCarregarConfig() {
   const propria = (linhas || []).find((l) => l.franquia_id === state.franquiaId);
   const matriz = (linhas || []).find((l) => l.franquia_id === FRANQUIA_MATRIZ_ID);
   const data = propria || (matriz ? { franquia_id: state.franquiaId, contratada: {}, procurador: matriz.procurador } : null);
-  if (!data) throw new Error('Dados da empresa para documentos não cadastrados.');
   // CNPJs da unidade (ambiente Rede). Com mais de um, o contrato deixa escolher
   // por qual deles sai; sem nenhum, vale só a contratada do documentos_config.
   const { data: empresas, error: errEmp } = await supabaseClient
@@ -464,9 +463,13 @@ async function docCarregarConfig() {
     .order('principal', { ascending: false })
     .order('razao_social', { ascending: true });
   if (errEmp) console.warn('[documentos] Falha ao carregar os CNPJs da unidade.', errEmp);
-  if (!(empresas || []).length && !data.contratada?.nome) {
-    const e = new Error('Unidade sem CNPJ cadastrado.');
-    e.semCnpj = true;
+  // o que falta pra gerar: a unidade vê o aviso com a lista (docAvisoFaltando)
+  const faltando = [];
+  if (!(empresas || []).length && !data?.contratada?.nome) faltando.push('cnpj');
+  if (!data?.procurador?.nome) faltando.push('procurador');
+  if (faltando.length) {
+    const e = new Error('Faltam dados para gerar documentos: ' + faltando.join(', '));
+    e.faltando = faltando;
     throw e;
   }
   _docConfigCache = { ...data, empresas: empresas || [] };
@@ -677,6 +680,40 @@ function _crm360ClientIdAtual() {
   return typeof _crm360ClientId !== 'undefined' ? _crm360ClientId : null;
 }
 
+// Unidade sem os dados da empresa: explica por que não dá pra gerar e o que falta.
+const DOC_FALTANDO = {
+  cnpj: ['building-2', 'CNPJ da unidade', 'O contrato sai no CNPJ da sua unidade, e ele ainda não foi cadastrado. Peça para a administração cadastrar no ambiente Rede.'],
+  procurador: ['user-round-x', 'Dados do procurador', 'Faltam os dados do engenheiro que assina a procuração. Peça para a administração da Matriz.'],
+};
+function docAvisoFaltando(faltando) {
+  document.getElementById('doc-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'doc-overlay';
+  overlay.className = 'fixed inset-0 z-[98] flex items-center justify-center bg-black/90 backdrop-blur-md p-3 md:p-6';
+  const fechar = "document.getElementById('doc-overlay')?.remove()";
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="bg-neutral-900 border-2 border-orange-600/40 w-full max-w-md flex flex-col animate-fade-in-up" role="alertdialog" aria-labelledby="doc-falta-tit">
+      <div class="flex justify-between items-center p-5 border-b border-neutral-800 bg-neutral-950">
+        <div><p id="doc-falta-tit" class="text-orange-500 text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2"><i data-lucide="file-signature" class="w-4 h-4"></i> Não dá pra gerar o contrato</p></div>
+        <button onclick="${fechar}" class="text-neutral-500 hover:text-white" title="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="p-5 space-y-3">
+        <p class="text-sm text-neutral-300 leading-relaxed">${faltando.length > 1 ? 'Faltam estes dados' : 'Falta este dado'} da sua unidade:</p>
+        ${faltando.map((k) => { const [i, t, d] = DOC_FALTANDO[k] || ['alert-circle', k, '']; return `
+        <div class="flex gap-3 items-start">
+          <i data-lucide="${i}" class="w-5 h-5 shrink-0 text-red-400 mt-1"></i>
+          <div><p class="text-sm font-bold text-neutral-200">${escapeHTML(t)}</p><p class="text-xs text-neutral-500 mt-1 leading-relaxed">${escapeHTML(d)}</p></div>
+        </div>`; }).join('')}
+      </div>
+      <div class="p-5 border-t border-neutral-800 bg-neutral-950 flex justify-end">
+        <button onclick="${fechar}" class="btn btn-primary">Entendi</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  if (window.lucide) lucide.createIcons();
+}
+
 // Abre o formulário a partir do cliente — não precisa de venda.
 // `origem` = 'venda:<id>' | 'proposta:<id>' | 'manual' | undefined (escolhe sozinho)
 async function abrirDocumentosCliente(clientId, origem) {
@@ -693,10 +730,9 @@ async function abrirDocumentosCliente(clientId, origem) {
   try {
     config = await docCarregarConfig();
   } catch (err) {
+    if (err && err.faltando) { docAvisoFaltando(err.faltando); return; }
     console.error('[documentos] Falha ao carregar documentos_config.', err);
-    showToast(err && err.semCnpj
-      ? 'Esta unidade ainda não tem CNPJ cadastrado. Peça para a administração cadastrar no ambiente Rede.'
-      : 'Não foi possível carregar os dados da empresa para os documentos.');
+    showToast('Não foi possível carregar os dados da empresa para os documentos.');
     return;
   }
 
