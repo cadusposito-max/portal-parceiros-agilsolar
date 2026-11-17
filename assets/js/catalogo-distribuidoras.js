@@ -99,9 +99,32 @@ function pbKitServeLigacao(kit, ligacao) {
 // Os promocionais são kits próprios (produtos.linha), com preço próprio: o
 // orçamento só mostra os da linha escolhida no seletor do topo.
 const PB_LINHAS = {
-  promocional: 'SOFAR com RONMA 620W de 5 a 21 módulos e microinversor Hoymiles de 4 a 20, com preço promocional.',
+  promocional: 'Kits RONMA 620 W com inversor e com microinversor, com preço promocional.',
   catalogo: 'Todas as marcas, até 150 módulos, nas distribuidoras Helte, AVT e Belenus.',
 };
+
+// Texto dos promocionais montado com os kits que estão ativos (o fixo acima ficou velho:
+// dizia SOFAR e até 21 módulos). Sem os kits/equipamentos carregados, fica o texto fixo.
+function pbPromocionaisFaixa(categoria) {
+  const kits = (state.data || []).filter((k) => k.linha === 'promocional' && k.ativo !== false && k.categoria === categoria && Number(k.modulo_qtd) > 0);
+  if (!kits.length) return null;
+  const qtds = kits.map((k) => Number(k.modulo_qtd));
+  const marcas = [...new Set(kits.map((k) => pbMarcaDoComponente(k.inversor_id, 'inversor')).filter(Boolean))];
+  const modulos = [...new Set(kits.map((k) => pbDescricaoModulo(_catalogoDistrib.equipamentos.find((e) => String(e.id) === String(k.modulo_id)))).filter(Boolean))];
+  return { min: Math.min(...qtds), max: Math.max(...qtds), marcas, modulos };
+}
+
+function pbTextoPromocionais() {
+  const inv = pbPromocionaisFaixa('kitsInversor');
+  const mic = pbPromocionaisFaixa('kitsMicro');
+  if (!inv?.marcas.length && !mic?.marcas.length) return PB_LINHAS.promocional;
+  const mod = [...new Set([...(inv?.modulos || []), ...(mic?.modulos || [])])].join(' / ');
+  const partes = [
+    inv?.marcas.length ? `${inv.marcas.join('/')} de ${inv.min} a ${inv.max} módulos` : '',
+    mic?.marcas.length ? `microinversor ${mic.marcas.join('/')} de ${mic.min} a ${mic.max}` : '',
+  ].filter(Boolean);
+  return `${mod ? mod.replace(' · ', ' ') + ': ' : ''}${partes.join(' e ')}, com preço promocional.`;
+}
 
 // Campanha no ar (campanhas.js): a linha dela vale enquanto estiver no prazo.
 function pbCampanhaNoAr() {
@@ -140,7 +163,7 @@ function pbLinhaRender() {
     if (naCampanha) {
       if (hint.dataset.camp !== camp.id) { hint.innerHTML = Campanhas.faixaHTML(camp); hint.dataset.camp = camp.id; }
     } else {
-      hint.textContent = PB_LINHAS[pbLinhaAtual()] || '';
+      hint.textContent = pbLinhaAtual() === 'promocional' ? pbTextoPromocionais() : (PB_LINHAS[pbLinhaAtual()] || '');
       delete hint.dataset.camp;
     }
   }

@@ -354,9 +354,10 @@ function pbDimResumo() {
   if (!motivo && typeof pbLinhaAtual === 'function' && pbLinhaAtual() !== 'catalogo'
     && (!recomendado || recomendado.g < c.media * PBD_FAIXA_MIN)) {
     const camp = window.Campanhas ? Campanhas.daLinha(pbLinhaAtual()) : null;
+    const faixa = typeof pbPromocionaisFaixa === 'function' ? pbPromocionaisFaixa(tipo) : null;
     motivo = camp
       ? `Os kits da campanha ${camp.nome} não cobrem esse consumo. Use os Promocionais ou o Catálogo completo.`
-      : 'Os kits promocionais vão até 21 módulos e não cobrem esse consumo. Use o Catálogo completo.';
+      : `Os kits promocionais ${tipoNome} vão até ${faixa ? faixa.max : 20} módulos e não cobrem esse consumo. Use o Catálogo completo.`;
   }
   if (!recomendado && !motivo) motivo = `Nenhum kit ${tipoNome} disponível com esta seleção. Confira os equipamentos e a distribuidora escolhidos.`;
   r.motivo = motivo;
