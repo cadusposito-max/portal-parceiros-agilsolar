@@ -1186,7 +1186,9 @@ function renderModalProducts() {
   let rodape = '';
   if (temConsumo && !state.pbSearch) {
     const escolhido = typeof _orcamentoKitId !== 'undefined' ? _orcamentoKitId : null;
-    const perto = list.filter((k) => pbDimNaFaixa(k, r)
+    // "Perto do consumo" respeita a ligação (inversor trifásico só pra ligação trifásica), como o recomendado.
+    const serve = (k) => typeof _pbdServeLigacao !== 'function' || _pbdServeLigacao(k);
+    const perto = list.filter((k) => (pbDimNaFaixa(k, r) && serve(k))
       || (r.recomendado && String(r.recomendado.id) === String(k.id)) || String(k.id) === String(escolhido));
     const resto = list.length - perto.length;
     if (perto.length && resto > 0) {
@@ -1543,7 +1545,8 @@ function openFechaVenda(clientId) {
     .map((k, i) => {
       const curto = _fvNomeCurto(k.name);
       return {
-        id: 'c:' + (k.id || i), curto, promo: (k.linha || 'catalogo') !== 'catalogo', micro: /micro/i.test(k.name || ''),
+        // micro pela categoria do kit (antes era pelo nome, que nem sempre diz "micro")
+        id: 'c:' + (k.id || i), curto, promo: (k.linha || 'catalogo') !== 'catalogo', micro: k.categoria === 'kitsMicro',
         kit: { nome: k.name, preco: k.price, power: k.power, brand: k.brand },
         busca: _fvNorm(`${k.name} ${curto} ${k.brand || ''} ${k.power || ''} kwp ${k.linha === 'promocional' ? 'promocional' : ''}`),
       };

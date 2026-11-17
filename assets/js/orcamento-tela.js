@@ -385,9 +385,14 @@ function _orcamentoVizinhos(kit) {
   if (!kit || kit._montado || String(kit.id).startsWith('cot:')) return { menor: null, maior: null };
   // Com consumo informado, respeita a ligação escolhida (inversor trifásico só em ligação trifásica).
   const porConsumo = typeof _pbdServeLigacao === 'function' && typeof _pbd !== 'undefined' && _pbd && Boolean(_orcamentoResumoDim());
+  const marcaInvDe = (k) => (typeof pbMarcaDoComponente === 'function' ? pbMarcaDoComponente(k.inversor_id, 'inversor') : '');
+  const marcaInv = marcaInvDe(kit);
   const mesmos = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter((k) => k.categoria === kit.categoria && k.ativo !== false && Number(k.price) > 0
     && String(k.brand || '') === String(kit.brand || '')
     && (!kit.modulo_id || String(k.modulo_id || '') === String(kit.modulo_id))
+    // mesma marca de inversor e mesma distribuidora: "+1 módulo" não pula pra kit de outra marca/fornecedor
+    && (!marcaInv || marcaInvDe(k) === marcaInv)
+    && String(k.distribuidora_id || '') === String(kit.distribuidora_id || '')
     && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k))
     && (!porConsumo || _pbdServeLigacao(k)));
   const p = Number(kit.power) || 0;
