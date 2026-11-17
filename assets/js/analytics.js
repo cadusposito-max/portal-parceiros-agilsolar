@@ -119,7 +119,11 @@
       error_tracking: {
         captureExtensionExceptions: false,
       },
-      disable_session_recording: !isInternalMode,
+      // Gravação de sessão DESLIGADA em todos os modos (17/11/2026): ela acompanhava cada
+      // redesenho da tela e travava ~100 ms (PC rápido) a cada troca de ambiente/aba.
+      // Eventos e erros continuam indo pro PostHog. Para depurar algo pontual, trocar
+      // por `!isInternalMode` religa (custo de desempenho volta junto).
+      disable_session_recording: true,
       session_recording: {
         // Session replay para debug: campos nao sensiveis visiveis; senha e email continuam mascarados.
         maskAllInputs: false,

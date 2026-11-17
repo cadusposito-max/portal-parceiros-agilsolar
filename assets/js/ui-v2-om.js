@@ -140,24 +140,59 @@
   }
 
   // ==================== CENTRAL ====================
+  // A Central guarda o que buscou (por login). Voltando a ela, os números aparecem
+  // na hora e as 5 consultas rodam por trás; só redesenha se algo mudou.
+  let centralCache = null; // { uid, dados: [k, sem, os, props, tecs], json }
+  let centralBuscando = null;
+  const centralNaTela = () => state.environment === 'om' && state.omActiveTab === 'central';
+
+  function buscarCentral() {
+    if (centralBuscando) return centralBuscando;
+    const uid = state.currentUser && state.currentUser.id;
+    const nomes = ['get_om_kpis_central', 'get_om_weekly_activity', 'list_om_os', 'list_om_propostas', 'list_om_tecnicos'];
+    centralBuscando = Promise.all(nomes.map((n) => supabaseClient.rpc(n).then((r) => r, (e) => ({ error: e }))))
+      .then((res) => {
+        // consulta que falhou: mantém o que já havia guardado dela (em vez de zerar a tela)
+        const antigos = centralCache && centralCache.uid === uid ? centralCache.dados : null;
+        const dados = res.map((r, i) => (r && !r.error && r.data) || (antigos && antigos[i]) || (i === 0 ? {} : []));
+        const json = JSON.stringify(dados);
+        const mudou = !antigos || json !== centralCache.json;
+        centralCache = { uid, dados, json };
+        return mudou;
+      })
+      .finally(() => { centralBuscando = null; });
+    return centralBuscando;
+  }
+
   async function renderCentralV2(container) {
     container.className = 'v2s';
     document.body.dataset.v2screen = 'om-central';
+    const uid = state.currentUser && state.currentUser.id;
+    const temGuardado = centralCache && centralCache.uid === uid;
+    if (temGuardado) pintarCentral(container);
+    else {
+      setPageMeta('om:central', ...tituloCentral());
+      container.innerHTML = `<div class="v2-card v2-empty">Carregando a central…</div>`;
+    }
+
+    const mudou = await buscarCentral();
+    if (!centralNaTela() || !document.body.contains(container)) return; // trocou de tela no meio
+    if (!temGuardado || mudou) pintarCentral(container);
+  }
+
+  function tituloCentral() {
     const nome = state.profile && state.profile.nome ? state.profile.nome.split(' ')[0] : '';
     const h = new Date().getHours();
     const titulo = `${h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'}${nome ? ', ' + nome : ''}`;
     const dia = cap(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }));
     const celular = window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
-    const sub = celular ? dia : `${dia} · Operação e manutenção`;
-    setPageMeta('om:central', titulo, sub);
-    container.innerHTML = `<div class="v2-card v2-empty">Carregando a central…</div>`;
+    return [titulo, celular ? dia : `${dia} · Operação e manutenção`];
+  }
 
-    const nomes = ['get_om_kpis_central', 'get_om_weekly_activity', 'list_om_os', 'list_om_propostas', 'list_om_tecnicos'];
-    const res = await Promise.all(nomes.map((n) => supabaseClient.rpc(n).then((r) => r, (e) => ({ error: e }))));
-    if (state.environment !== 'om' || state.omActiveTab !== 'central') return; // trocou de tela no meio
-    const [kRaw, sem, os, props, tecs] = res.map((r, i) => (r && !r.error && r.data) || (i === 0 ? {} : []));
+  function pintarCentral(container) {
+    const [kRaw, sem, os, props, tecs] = centralCache.dados;
     const k = kRaw || {};
-    setPageMeta('om:central', titulo, sub); // o render do shell pode ter limpado durante a espera
+    setPageMeta('om:central', ...tituloCentral()); // o render do shell pode ter limpado durante a espera
 
     const sla = k.sla_min == null ? '—' : k.sla_min < 60 ? Math.round(k.sla_min) + ' min' : (k.sla_min / 60).toFixed(1).replace('.', ',') + 'h';
     state.omTecCache = { tecnicos: tecs, oss: os, at: Date.now() }; // agenda do técnico abre direto da Central (aba Técnicos saiu)
@@ -212,17 +247,25 @@
       <div class="v2om-donut"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="t"/><circle cx="60" cy="60" r="52" class="p" stroke-dasharray="${(pct / 100) * C} ${C}"/></svg><div><b>${pct}%</b><small>concluídas</small></div></div>
       <div class="v2om-leg" style="justify-content:center"><span><i class="f"></i>Concluídas · ${fin}</span><span><i></i>Restantes · ${Math.max(0, tot - fin)}</span></div></div>`;
 
-    container.innerHTML = `
+    const corpo = `${kpis}
+      <div class="v2-row">${semana}${proxima}</div>
+      ${propsCard}
+      <div class="v2-row">${equipe}${progresso}</div>`;
+    // Já está na Central (atualização que chegou por trás): troca só os números,
+    // sem mexer na busca — quem estava digitando não perde o texto nem os resultados.
+    const corpoAtual = container.querySelector(':scope > .v2om-central-corpo');
+    if (corpoAtual && container.querySelector(':scope > .v2om-busca')) {
+      corpoAtual.innerHTML = corpo;
+    } else {
+      container.innerHTML = `
       <div class="v2-toolbar v2om-busca">
         <label class="v2-sbox">${ic('search')}<input id="om-central-search" type="text" placeholder="Buscar cliente por nome, telefone, CPF/CNPJ ou endereço" autocomplete="off" oninput="uiV2Om.busca(this.value)"></label>
         <button class="v2-btn2" onclick="omOpenCreateClient()">${ic('user-plus')}Criar cliente O&amp;M</button>
         <button class="v2-btno hide-m" style="width:auto;height:44px" onclick="omOpenCreateProposta()">${ic('plus')}Nova proposta O&amp;M</button>
         <div class="v2om-res"></div>
       </div>
-      ${kpis}
-      <div class="v2-row">${semana}${proxima}</div>
-      ${propsCard}
-      <div class="v2-row">${equipe}${progresso}</div>`;
+      <div class="v2om-central-corpo" style="display:contents">${corpo}</div>`;
+    }
     icons();
   }
 
