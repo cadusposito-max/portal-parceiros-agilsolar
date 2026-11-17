@@ -205,6 +205,14 @@ function pbIntegracaoPreencherFiltros(selMod, selInv) {
   return 'Escolha o módulo e a marca, informe as placas e clique em Cotar kits.';
 }
 
+// Potência (W) do módulo escolhido pra cotar; sem a lista ainda, 620 W (o padrão das cotações).
+function pbIntegracaoModuloW() {
+  const o = _pbCotOpcoes[_pbFornecimento.distribuidora];
+  const sku = _pbCotSel.modulo || o?.padrao;
+  const w = Number(o?.modulos?.find((m) => m.sku === sku)?.potencia);
+  return w > 0 ? w : 620;
+}
+
 function pbIntegracaoEscolher(campo, value) {
   if (campo === 'modulo') _pbCotSel.modulo = String(value || '');
   if (campo === 'inversor') _pbCotSel.marca = String(value || '');
@@ -566,6 +574,6 @@ async function integracaoTestar(provedor, btn) {
 }
 
 Object.assign(window, {
-  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoTelhados, pbIntegracaoTelhadoOk, pbIntegracaoTelhadoOpcoesHTML, pbIntegracaoPainelHTML, pbIntegracaoLadoHTML, pbIntegracaoKitsDaVez, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoPlacas, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
+  carregarIntegracoesAtivas, pbIntegracaoAtual, pbIntegracaoModuloW, pbIntegracaoTelhados, pbIntegracaoTelhadoOk, pbIntegracaoTelhadoOpcoesHTML, pbIntegracaoPainelHTML, pbIntegracaoLadoHTML, pbIntegracaoKitsDaVez, pbIntegracaoPreencherFiltros, pbIntegracaoAlertaHTML, pbAlertaHTML, pbIntegracaoEscolher, pbIntegracaoPlacas, pbIntegracaoCarregarOpcoes, pbIntegracaoCotar, pbCotacaoKits, pbAcharKit,
   renderAdminDistribuidoras, integracaoSalvar, integracaoTestar,
 });

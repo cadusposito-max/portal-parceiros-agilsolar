@@ -93,51 +93,40 @@ const TOUR_PASSOS = [
     texto: () => `Este é o orçamento de <b>${escapeHTML(_tourCliente())}</b>. No topo, confira a cidade, a irradiação solar da região (HSP) e o WhatsApp do cliente.<br><br>Em <b>Promocionais</b> ficam os kits com preço promocional; em <b>Catálogo completo</b>, todas as marcas. Neste treino, use <b>Promocionais</b>.`,
   },
   {
-    id: 'porta', alvo: () => _tourVis('#orcamento-builder-slot #pb-porta'), senaoVolta: 'nova',
-    // O seletor do topo fica livre no passo anterior: o treino segue nos promocionais.
-    entrar: () => { if (typeof orcamentoEscolherLinha === 'function') orcamentoEscolherLinha('promocional'); },
-    titulo: () => 'Formas de montar o orçamento',
-    texto: () => '<b>Lista de kits</b>: quando você já sabe qual kit oferecer.<br><b>Pelo consumo</b>: quando você tem a conta de luz e deseja que a plataforma recomende o kit.<br><br>Selecione <b>Pelo consumo</b>.',
-    esperar: () => state.pbPorta === 'dim',
-  },
-  {
-    // O painel abre no "mês a mês", que já sugere kit com um mês preenchido:
-    // o tour pede a média primeiro para não avançar no meio do preenchimento.
-    id: 'consumo-modo', senaoVolta: 'porta',
-    alvo: () => _tourVis('[data-pbd-grupo="modo"]'),
+    // O consumo fica no topo do orçamento (17/11: saiu a escolha "Pelo consumo × Lista de kits").
+    id: 'consumo-media', senaoVolta: 'orc',
+    // O seletor do topo fica livre no passo anterior: o treino segue nos promocionais, na média.
+    entrar: () => {
+      if (typeof orcamentoEscolherLinha === 'function') orcamentoEscolherLinha('promocional');
+      document.querySelector('[data-pbd-modo="media"]:not(.is-on)')?.click();
+    },
+    alvo: () => _tourVis('#pb-dim-panel .pbd-cons') || _tourVis('#pbd-box-media'),
     titulo: () => 'Consumo de energia',
-    texto: () => 'O consumo pode ser informado mês a mês, conforme o histórico da conta de luz, ou pela média mensal.<br><br>Para este orçamento, selecione <b>Só a média em kWh</b>.',
-    esperar: () => Boolean(document.querySelector('[data-pbd-modo="media"].is-on')),
+    texto: () => 'Informe a <b>média mensal de consumo</b> do cliente, em kWh, e selecione <b>Próximo</b>. O consumo é opcional, mas com ele a plataforma recomenda o kit.<br><br>Quando quiser mais precisão, use <b>Mês a mês</b> com o histórico da conta de luz.',
+    validar: () => (_tourVis('#orcamento-lado .orc-kit') ? '' : 'Informe a média de consumo para continuar.'),
   },
   {
-    id: 'consumo-media', senaoVolta: 'consumo-modo',
-    alvo: () => _tourVis('#pbd-box-media'),
-    titulo: () => 'Média de consumo',
-    texto: () => 'Informe a média mensal de consumo do cliente, em kWh, e selecione <b>Próximo</b>.<br><br>Quando quiser mais precisão, utilize o preenchimento mês a mês.',
-    validar: () => (_tourVis('#orcamento-lado .orc-kit') || _tourVis('#pbd-resultado .pbd-kit') ? '' : 'Informe a média de consumo para continuar.'),
-  },
-  {
-    id: 'ligacao', alvo: () => _tourVis('[data-pbd-ligacao]')?.parentElement, senaoVolta: 'porta',
+    id: 'ligacao', alvo: () => _tourVis('[data-pbd-ligacao]')?.parentElement, senaoVolta: 'orc',
     titulo: () => 'Tipo de ligação',
-    texto: () => 'Selecione monofásico, bifásico ou trifásico, conforme indicado na conta de luz. Essa informação define a taxa mínima cobrada pela distribuidora mesmo com o sistema instalado: 30, 50 ou 100 kWh.',
+    texto: () => 'Selecione monofásico, bifásico ou trifásico, conforme indicado na conta de luz. Kit com inversor trifásico só aparece pra ligação trifásica, e consumo abaixo da taxa mínima (30, 50 ou 100 kWh) gera um aviso.',
   },
   {
-    id: 'tipo', alvo: () => _tourVis('[data-pbd-tipo]')?.parentElement, senaoVolta: 'porta',
+    id: 'tipo', alvo: () => _tourVis('#orcamento-builder-slot .pbl-tipo'), senaoVolta: 'orc',
     titulo: () => 'Inversor ou microinversor',
     texto: () => `Selecione o tipo de sistema. O kit recomendado, ${_tourOndeKit()}, é atualizado automaticamente.`,
   },
   {
-    // Ilumina o kit junto com "Ajustar" e "Ver todos os kits", que o texto cita.
-    id: 'kit', senaoVolta: 'porta', atalho: _tourGerou,
+    // Ilumina o kit junto com "Ajustar", que o texto cita.
+    id: 'kit', senaoVolta: 'orc', atalho: _tourGerou,
     alvo: () => (_tourVis('#orcamento-lado .orc-kit')
-      ? [_tourVis('#orcamento-lado .orc-kit'), _tourVis('#orcamento-lado .orc-aj'), _tourVis('#orcamento-lado .orc-ver-todos')]
+      ? [_tourVis('#orcamento-lado .orc-kit'), _tourVis('#orcamento-lado .orc-aj')]
       : _tourVis('#orcamento-lado')),
     anel: () => _tourVis('#orcamento-lado .orc-kit'),
     titulo: () => 'Kit recomendado',
-    texto: () => 'Este é o kit <b>de menor preço que atende à média de consumo</b> do cliente.<br><br>Em <b>Ajustar</b>, você troca por um kit com um módulo a menos ou a mais. Em <b>Ver todos os kits</b>, escolhe outro na lista.',
+    texto: () => 'Este é o kit <b>de menor preço que gera a média de consumo</b> do cliente.<br><br>Em <b>Ajustar</b>, você troca por um kit com um módulo a menos ou a mais. Na lista ao lado, os kits perto do consumo aparecem primeiro; clique em outro pra escolher.',
   },
   {
-    id: 'gerar', alvo: () => _tourGerarCaixa(), anel: () => _tourGerar(), senaoVolta: 'porta',
+    id: 'gerar', alvo: () => _tourGerarCaixa(), anel: () => _tourGerar(), senaoVolta: 'orc',
     titulo: () => 'Revisar e gerar',
     texto: () => 'Confira o kit selecionado e o valor. Se estiver tudo correto, selecione <b>Gerar proposta</b>.',
     esperar: () => Boolean(document.getElementById('pb-share-overlay')),

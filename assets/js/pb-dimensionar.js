@@ -1,19 +1,15 @@
 // ==========================================
 // NOVA PROPOSTA: DIMENSIONAR SISTEMA
 // ==========================================
-// Porta de entrada do modo PROMOCIONAL: "Pelo consumo" (consumo do cliente →
-// kit recomendado) ou "Lista de kits". Aqui ficam os campos e a conta
-// (pbDimResumo); o resultado aparece na coluna da direita do orçamento
-// (orcamento-tela.js). A proposta gerada é idêntica à da lista. Nada é gravado
-// do consumo (por enquanto).
+// Consumo do cliente, um lugar só (17/11): fica no topo do orçamento, opcional,
+// e vale pra lista, cotação na distribuidora, híbrido e kit montado. Aqui ficam
+// os campos e a conta (pbDimResumo); o resultado aparece na coluna da direita
+// (orcamento-tela.js) e nos % da lista. A média vai gravada na proposta.
 //
-// Dimensionamento: consumo a compensar = média − taxa mínima da ligação
-// (30/50/100 kWh, sempre cobrada) — só informativo nos números do resultado.
-// Kits sugeridos (do tipo escolhido: inversor ou micro, e dentro dos filtros
-// de equipamento/distribuidora), comparando a geração estimada com a MÉDIA de
-// consumo (mesma conta da lista, com o HSP do cliente): entram todos os kits
-// que geram de 95% a 130% da média; "Recomendado" = o mais barato deles que
-// gera pelo menos a média. Os outros vêm listados do mais barato pro mais caro.
+// Regra única de dimensionamento (decisão de 17/11): o sistema gera a MÉDIA de
+// consumo. A taxa mínima da ligação (30/50/100 kWh) só serve de aviso quando a
+// média nem passa dela. Kits "perto do consumo" = geram de 95% a 130% da média;
+// "Recomendado" = o mais barato deles que gera pelo menos a média.
 
 const PBD_MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const PBD_MESES_NOME = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -34,7 +30,6 @@ const PBD_TIPOS = [
 // Faixa de geração (em relação à média) dos kits listados no resultado.
 const PBD_FAIXA_MIN = 0.95;
 const PBD_FAIXA_MAX = 1.30;
-const PBD_PORTA_KEY = 'pb_porta';
 
 let _pbd = null;              // estado do dimensionamento do cliente em atendimento
 const _pbdHspCache = {};      // ibge -> { anual, mensal } | null
@@ -42,7 +37,7 @@ const _pbdHspCache = {};      // ibge -> { anual, mensal } | null
 function _pbdNovoEstado(client) {
   return {
     clienteId: client ? client.id : null,
-    modo: 'mes',              // 'mes' | 'media'
+    modo: 'media',            // 'media' | 'mes' (só a média é o caso comum)
     meses: Array(12).fill(''),
     media: '',
     ligacao: 'mono',
@@ -50,12 +45,9 @@ function _pbdNovoEstado(client) {
   };
 }
 
-function _pbdLerPorta() {
-  try { return localStorage.getItem(PBD_PORTA_KEY) === 'dim' ? 'dim' : 'kit'; } catch (e) { return 'kit'; }
-}
-
-function _pbdGravarPorta(v) {
-  try { localStorage.setItem(PBD_PORTA_KEY, v); } catch (e) { /* sem storage: só não lembra */ }
+// Eficiência da conta de geração (a mesma do calcularGeracaoEstimada).
+function _pbdEficiencia(categoria) {
+  return categoria === 'kitsMicro' ? 0.81 : 0.76;
 }
 
 const _pbdNum = (v) => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : 0; };
@@ -69,42 +61,42 @@ function pbDimMount() {
   if (!panel || panel.dataset.bound) return;
   panel.dataset.bound = '1';
 
+  // Uma linha: média (ou mês a mês) · de onde vem · ligação. Os 12 meses abrem embaixo.
   panel.innerHTML = `
     <div class="pbd-sec">Consumo do cliente</div>
-    <div class="pbd-chips" data-pbd-grupo="modo">
-      <button type="button" class="pbd-chip" data-pbd-modo="mes">Mês a mês (da conta)</button>
-      <button type="button" class="pbd-chip" data-pbd-modo="media">Só a média em kWh</button>
+    <div class="pbd-cons">
+      <div id="pbd-box-media" class="pbd-cons-g">
+        <label class="pbd-cons-cap" for="pbd-media">Média mensal</label>
+        <span class="pbd-cons-un"><input id="pbd-media" class="pbd-input" type="number" inputmode="numeric" min="0" step="1" placeholder="Ex.: 350"><small>kWh</small></span>
+      </div>
+      <div class="pbd-cons-g">
+        <span class="pbd-cons-cap">Da conta de luz</span>
+        <div class="pbd-chips" data-pbd-grupo="modo">
+          <button type="button" class="pbd-chip" data-pbd-modo="media">Só a média</button>
+          <button type="button" class="pbd-chip" data-pbd-modo="mes">Mês a mês</button>
+        </div>
+      </div>
+      <div class="pbd-cons-g">
+        <span class="pbd-cons-cap">Ligação</span>
+        <div class="pbd-chips">
+          ${PBD_LIGACOES.map((l) => `<button type="button" class="pbd-chip" data-pbd-ligacao="${l.v}">${l.label}</button>`).join('')}
+        </div>
+      </div>
     </div>
-    <div id="pbd-box-mes" style="margin-top:10px">
+    <div id="pbd-box-mes" class="hidden" style="margin-top:10px">
       <p class="pbd-hint">Copie do gráfico de barras da conta de luz (histórico de 12 meses). Pode deixar mês vazio: a média usa só os preenchidos.</p>
       <div class="pbd-meses">
         ${PBD_MESES.map((m, i) => `<label class="pbd-mes"><span>${m}</span><input class="pbd-input" type="number" inputmode="numeric" min="0" step="1" placeholder="kWh" data-pbd-mes="${i}"></label>`).join('')}
       </div>
     </div>
-    <div id="pbd-box-media" class="hidden" style="margin-top:10px">
-      <label class="pbd-mes"><span>Média mensal (kWh)</span><input id="pbd-media" class="pbd-input pbd-input-um" type="number" inputmode="numeric" min="0" step="1" placeholder="Ex.: 350"></label>
-    </div>
-
-    <div class="pbd-sec">Ligação</div>
-    <div class="pbd-chips">
-      ${PBD_LIGACOES.map((l) => `<button type="button" class="pbd-chip" data-pbd-ligacao="${l.v}">${l.label}</button>`).join('')}
-    </div>
-
-    <div class="pbd-sec">Tipo de sistema</div>
-    <div class="pbd-chips">
-      ${PBD_TIPOS.map((t) => `<button type="button" class="pbd-chip" data-pbd-tipo="${t.v}">${t.label}</button>`).join('')}
-    </div>
-
-    <div id="pbd-fornecimento-slot"></div>
-    <div id="pbd-resultado"></div>
+    <p id="pbd-regra" class="pbd-hint"></p>
   `;
 
   panel.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b || !_pbd) return;
-    if (b.dataset.pbdModo)    { _pbd.modo = b.dataset.pbdModo === 'media' ? 'media' : 'mes'; _pbdConsumoMudou(); pbDimRender(); return; }
-    if (b.dataset.pbdLigacao) { _pbd.ligacao = b.dataset.pbdLigacao; _pbdConsumoMudou(); pbDimRender(); return; }
-    if (b.dataset.pbdTipo)    { pbDimSetTipo(b.dataset.pbdTipo); return; }
+    if (b.dataset.pbdModo)    { _pbd.modo = b.dataset.pbdModo === 'media' ? 'media' : 'mes'; _pbdConsumoMudou(); pbDimRender(); _pbdRenderResultado(); return; }
+    if (b.dataset.pbdLigacao) { _pbd.ligacao = b.dataset.pbdLigacao; _pbdConsumoMudou(); pbDimRender(); _pbdRenderResultado(); return; }
   });
   panel.addEventListener('input', (e) => {
     if (!_pbd) return;
@@ -113,17 +105,8 @@ function pbDimMount() {
     else if (t.id === 'pbd-media') _pbd.media = t.value;
     else return;
     _pbdConsumoMudou();
-    _pbdRenderResultado();
+    _pbdRenderResultadoLogo();
   });
-
-  const porta = document.getElementById('pb-porta');
-  if (porta && !porta.dataset.bound) {
-    porta.dataset.bound = '1';
-    porta.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-pb-porta]');
-      if (b) pbSetPorta(b.dataset.pbPorta);
-    });
-  }
 }
 
 function _pbdConsumoMudou() {
@@ -140,41 +123,28 @@ function pbDimSetup(client) {
     _pbd = _pbdNovoEstado(client);
     _pbdCarregarHsp(client);
   }
-  if (!state.pbPorta) state.pbPorta = _pbdLerPorta();
+  // A porta "Pelo consumo × Lista de kits" saiu: a lista está sempre aberta e o consumo fica em cima.
+  state.pbPorta = 'kit';
   pbDimSync();
 }
 
-function pbSetPorta(v) {
-  state.pbPorta = v === 'dim' ? 'dim' : 'kit';
-  _pbdGravarPorta(state.pbPorta);
+// Compatibilidade: quem ainda chama (orcamentoVerLista) só cai na lista, que é a única porta.
+function pbSetPorta() {
+  state.pbPorta = 'kit';
   pbDimSync();
-  if (state.pbPorta === 'kit') renderModalProducts();
+  renderModalProducts();
 }
 
-// Mostra/esconde porta, painel e a lista de kits conforme modo + porta.
+// Painel do consumo: aparece em todo orçamento de kit (promocionais, campanha, catálogo,
+// híbrido e kit montado). A personalizada tem a própria tela.
 function pbDimSync() {
-  const porta = document.getElementById('pb-porta');
   const panel = document.getElementById('pb-dim-panel');
-  if (!porta || !panel) return;
-
+  if (!panel) return;
   const promo = state.pbProposalMode === PB_PROPOSAL_MODES.PROMOCIONAL;
-  const dim = promo && state.pbPorta === 'dim';
-
-  porta.classList.toggle('hidden', !promo);
-  porta.querySelectorAll('[data-pb-porta]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbPorta === (state.pbPorta || 'kit')));
-  panel.classList.toggle('hidden', !dim);
+  document.getElementById('pb-porta')?.classList.add('hidden');
+  panel.classList.toggle('hidden', !promo);
   if (typeof pbFornecimentoMount === 'function') pbFornecimentoMount();
-
-  if (promo) {
-    const toolbar = document.getElementById('pb-promocional-toolbar');
-    if (toolbar) toolbar.classList.toggle('hidden', dim);
-    if (dim) {
-      document.getElementById('pb-products-container')?.classList.add('hidden');
-      const empty = document.getElementById('pb-empty');
-      if (empty) { empty.classList.add('hidden'); empty.classList.remove('flex'); }
-      pbDimRender();
-    }
-  }
+  if (promo) pbDimRender();
   if (typeof kitMontadoSyncTela === 'function') kitMontadoSyncTela();
 }
 
@@ -202,7 +172,6 @@ async function _pbdCarregarHsp(client) {
   }
   if (_pbd && _pbd.clienteId === client.id) {
     _pbd.hsp = _pbdHspCache[ibge];
-    if (state.pbPorta === 'dim') _pbdRenderResultado();
   }
 }
 
@@ -267,6 +236,7 @@ function pbDimSetTipo(categoria) {
   if (typeof pbFornecimentoRender === 'function') pbFornecimentoRender(); // opções do filtro dependem do tipo
   if (typeof orcamentoLimparKit === 'function') orcamentoLimparKit();
   pbDimRender();
+  _pbdRenderResultado();
 }
 
 // Distribui a geração média pelos 12 meses (mesma regra do geracao-chart.js).
@@ -287,7 +257,6 @@ function pbDimRender() {
 
   panel.querySelectorAll('[data-pbd-modo]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbdModo === _pbd.modo));
   panel.querySelectorAll('[data-pbd-ligacao]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbdLigacao === _pbd.ligacao));
-  panel.querySelectorAll('[data-pbd-tipo]').forEach((b) => b.classList.toggle('is-on', b.dataset.pbdTipo === state.pbCategory));
   document.getElementById('pbd-box-mes')?.classList.toggle('hidden', _pbd.modo !== 'mes');
   document.getElementById('pbd-box-media')?.classList.toggle('hidden', _pbd.modo !== 'media');
 
@@ -298,8 +267,17 @@ function pbDimRender() {
   });
   const mediaEl = document.getElementById('pbd-media');
   if (mediaEl && mediaEl.value !== String(_pbd.media)) mediaEl.value = _pbd.media;
+  _pbdRegraTexto();
+}
 
-  _pbdRenderResultado();
+// Uma linha embaixo do consumo dizendo o que a plataforma faz com ele.
+function _pbdRegraTexto() {
+  const el = document.getElementById('pbd-regra');
+  if (!el || !_pbd) return;
+  const media = _pbdConsumo().media;
+  el.textContent = media > 0
+    ? `O sistema é dimensionado pra gerar a média de ${_pbdInt(media)} kWh/mês.`
+    : 'Opcional. Sem consumo, a lista mostra todos os kits; com consumo, aparece o recomendado e os kits perto dele.';
 }
 
 // Conta do dimensionamento (sem DOM): a coluna da direita, a lista de kits e
@@ -310,21 +288,24 @@ function pbDimResumo() {
   if (c.media <= 0) return null;
 
   const lig = PBD_LIGACOES.find((l) => l.v === _pbd.ligacao) || PBD_LIGACOES[0];
-  const alvo = Math.max(0, c.media - lig.taxa);
+  const tipo = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
+  const tipoNome = tipo === 'kitsMicro' ? 'com microinversor' : 'com inversor';
+  // Regra única: o sistema gera a média (alvo = média). A taxa mínima só vira aviso.
+  const alvo = c.media;
   const hsp = _pbdHspCliente() || (state.franquiaHsp || 5.4);
   const r = {
     media: c.media, preenchidos: c.preenchidos, porMes: Boolean(c.meses),
-    taxa: lig.taxa, alvo, hsp, kwpNecessario: alvo / (hsp * 30 * 0.76),
+    taxa: lig.taxa, alvo, hsp, kwpNecessario: alvo / (hsp * 30 * _pbdEficiencia(tipo)),
     recomendado: null, cobre: false, nota: '', motivo: '', integrada: false,
   };
-  if (alvo <= 0) {
+  if (c.media <= lig.taxa) {
     r.motivo = 'O consumo fica abaixo da taxa mínima da ligação: solar não reduz a conta desse cliente.';
     return r;
   }
-  // Distribuidora com integração: cota no servidor com as placas que cobrem o consumo (módulo 620 W).
+  // Distribuidora com integração: cota no servidor com as placas que geram a média.
   if (typeof pbIntegracaoAtual === 'function' && pbIntegracaoAtual()) {
     r.integrada = true;
-    r.placas = Math.min(150, Math.max(4, Math.ceil(r.kwpNecessario * 1000 / 620)));
+    r.placas = pbPlacasPeloConsumo(typeof pbIntegracaoModuloW === 'function' ? pbIntegracaoModuloW() : 620, tipo);
     return r;
   }
 
@@ -335,8 +316,6 @@ function pbDimResumo() {
     return r;
   }
 
-  const tipo = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
-  const tipoNome = tipo === 'kitsMicro' ? 'com microinversor' : 'com inversor';
   let { recomendado, menorQueCobre } = _pbdRecomendar(tipo, c.media);
   // Marca/módulo escolhido sem kit pra esse consumo (e ligação), mas outras marcas têm:
   // não empurra um kit fora da faixa, só avisa pra trocar.
@@ -385,20 +364,35 @@ function pbDimNaFaixa(kit, r = pbDimResumo()) {
   return g >= r.media * PBD_FAIXA_MIN && g <= r.media * PBD_FAIXA_MAX;
 }
 
-// Na porta "Pelo consumo" o resultado vai para a coluna da direita; aqui só
-// fica a cotação da distribuidora integrada (precisa de largura).
+// Média de consumo informada pro cliente da vez (kWh/mês); 0 = não informada.
+function pbConsumoMedia() {
+  if (!_pbd || !state.pbActiveClient || _pbd.clienteId !== state.pbActiveClient.id) return 0;
+  return _pbdConsumo().media;
+}
+
+// Placas que geram a média com o módulo de `w` watts (mesma conta da lista). null sem consumo.
+// Uma conta só pra cotação na distribuidora, híbrido e kit montado.
+function pbPlacasPeloConsumo(w, categoria = 'kitsInversor') {
+  const media = pbConsumoMedia();
+  if (!(media > 0) || !(Number(w) > 0)) return null;
+  const porPlaca = calcularGeracaoEstimada(Number(w) / 1000, categoria, _pbdHspCliente());
+  if (!(porPlaca > 0)) return null;
+  return Math.max(4, Math.min(150, Math.ceil(media / porPlaca)));
+}
+
+// Consumo mudou: refaz a lista (% e kits perto do consumo) e a coluna da direita.
 function _pbdRenderResultado() {
-  const host = document.getElementById('pbd-resultado');
-  if (!host || !_pbd) return;
-  const r = pbDimResumo();
-  if (r && r.integrada) {
-    host.innerHTML = '<div class="pbd-sec">Cotação na distribuidora</div>' + pbIntegracaoPainelHTML(r.placas);
-    if (window.uiV2Select) window.uiV2Select.scan(host);
-  } else {
-    host.innerHTML = '';
-  }
-  if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+  if (!_pbd) return;
+  _pbdRegraTexto();
+  if (typeof renderModalProducts === 'function') renderModalProducts();
+  else if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
+}
+// Digitando o consumo: espera parar um instante pra não redesenhar a lista a cada tecla.
+let _pbdTimer = null;
+function _pbdRenderResultadoLogo() {
+  _pbdRegraTexto();
+  clearTimeout(_pbdTimer);
+  _pbdTimer = setTimeout(_pbdRenderResultado, 180);
 }
 
 // Barras = consumo; linha = geração do kit recomendado. Cada mês tem uma

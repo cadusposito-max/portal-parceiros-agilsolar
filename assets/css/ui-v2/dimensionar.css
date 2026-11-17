@@ -73,6 +73,18 @@ html[data-ui="v2"] body #pb-embedded-panel .pbd-porta-btn.is-on {
 #pb-embedded-panel .pbd-input:focus { outline: none; border-color: var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
 #pb-embedded-panel .pbd-input-um { max-width: 180px; }
 
+/* Consumo numa linha só (17/11): média · de onde vem · ligação; os 12 meses abrem embaixo. */
+#pb-embedded-panel .pbd-cons { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; }
+#pb-embedded-panel .pbd-cons-g { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+#pb-embedded-panel .pbd-cons-g.hidden { display: none; }
+#pb-embedded-panel .pbd-cons-cap { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); }
+#pb-embedded-panel .pbd-cons-un { display: inline-flex; align-items: center; gap: 6px; }
+#pb-embedded-panel .pbd-cons-un .pbd-input { width: 120px; font-weight: 800; }
+#pb-embedded-panel .pbd-cons-un small { font-size: 12px; font-weight: 700; color: var(--v2-ink-2); }
+#pb-embedded-panel .pbd-cons .pbd-chip { padding: 8px 13px; }
+#pb-embedded-panel #pbd-regra { margin-top: 10px; }
+@media (max-width: 640px) { #pb-embedded-panel .pbd-cons-g { flex: 1 1 100%; } }
+
 #pb-embedded-panel .pbd-mets {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

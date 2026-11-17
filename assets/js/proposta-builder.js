@@ -1095,8 +1095,8 @@ function renderModalProducts() {
 
   if (!container || !emptyEl) return;
 
-  // Personalizada ou porta "Pelo consumo" aberta: a lista de kits fica escondida.
-  if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL || state.pbPorta === 'dim') {
+  // Personalizada: a lista de kits fica escondida.
+  if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL) {
     container.classList.add('hidden');
     emptyEl.classList.add('hidden');
     return;
@@ -1127,7 +1127,8 @@ function renderModalProducts() {
     emptyEl.classList.add('hidden');
     container.classList.remove('hidden');
     container.className = 'pbl';
-    container.innerHTML = pbIntegracaoPainelHTML(null);
+    const rInt = typeof pbDimResumo === 'function' ? pbDimResumo() : null;
+    container.innerHTML = pbIntegracaoPainelHTML(rInt?.placas || null);
     if (window.uiV2Select) window.uiV2Select.scan(container);
     if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
     lucide.createIcons();

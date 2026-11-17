@@ -45,12 +45,12 @@ function kitMontadoModo(modo) {
   pbFornecimentoSync();
 }
 
-// Porta (Pelo consumo × Lista) e busca/tipo da lista não valem no avançado nem no híbrido.
+// Busca/tipo da lista não valem no avançado nem no híbrido. (A porta "Pelo consumo × Lista" saiu em 17/11.)
 function kitMontadoSyncTela() {
   if (state.pbProposalMode !== 'PROMOCIONAL') return;
   const av = kitMontadoAtivo() || (typeof hibridoAtivo === 'function' && hibridoAtivo());
-  document.getElementById('pb-porta')?.classList.toggle('hidden', av);
-  document.getElementById('pb-promocional-toolbar')?.classList.toggle('hidden', av || state.pbPorta === 'dim');
+  document.getElementById('pb-porta')?.classList.add('hidden');
+  document.getElementById('pb-promocional-toolbar')?.classList.toggle('hidden', av);
 }
 
 // ---------- distribuidoras, módulos e inversores ----------

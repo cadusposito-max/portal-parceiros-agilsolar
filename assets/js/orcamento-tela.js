@@ -323,7 +323,8 @@ function _orcamentoGeracao(kit) {
 // um a mais na potência. Na porta "Pelo consumo" respeita a ligação escolhida.
 function _orcamentoVizinhos(kit) {
   if (!kit || kit._montado || String(kit.id).startsWith('cot:')) return { menor: null, maior: null };
-  const porConsumo = state.pbPorta === 'dim' && typeof _pbdServeLigacao === 'function' && typeof _pbd !== 'undefined' && _pbd;
+  // Com consumo informado, respeita a ligação escolhida (inversor trifásico só em ligação trifásica).
+  const porConsumo = typeof _pbdServeLigacao === 'function' && typeof _pbd !== 'undefined' && _pbd && Boolean(_orcamentoResumoDim());
   const mesmos = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter((k) => k.categoria === kit.categoria && k.ativo !== false && Number(k.price) > 0
     && String(k.brand || '') === String(kit.brand || '')
     && (!kit.modulo_id || String(k.modulo_id || '') === String(kit.modulo_id))
@@ -375,15 +376,14 @@ function _orcamentoKitCardHTML(kit, r, nota) {
 
 function _orcamentoLadoHTML(r, kit) {
   if (typeof hibridoAtivo === 'function' && hibridoAtivo()) return hibridoLadoHTML(kit);
-  const dim = state.pbPorta === 'dim';
   let html = '';
   if (r) {
     const mediaRot = r.porMes ? `Média (${r.preenchidos} ${r.preenchidos === 1 ? 'mês' : 'meses'})` : 'Média informada';
     html += `<div class="orc-mets">
       <div class="orc-met"><small>${mediaRot}</small><b>${_orcInt(r.media)} kWh</b></div>
-      <div class="orc-met"><small>Sistema necessário</small><b>${r.alvo > 0 ? _orcKwp(r.kwpNecessario) + ' kWp' : '—'}</b></div>
+      <div class="orc-met"><small>Sistema necessário</small><b>${r.media > r.taxa ? _orcKwp(r.kwpNecessario) + ' kWp' : '—'}</b></div>
     </div>
-    <p class="orc-met-s">Compensa ${_orcInt(r.alvo)} kWh (média − ${r.taxa} kWh da taxa mínima) · HSP ${String(r.hsp).replace('.', ',')}</p>`;
+    <p class="orc-met-s">Pra gerar a média de ${_orcInt(r.media)} kWh/mês · HSP ${String(r.hsp).replace('.', ',')}</p>`;
     if (r.motivo) html += `<div class="orc-aviso">${escapeHTML(r.motivo)}</div>`;
   }
 
@@ -395,9 +395,9 @@ function _orcamentoLadoHTML(r, kit) {
   } else if (_orcamentoIntegrada()) {
     html += pbIntegracaoLadoHTML(kit);
   } else if (!kit) {
-    const vazio = dim
-      ? (r ? 'Nenhum kit para mostrar com essa seleção.' : 'Preencha o consumo e o kit recomendado aparece aqui.')
-      : 'Clique num kit da lista para escolher.';
+    const vazio = r && !r.buscando
+      ? 'Nenhum kit recomendado com essa seleção. Clique num kit da lista para escolher.'
+      : 'Informe o consumo no topo pra ver o recomendado, ou clique num kit da lista.';
     html += `<div class="orc-sec"><i data-lucide="sparkles"></i> Kit</div><div class="orc-vazio">${vazio}</div>`;
   } else {
     const ehRec = Boolean(r?.recomendado && String(r.recomendado.id) === String(kit.id));
@@ -412,11 +412,6 @@ function _orcamentoLadoHTML(r, kit) {
   html += `<button type="button" id="orcamento-lado-gerar" class="btn btn-primary orc-gerar" onclick="orcamentoGerar(event)" ${kit && !_orcamentoGerando ? '' : 'disabled'}>
     ${_orcamentoGerando ? '<i data-lucide="loader-2" class="animate-spin"></i> Gerando...' : `<i data-lucide="file-text"></i> Gerar proposta${kit ? ' · ' + formatCurrency(kit.price) : ''}`}</button>`;
   if (kit) html += _orcamentoAjusteHTML(kit, r);
-  if (dim && !r?.integrada && !_orcamentoIntegrada()) {
-    const total = (typeof pbKitsOrcamento === 'function' ? pbKitsOrcamento() : (state.data || [])).filter((k) => k.categoria === state.pbCategory && k.ativo !== false
-      && (typeof pbKitCompativel !== 'function' || pbKitCompativel(k))).length;
-    if (total) html += `<button type="button" class="orc-link orc-ver-todos" onclick="orcamentoVerLista()">Ver todos os ${total} kits →</button>`;
-  }
   return html;
 }
 

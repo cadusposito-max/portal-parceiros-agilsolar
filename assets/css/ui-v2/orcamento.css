@@ -69,7 +69,8 @@ html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel .pbd-porta-bt
 html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel .pbd-porta-btn.is-on { background: var(--v2-blue); color: #fff; }
 html[data-ui="v2"] body #orcamento-builder-slot #pb-embedded-panel .pbd-porta-btn svg { width: 16px; height: 16px; color: inherit; }
 html[data-ui="v2"] #orcamento-builder-slot .pbd-porta-t { font-size: 13px; font-weight: 700; }
-html[data-ui="v2"] body #orcamento-builder-slot #pb-dim-panel { padding: 4px 18px 18px; }
+html[data-ui="v2"] body #orcamento-builder-slot #pb-dim-panel { padding: 2px 18px 16px; border-bottom: 1px solid var(--v2-line); }
+html[data-ui="v2"] body #orcamento-builder-slot #pb-dim-panel.hidden { display: none !important; }
 html[data-ui="v2"] body #orcamento-builder-slot #pbd-resultado:empty { display: none; }
 html[data-ui="v2"] body #orcamento-builder-slot #pb-pers-head { padding: 16px 18px 0; }
 

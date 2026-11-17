@@ -510,7 +510,7 @@ function pbFornecimentoRender() {
   pbGarantirLinhaCompleta();
   const panel = document.getElementById('pb-fornecimento-panel');
   if (!panel) return;
-  const slot = document.getElementById(state.pbPorta === 'dim' ? 'pbd-fornecimento-slot' : 'pb-kit-fornecimento-slot');
+  const slot = document.getElementById('pb-kit-fornecimento-slot');
   if (slot && panel.parentElement !== slot) slot.appendChild(panel);
   pbLinhaRender();
   // Promocionais são tabelados: sem filtro. A campanha também é tabelada, mas pode
@@ -527,8 +527,6 @@ function pbFornecimentoRender() {
   if (typeof kitMontadoRenderPainel === 'function' && kitMontadoRenderPainel(panel)) return;
   document.getElementById('pb-fornecimento-hint').textContent = ehCampanha
     ? `Filtre os kits da ${campLinha.nome || 'campanha'} pela distribuidora, pelo módulo e pela marca do inversor.`
-    : state.pbPorta === 'dim'
-    ? 'Escolha a distribuidora, o módulo, a marca do inversor e o telhado. O consumo define a potência do sistema e o kit recomendado.'
     : 'Filtre os kits pela distribuidora, pelo módulo, pela marca do inversor e pelo telhado.';
   const disponiveis = catalogoEquipamentosDaDistribuidora(_pbFornecimento.distribuidora);
   const integrada = typeof pbIntegracaoAtual === 'function' ? pbIntegracaoAtual() : null;
@@ -601,10 +599,7 @@ function pbFornecimentoEscolher(campo, value) {
 function pbFornecimentoSync() {
   if (pbEstruturaAtiva()) pbEstruturaCarregarPrecos();
   pbFornecimentoRender();
-  if (state.pbProposalMode === 'PROMOCIONAL') {
-    if (state.pbPorta === 'dim' && typeof _pbdRenderResultado === 'function') _pbdRenderResultado();
-    else if (typeof renderModalProducts === 'function') renderModalProducts();
-  }
+  if (state.pbProposalMode === 'PROMOCIONAL' && typeof renderModalProducts === 'function') renderModalProducts();
   if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
 }
 

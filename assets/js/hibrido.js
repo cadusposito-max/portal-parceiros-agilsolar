@@ -57,10 +57,8 @@ function hibridoAtivo() {
 }
 
 function _hbNovoCliente() {
-  const r = typeof pbDimResumo === 'function' ? pbDimResumo() : null;
   Object.assign(_hb, {
     cliente: _orcamentoClientId, bateria: 'com', horas: 4, placas: null, cot: null, cotChave: '', cotErro: '', escolha: 0,
-    consumo: r?.media > 0 ? String(Math.round(r.media)) : '',
     cargas: HB_SUGERIDOS.map(([k, q]) => _hbAparelho(k, q)),
   });
 }
@@ -137,20 +135,10 @@ function _hbModulo() {
 const _hbNum = (v, d = 1) => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
 const _hbKw = (v) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
-function _hbTaxaMinima() {
-  const lig = typeof _pbd !== 'undefined' && _pbd ? _pbd.ligacao : 'mono';
-  const l = typeof PBD_LIGACOES !== 'undefined' ? PBD_LIGACOES.find((x) => x.v === lig) : null;
-  return l ? l.taxa : 30;
-}
-
-// Placas que cobrem o consumo (mesma geração estimada da lista de kits).
+// Placas que geram a média do consumo (o do topo do orçamento; mesma regra da lista de kits).
 function _hbPlacasSugeridas(mod) {
-  const consumo = Number(String(_hb.consumo).replace(',', '.')) || 0;
-  if (!mod || consumo <= 0) return null;
-  const alvo = Math.max(0, consumo - _hbTaxaMinima());
-  const porPlaca = calcularGeracaoEstimada(mod.w / 1000, 'kitsInversor', Number(state.pbActiveClient?.hsp) || undefined);
-  if (!(porPlaca > 0)) return null;
-  return Math.max(4, Math.min(150, Math.ceil(alvo / porPlaca)));
+  if (!mod || typeof pbPlacasPeloConsumo !== 'function') return null;
+  return pbPlacasPeloConsumo(mod.w, 'kitsInversor');
 }
 
 function _hbPlacas(mod) {
@@ -377,9 +365,7 @@ function hibridoCorpoHTML() {
   const chips = (lista, atual, attr, rot) => `<div class="hb-chips" role="group">${lista.map((v) =>
     `<button type="button" data-${attr}="${v}" class="${String(v) === String(atual) ? 'is-on' : ''}" aria-pressed="${String(v) === String(atual)}">${rot(v)}</button>`).join('')}</div>`;
   const placasHTML = `<div class="hb-grid2">
-      <div><div class="hb-lbl">Consumo médio da conta</div>
-        <div class="hb-campo"><input type="number" min="0" step="10" inputmode="numeric" data-hb-in="consumo" value="${escapeHTML(String(_hb.consumo))}" placeholder="Ex.: 400" aria-label="Consumo médio da conta em kWh por mês"><span>kWh/mês</span></div></div>
-      <div><div class="hb-lbl">Placas${sug ? ` <small>(sugerido pelo consumo: ${sug})</small>` : ''}</div>
+      <div><div class="hb-lbl">Placas${sug ? ` <small>(sugerido pelo consumo: ${sug})</small>` : ' <small>(informe o consumo no topo pra sugerir)</small>'}</div>
         <div class="km-qtd hb-placas"><button type="button" data-hb-placas="-1" aria-label="Uma placa a menos">−</button><input type="number" min="4" max="150" value="${c.placas}" data-hb-in="placas" aria-label="Quantidade de placas"><button type="button" data-hb-placas="1" aria-label="Uma placa a mais">+</button><span>${c.mod ? `${_hbKw(c.kwp)} kWp` : 'placas'}</span></div></div>
     </div>`;
   const bateria = `<div class="km-box">
@@ -446,10 +432,6 @@ function hibridoBindCorpo(root) {
     _hb.cargas.push({ k: '', nome: '', q: 1, w: 100, h: 1, pico: 1, icone: 'plug', editW: true, editH: true });
     _hbMudou();
     setTimeout(() => { const ins = document.querySelectorAll('#pb-products-container .hb-nm-in'); ins[ins.length - 1]?.focus(); }, 0);
-  });
-  root.querySelector('input[data-hb-in="consumo"]')?.addEventListener('change', (e) => {
-    const v = Math.max(0, Math.round(Number(String(e.target.value).replace(',', '.')) || 0));
-    _hb.consumo = v ? String(v) : ''; _hb.placas = null; _hbMudou();
   });
   root.querySelector('input[data-hb-in="placas"]')?.addEventListener('change', (e) => {
     _hb.placas = Math.max(4, Math.min(150, Math.round(Number(e.target.value) || 4))); _hbMudou();
