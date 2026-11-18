@@ -1248,6 +1248,25 @@
     } catch (e) { console.error('[obras] liberar', e); toast('Não foi possível liberar: ' + (e.message || e)); return false; }
     finally { O.liberando = false; }
   }
+  // Aviso antes de liberar pelo card da venda (18/11, depois de um clique sem querer):
+  // só confirma, sem pedir motivo. X no topo fecha; o rodapé tem só a ação.
+  function liberarConfirmar(alvo, depois, motivo) {
+    if (!alvo || !alvo.venda_id) return;
+    O.libAlvo = alvo; O.libDepois = depois || null; O.libMotivo = motivo || 'Pelo card da venda';
+    modal(`<button type="button" class="eg-sq ob-mx" onclick="obras.fecharModal()" title="Fechar (Esc)">${ic('x')}</button>
+      <h3>${ic('hard-hat')} Liberar para obra?</h3>
+      <p class="sub"><b>${esc(alvo.cliente_nome || 'Cliente')}</b>${Number(alvo.kwp) ? ' · ' + kwp(alvo.kwp) : ''} · ${esc(FORMAS[alvo.pagamento] || 'pagamento não informado')}</p>
+      <div class="eg-aviso g">${ic('triangle-alert')}<span>A venda entra na aba <b>Obras</b> e fica pronta para agendar. Libere só com o pagamento garantido. Se foi sem querer, dá para devolver enquanto a obra não for agendada.</span></div>
+      <div class="rd-mfoot"><button type="button" class="eg-btn ok" id="ob-lib-ok" onclick="obras.liberarSim(this)">${ic('check')}Liberar para obra</button></div>`);
+    const b = document.getElementById('ob-lib-ok'); if (b) b.focus();
+  }
+  async function liberarSim(b) {
+    const alvo = O.libAlvo; if (!alvo) return;
+    if (b) { b.disabled = true; b.innerHTML = ic('loader-2') + 'Aguarde...'; icons(); }
+    const ok = await liberarDireto(alvo, O.libDepois, O.libMotivo);
+    if (ok) fecharModal();
+    else if (b && document.body.contains(b)) { b.disabled = false; b.innerHTML = ic('check') + 'Liberar para obra'; icons(); }
+  }
   // devolver para "aguardando liberação" (também pelo card da venda; só antes de agendar)
   async function devolver(alvo, depois) {
     if (!alvo || !alvo.venda_id) return;
@@ -1494,7 +1513,7 @@
     agendarModal, agendarSlot: (data, eq) => agendarModal(null, { data, eq }),
     agAlvo: (id) => { O.agAlvo = id; agEquipes(); agCheck(); },
     agCheck, agConfirmar, concluirModal, ccConfirmar, prioridadeModal, prioEnviar, entregaModal, enConfirmar,
-    liberarModal, libConfirmar, liberarDireto, devolver,
+    liberarModal, libConfirmar, liberarDireto, liberarConfirmar, liberarSim, devolver,
     equipesModal, eqSalvar, eqAtiva, eqPagTog, eqEx,
     pgVivo, pgSet, pgMais, pgTirar, irPagEquipes,
     elSet, elAdd, elDel, elForn, elGerar, elSalvar: () => elSalvar(), elStatus, confAbrir, confToque, confFechar, confFim,

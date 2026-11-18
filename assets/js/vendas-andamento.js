@@ -96,10 +96,12 @@
   const podeDevolver = (v) => podeLiberar(v) && !!posDe_(v).obra_liberada_em && !OBRA_ANDANDO.includes(posDe_(v).obra_status);
   const alvoObra = (v) => ({ venda_id: v.id, cliente_nome: v.cliente_nome, kwp: v.kit_power, pagamento: v.forma_pagamento });
   async function depoisLiberar() { await carregar(true); repintar(); }
-  // 18/11: liberar é um clique só, sem janela nem pergunta (se errar, tem o Devolver)
+  // 18/11: liberar não pede motivo, mas mostra um aviso para confirmar (clique sem querer)
   function liberar(vendaId) {
     const v = (state.vendas || []).find((x) => x.id === vendaId);
-    if (v && podeLiberar(v)) window.obras.liberarDireto(alvoObra(v), depoisLiberar, 'Pelo card da venda');
+    if (!v || !podeLiberar(v)) return;
+    if (window.obras.liberarConfirmar) window.obras.liberarConfirmar(alvoObra(v), depoisLiberar, 'Pelo card da venda');
+    else window.obras.liberarDireto(alvoObra(v), depoisLiberar, 'Pelo card da venda');
   }
   // Para o envio à engenharia: quem envia pode liberar a obra desta venda agora?
   async function podeLiberarAgora(vendaId) {
