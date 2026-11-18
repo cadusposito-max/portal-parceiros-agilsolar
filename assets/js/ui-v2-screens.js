@@ -931,7 +931,7 @@
           <div class="v2-vm-top"><b class="v2-vm-nm">${esc(v.cliente_nome || '—')}</b><div class="v2-vm-val"><b>${valorM(v)}</b><small>${esc(formatDate(v.created_at))}</small></div></div>
           ${showSeller ? `<div class="v2-vm-vend">${ic('user-round')}${esc(vendNome(v.vendedor_email))}${state.isAdmin && state.adminViewAll && v.franquia_id ? ' · ' + esc(getFranquiaNameById(v.franquia_id)) : ''}</div>` : ''}
           <div class="v2-vm-kit">${v.kit_power ? `<span class="v2-vm-kwp">${ic('sun')}${kwpVenda(v)}</span>` : ''}<span class="tx" title="${esc(k.equipTitulo || kit)}">${esc(kit || '—')}</span></div>
-          ${inf ? `<div class="v2-vm-bar">${inf.s.map((x, i) => `<i class="${x} ${i === inf.fase ? 'cur' : ''}"></i>`).join('')}<em>${Math.min(inf.fase + 1, 5)}/5</em></div>` : ''}
+          ${inf ? `<div class="v2-vm-bar jr">${inf.s.map((x, i) => `<i class="${x === 'ok' || x === 'late' ? x : i === inf.fase ? 'cur' : x === 'at' ? 'at' : ''}"></i>`).join('')}<em>${Math.min(inf.fase + 1, 5)}/5</em></div>` : ''}
         </div>
         ${inf ? (sel ? VA.painelCard(v, inf) : faixaM(inf)) : ''}
       </article>`;

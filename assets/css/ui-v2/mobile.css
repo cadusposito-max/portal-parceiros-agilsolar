@@ -207,6 +207,11 @@ html[data-ui="v2"] .v2s .v2-pdot { display: none; } /* bolinha da etapa na filei
   html[data-ui="v2"] .v2s .v2-vm-bar i.ok { background: var(--v2-blue); }
   html[data-ui="v2"] .v2s .v2-vm-bar i.cur { background: color-mix(in srgb, var(--v2-blue) 45%, transparent); }
   html[data-ui="v2"] .v2s .v2-vm-bar i.late { background: var(--v2-red); }
+  /* Vendas: mesmas cores da Jornada do cliente (feito verde, fase atual azul, andando junto laranja, atenção vermelho) */
+  html[data-ui="v2"] .v2s .v2-vm-bar.jr i.ok { background: var(--v2-green); }
+  html[data-ui="v2"] .v2s .v2-vm-bar.jr i.cur { background: var(--v2-blue); }
+  html[data-ui="v2"] .v2s .v2-vm-bar.jr i.at { background: var(--v2-orange); }
+  html[data-ui="v2"] .v2s .v2-vm-bar.jr i.late { background: var(--v2-red); }
   html[data-ui="v2"] .v2s .v2-vm-bar em { margin-left: 4px; font-style: normal; font-size: 11px; font-weight: 800; color: var(--v2-gray); }
   html[data-ui="v2"] .v2s .v2-vm-ft { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font-size: 12.5px; background: var(--v2-blue-50); color: var(--v2-blue-text); }
   html[data-ui="v2"] .v2s .v2-vm-ft svg { width: 16px; height: 16px; flex: none; }
