@@ -139,7 +139,7 @@
           <label class="cc-val"><span>R$</span><input type="number" min="0" step="0.01" value="${f.valor}" aria-label="Valor da faixa" oninput="CentroCustoTela.faixa('${k}', ${i}, 'valor', this.value)"></label>
           <button type="button" class="cc-x" aria-label="Remover faixa" onclick="CentroCustoTela.faixaRemover('${k}', ${i})"><i data-lucide="x"></i></button></div>`).join('')}
         <button type="button" class="cc-link" onclick="CentroCustoTela.faixaAdd('${k}')"><i data-lucide="plus"></i>Faixa</button>
-        <p class="cc-hint">${l.b === 'faixa_kw_inversor' ? 'Vale a soma dos kW dos inversores do kit (2 × 5 kW = 10 kW). ' : ''}Acima da última faixa, vale o valor da última.</p></div>` : '';
+        <p class="cc-hint">${l.b === 'faixa_kw_inversor' ? 'Vale o kW de cada inversor; com mais de um, soma os valores (2 inversores de 5 kW = 2 × o valor de 5 kW). ' : ''}Acima da última faixa, vale o valor da última.</p></div>` : '';
     // Bases por quantidade: até o limite cobra um valor fixo; acima, o valor × a quantidade toda.
     const limite = calc().aceitaLimite(l) ? `<div class="cc-limite">até
         <input type="number" min="0" step="${l.b === 'modulo' || l.b === 'inversor' ? '1' : '0.01'}" value="${num(l.ate)}" aria-label="Limite de ${esc(rotulo)}" oninput="CentroCustoTela.limite('${k}', 'ate', this.value)">

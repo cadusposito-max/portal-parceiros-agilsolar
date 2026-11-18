@@ -273,9 +273,14 @@
       ? pctFmt(l.v) + '% ' + (BASES[l.b] || '').replace(/^% /, '')
       : money(l.v) + ' ' + (CentroCustoCalc.bases[l.b] || '').replace(/^R\$ /, '') + (limiteTxt(l) ? ' · ' + limiteTxt(l) : '');
   }
-  // Tabela do centro de custo: valor da faixa para esta proposta (kWp ou kW de inversor somado).
+  // Tabela do centro de custo: valor da faixa para esta proposta (kWp, ou kW de cada inversor × quantidade).
   const valorTabela = (l) => valorLinha(l, num(cur.receita), num(cur.kit));
-  const tabelaTxt = (l) => `Pela tabela (${l.b === 'faixa_kw_inversor' ? pctFmt(cur.kwInversor) + ' kW de inversor' : pctFmt(cur.kwp) + ' kWp'})`;
+  const tabelaInvTxt = () => {
+    const q = CentroCustoCalc.qtdInversores({ inversores: cur.inversores });
+    const kw = pctFmt(r2(num(cur.kwInversor) / q)) + ' kW';
+    return q > 1 ? `${q} inversores de ${kw}` : `${kw} de inversor`;
+  };
+  const tabelaTxt = (l) => `Pela tabela (${l.b === 'faixa_kw_inversor' ? tabelaInvTxt() : pctFmt(cur.kwp) + ' kWp'})`;
   // Sai da tabela mantendo o resultado: base nova com o valor que dá o mesmo total.
   function soltarTabela(l, base, valor) {
     const eq = valor != null ? valor : valorTabela(l);
