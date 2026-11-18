@@ -144,11 +144,20 @@ html[data-ui="v2"] #tf-modal .v2-dd.open, html[data-ui="v2"] #tf-modal .v2-dd:fo
 .tf-clires button:hover { background: var(--v2-hover); }
 .tf-clires small { color: var(--v2-gray); font-weight: 500; }
 .tf-clires p { margin: 0; padding: 10px 12px; font-size: 13px; color: var(--v2-gray); }
-.tf-sw { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--v2-soft); border: 1px solid var(--v2-line); cursor: pointer; }
-.tf-sw input { appearance: none; -webkit-appearance: none; width: 40px; height: 22px; margin: 0; flex-shrink: 0; border-radius: 999px; background: var(--v2-line-strong); position: relative; cursor: pointer; transition: .15s; }
-.tf-sw input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: .15s; }
-.tf-sw input:checked { background: var(--v2-orange); }
-.tf-sw input:checked::after { left: 21px; }
+.tf-sw { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--v2-soft); border: 1px solid var(--v2-line); cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; }
+.tf-sw:has(input:checked) { background: var(--v2-orange-50); border-color: var(--v2-orange); }
+/* interruptor do Urgente (janela e caixa da timeline). O reskin pinta todo input de branco no tema claro
+   (com !important): sem esta regra o interruptor ficava branco no branco, ligado igual a desligado. */
+html[data-ui] body :is(.tf-sw, .tf-cx-urg) input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none; width: 40px; height: 22px; margin: 0; padding: 0; flex-shrink: 0;
+  border: 0 !important; border-radius: 999px !important; background: var(--v2-line-strong) !important; box-shadow: none !important;
+  position: relative; cursor: pointer; transition: background .15s;
+}
+html[data-ui] body :is(.tf-sw, .tf-cx-urg) input[type="checkbox"]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+html[data-ui] body :is(.tf-sw, .tf-cx-urg) input[type="checkbox"]:checked { background: var(--v2-orange) !important; }
+html[data-ui] body :is(.tf-sw, .tf-cx-urg) input[type="checkbox"]:checked::after { left: 21px; }
+html[data-ui] body :is(.tf-sw, .tf-cx-urg) input[type="checkbox"]:focus { box-shadow: none !important; outline: none !important; }
+html[data-ui] body :is(.tf-sw, .tf-cx-urg) input[type="checkbox"]:focus-visible { outline: 2px solid var(--v2-blue) !important; outline-offset: 2px; }
 .tf-sw b { display: block; font-size: 13px; color: var(--v2-ink); }
 .tf-sw small { font-size: 12px; color: var(--v2-gray); }
 .tf-dft { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px 20px; }
@@ -234,7 +243,8 @@ html[data-ui="v2"] .tf-cx .v2-dd.open, html[data-ui="v2"] .tf-cx .v2-dd:focus-vi
 .tf-cx-pills input[type="date"] { border: 1px solid var(--v2-line-strong); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; color: var(--v2-ink-2); background: var(--v2-card); }
 .tf-cx-pe { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .tf-cx-pe .tf-btn { margin-left: auto; padding: 9px 14px; font-size: 13px; }
-.tf-cx-urg { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--v2-ink-2); cursor: pointer; }
+.tf-cx-urg { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; font-size: 12.5px; font-weight: 700; color: var(--v2-ink-2); cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; }
+.tf-cx-urg:has(input:checked) { color: var(--v2-orange-text); }
 .tf-cx-urg[hidden] { display: none; }
 .tf-cx-urg small { font-weight: 600; color: var(--v2-gray); }
 .tf-cx .tf-err { font-style: normal; font-size: 12px; font-weight: 700; color: var(--v2-red); }
@@ -245,6 +255,10 @@ html[data-ui="v2"] .tf-cx .v2-dd.open, html[data-ui="v2"] .tf-cx .v2-dd:focus-vi
   .tf-cx-rot { min-width: 100%; }
   .tf-tl-meta { width: 100%; }
   .tf-cx-pe .tf-btn { width: 100%; justify-content: center; }
+  /* no celular o Urgente vira uma linha inteira, fácil de acertar com o dedo */
+  .tf-cx-urg { order: -1; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; background: var(--v2-soft); border: 1px solid var(--v2-line); }
+  .tf-cx-urg:has(input:checked) { background: var(--v2-orange-50); border-color: var(--v2-orange); }
+  .tf-cx-urg small { margin-left: auto; }
   #tf-painel { inset: 0; width: auto; max-width: none; border-radius: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   #tf-modal { place-items: end center; padding: 0; }
   .tf-dlg { border-radius: 24px 24px 0 0; max-height: 92vh; padding-bottom: env(safe-area-inset-bottom, 0px); }
