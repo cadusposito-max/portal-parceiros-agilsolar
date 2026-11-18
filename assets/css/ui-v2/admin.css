@@ -143,6 +143,62 @@ html[data-ui="v2"] body #admin-modal-form > div:last-child > button[type="button
 html[data-ui="v2"] body #admin-modal-save { border: 0 !important; background: var(--v2-blue) !important; color: #fff !important; box-shadow: 0 8px 20px rgba(0,143,212,.25) !important; }
 html[data-ui="v2"] body #admin-modal-save:hover { background: var(--v2-blue-hover) !important; }
 
+/* ---------- Admin › Usuários: editar / novo usuário (admin.js, .aum-*) ---------- */
+html[data-ui="v2"] .aum { --aum-ok: #12764E; --aum-ok-50: rgba(31,169,113,.13); --aum-no-50: rgba(209,67,67,.11); display: flex; flex-direction: column; gap: 20px; }
+html[data-ui="v2"][data-theme="dark"] .aum { --aum-ok: #4FD19C; --aum-ok-50: rgba(31,169,113,.16); --aum-no-50: rgba(209,67,67,.16); }
+html[data-ui="v2"] .aum [hidden], html[data-ui="v2"] .aum .hidden { display: none !important; }
+/* quem é */
+html[data-ui="v2"] .aum-who { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 18px; background: var(--v2-soft); }
+html[data-ui="v2"] .aum-av { width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; display: grid; place-items: center; background: var(--v2-blue-50); color: var(--v2-blue-text); font-weight: 800; font-size: 15px; }
+html[data-ui="v2"] .aum .aum-tx { flex: 1; min-width: 0; display: block; }
+html[data-ui="v2"] .aum .aum-tx b { display: block; font-size: 15px; font-weight: 800; color: var(--v2-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui="v2"] .aum-who .aum-tx small { display: block; font-size: 12.5px; font-weight: 600; color: var(--v2-gray); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui="v2"] .aum-pill { flex-shrink: 0; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px; }
+html[data-ui="v2"] .aum-pill.ok { background: var(--aum-ok-50); color: var(--aum-ok); }
+html[data-ui="v2"] .aum-pill.off { background: var(--aum-no-50); color: var(--v2-red); }
+/* seções e campos */
+html[data-ui="v2"] .aum-sec > h3 { margin: 0 0 10px; font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--v2-gray); }
+html[data-ui="v2"] .aum-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+html[data-ui="v2"] .aum-full { grid-column: 1 / -1; }
+html[data-ui="v2"] body #admin-modal-form .aum label { margin-bottom: 6px !important; }
+html[data-ui="v2"] .aum-hint { margin: 6px 2px 0; font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--v2-gray); }
+html[data-ui="v2"] .aum-hint:empty { display: none; }
+/* lista de chaves */
+html[data-ui="v2"] .aum-list { border: 1.5px solid var(--v2-line); border-radius: 18px; overflow: hidden; }
+html[data-ui="v2"] .aum-it { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; user-select: none; outline: none; transition: background .12s; }
+html[data-ui="v2"] .aum-it + .aum-it { border-top: 1px solid var(--v2-line); }
+html[data-ui="v2"] .aum-it:hover { background: var(--v2-soft); }
+html[data-ui="v2"] .aum-it:focus-visible { box-shadow: inset 0 0 0 2px var(--v2-blue); }
+html[data-ui="v2"] .aum-it input[type="checkbox"] { display: none !important; }
+html[data-ui="v2"] .aum-ic { width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0; display: grid; place-items: center; background: var(--v2-soft); color: var(--v2-ink-2); transition: background .12s, color .12s; }
+html[data-ui="v2"] .aum-ic svg { width: 18px; height: 18px; }
+html[data-ui="v2"] .aum-it .aum-tx b { font-size: 14px; font-weight: 700; }
+html[data-ui="v2"] .aum-it .aum-tx small { display: block; margin-top: 1px; font-size: 12px; font-weight: 600; line-height: 1.35; color: var(--v2-gray); }
+html[data-ui="v2"] .aum-sw { position: relative; width: 44px; height: 26px; flex-shrink: 0; border-radius: 999px; background: var(--v2-line-strong); transition: background .15s; }
+html[data-ui="v2"] .aum-sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .15s; }
+html[data-ui="v2"] .aum-it.on .aum-sw { background: var(--v2-blue); }
+html[data-ui="v2"] .aum-it.on .aum-sw::after { transform: translateX(18px); }
+html[data-ui="v2"] .aum-it.on .aum-ic { background: var(--v2-blue-50); color: var(--v2-blue-text); }
+html[data-ui="v2"] .aum-ativo.on .aum-sw { background: var(--v2-green); }
+html[data-ui="v2"] .aum-ativo.on .aum-ic { background: var(--aum-ok-50); color: var(--aum-ok); }
+html[data-ui="v2"] .aum-ativo:not(.on) .aum-ic { background: var(--aum-no-50); color: var(--v2-red); }
+html[data-ui="v2"] .aum-it.lock { cursor: default; opacity: .55; }
+html[data-ui="v2"] .aum-it.lock:hover { background: transparent; }
+html[data-ui="v2"] .aum-it.lock .aum-tx small { color: var(--v2-orange-text); }
+/* avisos */
+html[data-ui="v2"] .aum-note { display: flex; align-items: flex-start; gap: 8px; margin: 10px 2px 0; font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--v2-gray); }
+html[data-ui="v2"] .aum-note svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+html[data-ui="v2"] .aum-note.aum-note-p { margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: var(--v2-orange-50); color: var(--v2-orange-text); }
+/* rodapé fixo embaixo (só o Salvar; fecha pelo X do topo) */
+html[data-ui="v2"] body #admin-modal-overlay.aum-modal #admin-modal-form > div:last-child {
+  position: sticky; bottom: 0; z-index: 5; margin: 0 -24px -24px; padding: 14px 24px 20px !important; background: var(--v2-card); border-top: 1px solid var(--v2-line);
+}
+@media (max-width: 600px) {
+  html[data-ui="v2"] .aum-grid { grid-template-columns: minmax(0,1fr); }
+  html[data-ui="v2"] body #admin-modal-overlay.aum-modal #admin-modal-form { padding: 16px 18px 18px !important; }
+  html[data-ui="v2"] body #admin-modal-overlay.aum-modal #admin-modal-form > div:last-child { margin: 0 -18px -18px; padding: 12px 18px calc(16px + env(safe-area-inset-bottom)) !important; }
+}
+
 /* ---------- celular ---------- */
 @media (max-width: 900px) {
   html[data-ui="v2"] body #admin-overlay-content.v2a { grid-template-columns: minmax(0, 1fr); gap: 12px; }

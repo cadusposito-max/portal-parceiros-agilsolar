@@ -53,12 +53,26 @@ function _requireAdminOrGestor(options = {}) {
   return false;
 }
 
-function openAdminModal(title, fieldsHTML, onSubmit) {
+// opts (opcional): saveLabel = texto do botão principal; semCancelar = fecha só pelo X do topo;
+// classe = classe extra no overlay (visual próprio de um formulário). Sem opts, fica como sempre foi.
+let _adminModalSaveLabel = 'SALVAR';
+let _adminModalClasse = '';
+function openAdminModal(title, fieldsHTML, onSubmit, opts = {}) {
   ensureAdminModal();
+  const ov = document.getElementById('admin-modal-overlay');
+  if (_adminModalClasse) ov.classList.remove(_adminModalClasse);
+  _adminModalClasse = opts.classe || '';
+  if (_adminModalClasse) ov.classList.add(_adminModalClasse);
+  _adminModalSaveLabel = opts.saveLabel || 'SALVAR';
+  const btn = document.getElementById('admin-modal-save');
+  btn.textContent = _adminModalSaveLabel;
+  btn.disabled = false;
+  const cancelar = btn.previousElementSibling;
+  if (cancelar) cancelar.classList.toggle('hidden', !!opts.semCancelar);
   document.getElementById('admin-modal-title').textContent = title;
   document.getElementById('admin-modal-fields').innerHTML = fieldsHTML;
   _adminModalCallback = onSubmit;
-  document.getElementById('admin-modal-overlay').classList.remove('hidden');
+  ov.classList.remove('hidden');
   lucide.createIcons();
 }
 
@@ -75,7 +89,7 @@ async function submitAdminModal(e) {
   btn.textContent = 'SALVANDO...';
   btn.disabled = true;
   await _adminModalCallback();
-  btn.textContent = 'SALVAR';
+  btn.textContent = _adminModalSaveLabel;
   btn.disabled = false;
 }
 
@@ -959,11 +973,11 @@ function _renderGestorOptions(users, franquiaId, selectedGestorId) {
     .filter(u => !targetFranquia || u.franquia_id === targetFranquia)
     .sort((a, b) => String(a.nome || a.email || '').localeCompare(String(b.nome || b.email || ''), 'pt-BR'));
 
-  let html = `<option value="">SEM VINCULO</option>`;
+  let html = `<option value="">Sem vínculo</option>`;
   html += gestores.map(g => {
     const label = g.nome || g.email || 'Gestor';
-    const chatStatus = g.chat_enabled === true ? 'chat on' : 'chat off';
-    return `<option value="${g.user_id}" ${selectedId === g.user_id ? 'selected' : ''}>${escapeHTML(label)} (${chatStatus})</option>`;
+    const semChat = g.chat_enabled === true ? '' : ' · sem chat';
+    return `<option value="${g.user_id}" ${selectedId === g.user_id ? 'selected' : ''}>${escapeHTML(label)}${semChat}</option>`;
   }).join('');
 
   return html;
@@ -1002,78 +1016,88 @@ async function openAdminUsuarioForm(userId) {
   const defaultDocsEnabled = current?.docs_enabled === true;
   const defaultGestorId = current?.gestor_user_id || '';
 
+  // Visual próprio (aum-*, em ui-v2/admin.css). As chaves são div role="switch" com o
+  // checkbox de sempre por dentro (mesmos ids): o salvar abaixo não mudou.
+  // Não usar <label> nos textos: o normalizador do v2 minusculiza rótulos ("O&M" → "O&m").
+  const _aumSw = (id, icon, titulo, sub, on, extra = '') => `
+        <div class="aum-it${on ? ' on' : ''}${extra}" role="switch" tabindex="0" aria-checked="${on ? 'true' : 'false'}" data-aum-sw="${id}">
+          <span class="aum-ic"><i data-lucide="${icon}"></i></span>
+          <span class="aum-tx"><b>${titulo}</b><small data-txt="${escapeHTML(sub)}">${sub}</small></span>
+          <input type="checkbox" id="${id}" ${on ? 'checked' : ''} tabindex="-1" aria-hidden="true">
+          <span class="aum-sw"></span>
+        </div>`;
+  const _aumNome = current?.nome || current?.email || '';
+  const _aumIniciais = (_aumNome.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('') || '?').toUpperCase();
+  const _aumAtivo = current?.ativo !== false;
+  const _aumSelCls = _selectCls.replace(' uppercase', '');
+
   const fieldsHTML = `
     <input type="hidden" id="au-user-id" value="${userId || ''}">
-    <div class="grid grid-cols-2 gap-4">
-      <div class="col-span-2"><label class="${_labelCls}">Email *</label>
-        <input ${userId ? 'disabled' : 'required'} id="au-email" type="email" class="${_inputCls} normal-case" value="${escapeHTML(current?.email || '')}" placeholder="usuario@dominio.com"></div>
-      ${userId ? '' : `<div class="col-span-2"><label class="${_labelCls}">Senha temporaria *</label>
-        <input required id="au-password" type="text" minlength="6" class="${_inputCls} normal-case" placeholder="Minimo 6 caracteres"></div>`}
-      <div class="col-span-2"><label class="${_labelCls}">Nome</label>
-        <input id="au-nome" class="${_inputCls}" value="${escapeHTML(current?.nome || '')}" placeholder="Nome para exibicao"></div>
-      <div><label class="${_labelCls}">Perfil *</label>
-        <select id="au-role" class="${_selectCls}">
-          <option value="vendedor" ${defaultRole === 'vendedor' ? 'selected' : ''}>VENDEDOR</option>
-          <option value="parceiro" ${defaultRole === 'parceiro' ? 'selected' : ''}>PARCEIRO (só kits promocionais)</option>
-          <option value="gestor" ${defaultRole === 'gestor' ? 'selected' : ''}>GESTOR</option>
-          <option value="franqueado" ${defaultRole === 'franqueado' ? 'selected' : ''}>FRANQUEADO (gestor + DRE e preço)</option>
-          <option value="admin" ${defaultRole === 'admin' ? 'selected' : ''}>ADMIN</option>
-          <option value="tecnico" ${defaultRole === 'tecnico' ? 'selected' : ''}>TÉCNICO</option>
-          <option value="engenheiro" ${defaultRole === 'engenheiro' ? 'selected' : ''}>ENGENHEIRO (Matriz)</option>
-        </select></div>
-      <div><label class="${_labelCls}">Franquia *</label>
-        <select id="au-franquia-id" class="${_selectCls}">${_renderFranquiaOptions(franquias, defaultFranquia)}</select></div>
-      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
-        <input type="checkbox" id="au-ativo" ${current?.ativo === false ? '' : 'checked'} class="w-4 h-4 accent-red-500">
-        <span class="text-white font-bold text-sm uppercase">Usuario ativo</span>
-      </label>
-      <div id="au-parceiro-info" class="col-span-2 bg-green-900/30 border border-green-700 p-3 ${defaultRole === 'parceiro' ? '' : 'hidden'}">
-        <p class="text-green-300 text-[10px] font-bold">Parceiro: ve so os clientes e propostas dele, cota so com kits promocionais e nao ve vendas. Quando o cliente fecha, ele avisa a unidade e o gestor registra a venda. Sem chat, O&amp;M e Financeiro.</p>
-      </div>
-      <div id="au-acessos-extra" class="col-span-2 grid grid-cols-2 gap-4 ${defaultRole === 'parceiro' ? 'hidden' : ''}">
-      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
-        <input type="checkbox" id="au-chat-enabled" ${defaultChatEnabled ? 'checked' : ''} class="w-4 h-4 accent-cyan-500">
-        <span class="text-white font-bold text-sm uppercase">Permitir uso do chat (chat_enabled)</span>
-      </label>
-      <div class="col-span-2 bg-cyan-950/20 border border-cyan-700/30 p-3">
-        <p class="text-cyan-200/90 text-[10px] font-bold">Quando desativado: usuario nao aparece no chat, nao inicia/recebe conversa e nao envia mensagens.</p>
-      </div>
-      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
-        <input type="checkbox" id="au-om-enabled" ${defaultOmEnabled ? 'checked' : ''} class="w-4 h-4 accent-orange-500">
-        <span class="text-white font-bold text-sm uppercase">Permitir acesso ao O&amp;M (om_enabled)</span>
-      </label>
-      <div class="col-span-2 bg-orange-950/20 border border-orange-700/30 p-3">
-        <p class="text-orange-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente O&amp;M na plataforma (so Comercial). Admin sempre ve, independente desta opcao.</p>
-      </div>
-      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
-        <input type="checkbox" id="au-fin-enabled" ${defaultFinEnabled ? 'checked' : ''} class="w-4 h-4 accent-teal-500">
-        <span class="text-white font-bold text-sm uppercase">Permitir acesso ao Financeiro (fin_enabled)</span>
-      </label>
-      <div class="col-span-2 bg-teal-950/20 border border-teal-700/30 p-3">
-        <p class="text-teal-200/90 text-[10px] font-bold">Quando desativado: o usuario nao ve o ambiente Financeiro na plataforma. Admin sempre ve, independente desta opcao.</p>
-      </div>
-      </div>
-      <label class="col-span-2 flex items-center gap-3 cursor-pointer">
-        <input type="checkbox" id="au-mkt-enabled" ${defaultMktEnabled ? 'checked' : ''} class="w-4 h-4 accent-orange-500">
-        <span class="text-white font-bold text-sm uppercase">Permitir acesso ao Marketing</span>
-      </label>
-      <label class="col-span-2 flex items-center gap-3 cursor-pointer"><!-- Arquivos (documentações e treinamentos): ambiente próprio -->
-        <input type="checkbox" id="au-docs-enabled" ${defaultDocsEnabled ? 'checked' : ''} class="w-4 h-4 accent-cyan-500">
-        <span class="text-white font-bold text-sm uppercase">Permitir acesso aos Arquivos (documentações e treinamentos)</span>
-      </label>
-      <div class="col-span-2 bg-cyan-950/20 border border-cyan-700/30 p-3">
-        <p class="text-cyan-200/90 text-[10px] font-bold">Quem tem a chave ve o ambiente Marketing (artes e campanhas). Vale para qualquer perfil, inclusive parceiro. Admin sempre ve.</p>
-      </div>
-      <div id="au-gestor-wrap" class="col-span-2 ${defaultRole === 'vendedor' ? '' : 'hidden'}">
-        <label class="${_labelCls}">Gestor vinculado (apenas vendedor)</label>
-        <select id="au-gestor-user-id" class="${_selectCls}">
-          ${_renderGestorOptions(users, defaultFranquia, defaultGestorId)}
-        </select>
-        <p class="text-neutral-500 text-[10px] font-bold mt-1">Vendedor so pode conversar com o gestor vinculado (quando ambos estiverem com chat habilitado).</p>
-      </div>
+    <div class="aum">
+      ${userId ? `
+      <div class="aum-who">
+        <span class="aum-av">${escapeHTML(_aumIniciais)}</span>
+        <span class="aum-tx"><b>${escapeHTML(current?.nome || 'Sem nome')}</b><small>${escapeHTML(current?.email || '')}</small></span>
+        <span class="aum-pill ${_aumAtivo ? 'ok' : 'off'}" id="au-pill">${_aumAtivo ? 'Ativo' : 'Inativo'}</span>
+      </div>` : ''}
+
+      <section class="aum-sec">
+        <h3>Dados</h3>
+        <div class="aum-grid">
+          ${userId ? '' : `
+          <div class="aum-full"><label class="${_labelCls}">E-mail *</label>
+            <input required id="au-email" type="email" class="${_inputCls} normal-case" placeholder="usuario@dominio.com"></div>
+          <div class="aum-full"><label class="${_labelCls}">Senha temporária *</label>
+            <input required id="au-password" type="text" minlength="6" class="${_inputCls} normal-case" placeholder="Mínimo 6 caracteres"></div>`}
+          <div class="aum-full"><label class="${_labelCls}">Nome</label>
+            <input id="au-nome" class="${_inputCls}" value="${escapeHTML(current?.nome || '')}" placeholder="Nome para exibição"></div>
+          <div><label class="${_labelCls}">Perfil *</label>
+            <select id="au-role" class="${_aumSelCls}">
+              <option value="vendedor" ${defaultRole === 'vendedor' ? 'selected' : ''}>Vendedor</option>
+              <option value="parceiro" ${defaultRole === 'parceiro' ? 'selected' : ''}>Parceiro</option>
+              <option value="gestor" ${defaultRole === 'gestor' ? 'selected' : ''}>Gestor</option>
+              <option value="franqueado" ${defaultRole === 'franqueado' ? 'selected' : ''}>Franqueado</option>
+              <option value="admin" ${defaultRole === 'admin' ? 'selected' : ''}>Admin</option>
+              <option value="tecnico" ${defaultRole === 'tecnico' ? 'selected' : ''}>Técnico</option>
+              <option value="engenheiro" ${defaultRole === 'engenheiro' ? 'selected' : ''}>Engenheiro (Matriz)</option>
+            </select>
+            <p class="aum-hint" id="au-perfil-hint"></p></div>
+          <div><label class="${_labelCls}">Unidade *</label>
+            <select id="au-franquia-id" class="${_aumSelCls}">${_renderFranquiaOptions(franquias, defaultFranquia)}</select></div>
+          <div id="au-gestor-wrap" class="aum-full ${defaultRole === 'vendedor' ? '' : 'hidden'}">
+            <label class="${_labelCls}">Gestor vinculado</label>
+            <select id="au-gestor-user-id" class="${_aumSelCls}">
+              ${_renderGestorOptions(users, defaultFranquia, defaultGestorId)}
+            </select>
+            <p class="aum-hint">No chat, o vendedor só conversa com o gestor dele (os dois com chat ligado).</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="aum-sec">
+        <h3>Situação</h3>
+        <div class="aum-list">
+          ${_aumSw('au-ativo', 'user-check', 'Usuário ativo', _aumAtivo ? 'Pode entrar na plataforma.' : 'Não entra mais. Clientes, propostas e vendas dele ficam guardados.', _aumAtivo, ' aum-ativo')}
+        </div>
+      </section>
+
+      <section class="aum-sec">
+        <h3>Acessos</h3>
+        <div id="au-parceiro-info" class="aum-note aum-note-p ${defaultRole === 'parceiro' ? '' : 'hidden'}">
+          <i data-lucide="info"></i><span>Parceiro vê só os clientes e propostas dele e cota com kits promocionais. Quando o cliente fecha, avisa a unidade, e o gestor registra a venda.</span>
+        </div>
+        <div class="aum-list" id="au-acessos-extra">
+          ${_aumSw('au-chat-enabled', 'message-circle', 'Chat', 'Aparece no chat e conversa com a equipe.', defaultChatEnabled, ' aum-parc')}
+          ${_aumSw('au-om-enabled', 'wrench', 'O&amp;M', 'Vê o ambiente de operação e manutenção.', defaultOmEnabled, ' aum-parc')}
+          ${_aumSw('au-fin-enabled', 'wallet', 'Financeiro', 'Vê o ambiente Financeiro.', defaultFinEnabled, ' aum-parc')}
+          ${_aumSw('au-mkt-enabled', 'megaphone', 'Marketing', 'Artes e campanhas.', defaultMktEnabled)}
+          ${_aumSw('au-docs-enabled', 'folder-open', 'Arquivos', 'Documentações e treinamentos.', defaultDocsEnabled)}
+        </div>
+        <p class="aum-note"><i data-lucide="shield-check"></i><span>Admin vê todos os ambientes, com ou sem essas chaves.</span></p>
+      </section>
     </div>`;
 
-  openAdminModal(userId ? 'EDITAR USUARIO' : 'NOVO USUARIO', fieldsHTML, async () => {
+  openAdminModal(userId ? 'Editar usuário' : 'Novo usuário', fieldsHTML, async () => {
     const papel = document.getElementById('au-role').value;
     const roleValue = papel === 'franqueado' ? 'gestor' : papel;
     // só mexe na marca quando há franqueado no caminho (agora ou antes)
@@ -1207,7 +1231,7 @@ async function openAdminUsuarioForm(userId) {
 
     const c = document.getElementById('admin-section-content');
     if (c) renderAdminUsuarios(c);
-  });
+  }, { classe: 'aum-modal', semCancelar: true, saveLabel: userId ? 'Salvar alterações' : 'Criar usuário' });
 
   const roleSelect = document.getElementById('au-role');
   const franquiaSelect = document.getElementById('au-franquia-id');
@@ -1217,9 +1241,21 @@ async function openAdminUsuarioForm(userId) {
   const syncGestorField = () => {
     if (!roleSelect || !franquiaSelect || !gestorWrap || !gestorSelect) return;
 
-    const ehParceiro = _normalizeAdminRole(roleSelect.value) === 'parceiro';
-    document.getElementById('au-acessos-extra')?.classList.toggle('hidden', ehParceiro);
+    const papelSel = _normalizeAdminRole(roleSelect.value);
+    const ehParceiro = papelSel === 'parceiro';
     document.getElementById('au-parceiro-info')?.classList.toggle('hidden', !ehParceiro);
+    const hint = document.getElementById('au-perfil-hint');
+    if (hint) hint.textContent = _AUM_PERFIL_HINT[papelSel] || '';
+    // parceiro: chat, O&M e Financeiro ficam travados (o salvar e o banco já gravam desligado);
+    // o checkbox guarda o valor de antes, que volta se trocar o perfil de novo
+    document.querySelectorAll('#au-acessos-extra .aum-parc').forEach(el => {
+      el.classList.toggle('lock', ehParceiro);
+      el.setAttribute('aria-disabled', ehParceiro ? 'true' : 'false');
+      el.tabIndex = ehParceiro ? -1 : 0;
+      const s = el.querySelector('small');
+      if (s) s.textContent = ehParceiro ? 'Não vale para parceiro.' : s.dataset.txt;
+      _aumPintar(el);
+    });
 
     const isVendedor = _normalizeAdminRole(roleSelect.value) === 'vendedor';
     const franquiaId = franquiaSelect.value || null;
@@ -1235,7 +1271,50 @@ async function openAdminUsuarioForm(userId) {
 
   if (roleSelect) roleSelect.addEventListener('change', syncGestorField);
   if (franquiaSelect) franquiaSelect.addEventListener('change', syncGestorField);
+
+  // chaves: clique ou Espaço/Enter liga e desliga o checkbox de dentro
+  const aum = document.querySelector('#admin-modal-fields .aum');
+  const alternar = (el) => {
+    if (!el || el.classList.contains('lock')) return;
+    const cb = el.querySelector('input[type="checkbox"]');
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change', { bubbles: true }));
+    _aumPintar(el);
+    if (cb.id === 'au-ativo') {
+      const s = el.querySelector('small');
+      if (s) s.textContent = cb.checked ? 'Pode entrar na plataforma.' : 'Não entra mais. Clientes, propostas e vendas dele ficam guardados.';
+      const pill = document.getElementById('au-pill');
+      if (pill) { pill.textContent = cb.checked ? 'Ativo' : 'Inativo'; pill.className = 'aum-pill ' + (cb.checked ? 'ok' : 'off'); }
+    }
+  };
+  if (aum) {
+    aum.addEventListener('click', (e) => alternar(e.target.closest('[data-aum-sw]')));
+    aum.addEventListener('keydown', (e) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      const el = e.target.closest('[data-aum-sw]');
+      if (!el) return;
+      e.preventDefault();
+      alternar(el);
+    });
+  }
   syncGestorField();
+}
+
+const _AUM_PERFIL_HINT = {
+  vendedor: 'Atende os próprios clientes e faz orçamentos.',
+  parceiro: 'Só os clientes dele e kits promocionais. Não vê vendas.',
+  gestor: 'Vê a unidade inteira e registra as vendas.',
+  franqueado: 'Gestor da unidade, com DRE e ajuste de preço.',
+  admin: 'Acesso total, inclusive a este painel.',
+  tecnico: 'Equipe de campo do O&M.',
+  engenheiro: 'Engenharia da Matriz.',
+};
+
+// liga/desliga visual de uma chave (travada aparece desligada, sem perder o valor guardado)
+function _aumPintar(el) {
+  const on = el.querySelector('input[type="checkbox"]').checked && !el.classList.contains('lock');
+  el.classList.toggle('on', on);
+  el.setAttribute('aria-checked', on ? 'true' : 'false');
 }
 
 async function toggleAdminUsuarioAtivo(userId, nextActive) {
