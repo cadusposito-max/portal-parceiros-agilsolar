@@ -1233,6 +1233,21 @@
       } catch (e) { erro(e.message || String(e)); }
     });
   }
+  // Liberação num clique, sem janela (18/11): o botão do card da venda e o envio à
+  // engenharia ("Enviar e liberar a obra") usam esta. O motivo vai preenchido com a
+  // origem, porque a RPC exige um. Devolve true se liberou.
+  async function liberarDireto(alvo, depois, motivo) {
+    if (!alvo || !alvo.venda_id || O.liberando) return false;
+    O.liberando = true;
+    try {
+      await rpc('obra_liberar', { p_venda_id: alvo.venda_id, p_liberar: true, p_motivo: motivo || 'Pelo card da venda', p_texto: null });
+      toast(`${alvo.cliente_nome || 'Venda'} liberada para obra`);
+      if (O.lista) carregar(true).then(repintar);
+      if (depois) await depois();
+      return true;
+    } catch (e) { console.error('[obras] liberar', e); toast('Não foi possível liberar: ' + (e.message || e)); return false; }
+    finally { O.liberando = false; }
+  }
   // devolver para "aguardando liberação" (também pelo card da venda; só antes de agendar)
   async function devolver(alvo, depois) {
     if (!alvo || !alvo.venda_id) return;
@@ -1479,7 +1494,7 @@
     agendarModal, agendarSlot: (data, eq) => agendarModal(null, { data, eq }),
     agAlvo: (id) => { O.agAlvo = id; agEquipes(); agCheck(); },
     agCheck, agConfirmar, concluirModal, ccConfirmar, prioridadeModal, prioEnviar, entregaModal, enConfirmar,
-    liberarModal, libConfirmar, devolver,
+    liberarModal, libConfirmar, liberarDireto, devolver,
     equipesModal, eqSalvar, eqAtiva, eqPagTog, eqEx,
     pgVivo, pgSet, pgMais, pgTirar, irPagEquipes,
     elSet, elAdd, elDel, elForn, elGerar, elSalvar: () => elSalvar(), elStatus, confAbrir, confToque, confFechar, confFim,

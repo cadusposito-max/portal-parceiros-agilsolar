@@ -2689,16 +2689,59 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
     if (!lig) { erro('Escolha o tipo de ligação.'); return; }
     const dist = val('eg-env-dist');
     if (dist && !(num(dist) > 0)) { erro('Distância inválida.'); return; }
-    const inst = { tipo_ligacao: lig, numero_instalacao: val('eg-env-uc') || null, concessionaria: val('eg-env-conc') || null, telhado: val('eg-env-tel') || null, distancia_m: dist ? num(dist) : null, obs: val('eg-env-obs') || null };
+    env.inst = { tipo_ligacao: lig, numero_instalacao: val('eg-env-uc') || null, concessionaria: val('eg-env-conc') || null, telhado: val('eg-env-tel') || null, distancia_m: dist ? num(dist) : null, obs: val('eg-env-obs') || null };
+    env.vendaId = val('eg-env-venda');
+    erro('');
+    // 18/11: confirmação antes de enviar. Quem pode liberar a obra (admin/gestor da
+    // unidade, venda ainda aguardando) escolhe aqui se libera junto; senão libera
+    // depois pelo botão do card da venda.
+    let podeLib = false;
     await ocupado('eg-env-ok', async () => {
+      const va = window.vendasAndamento;
+      podeLib = !!(va && va.podeLiberarAgora && await va.podeLiberarAgora(env.vendaId));
+    });
+    const scrim = document.getElementById('eg-scrim');
+    const foot = scrim && scrim.querySelector('.rd-mfoot');
+    if (!foot) return;
+    env.footHTML = foot.innerHTML;
+    scrim.querySelectorAll('.rd-fgrid input, .rd-fgrid select').forEach((el) => { el.disabled = true; });
+    foot.insertAdjacentHTML('beforebegin', `<div class="eg-conf" id="eg-env-conf"><div class="${podeLib ? 'at' : 'ok'}">${ic(podeLib ? 'hard-hat' : 'send')}<div><b>${podeLib ? 'Liberar a obra junto?' : 'Confirmar o envio à engenharia?'}</b><span>${podeLib
+      ? 'Se o pagamento já está garantido (financiamento aprovado, entrada recebida ou à vista), a venda já entra na aba Obras. Se ainda não, envie só o projeto e libere a obra depois pelo card da venda.'
+      : 'Depois do envio, os documentos e o kit ficam congelados.'}</span></div></div></div>`);
+    foot.innerHTML = `<button class="rd-btn" onclick="EV.envioVoltar()">Voltar</button>${podeLib
+      ? `<button class="rd-btn" id="eg-env-so" onclick="EV.envioConfirmar(false)">${ic('send')}Só enviar</button><button class="rd-btn pri" id="eg-env-lib" onclick="EV.envioConfirmar(true)">${ic('hard-hat')}Enviar e liberar a obra</button>`
+      : `<button class="rd-btn pri" id="eg-env-so" onclick="EV.envioConfirmar(false)">${ic('send')}Confirmar envio</button>`}`;
+    icons();
+  }
+  function envioVoltar() {
+    const env = E._envio;
+    const scrim = document.getElementById('eg-scrim');
+    if (!env || !scrim) return;
+    const conf = document.getElementById('eg-env-conf');
+    if (conf) conf.remove();
+    scrim.querySelectorAll('.rd-fgrid input, .rd-fgrid select').forEach((el) => { el.disabled = false; });
+    const foot = scrim.querySelector('.rd-mfoot');
+    if (foot && env.footHTML) foot.innerHTML = env.footHTML;
+    icons();
+  }
+  async function envioConfirmar(liberarObra) {
+    const env = E._envio;
+    if (!env || !env.inst || env.enviando) return;
+    env.enviando = true;
+    const outro = document.getElementById(liberarObra ? 'eg-env-so' : 'eg-env-lib');
+    if (outro) outro.disabled = true;
+    await ocupado(liberarObra ? 'eg-env-lib' : 'eg-env-so', async () => {
       try {
-        const id = await rpc('eng_enviar_projeto', { p_cliente: env.clienteId, p_venda: val('eg-env-venda'), p_instalacao: inst });
+        const id = await rpc('eng_enviar_projeto', { p_cliente: env.clienteId, p_venda: env.vendaId, p_instalacao: env.inst });
         fecharModal();
         toast('Projeto enviado à engenharia');
+        // a obra é um passo à parte: se falhar, o projeto já foi e o botão do card continua lá
+        if (liberarObra && window.vendasAndamento && window.vendasAndamento.liberarNoEnvio) await window.vendasAndamento.liberarNoEnvio(env.vendaId);
         await recarregarProjeto(id);
         if (typeof crmFetchAtividades === 'function') crmFetchAtividades(env.clienteId);
         if (typeof renderCrm360 === 'function') renderCrm360();
-      } catch (e) { erro(e.message); }
+      } catch (e) { erro(e.message); if (outro && document.body.contains(outro)) outro.disabled = false; }
+      finally { env.enviando = false; }
     });
   }
 
@@ -2764,7 +2807,7 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
     catMenos: () => { E.catLimite = CAT_PASSO; pintarCat(); },
     kitMais: () => { E.kitLimite += KITS_PASSO; pintarKits(); },
     kitMenos: () => { E.kitLimite = KITS_PASSO; pintarKits(); },
-    envioModal, envioKit, enviar,
+    envioModal, envioKit, enviar, envioVoltar, envioConfirmar,
     dimensionar, sugerirVinculo,
     // timeline unificada: a ficha do comercial desenha os eventos da engenharia com estes
     textoEvento, tomEvento,

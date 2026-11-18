@@ -92,13 +92,27 @@
     const pos = posDe_(v);
     return !pos.obra_liberada_em && !OBRA_ANDANDO.includes(pos.obra_status);
   }
-  const podeLiberar = (v) => podeEditar(v) && !A.semRpc && !!(window.obras && window.obras.liberarModal);
+  const podeLiberar = (v) => podeEditar(v) && !A.semRpc && !!(window.obras && window.obras.liberarDireto);
   const podeDevolver = (v) => podeLiberar(v) && !!posDe_(v).obra_liberada_em && !OBRA_ANDANDO.includes(posDe_(v).obra_status);
   const alvoObra = (v) => ({ venda_id: v.id, cliente_nome: v.cliente_nome, kwp: v.kit_power, pagamento: v.forma_pagamento });
   async function depoisLiberar() { await carregar(true); repintar(); }
+  // 18/11: liberar é um clique só, sem janela nem pergunta (se errar, tem o Devolver)
   function liberar(vendaId) {
     const v = (state.vendas || []).find((x) => x.id === vendaId);
-    if (v && podeLiberar(v)) window.obras.liberarModal(alvoObra(v), depoisLiberar);
+    if (v && podeLiberar(v)) window.obras.liberarDireto(alvoObra(v), depoisLiberar, 'Pelo card da venda');
+  }
+  // Para o envio à engenharia: quem envia pode liberar a obra desta venda agora?
+  async function podeLiberarAgora(vendaId) {
+    try {
+      await carregar(true);
+      const v = (state.vendas || []).find((x) => x.id === vendaId);
+      return !!(v && podeLiberar(v) && aguardaLiberacao(v));
+    } catch (_) { return false; }
+  }
+  async function liberarNoEnvio(vendaId) {
+    const v = (state.vendas || []).find((x) => x.id === vendaId);
+    if (!v || !podeLiberar(v)) return false;
+    return window.obras.liberarDireto(alvoObra(v), () => carregar(true), 'Junto com o envio à engenharia');
   }
   function devolverObra(vendaId) {
     const v = (state.vendas || []).find((x) => x.id === vendaId);
@@ -600,7 +614,7 @@
   window.vendasAndamento = {
     FASES, carregar, garantir, info, trilho, agora, painel, painelCard, fasesHTML, filtrarLista,
     vendaDaFicha, topoEtapasHTML, topoResumoHTML, topoMiniHTML, abaHTML, irEtapa,
-    editar, salvar, irFinanceiro, irDaLista, abrir, fechar, filtrar, dica, liberar, devolverObra,
+    editar, salvar, irFinanceiro, irDaLista, abrir, fechar, filtrar, dica, liberar, devolverObra, podeLiberarAgora, liberarNoEnvio,
     // da ficha (aba Pós-venda) para o card da obra na aba Obras
     irObras: (vendaId) => {
       if (typeof _crm360ClientId !== 'undefined' && _crm360ClientId && typeof closeCrm360 === 'function') closeCrm360();
