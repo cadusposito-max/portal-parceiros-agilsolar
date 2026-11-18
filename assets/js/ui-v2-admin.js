@@ -20,6 +20,7 @@
     ['Sistema', [
       ['usuarios', 'user-cog', 'Usuários', 'Acessos e perfis', true],
       ['comunicados', 'megaphone', 'Comunicados', 'Avisos para a equipe', true],
+      ['tarefasauto', 'bot', 'Tarefas automáticas', 'Regras e prazos', true],
     ]],
     ['Comercial', [
       ['leads', 'megaphone', 'Leads Meta', 'Rodízio e unidades', true],
@@ -32,7 +33,7 @@
     ]],
   ];
   const CATALOGO = [['produtos', 'zap', 'Kits'], ['componentes', 'boxes', 'Equipamentos']];
-  const RENDER = { leads: 'renderAdminLeadsMeta', campanhas: 'renderAdminCampanhas', usuarios: 'renderAdminUsuarios', vendedores: 'renderAdminVendedores', comunicados: 'renderAdminComunicados', financiadoras: 'renderAdminFinanciadoras', custos: 'renderAdminCustos', distribuidoras: 'renderAdminDistribuidoras' };
+  const RENDER = { tarefasauto: 'renderAdminTarefasAuto', leads: 'renderAdminLeadsMeta', campanhas: 'renderAdminCampanhas', usuarios: 'renderAdminUsuarios', vendedores: 'renderAdminVendedores', comunicados: 'renderAdminComunicados', financiadoras: 'renderAdminFinanciadoras', custos: 'renderAdminCustos', distribuidoras: 'renderAdminDistribuidoras' };
 
   // celular: o menu vira gaveta de baixo, aberta pelo botão com a seção atual
   window.uiV2Admin = {
@@ -60,7 +61,7 @@
         <div class="grab"></div>
         ${grupos.map(([g, itens]) => `<div class="lbl">${g}</div>${itens.map((s) => `<button class="${s[0] === atual[0] ? 'on' : ''}" onclick="setAdminSection('${s[0]}')">${ic(s[1])}<span class="tx"><b>${s[2]}</b><small>${s[3]}</small></span></button>`).join('')}`).join('')}
         <div class="lbl">Catálogo · abre em Produtos</div>
-        ${CATALOGO.map(([id, i, l]) => `<button class="ext" onclick="setAdminSection('${id}')" title="Abre em Comercial › Produtos">${ic(i)}<span class="tx"><b>${l}</b></span>${ic('arrow-up-right', 'class="go"')}</button>`).join('')}
+        <div class="v2a-cat">${CATALOGO.map(([id, i, l]) => `<button class="ext" onclick="setAdminSection('${id}')" title="Abre em Comercial › Produtos">${ic(i)}<span class="tx"><b>${l}</b></span>${ic('arrow-up-right', 'class="go"')}</button>`).join('')}</div>
       </nav>
       <section class="v2a-body">
         <header class="v2a-h"><span class="v2a-ic">${ic(atual[1])}</span><div><h2>${atual[2]}</h2><p>${atual[3]}</p></div></header>

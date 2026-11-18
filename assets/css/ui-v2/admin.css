@@ -40,6 +40,16 @@ html[data-ui="v2"] .v2a-nav button.on { background: var(--v2-blue-50); }
 html[data-ui="v2"] .v2a-nav button.on > svg:first-child { background: var(--v2-blue); color: #fff; }
 html[data-ui="v2"] .v2a-nav button.on b { color: var(--v2-blue-text); }
 html[data-ui="v2"] .v2a-nav button.ext .go { width: 16px; height: 16px; margin-left: auto; color: var(--v2-gray); }
+/* menu nunca passa da tela (notebook baixo): rola sozinho em vez de cortar o fim */
+html[data-ui="v2"] .v2a-nav { max-height: calc(100vh - 110px); overflow-y: auto; scrollbar-width: thin; }
+/* Catálogo: os dois atalhos lado a lado, numa linha só */
+html[data-ui="v2"] .v2a-nav .v2a-cat { display: flex; gap: 4px; flex-shrink: 0; }
+html[data-ui="v2"] .v2a-nav .v2a-cat button { flex: 1; min-width: 0; padding: 8px 6px; justify-content: center; background: var(--v2-bg); }
+html[data-ui="v2"] .v2a-nav .v2a-cat button:hover { background: var(--v2-hover); }
+html[data-ui="v2"] .v2a-nav .v2a-cat button > svg:first-child { display: none; }
+html[data-ui="v2"] .v2a-nav .v2a-cat button b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-ui="v2"] .v2a-nav .v2a-cat button .go { display: none; } /* o rótulo do grupo já diz "abre em Produtos" */
+html[data-ui="v2"] .v2a-nav > button { flex-shrink: 0; }
 html[data-ui="v2"] .v2a-body { background: var(--v2-card); border-radius: 24px; padding: 22px; box-shadow: var(--v2-shadow); min-width: 0; }
 html[data-ui="v2"] .v2a-h { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
 html[data-ui="v2"] .v2a-ic { width: 46px; height: 46px; border-radius: 15px; background: var(--v2-blue-50); color: var(--v2-blue-text); display: grid; place-items: center; flex-shrink: 0; }
@@ -310,6 +320,34 @@ html[data-ui="v2"] .alm .t-blue { background: var(--v2-blue-50); color: var(--v2
 html[data-ui="v2"] .alm .t-orange { background: var(--v2-orange-50); color: var(--v2-orange-text); }
 html[data-ui="v2"] .alm .t-red { background: rgba(209,67,67,.12); color: var(--v2-red); }
 html[data-ui="v2"] .alm .t-gray { background: var(--v2-card); color: var(--v2-gray); }
+/* Admin › Tarefas automáticas (admin-tarefas-auto.js) — usa a base .alm-* */
+html[data-ui="v2"] .ata { display: flex; flex-direction: column; gap: 14px; }
+html[data-ui="v2"] .ata-ctl { flex-basis: 100%; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-left: 44px; }
+html[data-ui="v2"] .ata-regra.off .ata-ctl { pointer-events: none; }
+html[data-ui="v2"] .ata-regra.off { opacity: 1; }
+html[data-ui="v2"] .ata-regra.off > .alm-fb, html[data-ui="v2"] .ata-regra.off > .alm-grow, html[data-ui="v2"] .ata-regra.off .ata-ctl { opacity: .55; }
+html[data-ui="v2"] .ata-step { display: inline-flex; align-items: center; height: 34px; border: 1px solid var(--v2-line-strong); border-radius: 10px; background: var(--v2-card); }
+html[data-ui="v2"] .ata-step button { width: 34px; height: 32px; border: 0; background: none; color: var(--v2-ink-2); cursor: pointer; display: grid; place-items: center; border-radius: 10px; }
+html[data-ui="v2"] .ata-step button:hover { background: var(--v2-hover); }
+html[data-ui="v2"] .ata-step button svg { width: 15px; height: 15px; }
+html[data-ui="v2"] .ata-step span { min-width: 78px; text-align: center; font-size: 13px; font-weight: 700; color: var(--v2-ink); }
+html[data-ui="v2"] .ata-urg { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--v2-ink-2); cursor: pointer; }
+html[data-ui="v2"] .alm-tg.sm { width: 34px; height: 20px; }
+html[data-ui="v2"] .alm-tg.sm::after { width: 14px; height: 14px; }
+html[data-ui="v2"] .alm-tg.sm.on::after { left: 17px; }
+html[data-ui="v2"] .ata-urg .alm-tg.on { background: var(--v2-red); }
+html[data-ui="v2"] .ata-num { display: inline-flex; gap: 6px; margin-left: auto; }
+html[data-ui="v2"] .ata-edit { flex-basis: 100%; background: var(--v2-card); border-radius: 14px; padding: 12px 14px; }
+html[data-ui="v2"] .ata-pessoas { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+html[data-ui="v2"] .ata-pessoa { display: flex; align-items: center; justify-content: flex-start; text-align: left; gap: 10px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--v2-line); cursor: pointer; font-size: 13px; font-weight: 600; color: var(--v2-ink); }
+html[data-ui="v2"] .ata-pessoa:has(input:checked) { border-color: var(--v2-blue); background: var(--v2-blue-50); }
+html[data-ui="v2"] .alm .ata-pessoa input { width: 18px; min-width: 18px; height: 18px; flex: 0 0 18px; margin: 0; padding: 0; accent-color: var(--v2-blue); }
+html[data-ui="v2"] .ata-pessoa > span { min-width: 0; }
+html[data-ui="v2"] .ata-pessoa small { display: block; font-size: 11.5px; font-weight: 500; color: var(--v2-gray); }
+@media (max-width: 760px) {
+  html[data-ui="v2"] .ata-ctl { padding-left: 0; }
+  html[data-ui="v2"] .ata-num { margin-left: 0; }
+}
 @media (max-width: 760px) {
   html[data-ui="v2"] .alm-card { padding: 14px; }
   html[data-ui="v2"] .alm input { min-width: 0; width: 100%; }
