@@ -276,7 +276,7 @@
   // Tabela do centro de custo: valor da faixa para esta proposta (kWp, ou kW de cada inversor × quantidade).
   const valorTabela = (l) => valorLinha(l, num(cur.receita), num(cur.kit));
   const tabelaInvTxt = () => {
-    const q = CentroCustoCalc.qtdInversores({ inversores: cur.inversores });
+    const q = Math.max(1, Math.round(num(cur.inversores)) || 1);
     const kw = pctFmt(r2(num(cur.kwInversor) / q)) + ' kW';
     return q > 1 ? `${q} inversores de ${kw}` : `${kw} de inversor`;
   };
@@ -308,11 +308,22 @@
       </div>`;
   }
 
+  // Uma linha com problema não pode apagar a demonstração inteira: mostra só ela com aviso.
+  function linhaSegura(def) {
+    try { return linhaRow(def); } catch (err) {
+      console.error('[precificacao] linha ' + def.key, err);
+      return `<div class="orc-row px-5 py-2 flex items-center gap-3" data-orc-row="${def.key}">
+          <span class="orc-lbl font-bold text-neutral-300 text-sm flex-1">${escapeHTML(def.rotulo)} <span class="text-[11px] text-yellow-500">· não deu para mostrar a regra (recarregue a página)</span></span>
+          <span class="orc-res text-red-400 font-black num text-sm w-28 text-right" data-orc-res="${def.key}">—</span>
+        </div>`;
+    }
+  }
+
   function renderLinhas() {
     const host = document.getElementById('orc-linhas'); if (!host) return;
-    host.innerHTML = defs().map(linhaRow).join('');
+    host.innerHTML = defs().map(linhaSegura).join('');
     const ded = document.getElementById('orc-linha-ded');
-    if (ded) ded.innerHTML = linhaRow(DEDUCOES);
+    if (ded) ded.innerHTML = linhaSegura(DEDUCOES);
     if (window.lucide) lucide.createIcons();
     recalc();
   }
