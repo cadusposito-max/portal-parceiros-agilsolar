@@ -25,6 +25,7 @@ let _equipStatus = 'all';       // all | ativos | inativos
 const EQUIP_CATEGORIAS = [
   { v: 'modulo',    label: 'Módulo' },
   { v: 'inversor',  label: 'Inversor' },
+  { v: 'bateria',   label: 'Bateria' },
   { v: 'estrutura', label: 'Estrutura' },
   { v: 'cabo',      label: 'Cabos' },
   { v: 'servico',   label: 'Serviço' },
@@ -385,7 +386,9 @@ function renderCatalogoEquipamentos(container) {
           </div>
           <h3 class="text-white font-black text-sm uppercase leading-tight mt-1.5">${safeNome}</h3>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[10px] font-bold">
-            ${Number(item.potencia_wp) > 0 ? `<span class="text-orange-500 flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i>${escapeHTML(String(item.potencia_wp))} Wp</span>` : ''}
+            ${Number(item.potencia_wp) > 0 ? (item.tipo === 'bateria'
+              ? `<span class="text-orange-500 flex items-center gap-1"><i data-lucide="battery" class="w-3 h-3"></i>${escapeHTML((Number(item.potencia_wp) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }))} kWh</span>`
+              : `<span class="text-orange-500 flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i>${escapeHTML(String(item.potencia_wp))} Wp</span>`) : ''}
             ${temCusto ? `<span class="text-neutral-500">custo ${formatCurrency(item.custo)}</span>` : ''}
           </div>
         </div>
@@ -429,7 +432,17 @@ function openEquipModal(item = null) {
   set('equip-custo', item?.custo ?? '');
   const ativoEl = document.getElementById('equip-ativo');
   if (ativoEl) ativoEl.checked = item ? item.ativo !== false : true;
+  equipTipoMudou();
   catalogoOfertasEquipamentoAbrir(item?.id || '');
+}
+
+// Bateria: o campo de potência guarda a capacidade em Wh (5,12 kWh = 5120).
+function equipTipoMudou() {
+  const bat = document.getElementById('equip-tipo')?.value === 'bateria';
+  const lb = document.getElementById('equip-potencia-lb');
+  if (lb) lb.textContent = bat ? 'Capacidade (Wh)' : 'Potência (Wp)';
+  const inp = document.getElementById('equip-potencia');
+  if (inp) inp.placeholder = bat ? 'ex.: 5120' : 'opcional';
 }
 
 function closeEquipModal() {

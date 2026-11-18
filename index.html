@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="assets/css/ui-v2/dimensionar.css?v=20261117-limpeza" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/etiquetas.css?v=20261006-etq" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/orcamento.css?v=20261117-limpeza" data-ui-v2 media="not all">
-  <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261006-pers2" data-ui-v2 media="not all">
+  <link rel="stylesheet" href="assets/css/ui-v2/personalizada.css?v=20261118-hibrido" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/catalogo-distribuidoras.css?v=20261117-limpeza" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/hibrido.css?v=20261023-hibrido" data-ui-v2 media="not all">
   <link rel="stylesheet" href="assets/css/ui-v2/campanhas.css?v=20261112-camp-proposta" data-ui-v2 media="not all">
@@ -666,6 +666,14 @@
 
             <!-- Coluna 1: nome + itens -->
             <div class="pbp-main">
+              <div class="pbp-sis">
+                <div id="pb-equip-sistema" class="pbd-sistema" role="group" aria-label="Tipo de sistema">
+                  <button type="button" data-sis="ongrid" class="is-on" aria-pressed="true"><i data-lucide="sun"></i>On-grid</button>
+                  <button type="button" data-sis="hibrido" aria-pressed="false"><i data-lucide="battery-charging"></i>Híbrido</button>
+                </div>
+                <p id="pb-equip-sistema-hint" class="pbp-hint">Sistema ligado na rede, sem bateria.</p>
+              </div>
+
               <label class="pbp-lb" for="pb-equip-descricao">Nome na proposta</label>
               <input type="text" id="pb-equip-descricao" class="pbp-input" placeholder="Proposta personalizada">
               <p class="pbp-hint">Em branco, usa o nome sugerido.</p>
@@ -681,6 +689,7 @@
                   <input type="text" id="pb-catalogo-busca" class="pbp-input" placeholder="Buscar kit por nome, marca ou potência" aria-controls="pb-catalogo">
                 </div>
                 <button type="button" id="pb-itens-add-manual" class="pbp-btn"><i data-lucide="plus"></i> Item avulso</button>
+                <button type="button" id="pb-itens-add-bateria" class="pbp-btn pbp-btn-bat hidden"><i data-lucide="battery"></i> Bateria</button>
               </div>
 
               <!-- Catálogo (kits ou equipamentos, conforme o seletor ao lado da busca) -->
@@ -693,6 +702,7 @@
               </div>
 
               <div id="pb-itens-lista" class="pbp-itens"></div>
+              <div id="pb-equip-backup" class="pbp-backup hidden"></div>
             </div>
 
             <!-- Coluna 2: resumo -->
@@ -707,6 +717,8 @@
                 <p id="pb-equip-potencia-hint" class="pbp-hint"></p>
               </div>
 
+              <div id="pb-equip-linha-bateria" class="pbp-linha hidden"><span>Bateria</span><b id="pb-equip-preview-bateria">—</b></div>
+              <div id="pb-equip-linha-backup" class="pbp-linha hidden"><span>Backup com os aparelhos</span><b id="pb-equip-preview-backup">—</b></div>
               <div class="pbp-linha"><span>Itens</span><b id="pb-equip-preview-equip">—</b></div>
 
               <div class="pbp-campo">
@@ -854,8 +866,8 @@
       <div class="grid grid-cols-2 gap-5">
         <div class="space-y-1">
           <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Categoria</label>
-          <select id="equip-tipo" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold uppercase">
-            <option value="modulo">Módulo</option><option value="inversor">Inversor</option>
+          <select id="equip-tipo" onchange="equipTipoMudou()" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-bold uppercase">
+            <option value="modulo">Módulo</option><option value="inversor">Inversor</option><option value="bateria">Bateria</option>
             <option value="estrutura">Estrutura</option><option value="cabo">Cabos</option>
             <option value="servico">Serviço</option><option value="outro">Outros</option>
           </select>
@@ -871,7 +883,7 @@
       </div>
       <div class="grid grid-cols-3 gap-4">
         <div class="space-y-1">
-          <label class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Potência (Wp)</label>
+          <label id="equip-potencia-lb" class="text-[10px] text-orange-500/80 font-black uppercase tracking-widest">Potência (Wp)</label>
           <input type="number" step="any" id="equip-potencia" class="w-full bg-black border border-neutral-700 focus:border-orange-500 rounded-none px-4 py-3 text-white font-mono font-bold" placeholder="opcional">
         </div>
         <div class="space-y-1">
@@ -1238,9 +1250,9 @@
   local('catalogo-distribuidoras.js', '20261117-limpeza');
   local('distribuidoras-integracao.js', '20261117-limpeza');
   local('kit-montado.js',     '20261117-limpeza');
-  local('produtos.js',         '20261110-campanhas');
+  local('produtos.js',         '20261118-bateria');
   local('pb-dimensionar.js',   '20261117-limpeza');
-  local('proposta-builder.js', '20261117-ajustes');
+  local('proposta-builder.js', '20261118-hibrido');
   local('centro-custo-calc.js', '20261116-tabinv');
   local('centro-custo-tela.js', '20261116-tabinv');
   local('orcamento-dre.js',    '20261117-tabedit');

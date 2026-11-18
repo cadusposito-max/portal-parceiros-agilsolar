@@ -551,6 +551,7 @@ body.is-capturing *{box-shadow:none!important}
   // ---------- híbrido ----------
   // Inversor marcado como híbrido na cotação → proposta híbrida. A bateria vem da cotação
   // (detalhe_custo.hibrido); aparelhos e horas, do orçamento (propostas.hibrido).
+  // Personalizada híbrida (Itens livres): a bateria vem em propostas.hibrido.kit.
   var HB_DESCARGA = 0.9, HB_EFICIENCIA = 0.95;
   var HB_PADRAO = [['Geladeira', 1, 150, 'geladeira'], ['Lâmpadas LED', 8, 10, 'lampada'], ['TV', 1, 100, 'tv'], ['Internet / roteador', 1, 15, 'wifi'], ['Ventiladores', 2, 70, 'ventilador']];
   var HB_ICONE = { refrigerator: 'geladeira', snowflake: 'geladeira', lightbulb: 'lampada', tv: 'tv', monitor: 'tv', wifi: 'wifi', fan: 'ventilador', 'air-vent': 'ar' };
@@ -561,7 +562,8 @@ body.is-capturing *{box-shadow:none!important}
     return s.toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); });
   }
   function montarHibrido(p, inversor) {
-    var hk = p.hibrido_kit || null, hp = p.hibrido || {};
+    var hp = p.hibrido || {};
+    var hk = p.hibrido_kit || (hp.kit && typeof hp.kit === 'object' ? hp.kit : null);
     if (!(p.kit_inversor && p.kit_inversor.hibrido) && !hk) return null;
     if (inversor) inversor.marca = marcaBonita(inversor.marca);
     var b = hk && hk.bateria && Number(hk.bateria.qtd) > 0 && Number(hk.bateria.kwh) > 0 ? hk.bateria : null;

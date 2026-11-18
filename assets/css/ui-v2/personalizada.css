@@ -206,3 +206,40 @@ html[data-ui="v2"] body #pb-embedded-panel .pbp-obs-btn { justify-content: space
   #pb-embedded-panel .pbp-it-sub { min-width: 0; }
   #pb-embedded-panel .pbp-head-s { display: none; }
 }
+
+/* ---------- híbrido (chave On-grid / Híbrido, bateria e aparelhos do backup) ---------- */
+#pb-embedded-panel .pbp-sis { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
+#pb-embedded-panel .pbp-sis .pbp-hint { margin: 0; flex: 1; min-width: 200px; }
+#pb-embedded-panel .pbp-sis .pbp-hint.is-aviso { color: var(--v2-orange-text); font-weight: 700; }
+html[data-ui="v2"] body #pb-embedded-panel .pbp-btn-bat { border-color: var(--v2-orange); background: var(--v2-orange-50); color: var(--v2-orange-text); }
+html[data-ui="v2"] body #pb-embedded-panel .pbp-btn-bat:hover { border-color: var(--v2-orange); color: var(--v2-orange-text); filter: brightness(.97); }
+html[data-ui="v2"] body #pb-embedded-panel .pbp-btn.hidden { display: none; }
+#pb-embedded-panel .pbp-tag.is-hib { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+#pb-embedded-panel .pbp-kwh { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--v2-ink-2); white-space: nowrap; }
+html[data-ui="v2"] body #pb-embedded-panel .pbp-kwh .pbp-input { width: 76px; text-align: right; }
+html[data-ui="v2"] body #pb-embedded-panel .pbp-kwh .pbp-input.is-falta { border-color: var(--v2-orange) !important; }
+
+#pb-embedded-panel .pbp-backup { margin-top: 14px; padding: 12px 14px; border: 1px dashed var(--v2-orange); border-radius: 16px; background: color-mix(in srgb, var(--v2-orange-50) 55%, transparent); }
+#pb-embedded-panel .pbp-backup.hidden { display: none; }
+#pb-embedded-panel .pbp-bk-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+#pb-embedded-panel .pbp-bk-t { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; font-weight: 800; color: var(--v2-orange-text); }
+#pb-embedded-panel .pbp-bk-t svg { width: 16px; height: 16px; }
+#pb-embedded-panel .pbp-bk-t span { font-weight: 600; color: var(--v2-ink-2); }
+#pb-embedded-panel .pbp-bk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+#pb-embedded-panel .pbp-bk-chip { font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: var(--v2-card); border: 1px solid var(--v2-line); color: var(--v2-ink); }
+#pb-embedded-panel .pbp-bk-lista { display: grid; gap: 6px; margin-top: 10px; }
+#pb-embedded-panel .pbp-bk-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px 100px 32px; gap: 6px; align-items: center; }
+#pb-embedded-panel .pbp-bk-hd { font-size: 11px; font-weight: 700; color: var(--v2-ink-2); }
+html[data-ui="v2"] body #pb-embedded-panel .pbp-bk-row .pbp-input { height: 34px; font-size: 13px; }
+#pb-embedded-panel .pbp-bk-w { position: relative; }
+#pb-embedded-panel .pbp-bk-w > span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--v2-ink-2); pointer-events: none; }
+html[data-ui="v2"] body #pb-embedded-panel .pbp-bk-w .pbp-input { padding-right: 26px; text-align: right; }
+#pb-embedded-panel .pbp-bk-add { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+#pb-embedded-panel .pbp-bk-add select { flex: 1; min-width: 200px; }
+#pb-embedded-panel .pbp-backup [data-pb-bk-resumo] { margin-top: 8px; font-weight: 700; }
+@media (max-width: 520px) {
+  #pb-embedded-panel .pbp-bk-row { grid-template-columns: minmax(0, 1fr) 54px 86px 30px; }
+}
+/* bateria e inversor híbrido: nome na linha de cima, valores embaixo (o nome não some) */
+#pb-embedded-panel .pbp-it.is-largo { grid-template-columns: 36px minmax(0, 1fr) 32px; grid-template-areas: "ic nome rm" "ic val val"; }
+#pb-embedded-panel .pbp-it.is-largo > .pbp-ic { align-self: start; }

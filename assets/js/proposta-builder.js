@@ -200,12 +200,15 @@ function getPBDefaultEquipDraft() {
     descontoValor:  '',
     frete:          '',
     paymentNote:    '',
-    commercialNote: ''
+    commercialNote: '',
+    sistema:        'ongrid', // 'ongrid' | 'hibrido' (abre sempre em On-grid)
+    hibCargas:      null,     // aparelhos do backup (híbrido); null = lista padrão
   };
 }
 
 function resetPBEquipDraft() {
   state.pbEquipDraft = getPBDefaultEquipDraft();
+  if (typeof _pbHibEditando !== 'undefined') _pbHibEditando = false;
 }
 // O construtor vive na tela própria de orçamento (orcamento-tela.js): este
 // wrapper só valida e abre a tela. Todos os call sites (card do cliente,
@@ -401,13 +404,14 @@ const PB_ITEM_TIPOS = [
   { v: 'kit',       label: 'Kit',       icon: 'package' },
   { v: 'modulo',    label: 'Módulo',    icon: 'solar-panel' },
   { v: 'inversor',  label: 'Inversor',  icon: 'zap' },
+  { v: 'bateria',   label: 'Bateria',   icon: 'battery' },
   { v: 'estrutura', label: 'Estrutura', icon: 'house' },
   { v: 'cabo',      label: 'Cabos',     icon: 'cable' },
   { v: 'servico',   label: 'Serviço',   icon: 'wrench' },
   { v: 'outro',     label: 'Outros',    icon: 'box' },
 ];
 const _pbTipo = (t) => PB_ITEM_TIPOS.find((x) => x.v === t) || { v: t, label: t || 'Outros', icon: 'box' };
-const _pbIcone = (t) => `<span class="pbp-ic${t === 'servico' ? ' is-servico' : ''}"><i data-lucide="${_pbTipo(t).icon}"></i></span>`;
+const _pbIcone = (t) => `<span class="pbp-ic${t === 'servico' || t === 'bateria' ? ' is-servico' : ''}"><i data-lucide="${_pbTipo(t).icon}"></i></span>`;
 const _pbKwp = (v) => (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
 const _pbNum = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
@@ -465,7 +469,180 @@ function pbPersonalizadaPendencia(draft, tot) {
   if (tot.itens.some((i) => !String(i.descricao || '').trim())) return 'Dê um nome a cada item';
   if (tot.total <= 0) return 'Informe os preços dos itens';
   if (_pbPotenciaEfetiva(draft, tot) <= 0) return 'Informe a potência do sistema';
+  if (_pbHibrido(draft) && tot.itens.some((i) => i.tipo === 'bateria' && _pbNum(i.kwh_un) <= 0)) return 'Informe os kWh de cada bateria';
   return '';
+}
+
+// ---- Híbrido (Itens livres) --------------------------------------------
+// Chave On-grid / Híbrido no topo do painel. No híbrido entra a bateria (item com
+// kWh de cada uma) e os aparelhos do backup; a proposta grava isso em
+// propostas.hibrido e o PDF sai no modelo do híbrido.
+const PB_HB_DESCARGA = 0.9, PB_HB_EFICIENCIA = 0.95;
+// Mesma lista de aparelhos do híbrido do Catálogo completo (hibrido.js carrega depois deste arquivo).
+const _PB_HB_APARELHOS_BASE = {
+  geladeira: ['Geladeira', 150, 10, 5, 'refrigerator'], led: ['Lâmpadas LED', 10, 6, 1, 'lightbulb'],
+  tv: ['TV', 100, 5, 1, 'tv'], net: ['Internet / roteador', 15, 24, 1, 'wifi'], vent: ['Ventilador', 70, 8, 2, 'fan'],
+};
+const _pbHbAparelhos = () => (typeof HB_APARELHOS !== 'undefined' ? HB_APARELHOS : _PB_HB_APARELHOS_BASE);
+const _pbHbSugeridos = () => (typeof HB_SUGERIDOS !== 'undefined' ? HB_SUGERIDOS : [['geladeira', 1], ['led', 8], ['tv', 1], ['net', 1], ['vent', 2]]);
+
+const _pbHibrido = (d = _pbDraft()) => d.sistema === 'hibrido';
+const _pbKwh = (v, d = 2) => (Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: d });
+
+function _pbHibCargas(d = _pbDraft()) {
+  if (!Array.isArray(d.hibCargas)) {
+    d.hibCargas = _pbHbSugeridos().filter(([k]) => _pbHbAparelhos()[k]).map(([k, q]) => {
+      const a = _pbHbAparelhos()[k];
+      return { k, nome: a[0], q, w: a[1], h: a[2], icone: a[4] };
+    });
+  }
+  return d.hibCargas;
+}
+
+// Bateria somada dos itens: qtd total, kWh nominal e útil.
+function _pbBateria(itens) {
+  const bats = (itens || []).filter((i) => i.tipo === 'bateria' && _pbNum(i.qtd) > 0);
+  const qtd = bats.reduce((s, i) => s + Math.round(_pbNum(i.qtd)), 0);
+  const nominal = bats.reduce((s, i) => s + Math.round(_pbNum(i.qtd)) * _pbNum(i.kwh_un), 0);
+  return { bats, qtd, nominal, util: nominal * PB_HB_DESCARGA * PB_HB_EFICIENCIA };
+}
+
+function _pbHibLigadoW(d = _pbDraft()) {
+  return _pbHibCargas(d).reduce((s, a) => s + _pbNum(a.q) * _pbNum(a.w), 0);
+}
+
+// Marca da bateria pro PDF: a do catálogo ou o nome digitado sem a palavra "bateria".
+function _pbBateriaMarca(i) {
+  if (i.marca) return String(i.marca).trim();
+  const nome = String(i.descricao || '').split(' · ')[0].replace(/\bbateria(s)?\b/ig, '').replace(/\s{2,}/g, ' ').trim();
+  return nome || 'Lítio';
+}
+
+// O que vai pra propostas.hibrido. "kit.bateria" faz o papel do detalhe da cotação.
+function _pbHibridoProposta(draft, tot) {
+  const b = _pbBateria(tot.itens);
+  const com = b.qtd > 0 && b.nominal > 0;
+  return {
+    origem: 'itens_livres',
+    bateria: com ? 'com' : 'sem',
+    horas: null,
+    cargas: com ? _pbHibCargas(draft)
+      .filter((a) => _pbNum(a.q) > 0 && _pbNum(a.w) > 0 && String(a.nome || '').trim())
+      .map((a) => ({ nome: String(a.nome).trim(), q: _pbNum(a.q), w: _pbNum(a.w), h: _pbNum(a.h), icone: a.icone || 'plug' })) : [],
+    kit: { bateria: com ? { marca: _pbBateriaMarca(b.bats[0]), kwh: Math.round(b.nominal / b.qtd * 100) / 100, qtd: b.qtd } : null },
+  };
+}
+
+function pbEquipSistema(modo) {
+  const d = _pbDraft();
+  const novo = modo === 'hibrido' ? 'hibrido' : 'ongrid';
+  if (d.sistema === novo) return;
+  d.sistema = novo;
+  renderPBItens();
+  updateEquipamentosPreview();
+}
+
+function _pbSyncSistema() {
+  const d = _pbDraft();
+  const hib = _pbHibrido(d);
+  document.querySelectorAll('#pb-equip-sistema [data-sis]').forEach((b) => {
+    const on = (b.dataset.sis === 'hibrido') === hib;
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  const temBat = (d.itens || []).some((i) => i.tipo === 'bateria');
+  const hint = document.getElementById('pb-equip-sistema-hint');
+  if (hint) {
+    hint.textContent = hib ? 'Inversor híbrido, com ou sem bateria. A proposta sai no modelo do híbrido.'
+      : temBat ? 'Tem bateria na lista: ligue o Híbrido pra proposta sair como híbrida.' : 'Sistema ligado na rede, sem bateria.';
+    hint.classList.toggle('is-aviso', !hib && temBat);
+  }
+  document.getElementById('pb-itens-add-bateria')?.classList.toggle('hidden', !hib);
+}
+
+// Aparelhos do backup (só no híbrido com bateria). Redesenha só quando muda a lista.
+let _pbHibEditando = false;
+function renderPBBackup() {
+  const box = document.getElementById('pb-equip-backup');
+  if (!box) return;
+  const d = _pbDraft();
+  const b = _pbBateria(d.itens);
+  if (!_pbHibrido(d)) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  box.classList.remove('hidden');
+  if (!b.qtd) {
+    box.innerHTML = `<p class="pbp-bk-t"><i data-lucide="battery-warning"></i> Sem bateria agora</p>
+      <p class="pbp-hint">A proposta sai como sistema híbrido pronto pra receber bateria depois. Pra ter backup, adicione a bateria.</p>`;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+  const cargas = _pbHibCargas(d);
+  const ligado = _pbHibLigadoW(d);
+  const horas = ligado > 0 ? b.util / (ligado / 1000) : 0;
+  const resumo = `Tudo ligado junto: ${Math.round(ligado).toLocaleString('pt-BR')} W${horas > 0 ? ` · a bateria segura ≈ ${_pbKwh(horas, 1)} h` : ''}`;
+  const chips = cargas.length
+    ? `<div class="pbp-bk-chips">${cargas.map((a) => `<span class="pbp-bk-chip">${escapeHTML(String(_pbNum(a.q)))} ${escapeHTML(a.nome || 'Aparelho')} · ${escapeHTML(String(_pbNum(a.w)))} W</span>`).join('')}</div>`
+    : '<p class="pbp-hint">Nenhum aparelho na lista.</p>';
+  const linhas = cargas.map((a, i) => `<div class="pbp-bk-row" data-pb-bk="${i}">
+      <input type="text" data-pb-bk-f="nome" value="${escapeHTML(a.nome || '')}" placeholder="Nome do aparelho" class="pbp-input" aria-label="Nome do aparelho">
+      <input type="number" data-pb-bk-f="q" min="0" step="1" value="${escapeHTML(String(a.q ?? ''))}" class="pbp-input" aria-label="Quantidade">
+      <span class="pbp-bk-w"><input type="number" data-pb-bk-f="w" min="0" step="10" value="${escapeHTML(String(a.w ?? ''))}" class="pbp-input" aria-label="Watts"><span>W</span></span>
+      <button type="button" data-pb-bk-acao="remover" class="pbp-icon-btn is-danger" title="Remover aparelho" aria-label="Remover aparelho"><i data-lucide="x"></i></button>
+    </div>`).join('');
+  box.innerHTML = `<div class="pbp-bk-top">
+      <p class="pbp-bk-t"><i data-lucide="plug-zap"></i> Aparelhos no backup <span>vão pra página “Seu backup” do PDF</span></p>
+      <button type="button" class="pbp-btn pbp-btn-xs" data-pb-bk-acao="editar">${_pbHibEditando ? '<i data-lucide="check"></i> Pronto' : '<i data-lucide="pencil"></i> Editar aparelhos'}</button>
+    </div>
+    ${_pbHibEditando ? `<div class="pbp-bk-lista">
+        <div class="pbp-bk-row pbp-bk-hd" aria-hidden="true"><span>Aparelho</span><span>Qtd</span><span>Watts</span><span></span></div>
+        ${linhas || '<p class="pbp-hint">Nenhum aparelho na lista.</p>'}
+        <div class="pbp-bk-add">
+          <select class="pbp-input" data-pb-bk-add aria-label="Adicionar aparelho"><option value="">Adicionar aparelho da lista…</option>${Object.entries(_pbHbAparelhos()).map(([k, a]) => `<option value="${k}">${escapeHTML(a[0])} (≈ ${a[1].toLocaleString('pt-BR')} W)</option>`).join('')}</select>
+          <button type="button" class="pbp-btn" data-pb-bk-acao="outro"><i data-lucide="plus"></i> Outro aparelho</button>
+        </div>
+      </div>` : chips}
+    <p class="pbp-hint" data-pb-bk-resumo>${resumo}</p>`;
+  if (window.lucide) lucide.createIcons();
+}
+
+function _pbBindBackup() {
+  const box = document.getElementById('pb-equip-backup');
+  if (!box || box.dataset.bound) return;
+  box.dataset.bound = '1';
+  box.addEventListener('change', (e) => {
+    const d = _pbDraft();
+    const add = e.target.closest('[data-pb-bk-add]');
+    if (add) {
+      const a = _pbHbAparelhos()[add.value];
+      if (a) _pbHibCargas(d).push({ k: add.value, nome: a[0], q: 1, w: a[1], h: a[2], icone: a[4] });
+      renderPBBackup();
+      updateEquipamentosPreview();
+      return;
+    }
+    const campo = e.target.getAttribute('data-pb-bk-f');
+    const row = e.target.closest('[data-pb-bk]');
+    if (!campo || !row) return;
+    const a = _pbHibCargas(d)[Number(row.getAttribute('data-pb-bk'))];
+    if (!a) return;
+    if (campo === 'nome') a.nome = e.target.value.trim();
+    else a[campo] = Math.max(0, Math.min(campo === 'q' ? 999 : 50000, _pbNum(String(e.target.value).replace(',', '.'))));
+    renderPBBackup();
+    updateEquipamentosPreview();
+  });
+  box.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-pb-bk-acao]');
+    if (!btn) return;
+    const acao = btn.getAttribute('data-pb-bk-acao');
+    const d = _pbDraft();
+    if (acao === 'editar') _pbHibEditando = !_pbHibEditando;
+    if (acao === 'remover') _pbHibCargas(d).splice(Number(btn.closest('[data-pb-bk]')?.getAttribute('data-pb-bk')), 1);
+    if (acao === 'outro') _pbHibCargas(d).push({ k: '', nome: '', q: 1, w: 100, h: 1, icone: 'plug' });
+    renderPBBackup();
+    updateEquipamentosPreview();
+    if (acao === 'outro') {
+      const ins = box.querySelectorAll('[data-pb-bk-f="nome"]');
+      ins[ins.length - 1]?.focus();
+    }
+  });
 }
 
 function syncEquipInputsFromState() {
@@ -506,6 +683,9 @@ function renderPBItens() {
   const host = document.getElementById('pb-itens-lista');
   if (!host) return;
   const d = _pbDraft();
+  const hib = _pbHibrido(d);
+  _pbSyncSistema();
+  renderPBBackup();
   if (!d.itens.length) {
     host.innerHTML = `
       <div class="pbp-vazio">
@@ -517,22 +697,26 @@ function renderPBItens() {
     if (window.lucide) lucide.createIcons();
     return;
   }
-  const opts = (sel) => PB_ITEM_TIPOS.map((t) => `<option value="${t.v}"${t.v === sel ? ' selected' : ''}>${t.label}</option>`).join('');
+  // Bateria só aparece como tipo no híbrido (ou se o item já é bateria).
+  const opts = (sel) => PB_ITEM_TIPOS.filter((t) => t.v !== 'bateria' || hib || sel === 'bateria')
+    .map((t) => `<option value="${t.v}"${t.v === sel ? ' selected' : ''}>${t.label}</option>`).join('');
   host.innerHTML = d.itens.map((it) => {
     const sub = _pbNum(it.qtd) * _pbNum(it.preco);
     const doCatalogo = it.origem !== 'manual';
     const desc = escapeHTML(it.descricao || '');
     return `
-      <div class="pbp-it" data-pb-item="${escapeHTML(it.uid)}">
+      <div class="pbp-it${it.tipo === 'bateria' || (hib && it.tipo === 'inversor') ? ' is-largo' : ''}" data-pb-item="${escapeHTML(it.uid)}">
         ${_pbIcone(it.tipo)}
         <div class="pbp-it-nome">
           ${doCatalogo ? '' : `<select data-pb-f="tipo" class="pbp-input" aria-label="Tipo do item">${opts(it.tipo)}</select>`}
           <input type="text" data-pb-f="descricao" value="${desc}" title="${desc}" placeholder="Descrição do item" aria-label="Descrição do item"
             class="pbp-input pbp-it-desc${doCatalogo ? ' is-cat' : ''}">
-          ${doCatalogo ? `<span class="pbp-tag">${escapeHTML(_pbTipo(it.tipo).label)}</span>` : ''}
+          ${doCatalogo ? `<span class="pbp-tag${it.tipo === 'bateria' ? ' is-hib' : ''}">${escapeHTML(_pbTipo(it.tipo).label)}</span>` : ''}
+          ${hib && it.tipo === 'inversor' ? '<span class="pbp-tag is-hib">híbrido · aceita bateria</span>' : ''}
         </div>
         <button type="button" data-pb-acao="remover" class="pbp-icon-btn is-danger" title="Remover item" aria-label="Remover item"><i data-lucide="trash-2"></i></button>
         <div class="pbp-it-val">
+          ${it.tipo === 'bateria' ? `<span class="pbp-kwh"><input type="number" data-pb-f="kwh_un" min="0" step="0.01" value="${escapeHTML(String(it.kwh_un ?? ''))}" placeholder="5,12" class="pbp-input${_pbNum(it.kwh_un) > 0 ? '' : ' is-falta'}" aria-label="kWh de cada bateria"><span>kWh cada</span></span>` : ''}
           <span class="pbp-step">
             <button type="button" data-pb-acao="menos" aria-label="Diminuir quantidade">−</button>
             <input type="number" data-pb-f="qtd" min="0" step="1" value="${escapeHTML(String(it.qtd ?? ''))}" class="pbp-input" aria-label="Quantidade">
@@ -644,7 +828,9 @@ async function renderPBCatalogo() {
         chave: 'eq:' + e.id,
         tipo: e.tipo,
         titulo: e.nome,
-        sub: [_pbTipo(e.tipo).label, e.marca, e.potencia_wp ? `${e.potencia_wp} Wp` : '', e.unidade ? `/${e.unidade}` : ''].filter(Boolean).join(' · '),
+        sub: [_pbTipo(e.tipo).label, e.marca,
+          e.potencia_wp ? (e.tipo === 'bateria' ? `${_pbKwh(e.potencia_wp / 1000)} kWh` : `${e.potencia_wp} Wp`) : '',
+          e.unidade ? `/${e.unidade}` : ''].filter(Boolean).join(' · '),
         preco: _pbNum(e.preco_unitario),
       }));
   }
@@ -683,7 +869,10 @@ function adicionarDoCatalogo(chave) {
       descricao: [e.nome, e.marca].filter(Boolean).join(' · '),
       qtd: 1, preco: _pbNum(e.preco_unitario) || '',
       potencia_kwp_un: e.tipo === 'modulo' ? _pbNum(e.potencia_wp) / 1000 : 0,
+      // bateria: no catálogo a capacidade fica em Wh (potencia_wp)
+      ...(e.tipo === 'bateria' ? { kwh_un: _pbNum(e.potencia_wp) > 0 ? _pbNum(e.potencia_wp) / 1000 : '', marca: e.marca || '' } : {}),
     });
+    if (e.tipo === 'bateria' && !_pbHibrido()) pbEquipSistema('hibrido');
   }
   showToast('Item adicionado');
 }
@@ -733,6 +922,22 @@ function updateEquipamentosPreview() {
   const nomeInput = document.getElementById('pb-equip-descricao');
   if (nomeInput) nomeInput.placeholder = _pbNomeSugerido(potencia);
 
+  // Híbrido: bateria e backup no resumo; a caixa de aparelhos troca quando entra/sai bateria.
+  const hib = _pbHibrido(draft);
+  const bat = _pbBateria(tot.itens);
+  const ligadoW = hib && bat.qtd ? _pbHibLigadoW(draft) : 0;
+  const horas = ligadoW > 0 ? bat.util / (ligadoW / 1000) : 0;
+  setTxt('pb-equip-preview-bateria', !bat.qtd ? 'sem bateria agora' : bat.nominal > 0 ? `${_pbKwh(bat.nominal)} kWh` : 'informe os kWh');
+  setTxt('pb-equip-preview-backup', horas > 0 ? `≈ ${_pbKwh(horas, 1)} h` : '—');
+  document.getElementById('pb-equip-linha-bateria')?.classList.toggle('hidden', !hib);
+  document.getElementById('pb-equip-linha-backup')?.classList.toggle('hidden', !(hib && bat.qtd));
+  const bkBox = document.getElementById('pb-equip-backup');
+  const bkChave = hib ? (bat.qtd ? 'com' : 'sem') : '';
+  if (bkBox && bkBox.dataset.estado !== bkChave) { bkBox.dataset.estado = bkChave; renderPBBackup(); }
+  const bkResumo = document.querySelector('#pb-equip-backup [data-pb-bk-resumo]');
+  if (bkResumo) bkResumo.textContent = `Tudo ligado junto: ${Math.round(ligadoW).toLocaleString('pt-BR')} W${horas > 0 ? ` · a bateria segura ≈ ${_pbKwh(horas, 1)} h` : ''}`;
+  document.querySelectorAll('#pb-itens-lista [data-pb-f="kwh_un"]').forEach((el) => el.classList.toggle('is-falta', !(_pbNum(el.value) > 0)));
+
   const canSubmit = !pbPersonalizadaPendencia(draft, tot);
   const submitBtn = document.getElementById('pb-equip-submit');
   if (submitBtn) {
@@ -763,6 +968,17 @@ function bindEquipUIEvents() {
     if (el && !el.dataset.boundClick) { el.addEventListener('click', fn); el.dataset.boundClick = '1'; }
   };
   onClick('pb-itens-add-manual', () => addPBItem({}));
+  onClick('pb-itens-add-bateria', () => {
+    addPBItem({ tipo: 'bateria', descricao: 'Bateria', kwh_un: '' });
+    const ins = document.querySelectorAll('#pb-itens-lista [data-pb-f="descricao"]');
+    const ult = ins[ins.length - 1];
+    if (ult) { ult.focus(); ult.select(); }
+  });
+  onClick('pb-equip-sistema', (e) => {
+    const b = e.target.closest('[data-sis]');
+    if (b) pbEquipSistema(b.dataset.sis);
+  });
+  _pbBindBackup();
   onClick('pb-catalogo-fechar', fecharPBCatalogo);
   onClick('pb-equip-obs-toggle', () => _pbToggleObs());
   onClick('pb-equip-potencia-editar', () => {
@@ -910,6 +1126,11 @@ async function handleEquipamentosProposalSubmit(event) {
     showToast('Informe a potencia do sistema (kWp) para gerar a proposta personalizada.');
     return;
   }
+  const hib = _pbHibrido(draft) ? _pbHibridoProposta(draft, tot) : null;
+  if (hib && tot.itens.some((i) => i.tipo === 'bateria' && _pbNum(i.kwh_un) <= 0)) {
+    showToast('Informe os kWh de cada bateria.');
+    return;
+  }
 
   const client = state.pbActiveClient;
   if (!client) return showToast('Nenhum cliente em atendimento!');
@@ -938,8 +1159,15 @@ async function handleEquipamentosProposalSubmit(event) {
     preco:   _pbR2(i.preco),
     subtotal: _pbR2(_pbNum(i.qtd) * _pbNum(i.preco)),
     potencia_kwp_un: _pbNum(i.potencia_kwp_un),
+    ...(i.tipo === 'bateria' ? { kwh_un: _pbNum(i.kwh_un), marca: _pbBateriaMarca(i) } : {}),
   }));
-  const primeiro = (tipo) => itensSalvos.find((i) => i.tipo === tipo && i.origem === 'componente');
+  // Bateria: a capacidade entra no nome (contrato e procuração listam os itens pelo nome).
+  itensSalvos.forEach((i) => {
+    if (i.tipo === 'bateria' && i.kwh_un > 0 && !/kwh/i.test(i.descricao)) i.descricao = `${i.descricao} · ${_pbKwh(i.kwh_un)} kWh`;
+  });
+  // No híbrido o PDF mostra placa e inversor mesmo quando são itens avulsos.
+  const primeiro = (tipo) => itensSalvos.find((i) => i.tipo === tipo && i.origem === 'componente')
+    || (hib ? itensSalvos.find((i) => i.tipo === tipo) : null);
   const modulo = primeiro('modulo');
   const inversor = primeiro('inversor');
 
@@ -984,6 +1212,7 @@ async function handleEquipamentosProposalSubmit(event) {
       custom_payment_note:     draft.paymentNote    || null,
       custom_commercial_note:  draft.commercialNote || null,
       franquia_id:             state.franquiaId,
+      ...(hib ? { hibrido: hib } : {}),
     }]).select();
 
     if (error) throw error;
@@ -994,7 +1223,7 @@ async function handleEquipamentosProposalSubmit(event) {
     if (!client.status || client.status === 'NOVO') await cycleClientStatus(client.id, 'NOVO');
     await fetchPropostas();
     if (typeof captureEvent === 'function') {
-      captureEvent('proposal_created', { source: 'portal', mode: 'personalizada', itens: itensSalvos.length });
+      captureEvent('proposal_created', { source: 'portal', mode: 'personalizada', itens: itensSalvos.length, hibrido: Boolean(hib) });
     }
 
     if (submitBtn) {
