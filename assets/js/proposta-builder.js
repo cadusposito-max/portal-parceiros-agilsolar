@@ -149,6 +149,13 @@ async function _pbResolveSellerPhoneByEmail(email) {
   return pending;
 }
 
+// Unidade onde a proposta/venda fica gravada: a do cliente.
+// Admin atende cliente de qualquer unidade; os demais só gravam na própria (RLS).
+function _pbFranquiaDoCliente(client) {
+  if (state.isAdmin && client && client.franquia_id) return client.franquia_id;
+  return state.franquiaId;
+}
+
 function canOperateClientProposalFlow(client) {
   if (!client || !state.currentUser) return false;
   if (state.isAdmin || state.isGestor) return true;
@@ -1211,7 +1218,7 @@ async function handleEquipamentosProposalSubmit(event) {
       custom_inversor_qty:     inversor ? Math.round(inversor.qtd) : null,
       custom_payment_note:     draft.paymentNote    || null,
       custom_commercial_note:  draft.commercialNote || null,
-      franquia_id:             state.franquiaId,
+      franquia_id:             _pbFranquiaDoCliente(client),
       ...(hib ? { hibrido: hib } : {}),
     }]).select();
 
@@ -1532,7 +1539,7 @@ async function copyProposalLink(kit, event) {
       ...(kit._hibridoDados ? { hibrido: kit._hibridoDados } : {}),
       // telhado escolhido no catálogo completo: o banco recalcula o preço com essa estrutura
       ...(kit._estrutura_id && !kit._cotacaoId ? { estrutura_id: kit._estrutura_id } : {}),
-      franquia_id:       state.franquiaId
+      franquia_id:       _pbFranquiaDoCliente(client)
     }]).select();
 
     if (error) throw error;
@@ -1925,7 +1932,7 @@ async function confirmarFechaVenda() {
       kit_power:         Number(kit.power) || 0,
       kit_price:         Number(kit.preco) || 0,
       proposta_id:       kit.proposta_id || null,
-      franquia_id:       state.franquiaId
+      franquia_id:       _pbFranquiaDoCliente(client)
     }]).select('id');
 
     if (insertError) {
