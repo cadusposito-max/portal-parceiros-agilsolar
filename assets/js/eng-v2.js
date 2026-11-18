@@ -2454,6 +2454,48 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
     return `<span class="v2-chip v2-vischip ${({ info: 't-blue', bad: 't-red', ok: 't-green', at: 't-orange' })[s.tone] || 't-gray'}" title="Engenharia: ${esc(s.n)} há ${dias(p.status_desde)} dia(s)">${ic('ruler')}${esc(s.n)}</span>`;
   }
 
+  // ---- etapas do projeto na ficha: cada etapa com nome e data + com quem está / tempo / prazo / próximo passo
+  const ROT_ETAPA = { validacao: 'Validação', validacao_aprovada: 'Validação aprovada', elaborar_projeto: 'Elaborar projeto', projeto_enviado: 'Na concessionária', projeto_aprovado: 'Projeto aprovado', solicitacao_vistoria: 'Pedir vistoria', vistoria_solicitada: 'Vistoria solicitada', projeto_concluido: 'Concluído' };
+  const PROXIMO = {
+    validacao: 'Aprovar a validação', validacao_reprovada: 'Franquia corrige e reenvia', validacao_aprovada: 'Elaborar o projeto',
+    elaborar_projeto: 'Enviar à concessionária', projeto_enviado: 'Parecer da concessionária', projeto_reprovado: 'Corrigir e reenviar',
+    projeto_reenviado: 'Parecer da concessionária', projeto_aprovado: 'Pedir vistoria (com a obra pronta)', solicitacao_vistoria: 'Solicitar a vistoria',
+    vistoria_solicitada: 'Concluir o projeto',
+  };
+  const diaMes = (s) => new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  E.etapasCarregando = {};
+  function etapasFichaHTML(p) {
+    const s = ST[p.status] || ST.cancelado;
+    const nv = NIVEL[p.status];
+    if (nv < 0) return '';
+    if (E.ev[p.id] === undefined && !E.etapasCarregando[p.id]) {
+      E.etapasCarregando[p.id] = true;
+      carregarEventos(p.id).then(repintarCorrecao).catch((e) => console.warn('[eng] etapas', e));
+    }
+    const evs = (E.ev[p.id] || []).filter((e) => (e.tipo === 'status' || e.tipo === 'envio') && e.para_status);
+    const quando = (sid) => { const ev = evs.filter((e) => e.para_status === sid).pop(); return ev ? ev.created_at : (sid === 'validacao' ? p.created_at : null); };
+    const fim = p.status === 'projeto_concluido';
+    const cor = COR[s.tone] || COR.info;
+    const d = dias(p.status_desde || p.created_at);
+    const etapas = LINHA.map((sid) => {
+      const n = NIVEL[sid];
+      const feita = n < nv || (fim && n === nv);
+      const atual = !feita && n === nv;
+      const nome = atual && sid !== p.status ? s.n : ROT_ETAPA[sid];
+      const em = feita ? quando(sid) : null;
+      const data = feita ? (em ? diaMes(em) : '') : atual ? `há ${d} dia(s)` : '';
+      return `<div class="${feita ? 'd' : atual ? 'c' : ''}"><span class="eg-et-dot">${feita ? ic('check') : n + 1}</span><span class="eg-et-n">${esc(nome)}</span><span class="eg-et-dt">${data}</span></div>`;
+    }).join('');
+    const late = atrasado(p);
+    const agora = fim
+      ? `<div><span>Situação</span><b>Projeto concluído em ${dataBR(p.status_desde)}</b></div>`
+      : `<div><span>Com quem está</span><b>${esc(LADOS[s.lado] || '—')}</b></div>
+         <div class="${late ? 'late' : ''}"><span>Tempo na etapa</span><b>${d} dia(s)${late ? ' · atrasado' : ''}</b></div>
+         <div><span>Prazo da etapa</span><b>${s.sla ? s.sla + ' dias' : '—'}</b></div>
+         <div><span>Próximo passo</span><b>${esc(PROXIMO[p.status] || '—')}</b></div>`;
+    return `<div class="eg-et" style="--c:${cor}">${etapas}</div><div class="eg-et-agora${fim ? ' fim' : ''}">${agora}</div>`;
+  }
+
   function renderEngFichaTab(client) {
     if (!E.projetos) {
       carregarProjetos().then(() => { if (typeof _crm360Tab !== 'undefined' && _crm360Tab === 'engenharia' && typeof renderCrm360 === 'function') renderCrm360(); }).catch((e) => console.warn('[eng] ficha', e));
@@ -2465,8 +2507,8 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
     const livres = ps.length ? [] : vendas;
     const pode = podeEnviar();
     return `<div class="rd eg">
-      ${ps.map((p) => `<div class="rd-card rd-mb eg-fproj" onclick="EV.abrir('${p.id}')"><div class="rd-ch"><div><b>${pnum(p)} · ${esc(kitCurto(p))}</b><div class="rd-muted">Enviado em ${dataBR(p.created_at)} por ${esc(p.enviado_por_nome || '—')} · ${dias(p.status_desde)} dia(s) neste status</div></div><div style="display:flex;gap:6px;flex-wrap:wrap">${stPill(p)}${compPill(p)}</div></div>
-        <div class="eg-steps mini">${LINHA.map((sid) => { const n = NIVEL[sid], nv = NIVEL[p.status]; return `<div class="${n < nv ? 'done' : n === nv ? (ST[p.status].tone === 'bad' ? 'bad' : 'cur') : ''}"><i></i></div>`; }).join('')}</div></div>${correcaoHTML(p, 'fx')}`).join('')}
+      ${ps.map((p) => `<div class="rd-card rd-mb eg-fproj" onclick="EV.abrir('${p.id}')"><div class="rd-ch"><div><b>${pnum(p)} · ${esc(kitCurto(p))}</b><div class="rd-muted">Enviado em ${dataBR(p.created_at)} por ${esc(p.enviado_por_nome || '—')}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap">${stPill(p)}${compPill(p)}</div></div>
+        ${etapasFichaHTML(p)}</div>${correcaoHTML(p, 'fx')}`).join('')}
       ${livres.length ? envioPainel(client, livres, pode)
         : ps.length ? '' : `<div class="rd-card rd-empty"><div class="ic">${ic('ruler')}</div><b>Nada na engenharia</b>Registre a venda e anexe os documentos (aba Arquivos) para enviar o projeto.</div>`}
     </div>`;
