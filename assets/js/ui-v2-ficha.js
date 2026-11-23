@@ -90,18 +90,37 @@
     const v = VIS().info(client);
     return `<div class="v2f-sumvis ${v ? v.cls : ''} ${v && v.atrasada ? 'late' : ''}" onclick="uiV2Vistoria.focar()" title="Ver vistoria"><small>Vistoria</small><b>${esc(vistoriaTexto(v))}</b></div>`;
   }
-  function vistoriaCardHTML(client) {
+  // Situação + campos da vistoria. pre = 'v2f' (cartão em Dados) ou 'v2t'
+  // (caixa da Timeline): ids diferentes, mesmos campos e a mesma gravação.
+  function vistoriaCamposHTML(client, pre) {
     const cur = VIS().ST[client.vistoria_status] ? client.vistoria_status : '';
     const opts = [['', 'Sem vistoria', 'minus']].concat(Object.entries(VIS().ST).map(([k, s]) => [k, s[0], s[1]]));
-    const quando = client.vistoria_atualizado_em ? `<small class="v2f-h3sub">atualizada ${esc(formatDate(client.vistoria_atualizado_em))}</small>` : '';
-    return `<div class="v2f-card v2f-vis" id="v2f-vistoria" data-st="${cur}">
-      <h3>${ic('clipboard-check')}Vistoria${quando}</h3>
-      <div class="v2f-visst" role="radiogroup" aria-label="Situação da vistoria">${opts.map(([v, l, i]) => `<button type="button" role="radio" aria-checked="${cur === v}" class="${cur === v ? 'on' : ''}" data-v="${v}" onclick="uiV2Vistoria.escolher(this)">${ic(i)}${l}</button>`).join('')}</div>
+    return `<div class="v2f-visst" role="radiogroup" aria-label="Situação da vistoria">${opts.map(([v, l, i]) => `<button type="button" role="radio" aria-checked="${cur === v}" class="${cur === v ? 'on' : ''}" data-v="${v}" onclick="uiV2Vistoria.escolher(this)">${ic(i)}${l}</button>`).join('')}</div>
       <div class="v2f-fields v2f-visfields ${cur ? '' : 'off'}">
-        ${crm360Field('Data e hora', `<input id="v2f-vis-data" type="datetime-local" value="${toLocalDatetimeInputValue(client.vistoria_data)}" class="crm360-input">`)}
-        ${crm360Field('Responsável', `<input id="v2f-vis-resp" value="${esc(client.vistoria_responsavel || '')}" class="crm360-input" placeholder="Quem vai fazer">`)}
-        ${crm360Field('Observação', `<input id="v2f-vis-obs" value="${esc(client.vistoria_obs || '')}" class="crm360-input" placeholder="Ex.: telhado de fibrocimento, levar escada">`, 'full')}
-      </div>
+        ${crm360Field('Data e hora', `<input id="${pre}-vis-data" type="datetime-local" value="${toLocalDatetimeInputValue(client.vistoria_data)}" class="crm360-input">`)}
+        ${crm360Field('Responsável', `<input id="${pre}-vis-resp" value="${esc(client.vistoria_responsavel || '')}" class="crm360-input" placeholder="Quem vai fazer">`)}
+        ${crm360Field('Observação', `<input id="${pre}-vis-obs" value="${esc(client.vistoria_obs || '')}" class="crm360-input" placeholder="Ex.: telhado de fibrocimento, levar escada">`, 'full')}
+      </div>`;
+  }
+  // caixa da Timeline (crm.js): situação de hoje no topo + os mesmos campos
+  function vistoriaCaixaHTML(client) {
+    const cur = VIS().ST[client.vistoria_status] ? client.vistoria_status : '';
+    const v = VIS().info(client);
+    const hoje = !v ? 'Hoje: sem visita técnica marcada'
+      : `Hoje: ${v.st === 'agendada' && v.data ? `${v.atrasada ? 'atrasada · era ' : 'agendada para '}${fmtData(client.vistoria_data)}` : v.label.toLowerCase()}${client.vistoria_responsavel ? ` · ${client.vistoria_responsavel}` : ''}`;
+    return `<div class="v2t-vis" id="v2t-vistoria" data-pre="v2t" data-st="${cur}">
+      <div class="v2t-vis-hoje ${v ? v.cls : ''}">${ic(v ? v.icon : 'calendar-clock')}<span>${esc(hoje)}</span></div>
+      ${vistoriaCamposHTML(client, 'v2t')}
+      <button type="button" class="v2f-save alt" onclick="uiV2Vistoria.salvar('${esc(client.id)}','v2t')">${ic('check')}Salvar visita técnica</button>
+      <p class="v2c-dica">É a mesma vistoria do cartão em Dados: salvar aqui atualiza lá, a etiqueta do funil e entra na timeline.</p>
+    </div>`;
+  }
+  function vistoriaCardHTML(client) {
+    const cur = VIS().ST[client.vistoria_status] ? client.vistoria_status : '';
+    const quando = client.vistoria_atualizado_em ? `<small class="v2f-h3sub">atualizada ${esc(formatDate(client.vistoria_atualizado_em))}</small>` : '';
+    return `<div class="v2f-card v2f-vis" id="v2f-vistoria" data-pre="v2f" data-st="${cur}">
+      <h3>${ic('clipboard-check')}Vistoria${quando}</h3>
+      ${vistoriaCamposHTML(client, 'v2f')}
       <button type="button" class="v2f-save alt" onclick="uiV2Vistoria.salvar('${esc(client.id)}')">${ic('check')}Salvar vistoria</button>
       ${window.osLink ? window.osLink.bloco('vist', client.id, {
         encerrado: !cur || cur === 'realizada',
@@ -341,25 +360,28 @@
       card.scrollIntoView({ behavior: 'smooth', block: 'start' });
       card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
     },
+    caixaHTML: vistoriaCaixaHTML,
     escolher(btn) {
-      const card = btn.closest('#v2f-vistoria');
+      const card = btn.closest('[data-pre]');
       card.querySelectorAll('.v2f-visst button').forEach((b) => { const on = b === btn; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
       card.dataset.st = btn.dataset.v;
       card.querySelector('.v2f-visfields').classList.toggle('off', !btn.dataset.v);
-      if (btn.dataset.v === 'agendada' && !document.getElementById('v2f-vis-data').value) document.getElementById('v2f-vis-data').focus();
+      const data = document.getElementById(`${card.dataset.pre}-vis-data`);
+      if (btn.dataset.v === 'agendada' && data && !data.value) data.focus();
     },
-    async salvar(id) {
+    async salvar(id, pre = 'v2f') {
       const c = (state.clientes || []).find((x) => String(x.id) === String(id));
-      const card = document.getElementById('v2f-vistoria');
+      const card = document.getElementById(`${pre}-vistoria`);
       if (!c || !card) return;
+      const campo = (k) => document.getElementById(`${pre}-vis-${k}`);
       const st = card.dataset.st || null;
-      const dataV = document.getElementById('v2f-vis-data').value;
-      if (st === 'agendada' && !dataV) { showToast('Informe a data e a hora da vistoria.'); document.getElementById('v2f-vis-data').focus(); return; }
+      const dataV = campo('data').value;
+      if (st === 'agendada' && !dataV) { showToast('Informe a data e a hora da vistoria.'); campo('data').focus(); return; }
       const payload = st ? {
         vistoria_status: st,
         vistoria_data: dataV ? new Date(dataV).toISOString() : null,
-        vistoria_responsavel: document.getElementById('v2f-vis-resp').value.trim() || null,
-        vistoria_obs: document.getElementById('v2f-vis-obs').value.trim() || null,
+        vistoria_responsavel: campo('resp').value.trim() || null,
+        vistoria_obs: campo('obs').value.trim() || null,
       } : { vistoria_status: null, vistoria_data: null, vistoria_responsavel: null, vistoria_obs: null };
       const antes = { vistoria_status: c.vistoria_status || null, vistoria_data: c.vistoria_data ? new Date(c.vistoria_data).toISOString() : null, vistoria_responsavel: c.vistoria_responsavel || null, vistoria_obs: c.vistoria_obs || null };
       const descricao = vistoriaDescricao(antes, payload);

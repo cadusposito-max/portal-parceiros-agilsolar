@@ -1177,17 +1177,22 @@ function renderCrm360TabContent(client, propostas, vendas) {
   // "Tarefa" na caixa só com a tabela de tarefas no ar (tarefas.js)
   const comTarefa = Boolean(window.tarefasTimeline && tarefasTimeline.pronta());
   if (_crm360ComposerTipo === 'tarefa' && !comTarefa) _crm360ComposerTipo = 'nota';
+  // "Visita técnica" = a vistoria do cartão em Dados (ui-v2-ficha.js), mesma gravação
+  const comVistoria = Boolean(window.uiV2Vistoria && uiV2Vistoria.caixaHTML && CRM_ATIVIDADE_META.vistoria);
+  if (_crm360ComposerTipo === 'vistoria' && !comVistoria) _crm360ComposerTipo = 'nota';
   const ehTarefa = _crm360ComposerTipo === 'tarefa';
+  const ehVistoria = _crm360ComposerTipo === 'vistoria';
   const composer = `
     <div class="border border-neutral-800 bg-black/40 p-3.5 mb-4">
       <div class="flex gap-1 mb-2 flex-wrap">
-        ${['nota', 'ligacao', 'whatsapp', 'visita', ...(comTarefa ? ['tarefa'] : [])].map((tipo) => {
+        ${['nota', 'ligacao', 'whatsapp', 'visita', ...(comVistoria ? ['vistoria'] : []), ...(comTarefa ? ['tarefa'] : [])].map((tipo) => {
           const meta = CRM_ATIVIDADE_META[tipo];
           const active = _crm360ComposerTipo === tipo;
-          return `<button onclick="crmSetComposerTipo('${tipo}')" class="px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest border flex items-center gap-1 transition-all ${active ? 'bg-orange-600 text-black border-orange-500' : 'bg-black text-neutral-500 border-neutral-800 hover:text-white'}"><i data-lucide="${meta.icon}" class="w-3 h-3"></i> ${meta.label}</button>`;
+          const label = tipo === 'vistoria' ? 'Visita técnica' : meta.label;
+          return `<button onclick="crmSetComposerTipo('${tipo}')" class="px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest border flex items-center gap-1 transition-all ${active ? 'bg-orange-600 text-black border-orange-500' : 'bg-black text-neutral-500 border-neutral-800 hover:text-white'}"><i data-lucide="${meta.icon}" class="w-3 h-3"></i> ${label}</button>`;
         }).join('')}
       </div>
-      ${ehTarefa ? tarefasTimeline.caixaHTML(client) : `
+      ${ehTarefa ? tarefasTimeline.caixaHTML(client) : ehVistoria ? uiV2Vistoria.caixaHTML(client) : `
       ${window.crmContatos ? crmContatos.composerHTML(_crm360ComposerTipo) : ''}
       <div class="flex gap-2">
         <input id="crm360-composer-text" placeholder="${window.crmContatos && crmContatos.ehContato(_crm360ComposerTipo) ? 'Como foi? (opcional)' : `Registrar ${CRM_ATIVIDADE_META[_crm360ComposerTipo].label.toLowerCase()}...`}" class="crm360-input flex-1" onkeydown="if(event.key==='Enter'){event.preventDefault();crmSubmitAtividade();}">
@@ -1672,6 +1677,7 @@ function crmSetComposerTipo(tipo) {
   _crm360ComposerTipo = tipo;
   if (window.crmContatos) crmContatos.resetComposer();
   renderCrm360();
+  if (tipo === 'vistoria') return; // a caixa abre nos botões de situação
   const input = document.getElementById(tipo === 'tarefa' ? 'tf-cx-tit' : 'crm360-composer-text');
   if (input) input.focus();
 }
@@ -1680,6 +1686,7 @@ async function crmSubmitAtividade() {
   const client = _crm360Client();
   // tarefa: quem grava é o tarefa_salvar (tarefas.js), que já leva para a timeline
   if (client && _crm360ComposerTipo === 'tarefa' && window.tarefasTimeline) return tarefasTimeline.enviar(client);
+  if (client && _crm360ComposerTipo === 'vistoria' && window.uiV2Vistoria) return uiV2Vistoria.salvar(client.id, 'v2t');
   const input = document.getElementById('crm360-composer-text');
   if (!client || !input) return;
 

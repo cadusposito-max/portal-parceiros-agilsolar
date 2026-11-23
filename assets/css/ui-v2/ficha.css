@@ -164,6 +164,15 @@ html[data-ui="v2"] .v2f-visfields.off { display: none; }
 html[data-ui="v2"] .v2f-save.alt { width: 100%; margin-top: 14px; height: 44px; background: var(--v2-card); color: var(--v2-blue-text); border: 1.5px solid var(--v2-blue); }
 html[data-ui="v2"] .v2f-save.alt:hover { background: var(--v2-blue-50); }
 html[data-ui="v2"] .v2f-save.alt:disabled { opacity: .5; }
+/* visita técnica na caixa da Timeline (mesma vistoria do cartão em Dados) */
+html[data-ui="v2"] .v2t-vis { display: grid; gap: 10px; }
+html[data-ui="v2"] .v2t-vis .v2f-visst { margin-bottom: 0; }
+html[data-ui="v2"] .v2t-vis .v2f-save.alt { margin-top: 0; }
+html[data-ui="v2"] .v2t-vis-hoje {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px;
+  background: var(--v2-bg); color: var(--v2-ink-2); font-size: 13px; font-weight: 700;
+}
+html[data-ui="v2"] .v2t-vis-hoje svg { width: 16px; height: 16px; flex: none; }
 @keyframes v2f-flash { 0% { box-shadow: 0 0 0 3px var(--v2-blue); } 100% { box-shadow: 0 0 0 0 transparent; } }
 html[data-ui="v2"] .v2f-card.flash { animation: v2f-flash 1.2s ease-out; }
 @media (max-width: 1000px) { html[data-ui="v2"] .v2f-sum { grid-template-columns: 1fr 1fr; } }
