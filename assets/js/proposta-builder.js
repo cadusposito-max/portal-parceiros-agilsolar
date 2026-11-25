@@ -1301,9 +1301,11 @@ function _pbKitLinhaHTML(item, geracao, r) {
     </div>`;
 }
 
-const PB_ORDENS = { potencia: 'Menor potência', potencia_desc: 'Maior potência', preco: 'Menor preço', preco_desc: 'Maior preço' };
+// Padrão: menor preço (pedido do comercial, 25/11).
+const PB_ORDENS = { preco: 'Menor preço', preco_desc: 'Maior preço', potencia: 'Menor potência', potencia_desc: 'Maior potência' };
+const PB_ORDEM_PADRAO = 'preco';
 function pbOrdenar(v) {
-  state.pbOrdem = PB_ORDENS[v] ? v : 'potencia';
+  state.pbOrdem = PB_ORDENS[v] ? v : PB_ORDEM_PADRAO;
   renderModalProducts();
 }
 
@@ -1389,8 +1391,8 @@ function renderModalProducts() {
     });
   }
 
-  // Ordenar por (cabeçalho da lista). Padrão: menor potência, como sempre foi.
-  const ordem = PB_ORDENS[state.pbOrdem] ? state.pbOrdem : 'potencia';
+  // Ordenar por (cabeçalho da lista). Padrão: menor preço (PB_ORDEM_PADRAO).
+  const ordem = PB_ORDENS[state.pbOrdem] ? state.pbOrdem : PB_ORDEM_PADRAO;
   if (ordem !== 'potencia') {
     const pot = (k) => Number(k.power) || 0;
     const preco = (k) => Number(k.price) || 0;
@@ -1450,7 +1452,7 @@ function renderModalProducts() {
 
   const tipoNome = state.pbCategory === 'kitsMicro' ? 'com microinversor' : 'com inversor';
   const ordenar = list.length > 1
-    ? `<label class="pbl-ordem"><span>Ordenar por</span><select aria-label="Ordenar os kits" onchange="pbOrdenar(this.value)">${Object.entries(PB_ORDENS)
+    ? `<label class="pbd-forn-campo pbl-ordem"><i data-lucide="arrow-down-up" class="pbd-forn-ic"></i><span class="pbd-forn-cap">Ordenar os kits por</span><select class="v2-select" data-titulo="Ordenar os kits por" aria-label="Ordenar os kits" onchange="pbOrdenar(this.value)">${Object.entries(PB_ORDENS)
       .map(([v, t]) => `<option value="${v}"${v === ordem ? ' selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
   const cabecalho = `<div class="pbl-topo"><p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>${ordenar}</div>`;
 
