@@ -41,6 +41,13 @@
 #fin-cc .cc-x svg, #fin-cc .cc-link svg { width: 14px; height: 14px; }
 #fin-cc .cc-link { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; border: 0; background: none; color: var(--v2-blue, #0a8ad8); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; padding: 4px 0; }
 #fin-cc .cc-btn2 { font: inherit; font-size: 11px; font-weight: 800; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--v2-line-strong, #3f3f46); background: transparent; color: inherit; cursor: pointer; }
+/* Elétrica: configuração separada para kit com inversor e com micro */
+#fin-cc .cc-seg { display: inline-flex; gap: 2px; margin-left: auto; padding: 2px; border: 1px solid var(--v2-line-strong, #3f3f46); border-radius: 999px; }
+#fin-cc .cc-seg button { font: inherit; font-size: 11px; font-weight: 800; padding: 4px 11px; border: 0; border-radius: 999px; background: transparent; color: var(--v2-ink-2, #9ca3af); cursor: pointer; }
+#fin-cc .cc-seg button.on { background: var(--v2-blue-50, rgba(10,138,216,.12)); color: var(--v2-blue-text, #7cc4f0); }
+#fin-cc .cc-full { flex-basis: 100%; }
+#fin-cc .cc-dims .cc-check { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 7px; font-size: 12px; color: var(--v2-ink, #e5e5e5); }
+#fin-cc .cc-dims .cc-check input { width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--v2-blue, #0a8ad8); }
 #fin-cc .cc-trava { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; border-top: 1px solid var(--v2-line, #262626); font-size: 12px; color: var(--v2-ink-2, #9ca3af); }
 #fin-cc .cc-trava b { color: var(--v2-ink, #e5e5e5); }
 

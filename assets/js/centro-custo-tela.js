@@ -24,6 +24,20 @@
     return `Instalação ${money(r.instalacaoModulo)}/módulo; elétrica ${money(r.eletricaAteValor)} até ${r.eletricaAte} módulos e, acima, ${money(r.eletricaModulo)} × todos os módulos`;
   }
   const UNIDADES = { modulo: 'módulos', kwp: 'kWp', inversor: 'inversores', kw_inversor: 'kW de inversor' };
+  const UNIDADES_MICRO = { ...UNIDADES, inversor: 'micros', kw_inversor: 'kW dos micros' };
+  // Linhas com configuração separada para kit com microinversor (aba Inversor | Micro).
+  // A config de micro é endereçada como "<chave>~micro" nas ações da tela.
+  const COM_MICRO = ['eletrica'];
+  const MICRO = '~micro';
+  const ehMicroK = (k) => String(k).endsWith(MICRO);
+  const paiK = (k) => (ehMicroK(k) ? String(k).slice(0, -MICRO.length) : k);
+  function alvo(k) { const l = cc.linhas[paiK(k)]; return ehMicroK(k) ? (l && l.micro) : l; }
+  function trocar(k, novo) {
+    const p = cc.linhas[paiK(k)];
+    if (ehMicroK(k)) { if (!p) return; if (novo) p.micro = novo; else delete p.micro; return; }
+    if (p && p.micro) novo.micro = p.micro; // trocar a forma do inversor não apaga a do micro
+    cc.linhas[k] = novo;
+  }
   const MAX_EXTRAS = 15;
 
   let cc = null; // { fid, data, linhas, mmin, malvo, modo, sujo, sim, custos }
@@ -46,6 +60,12 @@
     out.push(['pct:v', c.basesPct.v], ['pct:vk', c.basesPct.vk]);
     if (temNovasBases()) out.push(['pct:kit', c.basesPct.kit]);
     return out;
+  }
+  // Formas da config de micro: só em R$; "igual" = usa a do inversor.
+  function formasMicro() {
+    const b = calc().bases;
+    return [['igual', 'Igual ao inversor'], ['brl:v', b.v], ['brl:modulo', b.modulo], ['brl:kwp', b.kwp], ['brl:inversor', 'R$ por micro'],
+      ['brl:kw_inversor', 'R$ por kW dos micros'], ['brl:faixa_kw_inversor', 'Tabela por kW total'], ['brl:faixa', b.faixa]];
   }
 
   function extras() {
@@ -70,7 +90,8 @@
       fid: alvo, data, linhas, sujo: false,
       mmin: num(data.margem_min), malvo: num(data.margem_alvo),
       modo: data.modo_preco === 'custos' ? 'custos' : 'markup',
-      sim: simAnterior || { kitId: '', modulos: 10, kwp: 6.2, inversores: 1, kwInversor: 5, kit: '' },
+      sim: simAnterior || { kitId: '', modulos: 10, kwp: 6.2, inversores: 1, kwInversor: 5, micro: false, kit: '' },
+      abaMicro: !!(simAnterior && cc.abaMicro),
       custos: cc && cc.custos,
       // decidido ao carregar, para a linha não sumir enquanto a pessoa digita 0
       fixaAntiga: !!(linhas.eletrica_fixa && num(linhas.eletrica_fixa.v) > 0),
@@ -109,6 +130,9 @@
     cc.sim.kwp = num(k.power) || cc.sim.kwp;
     cc.sim.inversores = num(k.inversor_qtd) || 1;
     cc.sim.kwInversor = kwInversorDoKit(k) || cc.sim.kwInversor;
+    // kit com micro: simula com a config de micro e mostra a aba Micro da elétrica
+    cc.sim.micro = k.categoria === 'kitsMicro';
+    cc.abaMicro = cc.sim.micro;
     const custo = cc.custos && cc.custos.get(String(k.id));
     cc.sim.kit = custo || '';
   }
@@ -125,33 +149,50 @@
   function linhaHTML(k, rotulo) {
     const l = cc.linhas[k]; if (!l) return '';
     const extra = calc().ehExtra(k);
-    const forma = `${l.t}:${l.b}`;
-    const tabela = calc().ehTabela(l);
-    const unTab = l.b === 'faixa_kw_inversor' ? 'kW' : 'kWp';
-    const valor = tabela ? ''
-      : `<label class="cc-val"><span>${l.t === 'pct' ? '%' : 'R$'}</span><input type="number" min="0" step="${l.t === 'pct' ? '0.1' : '0.01'}" value="${num(l.v)}" aria-label="Valor de ${esc(rotulo)}" oninput="CentroCustoTela.valor('${k}', this.value)"></label>`;
     const nome = extra
       ? `<input class="cc-nome" type="text" maxlength="40" value="${esc(l.nome || '')}" placeholder="Nome do custo (ex.: Frete local)" aria-label="Nome do custo" oninput="CentroCustoTela.nome('${k}', this.value)">`
       : `<span class="cc-rot">${esc(rotulo)}</span>`;
     const remover = extra ? `<button type="button" class="cc-x" title="Remover este custo" aria-label="Remover este custo" onclick="CentroCustoTela.remover('${k}')"><i data-lucide="trash-2"></i></button>` : '';
+    // Elétrica: uma configuração para kit com inversor e outra para kit com micro.
+    const comMicro = COM_MICRO.includes(k) && temNovasBases();
+    const noMicro = comMicro && cc.abaMicro;
+    const aba = (id, txt, on) => `<button type="button" class="${on ? 'on' : ''}" aria-pressed="${on}" onclick="CentroCustoTela.aba(${id === 'mic'})">${txt}</button>`;
+    const seg = comMicro ? `<div class="cc-seg" role="group" aria-label="Configuração da ${esc(rotulo)} por tipo de kit">${aba('inv', 'Inversor', !noMicro)}${aba('mic', 'Micro', noMicro)}</div>` : '';
+    const corpo = noMicro ? corpoHTML(k + MICRO, l.micro, rotulo + ' (micro)', { micro: true }) : corpoHTML(k, l, rotulo, { comMicro });
+    return `<div class="cc-linha${extra ? ' is-extra' : ''}">
+        <div class="cc-l1">${nome}${seg}${remover}</div>${corpo}
+      </div>`;
+  }
+
+  // Valor, forma, limite e tabela de uma configuração (a da linha ou a de micro).
+  function corpoHTML(k, l, rotulo, { micro = false, comMicro = false } = {}) {
+    const opcoes = (sel) => (micro ? formasMicro() : formas()).map(([v, n]) => `<option value="${v}"${v === sel ? ' selected' : ''}>${n}</option>`).join('');
+    const select = (sel) => `<select aria-label="Forma de cálculo de ${esc(rotulo)}" onchange="CentroCustoTela.forma('${k}', this.value)">${opcoes(sel)}</select>`;
+    if (micro && !l) {
+      return `<div class="cc-l2">${select('igual')}</div>
+        <p class="cc-hint cc-full">Kit com microinversor usa a mesma configuração do inversor. Escolha uma forma para cobrar diferente.</p>`;
+    }
+    const un = micro ? UNIDADES_MICRO : UNIDADES;
+    const tabela = calc().ehTabela(l);
+    const unTab = l.b === 'faixa_kw_inversor' ? 'kW' : 'kWp';
+    const valor = tabela ? ''
+      : `<label class="cc-val"><span>${l.t === 'pct' ? '%' : 'R$'}</span><input type="number" min="0" step="${l.t === 'pct' ? '0.1' : '0.01'}" value="${num(l.v)}" aria-label="Valor de ${esc(rotulo)}" oninput="CentroCustoTela.valor('${k}', this.value)"></label>`;
+    const dicaTab = l.b !== 'faixa_kw_inversor' ? ''
+      : micro ? 'Kits com microinversor: soma o kW de todos os micros e cobra a faixa uma vez (4 micros de 2,25 kW = 9 kW). '
+      : `${comMicro ? 'Kits com inversor. ' : ''}Vale o kW de cada inversor; com mais de um, soma os valores (2 inversores de 5 kW = 2 × o valor de 5 kW). `;
     const faixas = tabela ? `<div class="cc-faixas">${(l.faixas && l.faixas.length ? l.faixas : [{ ate: '', valor: '' }]).map((f, i) => `
         <div class="cc-faixa"><span>até</span><input type="number" min="0" step="0.01" value="${f.ate}" aria-label="Até ${unTab}" oninput="CentroCustoTela.faixa('${k}', ${i}, 'ate', this.value)"><span>${unTab} →</span>
           <label class="cc-val"><span>R$</span><input type="number" min="0" step="0.01" value="${f.valor}" aria-label="Valor da faixa" oninput="CentroCustoTela.faixa('${k}', ${i}, 'valor', this.value)"></label>
           <button type="button" class="cc-x" aria-label="Remover faixa" onclick="CentroCustoTela.faixaRemover('${k}', ${i})"><i data-lucide="x"></i></button></div>`).join('')}
         <button type="button" class="cc-link" onclick="CentroCustoTela.faixaAdd('${k}')"><i data-lucide="plus"></i>Faixa</button>
-        <p class="cc-hint">${l.b === 'faixa_kw_inversor' ? 'Vale o kW de cada inversor; com mais de um, soma os valores (2 inversores de 5 kW = 2 × o valor de 5 kW). ' : ''}Acima da última faixa, vale o valor da última.</p></div>` : '';
+        <p class="cc-hint">${dicaTab}Acima da última faixa, vale o valor da última.</p></div>` : '';
     // Bases por quantidade: até o limite cobra um valor fixo; acima, o valor × a quantidade toda.
     const limite = calc().aceitaLimite(l) ? `<div class="cc-limite">até
         <input type="number" min="0" step="${l.b === 'modulo' || l.b === 'inversor' ? '1' : '0.01'}" value="${num(l.ate)}" aria-label="Limite de ${esc(rotulo)}" oninput="CentroCustoTela.limite('${k}', 'ate', this.value)">
-        <span>${UNIDADES[l.b]} cobra fixo</span>
+        <span>${un[l.b]} cobra fixo</span>
         <label class="cc-val"><span>R$</span><input type="number" min="0" step="0.01" value="${num(l.ate_valor)}" aria-label="Valor fixo até o limite de ${esc(rotulo)}" oninput="CentroCustoTela.limite('${k}', 'ate_valor', this.value)"></label>
-        <p class="cc-hint">Acima disso, o valor × todos os ${UNIDADES[l.b]}. Limite 0 = sem valor fixo.</p></div>` : '';
-    return `<div class="cc-linha${extra ? ' is-extra' : ''}">
-        <div class="cc-l1">${nome}${remover}</div>
-        <div class="cc-l2">${valor}
-          <select aria-label="Forma de cálculo de ${esc(rotulo)}" onchange="CentroCustoTela.forma('${k}', this.value)">${formas().map(([v, n]) => `<option value="${v}"${v === forma ? ' selected' : ''}>${n}</option>`).join('')}</select>
-        </div>${limite}${faixas}
-      </div>`;
+        <p class="cc-hint">Acima disso, o valor × todos os ${un[l.b]}. Limite 0 = sem valor fixo.</p></div>` : '';
+    return `<div class="cc-l2">${valor}${select(`${l.t}:${l.b}`)}</div>${limite}${faixas}`;
   }
 
   function contratoHTML() {
@@ -220,8 +261,9 @@
           <div class="cc-dims">
             <label>Módulos<input type="number" min="1" step="1" value="${cc.sim.modulos}" oninput="CentroCustoTela.dim('modulos', this.value)"></label>
             <label>kWp<input type="number" min="0.01" step="0.01" value="${cc.sim.kwp}" oninput="CentroCustoTela.dim('kwp', this.value)"></label>
-            <label>Inversores<input type="number" min="1" step="1" value="${cc.sim.inversores}" oninput="CentroCustoTela.dim('inversores', this.value)"></label>
-            <label>kW do inversor (total)<input type="number" min="0" step="0.01" value="${cc.sim.kwInversor}" oninput="CentroCustoTela.dim('kwInversor', this.value)"></label>
+            <label class="cc-check"><input type="checkbox"${cc.sim.micro ? ' checked' : ''}${cc.sim.kitId ? ' disabled' : ''} onchange="CentroCustoTela.simMicro(this.checked)">Kit com microinversor</label>
+            <label>${cc.sim.micro ? 'Micros' : 'Inversores'}<input type="number" min="1" step="1" value="${cc.sim.inversores}" oninput="CentroCustoTela.dim('inversores', this.value)"></label>
+            <label>${cc.sim.micro ? 'kW dos micros (total)' : 'kW do inversor (total)'}<input type="number" min="0" step="0.01" value="${cc.sim.kwInversor}" oninput="CentroCustoTela.dim('kwInversor', this.value)"></label>
             <label>Custo do kit c/ frete<input type="number" min="0" step="0.01" value="${cc.sim.kit}" placeholder="${state.isAdmin ? 'sem custo cadastrado' : 'informe o custo'}" oninput="CentroCustoTela.dim('kit', this.value)"></label>
           </div>
           <div id="cc-sim-out" aria-live="polite"></div>
@@ -249,7 +291,7 @@
     const { linhas, projetoFora } = linhasCompletas(num(s.kwp));
     if (projetoFora) { out.innerHTML = '<p class="cc-aviso">Projeto fora da tabela da Rede para essa potência. Configure a faixa em Rede → Unidades.</p>'; return; }
     if (!(kit > 0)) { out.innerHTML = `<p class="cc-hint">${state.isAdmin ? 'Esse kit não tem custo cadastrado. Informe o custo do kit com frete para simular (cadastre em Produtos para entrar no preço).' : 'Informe o custo do kit com frete para simular.'}</p>`; return; }
-    const base = { linhas, kit, modulos: num(s.modulos), kwp: num(s.kwp), inversores: num(s.inversores), kwInversor: num(s.kwInversor), margem: cc.malvo };
+    const base = { linhas, kit, modulos: num(s.modulos), kwp: num(s.kwp), inversores: num(s.inversores), kwInversor: num(s.kwInversor), micro: !!s.micro, margem: cc.malvo };
     const alvo = calc().calcular(base);
     if (alvo.erros.length) { out.innerHTML = `<p class="cc-aviso">${esc(alvo.erros.join(' '))}</p>`; return; }
     const r = calc().calcular({ ...base, venda: alvo.vendaAlvo });
@@ -284,7 +326,7 @@
       if (!custo) return;
       const { linhas, projetoFora } = linhasCompletas(num(p.power));
       if (projetoFora) return;
-      const a = calc().calcular({ linhas, kit: custo, modulos: num(p.modulo_qtd), kwp: num(p.power), inversores: num(p.inversor_qtd) || 1, kwInversor: kwInversorDoKit(p), margem: cc.malvo });
+      const a = calc().calcular({ linhas, kit: custo, modulos: num(p.modulo_qtd), kwp: num(p.power), inversores: num(p.inversor_qtd) || 1, kwInversor: kwInversorDoKit(p), micro: p.categoria === 'kitsMicro', margem: cc.malvo });
       if (a.vendaAlvo == null) return;
       total++;
       if (a.vendaAlvo + 0.005 >= num(p.price)) ok++; else falham.push(p.name);
@@ -307,30 +349,35 @@
   const acoes = {
     unidade(fid) { if (state.isAdmin) render(fid); },
     modo(m) { cc.modo = m === 'custos' ? 'custos' : 'markup'; marcarSujo(true); pintar(); },
-    valor(k, v) { if (cc.linhas[k]) { cc.linhas[k].v = Math.max(0, parseFloat(v) || 0); mudou(); } },
+    valor(k, v) { const l = alvo(k); if (l) { l.v = Math.max(0, parseFloat(v) || 0); mudou(); } },
+    // Elétrica: mostra a configuração do inversor ou a do micro
+    aba(micro) { cc.abaMicro = !!micro; pintar(); },
     // campo: 'ate' (limite na unidade da base) | 'ate_valor' (R$ fixo até o limite)
     limite(k, campo, v) {
-      const l = cc.linhas[k]; if (!l || !['ate', 'ate_valor'].includes(campo)) return;
+      const l = alvo(k); if (!l || !['ate', 'ate_valor'].includes(campo)) return;
       const x = Math.max(0, parseFloat(v) || 0);
       if (campo === 'ate' && !x) delete l.ate; else l[campo] = x;
       mudou();
     },
     nome(k, v) { if (cc.linhas[k]) { cc.linhas[k].nome = String(v).slice(0, 40); marcarSujo(true); } },
     forma(k, valor) {
-      const l = cc.linhas[k]; if (!l) return;
+      if (!cc.linhas[paiK(k)]) return;
+      // config de micro: "igual" volta a usar a do inversor
+      if (valor === 'igual') { trocar(k, null); marcarSujo(true); pintar(); return; }
+      const l = alvo(k) || { t: 'brl', v: 0 };
       const [t, b] = String(valor).split(':');
       const novo = calc().linha(t, t === l.t ? l.v : 0, b, { faixas: l.faixas || [], nome: l.nome });
       if (calc().ehTabela(novo) && !novo.faixas.length) novo.faixas = [];
-      cc.linhas[k] = novo; marcarSujo(true); pintar();
+      trocar(k, novo); marcarSujo(true); pintar();
     },
     faixa(k, i, campo, v) {
-      const l = cc.linhas[k]; if (!l) return;
+      const l = alvo(k); if (!l) return;
       l.faixas = l.faixas && l.faixas.length ? l.faixas : [{ ate: '', valor: '' }];
       l.faixas[i] = { ...l.faixas[i], [campo]: v === '' ? '' : Math.max(0, parseFloat(v) || 0) };
       mudou();
     },
-    faixaAdd(k) { const l = cc.linhas[k]; if (!l) return; l.faixas = [...(l.faixas || []), { ate: '', valor: '' }]; marcarSujo(true); pintar(); },
-    faixaRemover(k, i) { const l = cc.linhas[k]; if (!l) return; l.faixas = (l.faixas || []).filter((_, j) => j !== i); marcarSujo(true); pintar(); },
+    faixaAdd(k) { const l = alvo(k); if (!l) return; l.faixas = [...(l.faixas || []), { ate: '', valor: '' }]; marcarSujo(true); pintar(); },
+    faixaRemover(k, i) { const l = alvo(k); if (!l) return; l.faixas = (l.faixas || []).filter((_, j) => j !== i); marcarSujo(true); pintar(); },
     adicionar() {
       if (extras().length >= MAX_EXTRAS) return;
       const k = 'extra_' + Date.now().toString(36).slice(-8);
@@ -343,24 +390,38 @@
       const r = calc().referenciaHelte;
       cc.linhas.instalacao = calc().linha('brl', r.instalacaoModulo, 'modulo');
       if (cc.linhas.eletrica_fixa) cc.linhas.eletrica_fixa = calc().linha('brl', 0, 'v'); // o fixo está no limite da elétrica
-      cc.linhas.eletrica = calc().linha('brl', r.eletricaModulo, 'modulo', { ate: r.eletricaAte, ate_valor: r.eletricaAteValor });
+      trocar('eletrica', calc().linha('brl', r.eletricaModulo, 'modulo', { ate: r.eletricaAte, ate_valor: r.eletricaAteValor }));
       marcarSujo(true); pintar();
       toast('Estimativa preenchida. Confira a simulação e salve.');
     },
     margem(campo, v) { cc[campo] = Math.max(0, parseFloat(v) || 0); mudou(); },
     kit(id) { if (id) aplicarKit(id); else cc.sim.kitId = ''; pintar(); },
     dim(campo, v) { cc.sim[campo] = v === '' ? '' : Math.max(0, parseFloat(v) || 0); simular(); icons(); },
+    // Simulação livre: kit com microinversor ou com inversor
+    simMicro(on) { cc.sim.micro = !!on; cc.abaMicro = !!on; pintar(); },
     async salvar() {
       if (!cc) return;
       const linhas = {};
+      // tabela: só faixas preenchidas; vazia = avisa e não salva
+      const limpa = (l, micro) => {
+        if (!calc().ehTabela(l)) return l;
+        const fx = (l.faixas || []).filter((f) => num(f.ate) > 0);
+        if (!fx.length) {
+          toast(micro ? 'Preencha a tabela da elétrica para micro (aba Micro).' : l.b === 'faixa_kw_inversor' ? 'Preencha a tabela por kW do inversor.' : 'Preencha a tabela por faixa de kWp.');
+          return null;
+        }
+        return { ...l, faixas: fx.map((f) => ({ ate: num(f.ate), valor: num(f.valor) })) };
+      };
       for (const [k, l] of Object.entries(cc.linhas)) {
         if (l.t === 'pct' && l.v > 100) { toast(`${calc().ehExtra(k) ? (l.nome || 'Custo personalizado') : k}: percentual acima de 100.`); return; }
         if (calc().ehExtra(k) && !String(l.nome || '').trim()) { toast('Dê um nome a cada custo personalizado.'); return; }
-        if (calc().ehTabela(l)) {
-          const fx = (l.faixas || []).filter((f) => num(f.ate) > 0);
-          if (!fx.length) { toast(l.b === 'faixa_kw_inversor' ? 'Preencha a tabela por kW do inversor.' : 'Preencha a tabela por faixa de kWp.'); return; }
-          linhas[k] = { ...l, faixas: fx.map((f) => ({ ate: num(f.ate), valor: num(f.valor) })) };
-        } else linhas[k] = l;
+        const ok = limpa(l, false); if (!ok) return;
+        linhas[k] = { ...ok };
+        if (calc().temMicro(l)) {
+          const m = limpa(l.micro, true);
+          if (!m) { cc.abaMicro = true; pintar(); return; }
+          linhas[k].micro = m;
+        }
       }
       if (cc.mmin < 0 || cc.malvo < cc.mmin || cc.malvo >= 100) { toast('Margem mínima ≥ 0 e alvo ≥ mínima, abaixo de 100%.'); return; }
       const btn = document.getElementById('cc-salvar'); if (btn) btn.disabled = true;

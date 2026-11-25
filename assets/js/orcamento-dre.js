@@ -201,7 +201,7 @@
   }
 
   function compute() {
-    const d = CentroCustoCalc.calcular({ linhas: cur.linhas, venda: num(cur.receita), kit: num(cur.kit), modulos: cur.modulos, kwp: cur.kwp, inversores: cur.inversores, kwInversor: cur.kwInversor, margem: cur.margem_alvo,
+    const d = CentroCustoCalc.calcular({ linhas: cur.linhas, venda: num(cur.receita), kit: num(cur.kit), modulos: cur.modulos, kwp: cur.kwp, inversores: cur.inversores, kwInversor: cur.kwInversor, micro: !!cur.micro, margem: cur.margem_alvo,
       extrasReceita: cur.extras.filter(e=>e.tipo === 'receita').reduce((s,e)=>s+num(e.valor),0),
       extrasDespesa: cur.extras.filter(e=>e.tipo !== 'receita').reduce((s,e)=>s+num(e.valor),0) });
     if (cur.projetoPendente) { d.erros.push('Projeto fora da tabela da Rede. Configure a faixa antes de precificar.'); d.vendaAlvo = null; }
@@ -275,12 +275,14 @@
   }
   // Tabela do centro de custo: valor da faixa para esta proposta (kWp, ou kW de cada inversor × quantidade).
   const valorTabela = (l) => valorLinha(l, num(cur.receita), num(cur.kit));
-  const tabelaInvTxt = () => {
+  const tabelaInvTxt = (l) => {
     const q = Math.max(1, Math.round(num(cur.inversores)) || 1);
+    // config de micro: a faixa é pelo kW total dos micros
+    if (l && l._micro) return `${q} ${q > 1 ? 'micros' : 'micro'}, ${pctFmt(r2(num(cur.kwInversor)))} kW no total`;
     const kw = pctFmt(r2(num(cur.kwInversor) / q)) + ' kW';
     return q > 1 ? `${q} inversores de ${kw}` : `${kw} de inversor`;
   };
-  const tabelaTxt = (l) => `Pela tabela (${l.b === 'faixa_kw_inversor' ? tabelaInvTxt() : pctFmt(cur.kwp) + ' kWp'})`;
+  const tabelaTxt = (l) => `Pela tabela (${l.b === 'faixa_kw_inversor' ? tabelaInvTxt(l) : pctFmt(cur.kwp) + ' kWp'})`;
   // Sai da tabela mantendo o resultado: base nova com o valor que dá o mesmo total.
   function soltarTabela(l, base, valor) {
     const eq = valor != null ? valor : valorTabela(l);
@@ -992,6 +994,8 @@
       kwp: ov.versao >= 3 ? num(ov.kwp) : num(contexto.kwp),
       inversores: ov.versao >= 3 && ov.inversores != null ? num(ov.inversores) : (num(contexto.inversores) || 1),
       kwInversor: ov.versao >= 3 && ov.kw_inversor != null ? num(ov.kw_inversor) : num(contexto.kw_inversor),
+      // kit com microinversor: linhas com config de micro (ex.: elétrica) usam a do micro
+      micro: !!contexto.micro,
       // Cenário salvo com ART dentro do projeto (antes de 09/10) continua igual; o novo soma a ART.
       artInclusa: saved ? !!ov.art_inclusa : false,
       projetoRede: saved ? (ov.projeto_rede || {cobrar:false}) : centro.projeto_rede,
@@ -1000,7 +1004,7 @@
       sugestaoKit: sugestaoKit,
       propostaId: propostaId,
       _proposta: p,
-      padrao: centro.linhas,
+      padrao: CentroCustoCalc.linhasDoTipo(centro.linhas, !!contexto.micro),
       unidadeNome: centro.nome,
       centroFallback: centro.fallback,
       margem_min: centro.margem_min,
@@ -1012,13 +1016,13 @@
       kit: saved && !kitSalvoVazio ? num(saved.custos.kit) : seed.kit,
       kitPreenchido: !!(kitSalvoVazio && sugestaoKit),
       extras: Array.isArray(saved && saved.extras) ? saved.extras : [],
-      linhas: linhasDoSalvo(saved, centro.linhas),
+      linhas: CentroCustoCalc.linhasDoTipo(linhasDoSalvo(saved, centro.linhas), !!contexto.micro),
     };
     // Cenários antigos mantêm exatamente a composição que foi salva.
     if (saved && ov.versao < 3) cur.linhas.projeto_rede = linha('brl', 0, 'v');
     // Cotação conserva os custos e a margem usados quando seu preço foi calculado.
     if (!saved && contexto.precificacao?.modo === 'custos' && contexto.precificacao.linhas) {
-      cur.linhas = clone(contexto.precificacao.linhas);
+      cur.linhas = CentroCustoCalc.linhasDoTipo(clone(contexto.precificacao.linhas), cur.micro);
       cur.margem_alvo = num(contexto.precificacao.margem_alvo);
       cur.artInclusa = !!contexto.precificacao.art_inclusa;
       cur.projetoPendente = false;

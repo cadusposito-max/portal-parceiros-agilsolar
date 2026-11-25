@@ -75,3 +75,39 @@ test('Tabela por kW do inversor: faixa pelo kW de cada inversor, valores somados
  assert.equal(c.calcular({linhas:{...base,el:c.linha('brl',0,'faixa_kw_inversor',{faixas:[]})},kit:5000,modulos:10,kwp:6.2,inversores:1,kwInversor:5,margem:22}).vendaAlvo,null);
  assert.ok(!c.aceitaLimite(l)); // tabela não tem "até N cobra fixo"
 });
+test('Elétrica com config de micro: kit micro usa a do micro (kW total, uma vez); kit inversor e linha sem micro ficam iguais',()=>{
+ const fxInv=[{ate:4,valor:420},{ate:5,valor:500},{ate:10,valor:790}];
+ const fxMic=[{ate:4,valor:450},{ate:8,valor:750},{ate:12,valor:1100},{ate:20,valor:1700}];
+ const l=c.linha('brl',0,'faixa_kw_inversor',{faixas:fxInv,micro:{t:'brl',v:0,b:'faixa_kw_inversor',faixas:fxMic}});
+ assert.ok(c.temMicro(l));assert.equal(l.micro.b,'faixa_kw_inversor');assert.equal(l.micro.faixas.length,4);
+ // kit com inversor: config do inversor (por inversor)
+ assert.equal(c.valor(l,0,0,{inversores:2,kwInversor:10}),1000);
+ // kit com micro: kW total dos micros, faixa cobrada uma vez
+ assert.equal(c.valor(l,0,0,{inversores:4,kwInversor:9,micro:true}),1100);
+ assert.equal(c.valor(l,0,0,{inversores:6,kwInversor:13.5,micro:true}),1700);
+ assert.equal(c.valor(l,0,0,{inversores:1,kwInversor:2.25,micro:true}),450);
+ assert.equal(c.valor(l,0,0,{inversores:10,kwInversor:30,micro:true}),1700); // acima da última, vale a última
+ // linha sem config de micro: micro segue a do inversor (como antes)
+ const s=c.linha('brl',0,'faixa_kw_inversor',{faixas:fxInv});
+ assert.equal(c.valor(s,0,0,{inversores:4,kwInversor:9,micro:true}),1680);
+ // micro com outra forma (R$ por micro, com fixo até 2)
+ const pm=c.linha('brl',0,'faixa_kw_inversor',{faixas:fxInv,micro:{t:'brl',v:120,b:'inversor',ate:2,ate_valor:300}});
+ assert.equal(c.valor(pm,0,0,{inversores:2,kwInversor:4.5,micro:true}),300);
+ assert.equal(c.valor(pm,0,0,{inversores:5,kwInversor:11.25,micro:true}),600);
+ // calcular usa a config do tipo do kit e fecha a margem
+ const base={imposto:{t:'pct',v:13.8,b:'vk'}};
+ const a={linhas:{...base,eletrica:l},kit:9000,modulos:16,kwp:9.92,inversores:4,kwInversor:9,micro:true,margem:22};
+ const d=c.calcular(a);assert.equal(d.erros.length,0);
+ const v=c.calcular({...a,venda:d.vendaAlvo});assert.equal(v.valores.eletrica,1100);assert.ok(v.lucroLiq/v.receita>=.22-1e-7);
+ assert.equal(c.calcular({...a,micro:false,inversores:2,kwInversor:10,venda:d.vendaAlvo}).valores.eletrica,1000);
+ // micro com tabela vazia acusa erro
+ const vazia=c.linha('brl',0,'v',{micro:{t:'brl',v:0,b:'faixa_kw_inversor',faixas:[]}});
+ assert.equal(c.calcular({linhas:{...base,eletrica:vazia},kit:9000,modulos:16,kwp:9.92,inversores:4,kwInversor:9,micro:true,margem:22}).vendaAlvo,null);
+ // linhas já resolvidas para o DRE: micro vira a própria linha (marcada), inversor perde a de micro
+ const lm=c.linhasDoTipo({eletrica:l,imposto:base.imposto},true);
+ assert.equal(lm.eletrica._micro,true);assert.ok(!lm.eletrica.micro);assert.equal(c.valor(lm.eletrica,0,0,{inversores:4,kwInversor:9,micro:true}),1100);
+ const li=c.linhasDoTipo({eletrica:l},false);assert.ok(!li.eletrica.micro);assert.equal(c.valor(li.eletrica,0,0,{inversores:2,kwInversor:10}),1000);
+ // copiar a linha (linha()) guarda a config de micro e a marca _micro
+ assert.deepEqual(c.linha(l.t,l.v,l.b,l).micro,l.micro);
+ assert.equal(c.linha(lm.eletrica.t,lm.eletrica.v,lm.eletrica.b,lm.eletrica)._micro,true);
+});

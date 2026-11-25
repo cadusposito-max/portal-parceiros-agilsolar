@@ -7,6 +7,9 @@
    - t 'pct', b: v (% da venda) | vk (% da venda − kit) | kit (% do custo do kit)
    - ate + ate_valor (opcional, bases por quantidade): até `ate` cobra o fixo `ate_valor`;
      acima disso, v × a quantidade toda (ex.: até 6 módulos R$ 400; com 7, 7 × R$ 50).
+   - micro (opcional, só R$): configuração própria para kit com microinversor, mesmo formato
+     { t:'brl', v, b, faixas?, ate?, ate_valor? }. Sem ela, o kit micro usa a da linha.
+     Na config de micro, faixa_kw_inversor olha o kW TOTAL dos micros e cobra uma vez.
    Linhas personalizadas usam chave extra_* e levam nome. */
 (function (root) {
   'use strict';
@@ -23,7 +26,25 @@
   const BASES_TABELA = ['faixa', 'faixa_kw_inversor'];
   const ehTabela = l => !!l && l.t === 'brl' && BASES_TABELA.includes(l.b);
   const qtdInversores = contexto => Math.max(1, Math.round(n(contexto && contexto.inversores)) || 1);
-  const medidaTabela = (l, contexto) => l.b === 'faixa_kw_inversor' ? n(contexto.kwInversor) / qtdInversores(contexto) : n(contexto.kwp);
+  // Na configuração de micro (_micro), a tabela por kW olha o kW total e cobra uma vez.
+  const medidaTabela = (l, contexto) => l.b === 'faixa_kw_inversor'
+    ? (l._micro ? n(contexto.kwInversor) : n(contexto.kwInversor) / qtdInversores(contexto)) : n(contexto.kwp);
+  const temMicro = l => !!(l && l.micro && typeof l.micro === 'object');
+  // Linha que vale para o kit: com micro e config de micro, a do micro; senão, a própria.
+  function efetiva(l, contexto) {
+    if (!l || !(contexto && contexto.micro) || !temMicro(l)) return l;
+    const m = linha('brl', l.micro.v, l.micro.b, { ...l.micro, nome: l.nome, _micro: true });
+    return m;
+  }
+  // Todas as linhas já resolvidas para o tipo do kit (sem a config que não vale).
+  function linhasDoTipo(linhas, micro) {
+    const out = {};
+    Object.entries(linhas || {}).forEach(([k, l]) => {
+      const e = efetiva(l, { micro });
+      if (e === l && temMicro(l)) { const c = { ...l }; delete c.micro; out[k] = c; } else out[k] = e;
+    });
+    return out;
+  }
   function faixasLimpa(faixas) {
     return (Array.isArray(faixas) ? faixas : [])
       .map(f => ({ ate: n(f && f.ate), valor: Math.max(0, n(f && f.valor)) }))
@@ -37,6 +58,11 @@
     if (ehTabela(out)) out.faixas = faixasLimpa(extra.faixas);
     if (aceitaLimite(out) && n(extra.ate) > 0) { out.ate = n(extra.ate); out.ate_valor = Math.max(0, n(extra.ate_valor)); }
     if (extra.nome != null) out.nome = String(extra.nome).slice(0, 40);
+    if (extra._micro) out._micro = true;
+    else if (extra.micro && typeof extra.micro === 'object') {
+      const m = extra.micro;
+      out.micro = linha('brl', m.v, m.b, { faixas: m.faixas, ate: m.ate, ate_valor: m.ate_valor });
+    }
     return out;
   }
   // Valor da tabela para a medida (kWp ou kW de inversor): primeira faixa que cobre;
@@ -58,7 +84,7 @@
     if (l.t === 'pct') return l.b === 'kit' ? r2(n(kit) * n(l.v) / 100) : 0;
     if (ehTabela(l)) {
       const fv = r2(n(faixaValor(l.faixas, medidaTabela(l, contexto))));
-      return l.b === 'faixa_kw_inversor' ? r2(fv * qtdInversores(contexto)) : fv;
+      return l.b === 'faixa_kw_inversor' && !l._micro ? r2(fv * qtdInversores(contexto)) : fv;
     }
     const q = quantidade(l, contexto);
     if (temLimite(l) && q <= n(l.ate)) return r2(n(l.ate_valor));
@@ -66,6 +92,7 @@
   }
   function valor(l, venda, kit, contexto = {}) {
     if (!l) return 0;
+    l = efetiva(l, contexto);
     if (l.t === 'brl' || l.b === 'kit') return fixoDaLinha(l, kit, contexto);
     return r2(Math.max(0, l.b === 'vk' ? venda - kit : venda) * n(l.v) / 100);
   }
@@ -74,11 +101,12 @@
     const faixa = (rede.faixas || []).find(f => kwp > 0 && kwp <= n(f.ate));
     return faixa ? n(faixa.valor) : null;
   }
-  function calcular({ linhas, kit, venda = 0, modulos = 0, kwp = 0, inversores = 0, kwInversor = 0, margem = 0, extrasReceita = 0, extrasDespesa = 0 }) {
-    const contexto = { modulos, kwp, inversores, kwInversor }, valores = {};
+  function calcular({ linhas, kit, venda = 0, modulos = 0, kwp = 0, inversores = 0, kwInversor = 0, micro = false, margem = 0, extrasReceita = 0, extrasDespesa = 0 }) {
+    const contexto = { modulos, kwp, inversores, kwInversor, micro: !!micro }, valores = {};
     const erros = [];
     let P = 0, Q = 0, F = 0;
-    Object.entries(linhas || {}).forEach(([k, l]) => {
+    Object.entries(linhas || {}).forEach(([k, l0]) => {
+      const l = efetiva(l0, contexto);
       if (l.t === 'brl') {
         if (ehTabela(l)) {
           const porInv = l.b === 'faixa_kw_inversor';
@@ -132,6 +160,6 @@
       && Object.entries(linhas).every(([k,l]) => k in esperado || ['eletrica','eletrica_fixa','instalacao'].includes(k) || n(l.v) === 0)
       && Object.values(contrato || {}).every(l => n(l.v) === 0);
   }
-  root.CentroCustoCalc = { qtdInversores, aceitaLimite, temLimite, ehTabela, linha, valor, calcular, projeto, bases, basesPct, ehExtra, faixaValor, saldoParaMargem, referenciaHelte, aceitaReferenciaHelte };
+  root.CentroCustoCalc = { qtdInversores, temMicro, efetiva, linhasDoTipo, aceitaLimite, temLimite, ehTabela, linha, valor, calcular, projeto, bases, basesPct, ehExtra, faixaValor, saldoParaMargem, referenciaHelte, aceitaReferenciaHelte };
   if (typeof module !== 'undefined') module.exports = root.CentroCustoCalc;
 })(typeof window === 'undefined' ? globalThis : window);
