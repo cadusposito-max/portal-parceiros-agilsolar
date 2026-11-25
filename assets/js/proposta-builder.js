@@ -1304,6 +1304,20 @@ function _pbKitLinhaHTML(item, geracao, r) {
 // Padrão: menor preço (pedido do comercial, 25/11).
 const PB_ORDENS = { preco: 'Menor preço', preco_desc: 'Maior preço', potencia: 'Menor potência', potencia_desc: 'Maior potência' };
 const PB_ORDEM_PADRAO = 'preco';
+function pbOrdemCardHTML() {
+  const ordem = PB_ORDENS[state.pbOrdem] ? state.pbOrdem : PB_ORDEM_PADRAO;
+  return `<label class="pbd-forn-campo pbl-ordem"><i data-lucide="arrow-down-up" class="pbd-forn-ic"></i><span class="pbd-forn-cap">Ordenar os kits por</span><select class="v2-select" data-titulo="Ordenar os kits por" aria-label="Ordenar os kits" onchange="pbOrdenar(this.value)">${Object.entries(PB_ORDENS)
+    .map(([v, t]) => `<option value="${v}"${v === ordem ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`;
+}
+// Sem lista na tela (buscando os kits, filtro sem resultado): o cartão fica na grade dos filtros mesmo assim.
+function pbOrdemSoNaGrade() {
+  const slot = document.getElementById('pb-forn-ordem');
+  if (!slot) return;
+  slot.innerHTML = pbOrdemCardHTML();
+  if (typeof pbOrdemPosicionar === 'function') pbOrdemPosicionar();
+  if (window.uiV2Select) window.uiV2Select.scan(slot);
+  if (window.lucide) lucide.createIcons();
+}
 function pbOrdenar(v) {
   state.pbOrdem = PB_ORDENS[v] ? v : PB_ORDEM_PADRAO;
   renderModalProducts();
@@ -1365,6 +1379,7 @@ function renderModalProducts() {
     emptyEl.innerHTML = '<i data-lucide="loader-circle"></i><p>Buscando os kits…</p><small>A lista aparece completa em instantes.</small>';
     emptyEl.classList.remove('hidden');
     lucide.createIcons();
+    pbOrdemSoNaGrade();
     return;
   }
   if (emptyEl.classList.contains('is-buscando')) {
@@ -1413,6 +1428,7 @@ function renderModalProducts() {
     const txt = emptyEl.querySelector('p');
     if (txt) txt.textContent = motivo || 'Nenhum kit atende a este filtro';
     emptyEl.classList.remove('hidden');
+    pbOrdemSoNaGrade();
     return;
   }
 
@@ -1454,9 +1470,13 @@ function renderModalProducts() {
   }
 
   const tipoNome = state.pbCategory === 'kitsMicro' ? 'com microinversor' : 'com inversor';
-  const ordenar = list.length > 1
-    ? `<label class="pbd-forn-campo pbl-ordem"><i data-lucide="arrow-down-up" class="pbd-forn-ic"></i><span class="pbd-forn-cap">Ordenar os kits por</span><select class="v2-select" data-titulo="Ordenar os kits por" aria-label="Ordenar os kits" onchange="pbOrdenar(this.value)">${Object.entries(PB_ORDENS)
-      .map(([v, t]) => `<option value="${v}"${v === ordem ? ' selected' : ''}>${t}</option>`).join('')}</select></label>` : '';
+  // Na grade dos filtros o cartão fica sempre (senão abre um buraco); no cabeçalho, só com 2+ kits.
+  const naGrade = (() => {
+    const p = document.getElementById('pb-fornecimento-panel');
+    const s = document.getElementById('pb-forn-simples');
+    return Boolean(p && s && !p.classList.contains('hidden') && !s.classList.contains('hidden'));
+  })();
+  const ordenar = list.length > 1 || naGrade ? pbOrdemCardHTML() : '';
   const cabecalho = `<div class="pbl-topo"><p class="pbl-info">${list.length} ${list.length === 1 ? 'kit' : 'kits'} ${tipoNome}${temConsumo ? ` · % = quanto cada um cobre da média de ${Math.round(r.media).toLocaleString('pt-BR')} kWh` : ''}</p>${ordenar}</div>`;
 
   container.innerHTML = cabecalho
