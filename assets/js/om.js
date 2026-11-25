@@ -1109,6 +1109,30 @@ async function omSubmitCreateClient() {
 // ROTA: PROPOSTAS O&M  — conectada ao Supabase
 // =======================================================================
 const OM_PROP_TIPOS = ['Limpeza de módulos','Manutenção preventiva','Vistoria técnica','Manutenção corretiva','Correção de pendência','Plano recorrente'];
+// Serviço "Outro (personalizado)" (om_servicos.tipo = 'Personalizado'): o nome é
+// digitado na proposta e vai para tipo_servico. No filtro vira "Outros (personalizado)".
+const OM_TIPO_PERSONALIZADO = 'Personalizado';
+const OM_FILTRO_OUTROS = 'Outros (personalizado)';
+const OM_PROP_TIPOS_FILTRO = [...OM_PROP_TIPOS, OM_FILTRO_OUTROS];
+function omPropTipoBate(tipoServico, filtro) {
+  if (!filtro || filtro === 'Todos') return true;
+  if (filtro === OM_FILTRO_OUTROS) return !OM_PROP_TIPOS.includes(tipoServico);
+  return tipoServico === filtro;
+}
+// Select de serviço + campo do nome personalizado (criação e edição).
+function omPropServicoFieldHTML(servicos, isSel, nomeCustom) {
+  const lista = [...servicos].sort((a, b) => (a.tipo === OM_TIPO_PERSONALIZADO) - (b.tipo === OM_TIPO_PERSONALIZADO));
+  const selCustom = lista.some(s => s.tipo === OM_TIPO_PERSONALIZADO && isSel(s));
+  return `
+    ${omField('Tipo de serviço', `
+      <select name="servicoId" required class="${OM_INPUT_CLS}" onchange="omPropToggleCorretiva(this)">
+        ${lista.map(s => `<option value="${s.id}" data-tipo="${omEsc(s.tipo || '')}" ${isSel(s) ? 'selected' : ''}>${omEsc(s.nome)}</option>`).join('')}
+      </select>
+    `)}
+    <div id="om-prop-custom" style="display:${selCustom ? 'block' : 'none'}">
+      ${omField('Nome do serviço <span class="text-neutral-600 normal-case tracking-normal font-bold">(aparece na proposta)</span>', `<input name="tipoPersonalizado" maxlength="80" value="${omEsc(nomeCustom || '')}" class="${OM_INPUT_CLS}" placeholder="Ex.: Troca de string box, Reaperto de estrutura" />`)}
+    </div>`;
+}
 const OM_PROP_STATUSES = ['Rascunho','Enviada','Visualizada','Aprovada','Recusada','Vencida','Cancelada'];
 
 // Status do banco (minúsculo) ↔ rótulo capitalizado da UI
@@ -1229,7 +1253,7 @@ function omPropFilteredRows() {
   const f = state.omPropFilters || {};
   return (omPropListCache || []).filter(p => {
     if (f.status !== 'Todos' && p.statusLabel !== f.status) return false;
-    if (f.tipo !== 'Todos' && p.tipo_servico !== f.tipo) return false;
+    if (!omPropTipoBate(p.tipo_servico, f.tipo)) return false;
     if (f.responsavel !== 'Todos' && p.responsavel !== f.responsavel) return false;
     if (!omPropMatchesSearch(p, f.search)) return false;
     return true;
@@ -1319,7 +1343,7 @@ async function renderOMPropostas(container) {
           class="${OM_INPUT_CLS} mb-3" />
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           ${omField('Status', `<select onchange="omPropSet('status', this.value)" class="${OM_INPUT_CLS}">${['Todos', ...OM_PROP_STATUSES].map(s => `<option ${s === f.status ? 'selected' : ''}>${s}</option>`).join('')}</select>`)}
-          ${omField('Tipo de serviço', `<select onchange="omPropSet('tipo', this.value)" class="${OM_INPUT_CLS}">${['Todos', ...OM_PROP_TIPOS].map(s => `<option ${s === f.tipo ? 'selected' : ''}>${s}</option>`).join('')}</select>`)}
+          ${omField('Tipo de serviço', `<select onchange="omPropSet('tipo', this.value)" class="${OM_INPUT_CLS}">${['Todos', ...OM_PROP_TIPOS_FILTRO].map(s => `<option ${s === f.tipo ? 'selected' : ''}>${s}</option>`).join('')}</select>`)}
           ${omField('Responsável', `<select onchange="omPropSet('responsavel', this.value)" class="${OM_INPUT_CLS}">${responsaveis.map(s => `<option ${s === f.responsavel ? 'selected' : ''}>${omEsc(s)}</option>`).join('')}</select>`)}
         </div>
       </div>`;
@@ -1380,11 +1404,7 @@ async function omOpenCreateProposta(opts = {}) {
         <div id="om-prop-cli-step">${omPropCliStepHTML()}</div>
 
         <div class="text-[10px] font-black uppercase tracking-widest text-blue-400/80 mb-1 mt-4">2 · Serviço</div>
-        ${omField('Tipo de serviço', `
-          <select name="servicoId" required class="${OM_INPUT_CLS}" onchange="omPropToggleCorretiva(this)">
-            ${servicos.map(s => `<option value="${s.id}" data-tipo="${omEsc(s.tipo || '')}" ${s.tipo === tipo ? 'selected' : ''}>${omEsc(s.nome)}</option>`).join('')}
-          </select>
-        `)}
+        ${omPropServicoFieldHTML(servicos, s => s.tipo === tipo, '')}
         ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}" placeholder="Detalhe o que está incluso no serviço. Na corretiva, descreva aqui o problema identificado.">${omEsc(opts.descricao || '')}</textarea>`)}
         <div id="om-prop-corretiva" style="display:${omIsCorretiva(tipo) ? 'block' : 'none'}">
           ${omField('Diagnóstico / causa provável <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="diagnostico" rows="3" class="${OM_INPUT_CLS}" placeholder="O que a equipe apurou como causa da falha.">${omEsc(opts.diagnostico || '')}</textarea>`)}
@@ -1412,12 +1432,28 @@ async function omOpenCreateProposta(opts = {}) {
 
 // Mostra/esconde o campo de Diagnóstico conforme o serviço selecionado seja corretiva.
 // Vale para os modais de criação e edição (mesmo wrapper #om-prop-corretiva).
+// Também mostra o campo "Nome do serviço" quando o escolhido é "Outro (personalizado)".
 function omPropToggleCorretiva(sel) {
-  const wrap = document.getElementById('om-prop-corretiva');
-  if (!wrap || !sel) return;
+  if (!sel) return;
   const opt = sel.options[sel.selectedIndex];
   const tipo = opt ? (opt.getAttribute('data-tipo') || opt.textContent) : '';
-  wrap.style.display = omIsCorretiva(tipo) ? 'block' : 'none';
+  const wrap = document.getElementById('om-prop-corretiva');
+  if (wrap) wrap.style.display = omIsCorretiva(tipo) ? 'block' : 'none';
+  const custom = document.getElementById('om-prop-custom');
+  if (custom) {
+    const on = tipo === OM_TIPO_PERSONALIZADO;
+    custom.style.display = on ? 'block' : 'none';
+    const inp = custom.querySelector('input');
+    if (on && inp && !inp.value) inp.focus();
+  }
+}
+// Nome personalizado do formulário: undefined = serviço comum (não manda o parâmetro,
+// RPC antiga continua funcionando); '' = personalizado sem nome (bloqueia).
+function omPropTipoCustomDoForm(form, fd) {
+  const sel = form.querySelector('select[name="servicoId"]');
+  const opt = sel && sel.options[sel.selectedIndex];
+  if (!opt || opt.getAttribute('data-tipo') !== OM_TIPO_PERSONALIZADO) return undefined;
+  return String(fd.get('tipoPersonalizado') || '').trim();
 }
 // --- Passo "Cliente" da proposta: buscar OU criar novo -----------------
 function omPropCliStepHTML() {
@@ -1709,6 +1745,8 @@ async function omSubmitProposta(nextAction = 'rascunho') {
   const fd = new FormData(form);
   const servicoId = fd.get('servicoId');
   if (!servicoId) { if (typeof showToast === 'function') showToast('Selecione o serviço.'); return; }
+  const tipoCustom = omPropTipoCustomDoForm(form, fd);
+  if (tipoCustom === '') { if (typeof showToast === 'function') showToast('Digite o nome do serviço personalizado.'); return; }
   if (!omInclusosFromForm(fd)) { if (typeof showToast === 'function') showToast('Deixe pelo menos um item em "O que está incluído".'); return; }
 
   // Resolve o cliente: já selecionado OU cadastrar agora um novo.
@@ -1743,7 +1781,7 @@ async function omSubmitProposta(nextAction = 'rascunho') {
     // Resolve o sistema/equipamento (pode criar um om_sistema ou importar de venda).
     const sistemaId = await omPropSisResolve(clienteId);
 
-    const { data: newId, error } = await supabaseClient.rpc('create_om_proposta', {
+    const params = {
       p_cliente_id: clienteId,
       p_servico_id: servicoId,
       p_sistema_id: sistemaId,
@@ -1754,7 +1792,9 @@ async function omSubmitProposta(nextAction = 'rascunho') {
       p_observacoes_internas: (fd.get('obs') || '').trim() || null,
       p_corretiva_diagnostico: (fd.get('diagnostico') || '').trim() || null,
       p_itens_inclusos: omInclusosFromForm(fd),
-    });
+    };
+    if (tipoCustom) params.p_tipo_personalizado = tipoCustom;
+    const { data: newId, error } = await supabaseClient.rpc('create_om_proposta', params);
     if (error || !newId) throw error || new Error('Falha ao criar a proposta.');
 
     if (nextAction === 'enviar') {
@@ -2052,11 +2092,7 @@ async function omPropEditar(id) {
       <form id="om-form-prop-edit" onsubmit="event.preventDefault(); omSubmitPropEdit('${id}');">
         <input type="hidden" name="titulo" value="${omEsc(p.titulo || '')}" />
         <div class="text-[10px] font-black uppercase tracking-widest text-blue-400/80 mb-1">Serviço</div>
-        ${omField('Tipo de serviço', `
-          <select name="servicoId" required class="${OM_INPUT_CLS}" onchange="omPropToggleCorretiva(this)">
-            ${servicos.map(s => `<option value="${s.id}" data-tipo="${omEsc(s.tipo || '')}" ${s.id === p.servico_id ? 'selected' : ''}>${omEsc(s.nome)}</option>`).join('')}
-          </select>
-        `)}
+        ${omPropServicoFieldHTML(servicos, s => s.id === p.servico_id, OM_PROP_TIPOS.includes(p.tipo_servico) ? '' : p.tipo_servico)}
         ${omField('Descrição / escopo', `<textarea name="descricao" rows="3" class="${OM_INPUT_CLS}">${omEsc(p.descricao || '')}</textarea>`)}
         <div id="om-prop-corretiva" style="display:${omIsCorretiva(p.tipo_servico) ? 'block' : 'none'}">
           ${omField('Diagnóstico / causa provável <span class="text-neutral-600 normal-case tracking-normal font-bold">(corretiva)</span>', `<textarea name="diagnostico" rows="3" class="${OM_INPUT_CLS}" placeholder="O que a equipe apurou como causa da falha.">${omEsc(p.corretiva_diagnostico || '')}</textarea>`)}
@@ -2090,11 +2126,13 @@ async function omSubmitPropEdit(id) {
   const fd = new FormData(form);
   const servicoId = fd.get('servicoId');
   if (!servicoId) { if (typeof showToast === 'function') showToast('Selecione o serviço.'); return; }
+  const tipoCustom = omPropTipoCustomDoForm(form, fd);
+  if (tipoCustom === '') { if (typeof showToast === 'function') showToast('Digite o nome do serviço personalizado.'); return; }
   if (!omInclusosFromForm(fd)) { if (typeof showToast === 'function') showToast('Deixe pelo menos um item em "O que está incluído".'); return; }
 
   omSetModalBusy(true);
   try {
-    const { data, error } = await supabaseClient.rpc('update_om_proposta', {
+    const params = {
       p_id: id,
       p_servico_id: servicoId,
       p_valor: parseFloat(fd.get('valor')) || 0,
@@ -2107,7 +2145,9 @@ async function omSubmitPropEdit(id) {
       p_observacoes_internas: (fd.get('obsInt') || '').trim() || null,
       p_corretiva_diagnostico: (fd.get('diagnostico') || '').trim() || null,
       p_itens_inclusos: omInclusosFromForm(fd),
-    });
+    };
+    if (tipoCustom) params.p_tipo_personalizado = tipoCustom;
+    const { data, error } = await supabaseClient.rpc('update_om_proposta', params);
     if (error) throw error;
 
     omCloseModal();

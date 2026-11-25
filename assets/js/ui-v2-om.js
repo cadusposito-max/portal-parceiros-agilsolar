@@ -78,7 +78,7 @@
     setPageMeta('om:propostas', 'Propostas', `${plural(propRows.length, 'proposta', 'propostas')} · ${noMes} no mês`);
     const f = state.omPropFilters;
     const resp = [...new Set(propRows.map((p) => p.responsavel).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    const tipos = typeof OM_PROP_TIPOS !== 'undefined' ? OM_PROP_TIPOS : [];
+    const tipos = typeof OM_PROP_TIPOS_FILTRO !== 'undefined' ? OM_PROP_TIPOS_FILTRO : (typeof OM_PROP_TIPOS !== 'undefined' ? OM_PROP_TIPOS : []);
     const novo = `<button class="v2-btno hide-m" style="width:auto;height:44px" onclick="omOpenCreateProposta()">${ic('plus')}Nova proposta O&amp;M</button>`;
     if (!propRows.length) {
       container.innerHTML = `<div class="v2-card v2-empty">Nenhuma proposta O&amp;M ainda. Crie a primeira para um cliente da base.<div style="margin-top:12px">${novo}</div></div>`;
@@ -105,7 +105,7 @@
     if (!box) return;
     const f = state.omPropFilters;
     // contagem das etapas respeita busca/serviço/responsável (não o próprio status)
-    const base = propRows.filter((p) => (f.tipo === 'Todos' || p.tipo_servico === f.tipo)
+    const base = propRows.filter((p) => (has('omPropTipoBate') ? omPropTipoBate(p.tipo_servico, f.tipo) : (f.tipo === 'Todos' || p.tipo_servico === f.tipo))
       && (f.responsavel === 'Todos' || p.responsavel === f.responsavel)
       && (!has('omPropMatchesSearch') || omPropMatchesSearch(p, f.search)));
     const lista = base.filter((p) => f.status === 'Todos' || p.statusLabel === f.status);
