@@ -214,8 +214,10 @@
       ? `Salvo em ${new Date(d.updated_at).toLocaleDateString('pt-BR')}${d.updated_by_nome ? ' por ' + esc(d.updated_by_nome) : ''} · vale para todas as propostas da unidade`
       : 'Ainda não salvo · usando os padrões do Financeiro';
     const kitsCusto = num(d.kits_custos);
+    // O banco recalcula os preços em segundo plano (fila, a cada minuto) depois de salvar.
+    const recalc = d.recalculando ? 'Recalculando os preços dos kits: leva até 1 minuto. Enquanto isso, o kit segue no preço anterior. ' : '';
     const modoNota = cc.modo === 'custos'
-      ? (d.modo_preco === 'custos' ? `${kitsCusto} kits do catálogo com preço por custos. Kit sem custo cadastrado segue no markup.` : 'Vale depois de salvar.') + ' Promocionais mantêm o preço próprio.'
+      ? (d.modo_preco === 'custos' ? recalc + (d.recalculando ? '' : `${kitsCusto} kits do catálogo com preço por custos. `) + 'Kit sem custo cadastrado segue no markup.' : 'Vale depois de salvar.') + ' Promocionais mantêm o preço próprio.'
       : 'Preço da tabela, como hoje. Dá para testar o preço por custos e voltar a qualquer momento.';
     const grupo = (g) => `
       <section class="cc-card">
@@ -431,7 +433,8 @@
       });
       if (btn) btn.disabled = false;
       if (error) { console.error('[centro de custo] salvar', error); toast('Erro ao salvar: ' + (error.message || 'tente novamente')); return; }
-      toast(data.modo_preco === 'custos' ? `Centro de custo salvo · ${num(data.kits_custos)} kits com preço por custos` : 'Centro de custo salvo');
+      toast(data.recalculando ? 'Centro de custo salvo · preços dos kits sendo recalculados (até 1 minuto)'
+        : data.modo_preco === 'custos' ? `Centro de custo salvo · ${num(data.kits_custos)} kits com preço por custos` : 'Centro de custo salvo');
       // A lista de kits do orçamento passa a usar o preço novo da unidade.
       if (typeof fetchProducts === 'function' && String(cc.fid) === String(state.franquiaId || state.adminKitsFranquia)) await fetchProducts();
       await render(cc.fid);
