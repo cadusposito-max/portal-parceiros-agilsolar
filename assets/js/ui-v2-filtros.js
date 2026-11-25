@@ -87,8 +87,36 @@
     return out;
   }
 
+  const ehFranquia = (el) => el.tagName === 'SELECT' && /franquia/i.test(el.getAttribute('onchange') || '');
   const titulo = (el) => el.dataset.titulo
+    || (ehFranquia(el) ? 'Franquia' : '')
     || (el.tagName === 'SELECT' && window.uiV2Select ? window.uiV2Select.tituloDe(el) : 'Filtro');
+
+  // ---------- visão (Consolidado / Minha unidade) ----------
+  // No computador é o botão do topo, que não cabe no celular: aqui vira o 1º
+  // campo da gaveta (e o filtro de franquia vem logo abaixo). Gestor: Minha
+  // unidade / Apenas meus. Não conta como filtro ligado.
+  function visao() {
+    if (typeof state === 'undefined' || !state) return null;
+    if (state.isAdmin && typeof toggleAdminViewMode === 'function') return { on: !!state.adminViewAll, op: ['Consolidado', 'Minha unidade'], fn: toggleAdminViewMode };
+    if (state.isGestor && typeof toggleGestorViewMode === 'function') return { on: !!state.gestorViewAll, op: ['Minha unidade', 'Apenas meus'], fn: toggleGestorViewMode };
+    return null;
+  }
+  function campoVisao() {
+    const v = visao();
+    if (!v) return null;
+    const f = document.createElement('div');
+    f.className = 'v2-ff';
+    f.innerHTML = `<label>Visão</label><div class="v2-seg">${v.op.map((t, i) => `<button type="button" class="${(i === 0) === v.on ? 'on' : ''}">${esc(t)}</button>`).join('')}</div>`;
+    const bs = [...f.querySelectorAll('button')];
+    bs.forEach((b) => b.addEventListener('click', () => {
+      if (b.classList.contains('on') || f.dataset.trocando) return;
+      f.dataset.trocando = '1';
+      bs.forEach((x) => { x.disabled = true; x.classList.toggle('on', x === b); });
+      Promise.resolve(v.fn()).catch(() => {}).finally(() => { delete f.dataset.trocando; bs.forEach((x) => { x.disabled = false; }); });
+    }));
+    return f;
+  }
 
   // ---------- por tela ----------
   function aplicar(container) {
@@ -139,7 +167,9 @@
     const txtVer = total != null && um ? `Ver ${Number(total).toLocaleString('pt-BR')} ${Number(total) === 1 ? um : varios}` : 'Ver resultados';
     sheet.innerHTML = `<div class="grab"></div><div class="hd"><h5>Filtros</h5>${limparBtn ? '<button type="button" class="lp">Limpar</button>' : ''}</div><div class="bd"></div><button type="button" class="go">${esc(txtVer)}</button>`;
     const bd = sheet.querySelector('.bd');
-    itens.forEach((el) => {
+    const fv = campoVisao();
+    if (fv) bd.append(fv);
+    [...itens.filter(ehFranquia), ...itens.filter((el) => !ehFranquia(el))].forEach((el) => {
       const f = document.createElement('div');
       f.className = 'v2-ff';
       f.innerHTML = `<label>${esc(titulo(el))}</label>`;

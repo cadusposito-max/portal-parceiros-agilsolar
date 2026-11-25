@@ -141,9 +141,20 @@
         <button class="${pref === 'light' ? 'on' : ''}" data-v2="theme" data-theme="light" title="Claro">${ic('sun')}</button>
         <button class="${pref === 'dark' ? 'on' : ''}" data-v2="theme" data-theme="dark" title="Escuro">${ic('moon')}</button>
         <button class="${pref === 'system' ? 'on' : ''}" data-v2="theme" data-theme="system" title="Igual ao sistema">${ic('monitor')}</button></span></div>
+      ${celular ? scopeMenuHTML() : ''}
       ${canAdmin ? `<button class="v2-mi" data-v2="admin">${ic('settings')}Painel administrativo</button>` : ''}
       <div class="v2-sep"></div>
       <button class="v2-mi danger" data-v2="logout">${ic('log-out')}Sair da plataforma</button>`;
+  }
+  // celular: o botão de visão do topo não cabe, então a troca mora no menu da foto
+  // (a opção já escolhida não tem data-v2: tocar nela não faz nada)
+  function scopeMenuHTML() {
+    let on, op;
+    if (state.isAdmin && has('toggleAdminViewMode')) { on = !!state.adminViewAll; op = ['Consolidado', 'Minha unidade']; }
+    else if (state.isGestor && has('toggleGestorViewMode')) { on = !!state.gestorViewAll; op = ['Minha unidade', 'Apenas meus']; }
+    else return '';
+    const b = (txt, ativo) => `<button class="${ativo ? 'on' : ''}" ${ativo ? '' : 'data-v2="scope"'}>${txt}</button>`;
+    return `<div class="v2-mi">${ic('eye')}Visão<span class="v2-themesw v2-scopesw r">${b(op[0], on)}${b(op[1], !on)}</span></div>`;
   }
   function scopeButton() {
     if (state.isAdmin && has('toggleAdminViewMode')) {
