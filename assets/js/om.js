@@ -1736,6 +1736,8 @@ async function omPropSisResolve(clienteId) {
     p_franquia_id: state.franquiaId || null,
   });
   if (error || !data) throw error || new Error('Falha ao salvar o sistema.');
+  // Equipamento já salvo: se a proposta falhar, a próxima tentativa reaproveita.
+  omPropSis = { ...omPropSis, mode: 'selected', id: data };
   return data;
 }
 
@@ -1768,6 +1770,10 @@ async function omSubmitProposta(nextAction = 'rascunho') {
       if (cliErr || !newCliId) throw cliErr || new Error('Falha ao cadastrar o cliente.');
       clienteId = newCliId;
       _omClientCache[newCliId] = { id: newCliId, nome: nome.toUpperCase(), cidade };
+      // O cliente já existe: se a proposta falhar, a próxima tentativa usa este
+      // em vez de cadastrar outro igual. Não mexe no passo do equipamento.
+      omPropCli = { mode: 'selected', id: newCliId, nome: nome.toUpperCase(), cidade };
+      omPropCliRerender();
     } catch (e) {
       omSetModalBusy(false);
       if (typeof showToast === 'function') showToast(omFriendlyErr(e));
