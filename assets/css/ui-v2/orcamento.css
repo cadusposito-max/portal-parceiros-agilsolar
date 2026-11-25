@@ -94,7 +94,10 @@ html[data-ui="v2"] .pbl .pbl-topo { display: flex; align-items: center; justify-
 html[data-ui="v2"] .pbl .pbl-topo .pbl-info { margin: 0; min-width: 0; }
 /* "Ordenar por" do tamanho dos cartões de filtro (gente não via o seletor pequeno). */
 html[data-ui="v2"] .pbl .pbl-topo .pbl-info { flex: 1 1 200px; }
+/* Com a grade de filtros na tela ele vai pra lá (pbOrdemPosicionar); aqui é o caso sem filtros. */
 html[data-ui="v2"] .pbl .pbl-ordem { flex: 0 0 calc((100% - 24px) / 3); min-width: 260px; margin: 0; }
+html[data-ui="v2"] body #pb-fornecimento-panel .pbl-ordem .v2-dd { border: 1.5px solid var(--v2-blue); box-shadow: 0 0 0 3px var(--v2-blue-50); }
+html[data-ui="v2"] body #pb-fornecimento-panel .pbl-ordem .pbd-forn-cap { color: var(--v2-blue); font-weight: 700; }
 html[data-ui="v2"] body .pbl .pbl-ordem .v2-dd {
   width: 100%; max-width: none; height: 64px; padding: 22px 14px 0 60px; justify-content: space-between; border: 1.5px solid var(--v2-blue);
   border-radius: 14px !important; box-shadow: 0 0 0 3px var(--v2-blue-50); background: var(--v2-card); color: var(--v2-ink); font-size: 15px; font-weight: 700;

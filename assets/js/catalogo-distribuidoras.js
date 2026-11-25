@@ -456,6 +456,7 @@ function pbFornecimentoMount() {
         <label class="pbd-forn-campo"><i data-lucide="warehouse" class="pbd-forn-ic"></i><span class="pbd-forn-cap" data-pb-cap="Distribuidora">2 · Distribuidora</span><select id="pb-filtro-distribuidora" class="pbd-input v2-select" data-titulo="Distribuidora do kit" onchange="pbFornecimentoEscolher('distribuidora',this.value)"></select></label>
         <label class="pbd-forn-campo"><i data-lucide="solar-panel" class="pbd-forn-ic"></i><span class="pbd-forn-cap" data-pb-cap="Módulo / painel">3 · Módulo / painel</span><select id="pb-filtro-modulo" class="pbd-input v2-select" data-titulo="Módulo / painel" onchange="pbFornecimentoEscolher('modulo',this.value)"></select></label>
         <label class="pbd-forn-campo"><i data-lucide="zap" class="pbd-forn-ic"></i><span class="pbd-forn-cap" data-pb-cap="Inversor / micro">4 · Inversor / micro</span><select id="pb-filtro-inversor" class="pbd-input v2-select" data-titulo="Marca do inversor / microinversor" onchange="pbFornecimentoEscolher('inversor',this.value)"></select></label>
+        <div id="pb-forn-ordem" class="pbd-forn-ordem hidden"></div>
       </div>
       <div id="pb-forn-avancado" class="pbd-fornecimento-fields is-avancado hidden"></div>
       <p id="pb-km-info" class="pbd-km-info hidden"></p>
@@ -493,7 +494,29 @@ function pbBuscandoKits() {
   return linhaCompletaCarregando(pbLinhaAtual());
 }
 
+// O "Ordenar por" da lista vai pro espaço livre da grade de filtros quando ela
+// está na tela (fica alinhado com os cartões); sem filtros, volta pro cabeçalho da lista.
+function pbOrdemPosicionar() {
+  const slot = document.getElementById('pb-forn-ordem');
+  const topo = document.querySelector('#pb-products-container .pbl-topo');
+  const card = (slot && slot.querySelector('.pbl-ordem')) || (topo && topo.querySelector('.pbl-ordem'));
+  if (!slot) return;
+  const panel = document.getElementById('pb-fornecimento-panel');
+  const simples = document.getElementById('pb-forn-simples');
+  const noPainel = Boolean(card && panel && simples && !panel.classList.contains('hidden') && !simples.classList.contains('hidden'));
+  if (card) {
+    const destino = noPainel ? slot : topo;
+    if (destino && card.parentElement !== destino) destino.appendChild(card);
+  }
+  slot.classList.toggle('hidden', !noPainel);
+  if (simples) simples.classList.toggle('cinco', [...simples.children].filter((c) => !c.classList.contains('hidden')).length === 5);
+}
+
 function pbFornecimentoRender() {
+  try { _pbFornecimentoRender(); } finally { pbOrdemPosicionar(); }
+}
+
+function _pbFornecimentoRender() {
   pbGarantirLinhaCompleta();
   const panel = document.getElementById('pb-fornecimento-panel');
   if (!panel) return;

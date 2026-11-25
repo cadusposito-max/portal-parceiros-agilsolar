@@ -1314,6 +1314,9 @@ function renderModalProducts() {
   const emptyEl   = document.getElementById('pb-empty');
 
   if (!container || !emptyEl) return;
+  // "Ordenar por" antigo (pode estar na grade de filtros): sai; o novo é desenhado no cabeçalho abaixo.
+  const ordemSlot = document.getElementById('pb-forn-ordem');
+  if (ordemSlot) { ordemSlot.innerHTML = ''; if (typeof pbOrdemPosicionar === 'function') pbOrdemPosicionar(); }
 
   // Personalizada: a lista de kits fica escondida.
   if (state.pbProposalMode !== PB_PROPOSAL_MODES.PROMOCIONAL) {
@@ -1459,6 +1462,7 @@ function renderModalProducts() {
   container.innerHTML = cabecalho
     + `<div class="pbl-lista">${visiveis.map((item) => _pbKitLinhaHTML(item, geracaoDe(item), r)).join('')}</div>`
     + rodape;
+  if (typeof pbOrdemPosicionar === 'function') pbOrdemPosicionar();
 
   if (typeof orcamentoAtualizarResumo === 'function') orcamentoAtualizarResumo();
   lucide.createIcons();

@@ -84,6 +84,13 @@ html[data-ui="v2"] .pb-alerta-chip svg { width: 14px; height: 14px; }
 
 /* Telhado do cliente: 4º cartão do painel (catálogo completo), em 2 colunas. */
 html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro { grid-template-columns: repeat(2,minmax(0,1fr)); }
+/* Catálogo: 4 filtros + "Ordenar por" = 5 cartões. Largo: 2 em cima e 3 embaixo; estreito: o último ocupa a linha. */
+html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.cinco > :last-child { grid-column: 1 / -1; }
+@container (min-width: 820px) {
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.cinco { grid-template-columns: repeat(6,minmax(0,1fr)); }
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.cinco > :nth-child(-n+2) { grid-column: span 3; }
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.cinco > :nth-child(n+3) { grid-column: span 2; }
+}
 /* Avançado: 5 cartões sem sobrar buraco. Largo: 2 em cima (distribuidora, módulo) e 3 embaixo;
    estreito: 2 por linha e o telhado ocupa a linha toda. */
 html[data-ui="v2"] #pb-fornecimento-panel { container-type: inline-size; }
@@ -180,6 +187,8 @@ html[data-ui="v2"] .km-cotar { width: 100%; justify-content: center; margin-top:
 @media (max-width: 760px) {
   html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.quatro,
   html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.is-avancado { grid-template-columns: 1fr; }
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.cinco { grid-template-columns: 1fr; }
+  html[data-ui="v2"] #pb-fornecimento-panel .pbd-fornecimento-fields.cinco > * { grid-column: auto; }
   html[data-ui="v2"] .km-qtd input { font-size: 16px; }
 }
 @media (max-width: 560px) {
