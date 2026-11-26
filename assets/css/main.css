@@ -1876,13 +1876,15 @@ select.crm360-input { appearance: auto; }
 
 /* ─── CELEBRAÇÃO DE VENDA FECHADA ────────────────────────────────────
    Montado por showSalesCelebration() (utils.js). Fica abaixo do canvas de
-   confete (z 200). Dark: laranja/amarelo; light: azul (mesma troca de
-   acento do theme-light.css). */
+   confete (z 200). Visual novo: card arredondado, cores oficiais (azul
+   #008FD4, laranja #FAA519, verde #1FA971). Claro é a base; escuro
+   (azul-noite) quando o body não tem .theme-light. */
 .sale-cel {
   position: fixed; inset: 0; z-index: 199;
   display: flex; align-items: center; justify-content: center;
   padding: 16px; overflow: hidden; cursor: pointer;
-  background: rgba(0, 0, 0, 0.8);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: rgba(15, 27, 38, 0.42);
   backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   opacity: 0; transition: opacity .35s ease;
 }
@@ -1898,7 +1900,9 @@ select.crm360-input { appearance: auto; }
 .sale-cel.is-open .sale-cel__rays { animation: sale-rays-in 1s cubic-bezier(.2,.9,.3,1.2) forwards; }
 .sale-cel__rays-spin {
   width: 100%; height: 100%;
-  background: repeating-conic-gradient(rgba(251, 191, 36, 0.26) 0 6deg, transparent 6deg 15deg);
+  background: repeating-conic-gradient(
+    rgba(255, 255, 255, 0.22) 0 6deg, transparent 6deg 15deg,
+    rgba(250, 165, 25, 0.20) 15deg 21deg, transparent 21deg 30deg);
   animation: sale-rays-spin 26s linear infinite;
 }
 
@@ -1908,78 +1912,120 @@ select.crm360-input { appearance: auto; }
 
 .sale-cel__inner {
   position: relative; text-align: center;
-  padding: 28px 24px 16px;
-  background: #080808;
-  border: 2px solid rgba(249, 115, 22, 0.45);
-  box-shadow: 0 0 60px rgba(249, 115, 22, 0.28);
+  padding: 30px 24px 18px;
+  background: #fff; color: #0F1B26;
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(15, 27, 38, 0.18), 0 2px 6px rgba(15, 27, 38, 0.06);
 }
-.sale-cel.is-open .sale-cel__inner { animation: sale-shake .3s .83s; }
-.sale-cel__stripe { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.sale-cel.is-open .sale-cel__inner { animation: sale-bump .35s .62s; }
+
+.sale-cel__close {
+  position: absolute; top: 12px; right: 12px;
+  width: 32px; height: 32px; padding: 0; border: 0; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; color: #4A5561; cursor: pointer;
+}
+.sale-cel__close:hover { background: #EAF0F5; }
+.sale-cel__close svg { width: 18px; height: 18px; }
 
 .sale-cel__stamp {
-  position: absolute; top: 24px; right: 12px;
-  padding: 2px 8px; border: 3px solid #22c55e; color: #22c55e;
-  font-size: 13px; font-weight: 900; letter-spacing: .2em;
-  opacity: 0; transform: rotate(-14deg) scale(3);
+  position: absolute; top: 16px; left: 16px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px 4px 8px; border-radius: 999px;
+  background: #E3F5EC; color: #157A51;
+  font-size: 11px; font-weight: 800; letter-spacing: .12em;
+  opacity: 0; transform: scale(.3);
 }
-.sale-cel.is-open .sale-cel__stamp { animation: sale-stamp .28s cubic-bezier(.5,0,.8,.4) .55s forwards; }
+.sale-cel__stamp svg { width: 13px; height: 13px; stroke-width: 3; }
+.sale-cel.is-open .sale-cel__stamp { animation: sale-stamp .45s cubic-bezier(.3,1.6,.5,1) .6s forwards; }
 
 .sale-cel__icon {
-  width: 56px; height: 56px; margin: 0 auto 12px;
+  position: relative;
+  width: 68px; height: 68px; margin: 6px auto 14px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.35); color: #f97316;
+  background: #E6F4FB;
 }
-.sale-cel__icon svg { width: 28px; height: 28px; }
-.sale-cel__label { font-size: 11px; font-weight: 900; letter-spacing: .25em; text-transform: uppercase; color: #f97316; }
+.sale-cel__icon::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid #008FD4; opacity: 0;
+}
+.sale-cel.is-open .sale-cel__icon::after { animation: sale-ring .9s ease-out .55s; }
+.sale-cel__icon svg { width: 34px; height: 34px; }
+.sale-cel__icon path {
+  fill: none; stroke: #008FD4; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 24; stroke-dashoffset: 24;
+}
+.sale-cel.is-open .sale-cel__icon path { animation: sale-draw .4s ease-out .3s forwards; }
+
+.sale-cel__label { font-size: 12px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: #006A9E; }
 .sale-cel__value {
-  margin: 6px 0 4px; line-height: 1.1; overflow-wrap: anywhere;
-  font-size: clamp(28px, 9vw, 40px); font-weight: 900; color: #4ade80;
+  margin: 6px 0; line-height: 1.1; white-space: nowrap;
+  font-size: clamp(30px, 10vw, 40px); font-weight: 800; letter-spacing: -.01em; color: #1FA971;
   font-variant-numeric: tabular-nums;
 }
-.sale-cel__client { font-size: 14px; font-weight: 900; text-transform: uppercase; color: #fff; overflow-wrap: anywhere; }
-.sale-cel__kit { margin-top: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #a3a3a3; }
-.sale-cel__kit svg { display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px; color: #facc15; }
-.sale-cel__stat {
-  margin-top: 16px; padding: 10px 12px;
-  font-size: 12px; font-weight: 700; color: #fdba74;
-  background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3);
+.sale-cel__value small { font-size: .5em; font-weight: 700; margin-right: 4px; vertical-align: .2em; }
+.sale-cel__client { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.sale-cel__kit {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  margin-top: 10px; padding: 6px 12px; border-radius: 14px;
+  background: #E6F4FB; color: #006A9E;
+  font-size: 12px; font-weight: 700;
 }
-.sale-cel__stat strong { font-weight: 900; color: #fff; }
-.sale-cel__hint { margin-top: 12px; font-size: 10px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: #525252; }
+.sale-cel__kit span { overflow-wrap: anywhere; }
+.sale-cel__kit svg { flex-shrink: 0; width: 15px; height: 15px; color: #FAA519; }
+.sale-cel__stat {
+  margin-top: 16px; padding: 11px 14px; border-radius: 14px;
+  font-size: 13px; font-weight: 500; color: #8A5500;
+  background: #FEF4E3;
+}
+.sale-cel__stat strong { font-weight: 800; color: #3D2600; }
+.sale-cel__nw { white-space: nowrap; }
+.sale-cel__hint { margin-top: 12px; font-size: 11px; font-weight: 500; color: #808284; }
 
-body.theme-light .sale-cel { background: rgba(240, 244, 248, 0.82); }
-body.theme-light .sale-cel__rays-spin { background: repeating-conic-gradient(rgba(37, 99, 235, 0.13) 0 6deg, transparent 6deg 15deg); }
-body.theme-light .sale-cel__inner { background: #fff; border-color: rgba(37, 99, 235, 0.35); box-shadow: 0 20px 60px rgba(37, 99, 235, 0.18); }
-body.theme-light .sale-cel__stamp { border-color: #16a34a; color: #16a34a; }
-body.theme-light .sale-cel__icon { background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.25); color: #2563eb; }
-body.theme-light .sale-cel__label { color: #2563eb; }
-body.theme-light .sale-cel__value { color: #16a34a; }
-body.theme-light .sale-cel__client { color: #0f172a; }
-body.theme-light .sale-cel__kit { color: #64748b; }
-body.theme-light .sale-cel__kit svg { color: #eab308; }
-body.theme-light .sale-cel__stat { color: #1e3a8a; background: rgba(37, 99, 235, 0.06); border-color: rgba(37, 99, 235, 0.2); }
-body.theme-light .sale-cel__stat strong { color: #1d4ed8; }
-body.theme-light .sale-cel__hint { color: #94a3b8; }
+/* escuro · azul-noite */
+body:not(.theme-light) .sale-cel { background: rgba(4, 8, 12, 0.66); }
+body:not(.theme-light) .sale-cel__rays-spin {
+  background: repeating-conic-gradient(
+    rgba(0, 143, 212, 0.20) 0 6deg, transparent 6deg 15deg,
+    rgba(250, 165, 25, 0.16) 15deg 21deg, transparent 21deg 30deg);
+}
+body:not(.theme-light) .sale-cel__inner {
+  background: #111B25; color: #E8EEF3;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+body:not(.theme-light) .sale-cel__close { color: #A7B3BF; }
+body:not(.theme-light) .sale-cel__close:hover { background: rgba(255, 255, 255, 0.06); }
+body:not(.theme-light) .sale-cel__stamp { background: rgba(31, 169, 113, 0.16); color: #5BD6A1; }
+body:not(.theme-light) .sale-cel__icon { background: rgba(0, 143, 212, 0.16); }
+body:not(.theme-light) .sale-cel__icon::after { border-color: #5CC3F2; }
+body:not(.theme-light) .sale-cel__icon path { stroke: #5CC3F2; }
+body:not(.theme-light) .sale-cel__label { color: #5CC3F2; }
+body:not(.theme-light) .sale-cel__value { color: #5BD6A1; }
+body:not(.theme-light) .sale-cel__kit { background: rgba(0, 143, 212, 0.16); color: #5CC3F2; }
+body:not(.theme-light) .sale-cel__stat { background: rgba(250, 165, 25, 0.13); color: #FBBF4F; }
+body:not(.theme-light) .sale-cel__stat strong { color: #FFE2A8; }
+body:not(.theme-light) .sale-cel__hint { color: #A7B3BF; }
 
 @keyframes sale-rays-in   { to { opacity: 1; transform: scale(1); } }
 @keyframes sale-rays-spin { to { transform: rotate(360deg); } }
 @keyframes sale-card-in   { to { opacity: 1; transform: scale(1); } }
-@keyframes sale-card-out  { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.9); } }
-@keyframes sale-stamp     { to { opacity: 1; transform: rotate(-14deg) scale(1); } }
-@keyframes sale-shake {
-  25% { transform: translate(-5px, 2px); }
-  50% { transform: translate(4px, -2px); }
-  75% { transform: translate(-2px, 1px); }
-}
+@keyframes sale-card-out  { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.92); } }
+@keyframes sale-stamp     { to { opacity: 1; transform: scale(1); } }
+@keyframes sale-bump      { 40% { transform: scale(1.025); } }
+@keyframes sale-ring      { 0% { opacity: .6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.9); } }
+@keyframes sale-draw      { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .sale-cel__rays { display: none; }
   .sale-cel.is-open .sale-cel__card  { animation: none; opacity: 1; transform: none; }
-  .sale-cel.is-open .sale-cel__stamp { animation: none; opacity: 1; transform: rotate(-14deg); }
+  .sale-cel.is-open .sale-cel__stamp { animation: none; opacity: 1; transform: none; }
   .sale-cel.is-open .sale-cel__inner { animation: none; }
+  .sale-cel.is-open .sale-cel__icon::after { animation: none; }
+  .sale-cel__icon path { stroke-dashoffset: 0; }
 }
-/* Ao fechar, raios e carimbo ficam parados enquanto o overlay some */
+/* Ao fechar, raios, selo e check ficam parados enquanto o overlay some */
 .sale-cel.is-closing .sale-cel__rays  { opacity: 1; transform: scale(1); }
-.sale-cel.is-closing .sale-cel__stamp { opacity: 1; transform: rotate(-14deg); }
+.sale-cel.is-closing .sale-cel__stamp { opacity: 1; transform: none; }
+.sale-cel.is-closing .sale-cel__icon path { stroke-dashoffset: 0; }
 
 /* Dashboard ≥1536px: a coluna "Conversas" (dash-rail) faz o papel do botão
    flutuante do chat — esconde o FAB pra ele não cobrir a coluna. */

@@ -527,43 +527,66 @@ async function exportToXLSX(rows, columns, filename) {
 
 // ==========================================
 // CELEBRAÇÃO DE VENDA (card + confete + raios + som)
-// Visual em main.css (.sale-cel). Dark = laranja/amarelo; light = azul,
-// seguindo a troca de acento do theme-light.css.
+// Visual em main.css (.sale-cel), no padrão do visual novo: cores oficiais
+// (azul #008FD4, laranja #FAA519), claro e escuro (azul-noite).
 // ==========================================
 let _salesCelebrationAudioWarned = false;
 let _saleCelTimers = [];
 let _saleConfetti = { parts: [], raf: 0, last: 0, w: 0, h: 0, ctx: null, canvas: null };
 
 const SALE_CONFETTI_COLORS = {
-  dark:  ['#f97316', '#fb923c', '#ea580c', '#facc15', '#fbbf24', '#ffffff', '#22c55e'],
-  light: ['#2563eb', '#3b82f6', '#60a5fa', '#1d4ed8', '#facc15', '#eab308', '#22c55e'],
+  dark:  ['#008FD4', '#33A9E0', '#5CC3F2', '#FAA519', '#FBBF4F', '#1FA971', '#E8EEF3'],
+  light: ['#008FD4', '#33A9E0', '#5CC3F2', '#FAA519', '#FBBF4F', '#1FA971', '#ffffff'],
 };
 const SALE_CONFETTI_SHAPES = ['rect', 'rect', 'rect', 'circle', 'sun', 'bolt', 'panel'];
 
 function _playSaleSound() {
-  // Arpejo subindo (dó-mi-sol-dó) fechando num acorde — sintetizado, sem arquivo.
+  // "Conquista": dó-mi-sol subindo e abrindo num acorde suave, com um brilho
+  // de sino e um eco curto — sintetizado, sem arquivo.
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const actx = new AudioCtx();
-    const tone = (freq, delay, vol, dur, type) => {
+    const master = actx.createGain();
+    master.gain.value = 0.9;
+    master.connect(actx.destination);
+    // eco curto (delay com realimentação) pra dar "ar" sem arquivo de reverb
+    const delay = actx.createDelay();
+    delay.delayTime.value = 0.17;
+    const feedback = actx.createGain();
+    feedback.gain.value = 0.27;
+    const wet = actx.createGain();
+    wet.gain.value = 0.2;
+    master.connect(delay); delay.connect(feedback); feedback.connect(delay);
+    delay.connect(wet); wet.connect(actx.destination);
+
+    const t0 = actx.currentTime + 0.03;
+    const tone = (freq, at, vol, dur, type = 'sine') => {
       const osc  = actx.createOscillator();
       const gain = actx.createGain();
       osc.type = type;
       osc.frequency.value = freq;
-      osc.connect(gain); gain.connect(actx.destination);
-      const t = actx.currentTime + delay;
+      osc.connect(gain); gain.connect(master);
+      const t = t0 + at;
       gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(vol, t + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      gain.gain.linearRampToValueAtTime(vol, t + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0008, t + dur);
       osc.start(t); osc.stop(t + dur + 0.05);
     };
-    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-      tone(f, i * 0.09, 0.15, 0.45, 'triangle');
-      tone(f * 2, i * 0.09, 0.035, 0.3, 'sine');
+    // sino = fundamental + parciais inarmônicos que somem mais rápido
+    const bell = (freq, at, vol, dur) => {
+      [[1, 1, 1], [2, 0.45, 0.7], [2.76, 0.32, 0.5], [4.07, 0.18, 0.35], [5.4, 0.1, 0.25]]
+        .forEach(([r, amp, d]) => tone(freq * r, at, vol * amp, dur * d));
+    };
+    [523.25, 659.25, 783.99].forEach((f, i) => {
+      tone(f, i * 0.11, 0.14, 0.5);
+      bell(f * 2, i * 0.11, 0.025, 0.4);
     });
-    [1046.5, 1318.5, 1568, 2093].forEach((f) => tone(f, 0.38, 0.08, 1.7, 'triangle'));
-    tone(523.25, 0.38, 0.12, 1.3, 'sine');
-    setTimeout(() => { actx.close().catch(() => {}); }, 2500);
+    [523.25, 659.25, 783.99, 1046.5].forEach((f) => {
+      tone(f, 0.36, 0.07, 2.1);
+      tone(f * 1.003, 0.36, 0.04, 2.1, 'triangle');
+    });
+    bell(2093, 0.36, 0.05, 1.3);
+    setTimeout(() => { actx.close().catch(() => {}); }, 3500);
   } catch (error) {
     if (!_salesCelebrationAudioWarned) {
       console.warn('[showSalesCelebration] Nao foi possivel tocar audio de celebracao.', error);
@@ -625,13 +648,16 @@ function _saleConfettiDraw(ctx, p) {
   ctx.fillStyle = p.color;
   switch (p.shape) {
     case 'rect':
-      ctx.fillRect(-s / 2, -s / 4, s, s / 2);
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(-s / 2, -s / 4, s, s / 2, 2);
+      else ctx.rect(-s / 2, -s / 4, s, s / 2);
+      ctx.fill();
       break;
     case 'circle':
       ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI * 2); ctx.fill();
       break;
     case 'sun':
-      ctx.fillStyle = ctx.strokeStyle = '#facc15';
+      ctx.fillStyle = ctx.strokeStyle = '#FAA519';
       ctx.beginPath(); ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2); ctx.fill();
       ctx.lineWidth = 1.8; ctx.lineCap = 'round';
       ctx.beginPath();
@@ -643,16 +669,16 @@ function _saleConfettiDraw(ctx, p) {
       ctx.stroke();
       break;
     case 'bolt':
-      ctx.fillStyle = '#fbbf24';
+      ctx.fillStyle = '#FAA519';
       ctx.beginPath();
       ctx.moveTo(s * 0.15, -s * 0.6); ctx.lineTo(-s * 0.35, s * 0.08); ctx.lineTo(-s * 0.02, s * 0.08);
       ctx.lineTo(-s * 0.15, s * 0.6); ctx.lineTo(s * 0.35, -s * 0.08); ctx.lineTo(s * 0.02, -s * 0.08);
       ctx.closePath(); ctx.fill();
       break;
     case 'panel':
-      ctx.fillStyle = '#1e3a8a';
+      ctx.fillStyle = '#0A5F8C';
       ctx.fillRect(-s * 0.5, -s * 0.35, s, s * 0.7);
-      ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 0.8;
+      ctx.strokeStyle = '#9ED8F5'; ctx.lineWidth = 0.8;
       ctx.beginPath();
       ctx.moveTo(-s * 0.17, -s * 0.35); ctx.lineTo(-s * 0.17, s * 0.35);
       ctx.moveTo(s * 0.17, -s * 0.35);  ctx.lineTo(s * 0.17, s * 0.35);
@@ -716,7 +742,12 @@ function _saleCelebrationStat(info) {
       : `<strong>1ª venda de ${nome}</strong> em ${mes}!`;
   }
   const quem = isOwn || !nome ? `Sua <strong>${n}ª venda</strong>` : `<strong>${n}ª venda</strong> de ${nome}`;
-  return `${quem} em ${mes} · <strong>${formatCurrencyCompact(total)}</strong> no mês`;
+  return `${quem} em ${mes} · <span class="sale-cel__nw"><strong>${formatCurrency(total)}</strong> no mês</span>`;
+}
+
+// Valor sem o "R$" (ele vai pequeno, separado, e o número não quebra de linha)
+function _saleCelMoney(v) {
+  return (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function closeSalesCelebration(immediate = false) {
@@ -758,15 +789,15 @@ function showSalesCelebration(info = {}) {
     <div class="sale-cel__rays" aria-hidden="true"><div class="sale-cel__rays-spin"></div></div>
     <div class="sale-cel__card">
       <div class="sale-cel__inner">
-        <div class="animated-stripe sale-cel__stripe"></div>
-        <div class="sale-cel__stamp" aria-hidden="true">FECHADO</div>
-        <div class="sale-cel__icon"><i data-lucide="trophy"></i></div>
+        <span class="sale-cel__stamp" aria-hidden="true"><i data-lucide="check"></i>FECHADO</span>
+        <button type="button" class="sale-cel__close" aria-label="Fechar"><i data-lucide="x"></i></button>
+        <div class="sale-cel__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5.5 12.5l4.2 4.2L18.5 7.8"/></svg></div>
         <p class="sale-cel__label">Venda fechada!</p>
-        ${valor ? `<p class="sale-cel__value">${formatCurrency(reduce ? valor : 0)}</p>` : ''}
+        ${valor ? `<p class="sale-cel__value"><small>R$</small><span>${_saleCelMoney(reduce ? valor : 0)}</span></p>` : ''}
         ${info.cliente ? `<p class="sale-cel__client">${escapeHTML(info.cliente)}</p>` : ''}
         ${kitLine ? `<p class="sale-cel__kit"><i data-lucide="zap"></i><span>${kitLine}</span></p>` : ''}
         ${stat ? `<p class="sale-cel__stat">${stat}</p>` : ''}
-        <p class="sale-cel__hint">Toque para fechar</p>
+        <p class="sale-cel__hint">Toque em qualquer lugar para fechar</p>
       </div>
     </div>`;
   document.body.appendChild(el);
@@ -778,7 +809,7 @@ function showSalesCelebration(info = {}) {
   document.addEventListener('keydown', _saleCelOnKey);
 
   // Valor subindo de R$ 0 até o total (ease-out)
-  const valueEl = el.querySelector('.sale-cel__value');
+  const valueEl = el.querySelector('.sale-cel__value span');
   if (valueEl && !reduce) {
     _saleCelTimers.push(setTimeout(() => {
       const t0 = performance.now();
@@ -786,22 +817,25 @@ function showSalesCelebration(info = {}) {
         if (!valueEl.isConnected) return;
         const p = Math.min(1, (t - t0) / 1400);
         const eased = 1 - Math.pow(1 - p, 3);
-        valueEl.textContent = formatCurrency(p < 1 ? Math.round(valor * eased) : valor);
+        valueEl.textContent = _saleCelMoney(p < 1 ? Math.round(valor * eased) : valor);
         if (p < 1) requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
     }, 250));
   }
 
-  // Confete: estouro do centro + um menor quando o carimbo bate
+  // Confete: dois canhões nos cantos de baixo + um estouro menor do centro
+  // quando o selo FECHADO aparece
   if (!reduce && _saleConfettiSetup()) {
     const colors = SALE_CONFETTI_COLORS[isLight ? 'light' : 'dark'];
     const { w, h } = _saleConfetti;
     const count = w < 640 ? 100 : 160;
-    _saleConfettiBurst(w / 2, h / 2, count, -Math.PI / 2, Math.PI * 1.4, 6, 15, colors);
+    const speed = Math.max(1, Math.min(1.6, h / 560)); // tela alta: confete sobe mais
+    _saleConfettiBurst(w * 0.08, h, count / 2, -Math.PI / 2 + 0.45, 0.5, 11 * speed, 17 * speed, colors);
+    _saleConfettiBurst(w * 0.92, h, count / 2, -Math.PI / 2 - 0.45, 0.5, 11 * speed, 17 * speed, colors);
     _saleCelTimers.push(setTimeout(() => {
-      _saleConfettiBurst(w / 2, h / 2 - 60, Math.round(count / 3.5), -Math.PI / 2, Math.PI * 2, 3, 8, colors);
-    }, 830));
+      _saleConfettiBurst(w / 2, h / 2 - 70, Math.round(count / 3.5), -Math.PI / 2, Math.PI * 2, 3, 8, colors);
+    }, 620));
   }
 
   _saleCelTimers.push(setTimeout(() => closeSalesCelebration(), 6000));
