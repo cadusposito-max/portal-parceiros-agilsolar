@@ -777,7 +777,8 @@
           v.recebido ? '' : `<button class="v2-btn2" onclick="uiV2Fin.verTitulos('${vid}')">${ic('arrow-down-left')}Ver em A receber</button>`)}
         ${passo(v.comprado, !!v.oc, 'package', 'Compra do kit', linhaKit,
           (v.kitSt === 'a_comprar' ? `<button class="v2-btn2" onclick="uiV2Fin.compra('${vid}')">${ic('shopping-cart')}Registrar compra</button>`
-            : v.kitSt === 'comprado' ? `<button class="v2-btn2" onclick="uiV2Fin.chegou('${vid}')">${ic('truck')}Kit chegou</button>` : '')
+            : v.kitSt === 'comprado' ? `<button class="v2-btn2" onclick="uiV2Fin.chegou('${vid}')">${ic('truck')}Kit chegou</button>`
+            : v.kitSt === 'entregue' ? `<button class="v2-btn2" onclick="uiV2Fin.naoChegou('${vid}')">${ic('undo-2')}Desfazer entrega</button>` : '')
           + (v.comprado ? '<div class="vfin-pedidos"></div>' : ''))}
         ${com ? passo(v.comPaga, com.status === 'liberado', 'user', 'Comissão', `${esc(v.vend)} · ${pct(Number(com.pct))} · ${brl(com.valor)} · <span class="v2-chip ${comSt[1]}">${comSt[0]}</span>`,
           com.status === 'a_liberar' ? `<button class="v2-btn2" onclick="uiV2Fin.comAcao('${esc(com.id)}','liberado')">${ic('unlock')}Liberar comissão</button>`
@@ -927,6 +928,14 @@
     if (!confirm(`Confirmar que o kit de ${v.cli} chegou?`)) return;
     try { await window.finRpc('set_fin_oc_status', { p_id: v.oc.id, p_status: 'entregue' }); } catch (_) { return; }
     if (window.finToast) finToast('Kit entregue', 'ok');
+    await depoisDaAcao(document.getElementById('vfin-ficha') ? id : null);
+  }
+  // marcou "chegou" sem querer: volta para Comprado (a data de entrega é apagada)
+  async function naoChegou(id) {
+    const v = VEN.rows.find((x) => x.id === id); if (!v || !v.oc) return;
+    if (!confirm(`Desfazer a entrega do kit de ${v.cli}? Ele volta para "Comprado".`)) return;
+    try { await window.finRpc('set_fin_oc_status', { p_id: v.oc.id, p_status: 'comprado' }); } catch (_) { return; }
+    if (window.finToast) finToast('Entrega desfeita: kit voltou para Comprado', 'ok');
     await depoisDaAcao(document.getElementById('vfin-ficha') ? id : null);
   }
   async function comAcao(comId, status) {
@@ -1339,7 +1348,7 @@
     },
     venEtapa(i) { const st = venEstado(); st.f = st.f === i ? null : i; pintarVendasCorpo(); },
     venExportar,
-    ficha, fecharFicha, verTitulos, compra, compraSalvar, chegou, comAcao, fecharDlg, anexoNome, anexarDaFicha,
+    ficha, fecharFicha, verTitulos, compra, compraSalvar, chegou, naoChegou, comAcao, fecharDlg, anexoNome, anexarDaFicha,
     // a pagar
     pagAberta,
     pagRecarregar: () => pintarAPagar(true),
