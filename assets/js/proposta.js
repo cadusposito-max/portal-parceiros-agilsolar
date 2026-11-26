@@ -485,6 +485,8 @@ function renderData(data) {
     if (ecoSection) ecoSection.classList.add('hidden');
     if (envSection) envSection.classList.add('hidden');
   } else {
+    const tarifaEl = document.getElementById('eco-tarifa');
+    if (tarifaEl) tarifaEl.innerText = num.tarifaTexto;
     document.getElementById('eco-month').innerText    = formatter.format(economiaMensal);
     document.getElementById('eco-year').innerText     = formatter.format(economiaAnual);
     document.getElementById('eco-25years').innerText  = formatter.format(economia25Anos);

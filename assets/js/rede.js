@@ -511,6 +511,25 @@
     </div>`;
   }
 
+  // Tarifa (R$/kWh) que a proposta usa na economia e no payback desta unidade.
+  // Vazia = padrão da rede (PROPOSTA_TARIFA_MEDIA, proposta-calc.js).
+  function uTarifa(f) {
+    const padrao = typeof PROPOSTA_TARIFA_MEDIA === 'number' ? PROPOSTA_TARIFA_MEDIA : 0.95;
+    const propria = num(D().taxas[f.id]?.tarifa_kwh) > 0 ? num(D().taxas[f.id].tarifa_kwh) : null;
+    return `
+    <div class="rd-card rd-mb" id="rd-tarifa">
+      <h3>${ic('zap')}Tarifa de energia da proposta</h3>
+      <p class="rd-sub">Valor do kWh usado na projeção de economia e no payback das propostas desta unidade (link e PDF). Vale também para propostas já enviadas.</p>
+      <div class="rd-line">
+        <label class="nm" for="rd-tarifa-in">Tarifa média ${propria ? '<span class="rd-tag man">própria da unidade</span>' : '<span class="rd-tag">padrão da rede</span>'}</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${propria ? `<button class="rd-btn sm ghost" onclick="redeSetTarifa('${f.id}',null)">${ic('rotate-ccw')}Voltar ao padrão (R$ ${pctIn(padrao)})</button>` : ''}
+          <div class="rd-in money"><span>R$</span><input id="rd-tarifa-in" inputmode="decimal" aria-label="Tarifa de energia em reais por kWh" value="${pctIn(propria || padrao)}" onchange="redeSetTarifa('${f.id}',this)"><span>/kWh</span></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   function uTaxas(f) {
     const t = taxasDe(f.id), fr = f.tipo === 'franquia', ym = D().mes;
     const emps = empresasDe(f.id);
@@ -543,6 +562,7 @@
       </div>
     </div>
     ${uProjetos(f)}
+    ${uTarifa(f)}
     <div class="rd-card rd-mb" id="rd-cartao-taxas">
       <h3>${ic('credit-card')}Taxas do cartão de crédito</h3>
       <p class="rd-sub">Taxa da operadora por quantidade de parcelas, usada nas propostas solares desta unidade e no PDF. Cada campo salva ao sair.</p>
@@ -1131,6 +1151,20 @@
     } finally { input.disabled = false; }
   }
 
+  // input = campo da tela; null = voltar ao padrão da rede.
+  async function redeSetTarifa(fid, input) {
+    if (!state.isAdmin || !D() || !franquia(fid)) return;
+    let valor = null;
+    if (input) {
+      valor = parseNum(input.value);
+      if (!(valor > 0 && valor < 10)) { toast('Informe a tarifa em R$/kWh, por exemplo 0,95.'); pintar(); return; }
+      const padrao = typeof PROPOSTA_TARIFA_MEDIA === 'number' ? PROPOSTA_TARIFA_MEDIA : 0.95;
+      if (Math.abs(valor - padrao) < 1e-9) valor = null; // igual ao padrão: segue o padrão
+    }
+    if (await salvarTaxas(fid, { tarifa_kwh: valor })) toast(valor ? 'Tarifa salva. As propostas desta unidade já usam o novo valor.' : 'Unidade voltou à tarifa padrão da rede.');
+    pintar();
+  }
+
   async function redeSetTaxa(fid, campo, v) {
     if (!TAXA_CAMPOS.includes(campo)) return;
     const valor = campo === 'royalties_base' ? v : parseNum(v);
@@ -1295,7 +1329,7 @@
     redeNovaUnidade, redeEditarUnidade, redeSalvarUnidade, redeFecharModal: fecharModal,
     redeEmpresaModal, redeBuscarCnpj, redeSalvarEmpresa, redeEmpresaPrincipal, redeEmpresaAtivo,
     redeImpostoModal, redeSalvarImposto, redeSugerirImpostos, redeSetAliquota, redeRemoverImposto,
-    redeSetTaxa, redeSetTaxaCartao, redeSalvarPadroes, redeAplicarPadroes, redeLancarModal, redeSalvarLancamentos,
+    redeSetTaxa, redeSetTarifa, redeSetTaxaCartao,redeSalvarPadroes, redeAplicarPadroes, redeLancarModal, redeSalvarLancamentos,
     redeToggleProjetos, redeSetProjetoCobrar, redeProjetoTabela, redeSetFaixa, redeAddFaixa, redeDelFaixa, redeProjetoValor, redeProjetoIsento,
   });
 })();

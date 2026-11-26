@@ -26,7 +26,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/config.js?v=20260714-catalogo"></script>
 <script src="assets/js/geracao-chart.js?v=20261111-black-tema"></script>
-<script src="assets/js/proposta-calc.js?v=20261027-pdf-paisagem"></script>
+<script src="assets/js/proposta-calc.js?v=20261126-tarifa"></script>
 <style>
 /* ============================================================
    PROPOSTA ÁGIL SOLAR — PDF PARA IMPRIMIR (A4 DEITADO, 10 FOLHAS)
@@ -658,6 +658,7 @@ body.is-capturing *{box-shadow:none!important}
       economiaMensal: num.economiaMensal,
       economiaAnual: num.economiaAnual,
       economia25: num.economia25Anos,
+      tarifaTexto: num.tarifaTexto,
       contaSem: Math.round(num.faturaIdeal * 100) / 100,
       meses: num.mesesPayback,
       payback: num.payback,
@@ -1011,7 +1012,7 @@ body.is-capturing *{box-shadow:none!important}
         + '<div><span class="s">TIR (taxa interna de retorno)</span><span class="num">' + brl(tir(), 1) + '% ao ano</span><span class="s">em 25 anos</span></div>'
         + '<div><span class="s">Sua conta de luz por ano</span><div class="contas"><span class="num">R$ ' + brl(D.contaSem * 12) + '</span>' + ic('seta') + '<span class="num azul">R$ ' + brl(com * 12) + '</span></div><span class="s">sem solar → com solar</span></div>'
         + '</div>'
-        + '<p class="miudo" style="margin-top:2.5mm">Conta conservadora: tarifa média de R$ 0,95/kWh, economia de 85% da conta e sem considerar os reajustes anuais da energia, que costumam deixar o retorno ainda mais rápido.</p>');
+        + '<p class="miudo" style="margin-top:2.5mm">Conta conservadora: tarifa média de ' + esc(D.tarifaTexto) + ', economia de 85% da conta e sem considerar os reajustes anuais da energia, que costumam deixar o retorno ainda mais rápido.</p>');
     }
 
     // 8. Pagamento

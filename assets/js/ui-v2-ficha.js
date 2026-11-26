@@ -286,7 +286,8 @@
     if (!box || !p || !has('calcularNumerosProposta')) return;
     const v = gerValor();
     if (!(v > 0)) { box.textContent = 'Informe a geração em kWh/mês.'; return; }
-    const n = calcularNumerosProposta(Object.assign({}, p, { geracao_ajustada: v }));
+    // tarifa_kwh da unidade (G.tarifa, buscada ao abrir); sem ela, o padrão.
+    const n = calcularNumerosProposta(Object.assign({}, p, { geracao_ajustada: v, tarifa_kwh: G.tarifa }));
     box.innerHTML = `Cliente passa a ver economia de <b>${esc(formatCurrency(n.economiaMensal))}/mês</b> e retorno em <b>${esc(n.payback)}</b>.`;
   }
 
@@ -318,7 +319,15 @@
       s.addEventListener('mousedown', (e) => { if (e.target === s) gerFechar(); });
       document.body.appendChild(s);
       if (window.lucide) window.lucide.createIcons();
+      G.tarifa = null;
       gerPrevia();
+      // Mesma tarifa que o link usa (a da unidade, se tiver). Falhou: fica o padrão.
+      const idAberto = propostaId;
+      Promise.resolve(supabaseClient.rpc('get_public_proposta', { p_id: propostaId })).then(({ data }) => {
+        if (G.id !== idAberto || !data) return;
+        G.tarifa = data.tarifa_kwh ?? null;
+        gerPrevia();
+      }).catch(() => {});
       setTimeout(() => { const i = document.getElementById('v2-ger-valor'); if (i) { i.focus(); i.select(); } }, 30);
     },
     fechar: gerFechar,

@@ -7,7 +7,7 @@
 // As propostas de O&M e corretiva têm cálculo próprio (outro produto, 12x).
 // ES5 de propósito: o PDF roda com var/function.
 
-var PROPOSTA_TARIFA_MEDIA   = 0.95; // R$/kWh
+var PROPOSTA_TARIFA_MEDIA   = 0.95; // R$/kWh (padrão; a unidade pode ter a sua em rede_taxas.tarifa_kwh)
 var PROPOSTA_FATOR_ECONOMIA = 0.85; // parte da conta que o sistema economiza
 var PROPOSTA_VALIDADE_HORAS = 72;
 var PROPOSTA_MAX_PARCELAS   = 18;
@@ -42,6 +42,17 @@ function propostaTextoPayback(meses) {
   return txt || 'Menos de 1 mês';
 }
 
+// Tarifa (R$/kWh) da unidade da proposta (Rede → Taxas); sem ela, o padrão.
+function propostaTarifa(p) {
+  var t = Number(p && p.tarifa_kwh);
+  return t > 0 && t < 10 ? t : PROPOSTA_TARIFA_MEDIA;
+}
+
+// "R$ 0,95/kWh" (até 3 casas: 0,925 aparece inteiro).
+function propostaTarifaTexto(tarifa) {
+  return 'R$ ' + Number(tarifa).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + '/kWh';
+}
+
 // Todos os números da proposta a partir da linha de get_public_proposta.
 function calcularNumerosProposta(p) {
   var custom   = propostaEhPersonalizada(p);
@@ -52,7 +63,8 @@ function calcularNumerosProposta(p) {
   // eficiência 0,76 (mesma conta de sempre).
   var geracao  = propostaGeracao(p) || (potencia * 5.4 * 30 * 0.76);
 
-  var faturaIdeal    = geracao * PROPOSTA_TARIFA_MEDIA;
+  var tarifa         = propostaTarifa(p);
+  var faturaIdeal    = geracao * tarifa;
   // Arredonda a mensal em centavos antes de multiplicar: anual = 12 × mensal exibida.
   var economiaMensal = Math.round(faturaIdeal * PROPOSTA_FATOR_ECONOMIA * 100) / 100;
   var mesesPayback   = economiaMensal > 0 ? Math.ceil(preco / economiaMensal) : 0;
@@ -65,6 +77,8 @@ function calcularNumerosProposta(p) {
     nome:           custom ? (p.kit_nome || 'Proposta Personalizada') : (p.kit_nome || ''),
     marca:          custom ? '' : (p.kit_brand || ''),
     geracao:        geracao,
+    tarifa:         tarifa,
+    tarifaTexto:    propostaTarifaTexto(tarifa),
     faturaIdeal:    faturaIdeal,
     economiaMensal: economiaMensal,
     economiaAnual:  economiaMensal * 12,
