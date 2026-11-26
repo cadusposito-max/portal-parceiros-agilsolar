@@ -102,6 +102,15 @@
     omOsResetDetalhe();
     if (typeof renderContent === 'function') renderContent();
   }
+  // Botão Atualizar do topo: esquece a lista e o detalhe guardados, para a
+  // próxima pintura buscar de novo. Com problema/finalização/foto pela metade
+  // não mexe (devolve false) — atualizar ali apagaria o que foi preenchido.
+  function omOsEsquecer() {
+    if (probForm || finalizeOpen || pendingFoto) return false;
+    cache = { id: null, detalhe: null, fotoUrls: {} };
+    listRows = null;
+    return true;
+  }
   function omOsVoltar() {
     state.omOsDetailId = null;
     cache = { id: null, detalhe: null, fotoUrls: {} };
@@ -1609,7 +1618,7 @@
     omOsImprimir,
     omRenderOSTab,
     omOsView, omOsFiltro, omOsSort, omOsBusca, omOsKanbanTab,
-    omOsAbrir, omOsVoltar, omOsSubtab, omOsFlow,
+    omOsAbrir, omOsVoltar, omOsEsquecer, omOsSubtab, omOsFlow,
     omOsItemToggle, omOsItemExpand, omOsObsSave,
     omOsAddFoto, omOsVerFoto, omOsFotoPick, omOsFotoCancel,
     omOsProblemaAbrir, omOsProblemaCancelar, omOsProblemaGravidade,

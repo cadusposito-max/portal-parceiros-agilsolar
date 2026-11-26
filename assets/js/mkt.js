@@ -1074,5 +1074,15 @@
 
   window.renderMktRoute = renderMktRoute;
   window.mktSubir = mktSubir;
-  window.MKT = { recarregar: () => { M.itens = null; M.uso = null; }, inicioDaAba: () => { M.view = 'lista'; M.uniEdit = null; } };
+  window.MKT = { recarregar: () => { M.itens = null; M.uso = null; },
+    // botão Atualizar do topo: no editor, montando arte ou na vitrine não mexe
+    // (devolve false) — atualizar ali apagaria o que está sendo feito
+    atualizar: async () => {
+      if (M.view === 'editor' || M.uniEdit || M.tab === 'montar' || M.tab === 'vitrine') return false;
+      await carregar(true);
+      if (M.tab === 'uso') M.uso = null;
+      pintar();
+      return true;
+    },
+inicioDaAba: () => { M.view = 'lista'; M.uniEdit = null; } };
 })();

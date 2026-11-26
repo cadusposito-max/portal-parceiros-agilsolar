@@ -978,6 +978,15 @@
   window.DOCS = {
     abrir, podeSair, aberta: naDoc, pendentes: () => pendentes().length,
     recarregar: () => { D.docs = null; D.full = {}; D.resumo = null; },
+    // botão Atualizar do topo: escrevendo documento não mexe (devolve false)
+    atualizar: async () => {
+      if (D.view === 'editar') return false;
+      await carregar(true);
+      if (D.tab === 'leituras') { D.resumo = null; await carregarResumo().catch(() => {}); }
+      atualizarPendentes();
+      pintar();
+      return true;
+    },
     inicioDaAba: () => { D.view = 'lista'; D.pasta = null; D.editId = null; D.pdfNovo = null; },
   };
 })();

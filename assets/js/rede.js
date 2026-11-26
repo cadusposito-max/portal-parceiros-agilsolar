@@ -840,6 +840,15 @@
   // ------------------------------------------------------------ ações: navegação
   function redeSetMes(ym) { R.mes = ym; R.data = null; renderRedeRoute(R.container, R.tab); }
   function redeRecarregar() { R.data = null; renderRedeRoute(R.container, R.tab); }
+  // botão Atualizar do topo: busca de novo sem a tela de "Carregando" (pintar guarda a rolagem)
+  async function redeAtualizar() {
+    if (!R.container || !R.data) return redeRecarregar();
+    const mes = R.mes;
+    const dados = await carregar();
+    if (mes !== R.mes) return;
+    R.data = dados;
+    if (state.environment === 'rede') pintar();
+  }
   let buscaT;
   function redeBuscar(q) { R.busca = q; clearTimeout(buscaT); buscaT = setTimeout(() => { pintar(); const i = R.container && R.container.querySelector('.rd-bar input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200); }
   function redeAbrirUnidade(id, aba) {
@@ -1325,7 +1334,7 @@
   }
 
   Object.assign(window, {
-    renderRedeRoute, redeSetMes, redeRecarregar, redeBuscar, redeAbrirUnidade, redeVoltarUnidades, redeUnidadeAba,
+    renderRedeRoute, redeSetMes, redeRecarregar, redeAtualizar, redeBuscar, redeAbrirUnidade, redeVoltarUnidades, redeUnidadeAba,
     redeNovaUnidade, redeEditarUnidade, redeSalvarUnidade, redeFecharModal: fecharModal,
     redeEmpresaModal, redeBuscarCnpj, redeSalvarEmpresa, redeEmpresaPrincipal, redeEmpresaAtivo,
     redeImpostoModal, redeSalvarImposto, redeSugerirImpostos, redeSetAliquota, redeRemoverImposto,

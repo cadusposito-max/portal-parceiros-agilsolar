@@ -466,24 +466,130 @@ async function refreshData() {
 // (cards, listas, contadores) e redesenha, sem recarregar a página — filtros,
 // busca, rolagem e o que estiver aberto continuam onde estavam. Não conta
 // como login (o refreshData acima chama updateVendedorStats, que conta).
-// Por enquanto só no Comercial; os outros ambientes entram depois.
-const ATUALIZAR_TELA_AMBIENTES = ['comercial'];
-let _atualizandoTela = null;
-function podeAtualizarTela() {
-  return ATUALIZAR_TELA_AMBIENTES.includes(state.environment || 'comercial');
-}
-function atualizarTela() {
-  if (_atualizandoTela) return _atualizandoTela;
-  _atualizandoTela = (async () => {
+// Cada ambiente guarda os dados de um jeito, então cada um tem o seu passo
+// (ATUALIZAR_TELA). Nunca apaga o que a pessoa está preenchendo: com campo
+// digitado e não salvo, ou editor aberto, avisa e não mexe.
+const ATUALIZAR_TELA = {
+  async comercial() {
     const tab = state.activeTab;
     const tarefas = [fetchClientes(), fetchPropostas(), fetchVendas(), fetchCrmMetas()];
     if (tab === 'dashboard') tarefas.push(fetchComunicados());
     if (tab === 'obras' && window.obras && typeof window.obras.carregar === 'function') tarefas.push(window.obras.carregar(true));
     const r = await Promise.allSettled(tarefas);
-    if (state.environment === 'comercial' && typeof renderContent === 'function') renderContent();
-    const falhou = r.some((x) => x.status === 'rejected');
-    if (falhou) console.warn('[atualizarTela]', r.filter((x) => x.status === 'rejected').map((x) => x.reason));
-    showToast(falhou ? 'Parte dos dados não atualizou. Tente de novo.' : 'Dados atualizados.');
+    if (state.environment === 'comercial') renderContent();
+    const erros = r.filter((x) => x.status === 'rejected');
+    if (erros.length) { console.warn('[atualizarTela]', erros.map((x) => x.reason)); throw erros[0].reason; }
+  },
+  // O&M: as telas buscam no banco ao desenhar; só esquece o que estava guardado
+  async om() {
+    if (typeof omOsEsquecer === 'function' && !omOsEsquecer()) return 'ocupado';
+    if (typeof omPropDetailCache !== 'undefined') omPropDetailCache = { id: null, data: null };
+    if (typeof omPendListCache !== 'undefined') omPendListCache = null;
+    await _redesenharEsperando();
+  },
+  // Financeiro: leituras ficam guardadas 20 s; limpa, redesenha e espera as novas
+  async financeiro() {
+    if (typeof finCacheLimpar !== 'function' || typeof finAguardarLeituras !== 'function') return _redesenharEsperando();
+    const y = window.scrollY;
+    finCacheLimpar();
+    renderContent();
+    await finAguardarLeituras();
+    _voltarRolagem(y);
+  },
+  // Vistoria ainda roda com dados de exemplo (locais): só redesenha
+  async vistoria() { renderContent(); },
+  async engenharia() {
+    if (window.EV && typeof EV.atualizar === 'function') await EV.atualizar();
+    else await _redesenharEsperando();
+  },
+  async rede() {
+    if (typeof redeAtualizar === 'function') await redeAtualizar();
+    else await _redesenharEsperando();
+  },
+  async marketing() {
+    if (!(window.MKT && typeof MKT.atualizar === 'function')) return _redesenharEsperando();
+    if ((await MKT.atualizar()) === false) return 'ocupado';
+  },
+  async arquivos() {
+    if (!(window.DOCS && typeof DOCS.atualizar === 'function')) return _redesenharEsperando();
+    if ((await DOCS.atualizar()) === false) return 'ocupado';
+  },
+};
+let _atualizandoTela = null;
+function podeAtualizarTela() {
+  return !!ATUALIZAR_TELA[state.environment || 'comercial'];
+}
+
+// Campo da tela digitado e ainda não salvo (busca e filtros não contam).
+function _telaComEdicaoPendente() {
+  const box = document.getElementById('main-container');
+  if (!box) return false;
+  return [...box.querySelectorAll('textarea, input')].some((el) => {
+    if (el.disabled || el.readOnly || /^(hidden|checkbox|radio|file|button|submit|range|color)$/i.test(el.type)) return false;
+    const dica = [el.type, el.id, el.name, el.placeholder, el.getAttribute('oninput'), el.getAttribute('onkeyup')].join(' ').toLowerCase();
+    if (/search|busca|buscar|pesquis|filtr/.test(dica)) return false;
+    return el.value !== el.defaultValue;
+  });
+}
+
+// Telas que buscam ao desenhar (O&M, Financeiro): redesenha e espera os dados
+// entrarem, depois devolve a rolagem, que o "Carregando" do meio pode ter
+// levado para o topo. "Entrou" = a tela mudou DEPOIS do redesenho imediato
+// (que ainda usa o que já tinha) e ficou parada 0,4 s sem "Carregando". Se
+// nada muda em 3 s (dados iguais), termina; no máximo 10 s.
+function _voltarRolagem(y) {
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  if (y > 0 && Math.abs(window.scrollY - y) > 2) window.scrollTo(0, Math.min(y, Math.max(0, max)));
+}
+// troca de <i data-lucide> por <svg> (ícones desenhados depois) não é dado novo
+const _soIcone = (r) => r.type === 'childList'
+  && [...r.addedNodes].every((n) => n.nodeName.toLowerCase() === 'svg')
+  && [...r.removedNodes].every((n) => n.nodeName === 'I');
+function _redesenharEsperando() {
+  const box = document.getElementById('main-container');
+  const y = window.scrollY;
+  return new Promise((resolve) => {
+    let quieto = null, obs = null, semMudanca = null;
+    const fim = () => {
+      if (obs) obs.disconnect();
+      clearTimeout(quieto); clearTimeout(teto); clearTimeout(semMudanca);
+      _voltarRolagem(y);
+      resolve();
+    };
+    const talvezFim = () => {
+      clearTimeout(quieto);
+      quieto = setTimeout(() => {
+        if (box && /Carregando/i.test(box.textContent.slice(0, 3000))) return talvezFim();
+        fim();
+      }, 400);
+    };
+    const teto = setTimeout(fim, 10000);
+    if (box && window.MutationObserver) {
+      obs = new MutationObserver((recs) => { if (recs.every(_soIcone)) return; clearTimeout(semMudanca); talvezFim(); });
+      obs.observe(box, { childList: true, subtree: true, characterData: true });
+    }
+    renderContent();
+    if (obs) { obs.takeRecords(); semMudanca = setTimeout(fim, 3000); } // o redesenho imediato não conta
+    else talvezFim();
+  });
+}
+
+function atualizarTela() {
+  if (_atualizandoTela) return _atualizandoTela;
+  const passo = ATUALIZAR_TELA[state.environment || 'comercial'];
+  if (!passo) return Promise.resolve();
+  if (_telaComEdicaoPendente()) {
+    showToast('Salve ou desfaça o que está preenchendo antes de atualizar.');
+    return Promise.resolve();
+  }
+  _atualizandoTela = (async () => {
+    try {
+      const r = await passo();
+      showToast(r === 'ocupado' ? 'Feche o que está editando antes de atualizar.' : 'Dados atualizados.');
+    } catch (err) {
+      console.warn('[atualizarTela]', err);
+      showToast('Parte dos dados não atualizou. Tente de novo.');
+    }
   })();
   return _atualizandoTela.finally(() => { _atualizandoTela = null; });
 }

@@ -66,6 +66,16 @@
   const finCache = new Map();
   const finEhLeitura = (name) => /^(get|list|search)_/.test(name);
   function finCacheLimpar() { finCache.clear(); }
+  // botão Atualizar do topo: espera as leituras pedidas desde a limpeza (as
+  // telas pedem mais coisa depois da primeira resposta, então repete até parar)
+  async function finAguardarLeituras() {
+    for (let i = 0; i < 4; i++) {
+      const ps = [...finCache.values()].map((c) => c.p);
+      await Promise.allSettled(ps);
+      await new Promise((r) => setTimeout(r, 60));
+      if (finCache.size === ps.length) return;
+    }
+  }
   async function finRpc(name, args) {
     const leitura = finEhLeitura(name);
     const chave = leitura ? name + ':' + JSON.stringify(args || {}) : null;
@@ -2824,7 +2834,7 @@
 
   Object.assign(window, {
     renderFinRoute,
-    finRpc, finUsarTitulos, finUsarComissoes,
+    finRpc, finCacheLimpar, finAguardarLeituras, finUsarTitulos, finUsarComissoes,
     finResolveTab,
     finToast,
     // recebíveis (ações + lançamento + edição)

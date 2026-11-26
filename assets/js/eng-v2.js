@@ -2790,6 +2790,13 @@ addEventListener('load',function(){caber();if(document.fonts)document.fonts.read
   // ------------------------------------------------------------ exposição
   const EV = {
     recarregar: async () => { E.projetos = null; E.catalogo = null; E.osLista = null; if (E.container) carregarTela(E.container, E.tab === 'catalogo' || E.tab === 'calculadora'); },
+    // botão Atualizar do topo: busca de novo sem a tela de "Carregando" (a lista
+    // atual fica na tela até os dados novos chegarem; pintar() guarda a rolagem)
+    atualizar: async () => {
+      const comCat = (E.tab === 'catalogo' || E.tab === 'calculadora') && E.catalogo;
+      await Promise.all([carregarProjetos(true), comCat ? carregarCatalogo(true) : null, E.tab === 'os' ? carregarListaOS() : null]);
+      pintar();
+    },
     buscar: (q) => { E.busca = q; clearTimeout(EV._t); EV._t = setTimeout(() => { pintar(); const i = E.container && E.container.querySelector('.rd-bar input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200); },
     franquia: (v) => { E.fr = v; pintar(); },
     view: (v) => { E.view = v; lsSet('eng_view', v); pintar(); },
