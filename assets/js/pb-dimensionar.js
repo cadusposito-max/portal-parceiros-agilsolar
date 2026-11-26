@@ -304,6 +304,9 @@ function pbConsumoMedia() {
   return _pbdConsumo().media;
 }
 
+// Teto de placas da cotação, do híbrido e do kit montado (a trava de 150 saiu em 26/11).
+const PB_PLACAS_MAX = 1000;
+
 // Placas que geram a média com o módulo de `w` watts (mesma conta da lista). null sem consumo.
 // Uma conta só pra cotação na distribuidora, híbrido e kit montado.
 function pbPlacasPeloConsumo(w, categoria = 'kitsInversor') {
@@ -311,7 +314,7 @@ function pbPlacasPeloConsumo(w, categoria = 'kitsInversor') {
   if (!(media > 0) || !(Number(w) > 0)) return null;
   const porPlaca = calcularGeracaoEstimada(Number(w) / 1000, categoria, _pbdHspCliente());
   if (!(porPlaca > 0)) return null;
-  return Math.max(4, Math.min(150, Math.ceil(media / porPlaca)));
+  return Math.max(4, Math.min(PB_PLACAS_MAX, Math.ceil(media / porPlaca)));
 }
 
 // ---------- quantidade de placas: um controle só (17/11) ----------
@@ -332,7 +335,7 @@ function pbPlacasControleHTML(w, categoria, opts = {}) {
   const manual = Number(state.pbPlacas) > 0;
   const kwp = Number(w) > 0 ? (n * Number(w) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWp' : '';
   const voltar = manual && sug && sug !== n;
-  const qtd = `<div class="km-qtd"><button type="button" data-pb-placas="-1" aria-label="Uma placa a menos">−</button><input type="number" min="${min}" max="150" value="${n}" data-pb-placas-in aria-label="Quantidade de placas"><button type="button" data-pb-placas="1" aria-label="Uma placa a mais">+</button><span>placas${kwp ? ' · ' + kwp : ''}</span>`;
+  const qtd = `<div class="km-qtd"><button type="button" data-pb-placas="-1" aria-label="Uma placa a menos">−</button><input type="number" min="${min}" max="${PB_PLACAS_MAX}" value="${n}" data-pb-placas-in aria-label="Quantidade de placas"><button type="button" data-pb-placas="1" aria-label="Uma placa a mais">+</button><span>placas${kwp ? ' · ' + kwp : ''}</span>`;
   // Compacto (cartão do kit montado): sem a linha de baixo; volta à sugestão por um botão pequeno.
   if (opts.compacto) {
     return `<div class="pb-placas" data-pb-placas-min="${min}">${qtd}${voltar ? `<button type="button" class="orc-link" data-pb-placas-sug title="Voltar às ${sug} placas sugeridas pelo consumo">↺ ${sug}</button>` : ''}</div></div>`;
@@ -371,13 +374,13 @@ function pbPlacasMudou() {
     if (!b || (typeof _orcamentoGerando !== 'undefined' && _orcamentoGerando)) return;
     const inp = b.closest('.pb-placas')?.querySelector('[data-pb-placas-in]');
     const atual = Math.round(Number(inp?.value) || 0);
-    state.pbPlacas = Math.max(minDe(b), Math.min(150, atual + Number(b.dataset.pbPlacas)));
+    state.pbPlacas = Math.max(minDe(b), Math.min(PB_PLACAS_MAX, atual + Number(b.dataset.pbPlacas)));
     pbPlacasMudou();
   });
   document.addEventListener('change', (e) => {
     const inp = e.target.closest('[data-pb-placas-in]');
     if (!inp) return;
-    state.pbPlacas = Math.max(minDe(inp), Math.min(150, Math.round(Number(inp.value) || minDe(inp))));
+    state.pbPlacas = Math.max(minDe(inp), Math.min(PB_PLACAS_MAX, Math.round(Number(inp.value) || minDe(inp))));
     pbPlacasMudou();
   });
 }

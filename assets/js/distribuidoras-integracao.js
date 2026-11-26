@@ -347,7 +347,7 @@ function pbIntegracaoPainelHTML() {
   const cat = state.pbCategory === 'kitsMicro' ? 'kitsMicro' : 'kitsInversor';
   const campoPlacas = `<div class="pbd-mes"><span>Quantidade de placas</span>${typeof pbPlacasControleHTML === 'function'
     ? pbPlacasControleHTML(pbIntegracaoModuloW(), cat, { min: 4 })
-    : `<input id="pb-cot-placas" type="number" min="4" max="150" class="pbd-input" value="${_pbCotPlacas()}">`}</div>`;
+    : `<input id="pb-cot-placas" type="number" min="4" max="1000" class="pbd-input" value="${_pbCotPlacas()}">`}</div>`;
   // Na tela do orçamento o botão de cotar e as opções ficam na coluna da direita (pbIntegracaoLadoHTML).
   if (typeof orcamentoAberto === 'function' && orcamentoAberto()) {
     return `<div class="pbd-sec">Cotar na ${escapeHTML(info.nome)}</div>
@@ -396,7 +396,7 @@ async function pbIntegracaoCotar(auto = false) {
   if (!provedor || _pbCot.carregando) return;
   pbCotCancelarRetomada();
   const placas = Math.round(_pbCotPlacas());
-  if (!Number.isFinite(placas) || placas < 4 || placas > 150) { showToast('Informe de 4 a 150 placas.'); return; }
+  if (!Number.isFinite(placas) || placas < 4 || placas > 1000) { showToast('Informe de 4 a 1.000 placas.'); return; }
   _pbCot.placas = String(placas);
   const telhado = (typeof _pbEstrutura !== 'undefined' && _pbEstrutura.telhado) || 'ceramico';
   if (!pbIntegracaoTelhadoOk(provedor, telhado)) { showToast(`A ${INTEGRACOES_INFO[provedor]?.nome || provedor} não tem estrutura pra esse telhado.`); return; }
