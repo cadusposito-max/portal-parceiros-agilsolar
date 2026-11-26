@@ -222,6 +222,7 @@
       <button class="v2-icb v2-msearch" data-v2="palette" title="Buscar">${ic('search')}</button>
       <button class="v2-search" data-v2="palette">${ic('search')}<span>Buscar cliente, proposta ou tela...</span><kbd class="v2-kbd">Ctrl K</kbd></button>
       ${scopeButton()}
+      ${has('podeAtualizarTela') && podeAtualizarTela() ? `<button class="v2-icb v2-refresh" data-v2="refresh" title="Atualizar os dados da tela" aria-label="Atualizar os dados da tela">${ic('rotate-cw')}</button>` : ''}
       ${has('ajudaAbrir') ? `<button class="v2-icb" data-v2="ajuda" title="Central de ajuda" aria-label="Central de ajuda" aria-expanded="false">${ic('circle-help')}</button>` : ''}
       ${tarefasHTML}${sinoHTML}
       ${chatOn ? `<button class="v2-icb" data-v2="chat" title="Mensagens da equipe">${ic('message-circle')}${unread ? `<span class="cnt">${unread > 99 ? '99+' : unread}</span>` : ''}</button>` : ''}
@@ -471,6 +472,17 @@
     window.location.reload();
   }
 
+  // ---------- botão Atualizar (computador) ----------
+  // Não recarrega a página: só busca os dados da tela de novo e redesenha
+  // os cards (atualizarTela, em app.js). O ícone gira enquanto busca; o
+  // seletor é refeito no fim porque o topo pode ter sido redesenhado no meio.
+  function atualizarDadosTela() {
+    if (!has('atualizarTela')) return;
+    const marcar = (on) => $$('#v2-top [data-v2="refresh"]').forEach((b) => { b.classList.toggle('girando', on); b.toggleAttribute('aria-busy', on); });
+    marcar(true);
+    Promise.resolve(atualizarTela()).catch(() => {}).finally(() => marcar(false));
+  }
+
   // ---------- cliques ----------
   document.addEventListener('click', (e) => {
     if (!window.uiV2.isActive() || !mounted) return;
@@ -500,6 +512,7 @@
       case 'tarefas': if (has('tarefasToggle')) tarefasToggle(); break;
       case 'logout': if (has('handleLogout')) handleLogout(); break;
       case 'reload': atualizarPlataforma(t); break;
+      case 'refresh': atualizarDadosTela(); break;
       case 'palette': openPalette(); break;
       case 'palclose': closePalette(); break;
       case 'scope-pal': P.scope = t.dataset.scope; P.idx = 0; paintPalette(); $('#v2-palq').focus(); break;

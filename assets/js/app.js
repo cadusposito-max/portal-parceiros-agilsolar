@@ -462,6 +462,32 @@ async function refreshData() {
   showToast('Dados atualizados.');
 }
 
+// Botão Atualizar do topo (computador): busca de novo só os dados da tela
+// (cards, listas, contadores) e redesenha, sem recarregar a página — filtros,
+// busca, rolagem e o que estiver aberto continuam onde estavam. Não conta
+// como login (o refreshData acima chama updateVendedorStats, que conta).
+// Por enquanto só no Comercial; os outros ambientes entram depois.
+const ATUALIZAR_TELA_AMBIENTES = ['comercial'];
+let _atualizandoTela = null;
+function podeAtualizarTela() {
+  return ATUALIZAR_TELA_AMBIENTES.includes(state.environment || 'comercial');
+}
+function atualizarTela() {
+  if (_atualizandoTela) return _atualizandoTela;
+  _atualizandoTela = (async () => {
+    const tab = state.activeTab;
+    const tarefas = [fetchClientes(), fetchPropostas(), fetchVendas(), fetchCrmMetas()];
+    if (tab === 'dashboard') tarefas.push(fetchComunicados());
+    if (tab === 'obras' && window.obras && typeof window.obras.carregar === 'function') tarefas.push(window.obras.carregar(true));
+    const r = await Promise.allSettled(tarefas);
+    if (state.environment === 'comercial' && typeof renderContent === 'function') renderContent();
+    const falhou = r.some((x) => x.status === 'rejected');
+    if (falhou) console.warn('[atualizarTela]', r.filter((x) => x.status === 'rejected').map((x) => x.reason));
+    showToast(falhou ? 'Parte dos dados não atualizou. Tente de novo.' : 'Dados atualizados.');
+  })();
+  return _atualizandoTela.finally(() => { _atualizandoTela = null; });
+}
+
 // Abas do O&M visíveis para um vendedor com acesso (sem OS/Pendências/Relatórios/Técnicos).
 const OM_TABS_VENDEDOR = ['propostas', 'central', 'clientes'];
 

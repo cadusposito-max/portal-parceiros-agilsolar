@@ -241,7 +241,7 @@ html[data-ui="v2"] .v2-msearch { display: none !important; }
   html[data-ui="v2"] .v2-top h1 { font-size: 23px; }
   /* "Comercial" já está na pílula de ambiente; sininho foi pro topo fixo e o "?" pro menu da foto */
   html[data-ui="v2"] .v2-top :is(.v2-crumb, .v2-grow) { display: none; }
-  html[data-ui="v2"] .v2-top :is(.v2-scope, .v2-admin, [data-v2="notif"], [data-v2="tarefas"], [data-v2="docs"], [data-v2="ajuda"]) { display: none !important; }
+  html[data-ui="v2"] .v2-top :is(.v2-scope, .v2-admin, [data-v2="notif"], [data-v2="tarefas"], [data-v2="docs"], [data-v2="ajuda"], [data-v2="refresh"]) { display: none !important; }
   html[data-ui="v2"] .v2-top .v2-icb { width: 44px; height: 44px; }
   /* tela inicial: busca vira barra larga embaixo da saudação, com o chat do lado */
   html[data-ui="v2"] .v2-top.home { flex-wrap: wrap; row-gap: 14px; }
@@ -348,6 +348,9 @@ html[data-ui="v2"] .v2-navind {
 }
 /* ---------- troca de aba: conteúdo entra subindo de leve, em cascata ---------- */
 @keyframes v2-gira { to { transform: rotate(360deg); } }
+/* Atualizar do computador (só os dados da tela): gira enquanto busca; no celular fica o do topo fixo */
+html[data-ui="v2"] .v2-top .v2-refresh.girando { color: var(--v2-blue); pointer-events: none; }
+html[data-ui="v2"] .v2-top .v2-refresh.girando svg { animation: v2-gira .7s linear infinite; }
 @keyframes v2-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 html[data-ui="v2"] #main-container.v2-enter > * { animation: v2-enter .26s cubic-bezier(.2,.8,.2,1) backwards; }
 html[data-ui="v2"] #main-container.v2-enter > :nth-child(2) { animation-delay: .03s; }
