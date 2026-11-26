@@ -592,3 +592,48 @@ html[data-ui="v2"] .dci-errs { display: flex; flex-direction: column; gap: 4px; 
   html[data-ui="v2"] .dci-eco { display: none; }
   html[data-ui="v2"] .dci-body { max-height: 58vh; }
 }
+
+/* ---------- Marketing → Vitrine da proposta (mkt-vitrine.js) ---------- */
+html[data-ui="v2"] .vt-topo { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+html[data-ui="v2"] .vt-uni { display: flex; align-items: center; gap: 10px; flex: 1; max-width: 460px; }
+html[data-ui="v2"] .vt-uni > span { font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--v2-gray); text-transform: uppercase; }
+html[data-ui="v2"] .vt-uni select { flex: 1; min-width: 0; }
+html[data-ui="v2"] .vt-aviso { margin: 0 0 14px; }
+html[data-ui="v2"] .vt-mini { font-size: 11.5px; color: var(--v2-gray); }
+html[data-ui="v2"] .vt-propria { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 16px; }
+html[data-ui="v2"] .vt-propria .sub { margin: 0; flex: 1; }
+html[data-ui="v2"] .vt-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--v2-orange); color: var(--v2-orange-ink); font-size: 12px; font-weight: 800; border-radius: 999px; padding: 5px 11px; }
+html[data-ui="v2"] .vt-chip svg.lucide { width: 14px; height: 14px; }
+html[data-ui="v2"] .vt-conta { margin-left: auto; font-size: 12px; font-weight: 800; color: var(--v2-gray); }
+html[data-ui="v2"] .vt-add { margin-left: auto; height: 34px; font-size: 12px; }
+html[data-ui="v2"] .vt-obras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+html[data-ui="v2"] .vt-obra { background: var(--v2-soft); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+html[data-ui="v2"] .vt-obra .ft { aspect-ratio: 4 / 3; border-radius: 12px; background: var(--v2-line-strong) center / cover no-repeat; }
+html[data-ui="v2"] .vt-obra.vazia { border: 2px dashed var(--v2-line-strong); background: none; align-items: center; justify-content: center; text-align: center; min-height: 240px; color: var(--v2-ink); }
+html[data-ui="v2"] .vt-obra.vazia:hover { border-color: var(--v2-blue); background: var(--v2-blue-50); }
+html[data-ui="v2"] .vt-obra.vazia > svg.lucide { width: 26px; height: 26px; color: var(--v2-blue); }
+html[data-ui="v2"] .vt-obra.vazia small { font-size: 12px; color: var(--v2-gray); }
+html[data-ui="v2"] .vt-depo { padding: 0 4px; flex: 1; }
+html[data-ui="v2"] .vt-depo .estrelas { color: var(--v2-orange); font-size: 12px; letter-spacing: 1px; }
+html[data-ui="v2"] .vt-depo b { display: block; font-size: 14px; margin-top: 2px; }
+html[data-ui="v2"] .vt-depo p { font-size: 12.5px; line-height: 1.45; color: var(--v2-ink-2); font-style: italic; margin: 4px 0 0; }
+html[data-ui="v2"] .vt-acts { display: flex; gap: 6px; }
+html[data-ui="v2"] .vt-acts .ct-btn { height: 36px; background: var(--v2-card); }
+html[data-ui="v2"] .vt-acts .ct-btn:not(.ic) { flex: 1; }
+html[data-ui="v2"] .vt-acts .ct-btn.ic { width: 36px; }
+html[data-ui="v2"] .vt-vids { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+html[data-ui="v2"] .vt-vid { display: flex; align-items: center; gap: 10px; background: var(--v2-soft); border-radius: 14px; padding: 8px; }
+html[data-ui="v2"] .vt-vid img { width: 96px; height: 54px; object-fit: cover; border-radius: 9px; flex-shrink: 0; background: var(--v2-line-strong); }
+html[data-ui="v2"] .vt-vid .tx { flex: 1; min-width: 0; }
+html[data-ui="v2"] .vt-vid .tx b { display: block; font-size: 14px; }
+html[data-ui="v2"] .vt-vid .tx small { display: block; font-size: 12px; color: var(--v2-gray); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-ui="v2"] .vt-vid .ct-btn.ic { width: 36px; height: 36px; background: var(--v2-card); }
+html[data-ui="v2"] .vt-vid .ct-btn:disabled { opacity: .35; cursor: default; }
+html[data-ui="v2"] .ct-inp.vt-txt { height: auto; padding: 10px 12px; resize: vertical; line-height: 1.45; }
+@media (max-width: 767px) {
+  html[data-ui="v2"] .vt-uni { max-width: none; }
+  html[data-ui="v2"] .vt-obras { grid-template-columns: 1fr; }
+  html[data-ui="v2"] .vt-obra.vazia { min-height: 120px; }
+  html[data-ui="v2"] .vt-vid img { width: 72px; height: 40px; }
+  html[data-ui="v2"] .vt-propria .ct-btn { width: 100%; }
+}

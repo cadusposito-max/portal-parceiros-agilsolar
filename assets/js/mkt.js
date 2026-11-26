@@ -146,13 +146,15 @@
   }
 
   // As abas de documentação do mesmo ambiente são do docs.js
-  function naArte() { return state.environment === 'marketing' && !MKT_TABS_DOCS.includes(state.mktActiveTab); }
+  // A aba Vitrine da proposta é do mkt-vitrine.js
+  function naArte() { return state.environment === 'marketing' && !MKT_TABS_DOCS.includes(state.mktActiveTab) && state.mktActiveTab !== 'vitrine'; }
 
   async function renderMktRoute(container, tab) {
     M.container = container;
     const novo = tab || 'biblioteca';
+    if (novo === 'vitrine' && CT.admin() && window.MktVitrine) { M.tab = 'vitrine'; M.view = 'lista'; return window.MktVitrine.render(container); }
     if (novo !== M.tab) { M.tab = novo; M.view = 'lista'; }
-    if ((M.tab === 'montar' || M.tab === 'uso') && !CT.admin()) M.tab = 'biblioteca';
+    if ((M.tab === 'montar' || M.tab === 'uso' || M.tab === 'vitrine') && !CT.admin()) M.tab = 'biblioteca';
     meta();
     if (!M.itens) {
       container.innerHTML = CT.carregando();

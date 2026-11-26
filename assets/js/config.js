@@ -400,7 +400,9 @@ const MKT_TABS = [
   { id: 'biblioteca',  label: 'ARTES',               icon: 'layout-grid',    chave: 'mkt' },
   { id: 'campanhas',   label: 'CAMPANHAS',           icon: 'flag',           chave: 'mkt' },
   { id: 'montar',      label: 'MONTAR ARTE',         icon: 'pencil-ruler',   chave: 'mkt', admin: true },
-  { id: 'uso',         label: 'QUEM BAIXOU',         icon: 'chart-column',   chave: 'mkt', admin: true }
+  { id: 'uso',         label: 'QUEM BAIXOU',         icon: 'chart-column',   chave: 'mkt', admin: true },
+  // Obras com depoimento (PDF) e vídeos (online) das propostas, por unidade (mkt-vitrine.js)
+  { id: 'vitrine',     label: 'VITRINE DA PROPOSTA', icon: 'images',         chave: 'mkt', admin: true }
 ];
 // Ids de documentação que não são do Marketing (o mkt.js ignora essas abas)
 const MKT_TABS_DOCS = ['docs', 'obrigatoria', 'leituras'];

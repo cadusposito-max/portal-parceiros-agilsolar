@@ -228,25 +228,55 @@ function renderCampanha(c, waLink) {
 // CARROSSEL DE VÍDEOS
 // ==========================================
 let videoAtual = 0;
+let videosCarrossel = [];
 const playerContainer = document.getElementById('video-wrapper');
 const dotsContainer   = document.getElementById('video-dots');
 
-VIDEOS_YOUTUBE.forEach((link, index) => {
-  const finalUrl = link + (link.includes('?') ? '&' : '?') + 'enablejsapi=1';
-  const iframe   = document.createElement('iframe');
-  iframe.className = `absolute top-0 left-0 w-full h-full transition-opacity duration-500 ease-in-out ${index === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`;
-  iframe.src       = finalUrl;
-  iframe.title     = `YouTube video player ${index + 1}`;
-  iframe.setAttribute('frameborder', '0');
-  iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
-  iframe.setAttribute('allowfullscreen', '');
-  iframe.id = `yt-iframe-${index}`;
-  playerContainer.appendChild(iframe);
-});
+// Link do YouTube em qualquer formato (watch, youtu.be, shorts, embed) → embed.
+function youtubeEmbedUrl(link) {
+  const m = String(link || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,})/);
+  return m ? 'https://www.youtube.com/embed/' + m[1] : null;
+}
+
+// Vídeos da vitrine da unidade (Marketing → Vitrine da proposta).
+// Sem vitrine (banco antigo) ou sem link válido: ficam os vídeos de sempre.
+// Lista vazia de propósito: o bloco some.
+function videosDaVitrine(vitrine) {
+  if (!vitrine || !Array.isArray(vitrine.videos)) return VIDEOS_YOUTUBE;
+  if (!vitrine.videos.length) return [];
+  const lista = vitrine.videos.map((v) => youtubeEmbedUrl(typeof v === 'string' ? v : v && v.url)).filter(Boolean);
+  return lista.length ? lista : VIDEOS_YOUTUBE;
+}
+
+function montarVideos(lista) {
+  videosCarrossel = lista || [];
+  videoAtual = 0;
+  playerContainer.innerHTML = '';
+  const card = playerContainer.closest('.card');
+  if (card) card.classList.toggle('hidden', !videosCarrossel.length);
+  ['btn-prev-vid', 'btn-next-vid'].forEach((id) => {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle('hidden', videosCarrossel.length < 2);
+  });
+  videosCarrossel.forEach((link, index) => {
+    const finalUrl = link + (link.includes('?') ? '&' : '?') + 'enablejsapi=1';
+    const iframe   = document.createElement('iframe');
+    iframe.className = `absolute top-0 left-0 w-full h-full transition-opacity duration-500 ease-in-out ${index === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`;
+    iframe.src       = finalUrl;
+    iframe.title     = `YouTube video player ${index + 1}`;
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.id = `yt-iframe-${index}`;
+    playerContainer.appendChild(iframe);
+  });
+  atualizarCarrossel();
+}
 
 function atualizarCarrossel() {
-  VIDEOS_YOUTUBE.forEach((_, index) => {
+  videosCarrossel.forEach((_, index) => {
     const iframe = document.getElementById(`yt-iframe-${index}`);
+    if (!iframe) return;
     if (index === videoAtual) {
       iframe.classList.remove('opacity-0', 'z-0', 'pointer-events-none');
       iframe.classList.add('opacity-100', 'z-10');
@@ -260,7 +290,8 @@ function atualizarCarrossel() {
   });
 
   dotsContainer.innerHTML = '';
-  VIDEOS_YOUTUBE.forEach((_, index) => {
+  if (videosCarrossel.length < 2) return;
+  videosCarrossel.forEach((_, index) => {
     const dot      = document.createElement('button');
     const isActive = index === videoAtual;
     dot.className  = `h-2.5 rounded-full transition-all duration-300 ${isActive ? 'bg-azul w-8' : 'bg-linha hover:bg-azul-medio w-2.5'}`;
@@ -270,16 +301,16 @@ function atualizarCarrossel() {
 }
 
 document.getElementById('btn-prev-vid').addEventListener('click', () => {
-  videoAtual = (videoAtual - 1 + VIDEOS_YOUTUBE.length) % VIDEOS_YOUTUBE.length;
+  if (!videosCarrossel.length) return;
+  videoAtual = (videoAtual - 1 + videosCarrossel.length) % videosCarrossel.length;
   atualizarCarrossel();
 });
 
 document.getElementById('btn-next-vid').addEventListener('click', () => {
-  videoAtual = (videoAtual + 1) % VIDEOS_YOUTUBE.length;
+  if (!videosCarrossel.length) return;
+  videoAtual = (videoAtual + 1) % videosCarrossel.length;
   atualizarCarrossel();
 });
-
-atualizarCarrossel();
 
 // ==========================================
 // MODAL DE PARCELAMENTO
@@ -349,6 +380,7 @@ async function carregarProposta() {
     if (error || !data) { showError(); return; }
 
     renderData(data);
+    try { montarVideos(videosDaVitrine(data.vitrine)); } catch (e) { console.warn('[proposta] vídeos', e); montarVideos(VIDEOS_YOUTUBE); }
     // Registra a visualização na própria proposta (status VISTA + contador) —
     // é isso que avisa o vendedor na aba Propostas. Fire-and-forget: falha
     // aqui não pode atrapalhar o cliente vendo a proposta.

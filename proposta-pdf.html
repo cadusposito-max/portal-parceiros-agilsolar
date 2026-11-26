@@ -585,6 +585,21 @@ body.is-capturing *{box-shadow:none!important}
     };
   }
 
+  // Obras com depoimento da página "Quem somos": vêm da vitrine da unidade
+  // (Marketing → Vitrine da proposta). Sempre 3; o que faltar (ou banco sem a
+  // vitrine) completa com as obras de sempre.
+  var OBRAS_PADRAO = [
+    { nome: 'Colégio Severino Judá', texto: 'A experiência com a Ágil Solar mudou nossa visão: equipe atenciosa, transparente e que cuida como quem realmente se importa.', foto: IMG + 'caso-1.jpg' },
+    { nome: 'Santa Casa Saúde', texto: 'Pagávamos mais de R$ 8.000 e hoje só o mínimo. Escolhemos a Ágil Solar pelo profissionalismo do projeto à execução.', foto: IMG + 'caso-2.jpg' },
+    { nome: 'Estefani · residencial', texto: 'Pagávamos mais de R$ 600 e hoje só a taxa mínima. Economia real e zero preocupação. A Ágil é 100%.', foto: IMG + 'caso-3.jpg' }
+  ];
+  function obrasDaVitrine(v) {
+    var lista = (v && Array.isArray(v.obras) ? v.obras : []).filter(function (o) { return o && o.foto && o.nome; });
+    var out = [];
+    for (var i = 0; i < 3; i++) out.push(lista[i] ? { nome: String(lista[i].nome), texto: String(lista[i].texto || ''), foto: String(lista[i].foto) } : OBRAS_PADRAO[i]);
+    return out;
+  }
+
   function montarDados(p) {
     var num = calcularNumerosProposta(p);
     var temGeracao = num.geracao > 0;
@@ -628,6 +643,7 @@ body.is-capturing *{box-shadow:none!important}
       modulo: modulo,
       inversor: inversor,
       hib: hib,
+      obras: obrasDaVitrine(p.vitrine),
       telhado: p.estrutura_nome || '',
       garantiaPlacas: Number(p.franquia_garantia_paineis_anos) || 25,
       garantiaInversor: Number(p.franquia_garantia_inversor_anos) || 10,
@@ -855,17 +871,14 @@ body.is-capturing *{box-shadow:none!important}
         + faixaRes);
     }
 
-    // 3. Quem somos: números grandes + fotos dos clientes
-    var caso = function (n, nome, txt) {
-      return '<div class="foto-caso"><div class="ft" style="background-image:url(' + IMG + 'caso-' + n + '.jpg)"></div><div class="depo"><div class="estrelas">★★★★★</div><h3>' + nome + '</h3><p>“' + txt + '”</p></div></div>';
+    // 3. Quem somos: números grandes + fotos dos clientes (vitrine da unidade)
+    var caso = function (o) {
+      var foto = String(o.foto || '').replace(/["\\\n\r]/g, '');
+      return '<div class="foto-caso"><div class="ft" style="background-image:url(&quot;' + esc(foto) + '&quot;)"></div><div class="depo"><div class="estrelas">★★★★★</div><h3>' + esc(o.nome) + '</h3><p>“' + esc(o.texto) + '”</p></div></div>';
     };
     folha(cab('Quem somos', 'Ágil Solar, transformando o sol em economia', 'Desde 2020 levando economia, eficiência e segurança com projetos personalizados, tecnologia de ponta e equipe capacitada.')
       + '<div class="numeros-faixa"><div><span class="num">+4.000</span><span class="k">projetos instalados</span></div><div><span class="num">+35</span><span class="k">unidades</span></div><div><span class="num">8</span><span class="k">estados com presença</span></div><div><span class="num">+150</span><span class="k">municípios atendidos</span></div></div>'
-      + '<div class="fotos">'
-      + caso(1, 'Colégio Severino Judá', 'A experiência com a Ágil Solar mudou nossa visão: equipe atenciosa, transparente e que cuida como quem realmente se importa.')
-      + caso(2, 'Santa Casa Saúde', 'Pagávamos mais de R$ 8.000 e hoje só o mínimo. Escolhemos a Ágil Solar pelo profissionalismo do projeto à execução.')
-      + caso(3, 'Estefani · residencial', 'Pagávamos mais de R$ 600 e hoje só a taxa mínima. Economia real e zero preocupação. A Ágil é 100%.')
-      + '</div>');
+      + '<div class="fotos">' + D.obras.map(caso).join('') + '</div>');
 
     // 4. Seu projeto (só com geração)
     if (D.temGeracao) {
