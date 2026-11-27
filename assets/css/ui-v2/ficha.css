@@ -607,3 +607,22 @@ html[data-ui="v2"] .crm-pa.aberta .crm-pa-seta svg { transform: rotate(180deg); 
   html[data-ui="v2"] .crm-pa-top .crm-pa-txt { display: none; }
   html[data-ui="v2"] .crm-pa-top > a.btn { width: 36px; padding: 0; justify-content: center; }
 }
+
+/* ---- titular da conta de luz (UC) na aba Dados (crm360TitularUCHTML) ---- */
+html[data-ui="v2"] .crm360-tuc h3 { flex-wrap: wrap; margin-bottom: 0; }
+html[data-ui="v2"] .crm360-tuc.on { box-shadow: var(--v2-shadow), inset 0 0 0 2px var(--v2-orange); }
+html[data-ui="v2"] .crm360-tuc.on h3 { margin-bottom: 14px; }
+html[data-ui="v2"] .v2f-card.crm360-tuc h3 .v2f-h3sub { margin-left: 4px; }
+.crm360-tuc-sw { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; font-size: 12px; font-weight: 700; }
+.crm360-tuc-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+.crm360-tuc-sw i { width: 42px; height: 24px; border-radius: 999px; background: var(--v2-line-strong, #9ca3af); position: relative; transition: background .15s; flex-shrink: 0; }
+.crm360-tuc-sw i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.crm360-tuc-sw input:checked + i { background: var(--v2-blue, #f97316); }
+.crm360-tuc-sw input:checked + i::after { transform: translateX(18px); }
+.crm360-tuc-sw input:focus-visible + i { outline: 2px solid var(--v2-blue, #f97316); outline-offset: 2px; }
+html[data-ui="v2"] .crm360-tuc-sw span { color: var(--v2-gray); }
+.crm360-tuc-mesmo { display: flex; align-items: center; gap: 8px; margin: 14px 0; font-size: 13px; font-weight: 600; cursor: pointer; }
+.crm360-tuc-mesmo input { width: 16px; height: 16px; }
+.crm360-tuc-aviso { margin: 14px 0 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 10px 12px; border-radius: 12px; background: rgba(249,115,22,.1); color: #c2410c; }
+html[data-ui="v2"] .crm360-tuc-aviso { background: var(--v2-orange-50); color: var(--v2-orange-text); }
+.crm360-tuc-aviso svg { width: 16px; height: 16px; flex-shrink: 0; }

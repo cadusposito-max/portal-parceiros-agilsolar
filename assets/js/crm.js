@@ -606,6 +606,7 @@ function renderCrm360() {
               ${crm360Field('Observações', `<textarea id="crm360-observacoes" rows="2" class="crm360-input">${escapeHTML(client.observacoes || '')}</textarea>`, 'sm:col-span-2')}
             </div>
             ${crm360RepresentanteHTML(client, false)}
+            ${crm360TitularUCHTML(client, false)}
 
             <div class="pt-3 border-t border-neutral-800/60 space-y-3">
               <p class="text-yellow-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><i data-lucide="alarm-clock" class="w-3.5 h-3.5"></i> Próxima ação (follow-up)</p>
@@ -646,6 +647,7 @@ function renderCrm360() {
   ligarMascara(document.getElementById('crm360-cep'), 'cep');
   crm360LigarReceita();
   crm360LigarCep();
+  crm360LigarTitularUC();
 
   if (_crm360Tab === 'financiamento' && typeof renderFinanciamento === 'function') renderFinanciamento();
   // Selo de margem da precificação interna (só admin; preenchido async).
@@ -713,6 +715,193 @@ function crm360RepresentanteHTML(client, v2) {
         <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><i data-lucide="id-card" class="w-3.5 h-3.5"></i> Representante legal (assina pela empresa)</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${campos}</div>
       </div>`;
+}
+
+// Titular da conta de luz (UC) quando não é o cliente. Aparece pra todos que editam a ficha
+// (franqueado que não abre a tela de contrato/procuração também preenche).
+// Grava em documentos_dados.titular — o mesmo lugar que a procuração (documentos.js)
+// e a engenharia (eng-v2.js titularUC) leem.
+// [chave, id, caixa alta, rótulo na timeline]
+const CRM360_TUC_CAMPOS = [
+  ['nome', 'crm360-tuc-nome', true, 'titular da UC'], ['cpf', 'crm360-tuc-cpf', false, 'CPF/CNPJ do titular da UC'],
+  ['rg', 'crm360-tuc-rg', false, 'RG do titular da UC'], ['rg_orgao', 'crm360-tuc-rg-orgao', true, 'órgão emissor do titular da UC'],
+  ['genero', 'crm360-tuc-genero', false, 'gênero do titular da UC'],
+];
+const CRM360_TUC_REP = [
+  ['nome', 'crm360-tuc-rep-nome', true, 'responsável pela empresa titular'], ['cpf', 'crm360-tuc-rep-cpf', false, 'CPF do responsável pela empresa titular'],
+  ['profissao', 'crm360-tuc-rep-profissao', true, 'cargo do responsável pela empresa titular'],
+];
+const CRM360_TUC_END = [
+  ['cep', 'crm360-tuc-end-cep'], ['logradouro', 'crm360-tuc-end-logradouro'], ['numero', 'crm360-tuc-end-numero'],
+  ['bairro', 'crm360-tuc-end-bairro'], ['complemento', 'crm360-tuc-end-complemento'], ['cidade', 'crm360-tuc-end-cidade', true], ['uf', 'crm360-tuc-end-uf', true],
+];
+
+// Endereço do cliente no formato do contrato/procuração (a partir dos dados da ficha)
+function _crm360EnderecoCliente(c) {
+  const [cidade, ufCidade] = String(c.cidade || '').split('/');
+  const o = {
+    logradouro: c.endereco, numero: c.numero, complemento: c.complemento, bairro: c.bairro,
+    cidade: (cidade || '').trim(), uf: (c.uf || ufCidade || '').trim(), cep: c.cep,
+  };
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '').map(([k, v]) => [k, String(v).trim()]));
+}
+
+// Titular salvo mora no mesmo endereço do cliente? (sem endereço salvo = sim)
+function _crm360TucMesmoEndereco(client, tit) {
+  if (tit.endereco_mesmo_cliente != null) return tit.endereco_mesmo_cliente !== false;
+  const te = tit.endereco && typeof tit.endereco === 'object' ? tit.endereco : {};
+  if (!te.logradouro && !te.cep) return true;
+  const n = (v) => String(v || '').trim().toUpperCase();
+  const ce = _crm360EnderecoCliente(client);
+  return n(te.logradouro) === n(ce.logradouro) && n(te.numero) === n(ce.numero);
+}
+
+function crm360TitularUCHTML(client, v2) {
+  const tit = client.documentos_dados?.titular || {};
+  const on = Boolean(tit.outro_titular);
+  const te = tit.endereco && typeof tit.endereco === 'object' ? tit.endereco : {};
+  const tr = tit.representante || {};
+  const pj = _crm360EhCnpj(tit.cpf);
+  const mesmo = _crm360TucMesmoEndereco(client, tit);
+  const opt = (valor, lista) => lista.map(([v, l]) => `<option value="${v}" ${String(valor || '') === v ? 'selected' : ''}>${l}</option>`).join('');
+  const txt = (id, valor, cls = '', ph = '') => `<input id="${id}" value="${escapeHTML(valor || '')}" ${ph ? `placeholder="${ph}"` : ''} class="crm360-input ${cls}">`;
+  const s2 = v2 ? 'span2' : 'sm:col-span-2';
+  const grade = v2 ? 'v2f-fields v2f-fields4' : 'grid grid-cols-1 sm:grid-cols-2 gap-3';
+  const campos = `
+    <div class="${grade}">
+      ${crm360Field('Nome do titular', txt('crm360-tuc-nome', tit.nome, 'uppercase'), s2)}
+      ${crm360Field('CPF/CNPJ', txt('crm360-tuc-cpf', tit.cpf, 'font-mono'))}
+      ${crm360Field('Gênero', `<select id="crm360-tuc-genero" class="crm360-input">${opt(tit.genero, CRM360_GENEROS)}</select>`, 'crm360-tuc-pf')}
+      ${crm360Field('RG', txt('crm360-tuc-rg', tit.rg, 'font-mono'), 'crm360-tuc-pf')}
+      ${crm360Field('Órgão emissor', txt('crm360-tuc-rg-orgao', tit.rg_orgao, 'uppercase', 'SP/SSP'), 'crm360-tuc-pf')}
+      ${crm360Field('Responsável (assina pela empresa)', txt('crm360-tuc-rep-nome', tr.nome, 'uppercase'), `${s2} crm360-tuc-pj`)}
+      ${crm360Field('CPF do responsável', txt('crm360-tuc-rep-cpf', tr.cpf, 'font-mono', '000.000.000-00'), 'crm360-tuc-pj')}
+      ${crm360Field('Cargo', txt('crm360-tuc-rep-profissao', tr.profissao, 'uppercase', 'SÓCIO(A)'), 'crm360-tuc-pj')}
+    </div>
+    <label class="crm360-tuc-mesmo"><input id="crm360-tuc-mesmo" type="checkbox" ${mesmo ? 'checked' : ''} onchange="crm360TucAjustar()"> Mesmo endereço do cliente</label>
+    <div id="crm360-tuc-end" class="${grade}" style="${mesmo ? 'display:none' : ''}">
+      ${crm360Field('CEP', txt('crm360-tuc-end-cep', te.cep, 'font-mono'))}
+      ${crm360Field('Endereço', txt('crm360-tuc-end-logradouro', te.logradouro), s2)}
+      ${crm360Field('Número', txt('crm360-tuc-end-numero', te.numero))}
+      ${crm360Field('Bairro', txt('crm360-tuc-end-bairro', te.bairro))}
+      ${crm360Field('Complemento', txt('crm360-tuc-end-complemento', te.complemento))}
+      ${crm360Field('Cidade', txt('crm360-tuc-end-cidade', te.cidade, 'uppercase'))}
+      ${crm360Field('UF', txt('crm360-tuc-end-uf', te.uf, 'uppercase', 'SP'))}
+    </div>
+    <p class="crm360-tuc-aviso"><i data-lucide="alert-triangle"></i><span id="crm360-tuc-aviso">${escapeHTML(_crm360TucAvisoTexto(tit.nome))}</span></p>`;
+  const chave = `<label class="crm360-tuc-sw" title="Conta de luz em nome de outra pessoa">
+      <span id="crm360-tuc-lbl">${on ? 'Outra pessoa' : 'É o próprio cliente'}</span>
+      <input id="crm360-tuc-on" type="checkbox" ${on ? 'checked' : ''} onchange="crm360TucAjustar()"><i></i>
+    </label>`;
+  return v2
+    ? `<div class="v2f-card crm360-tuc ${on ? 'on' : ''}" id="crm360-tuc-card">
+        <h3><i data-lucide="zap"></i>Titular da conta de luz (UC)<span class="v2f-h3sub">vai na procuração e na engenharia</span>${chave}</h3>
+        <div id="crm360-tuc-campos" style="${on ? '' : 'display:none'}">${campos}</div>
+      </div>`
+    : `<div id="crm360-tuc-card" class="crm360-tuc pt-3 border-t border-neutral-800/60 space-y-3 ${on ? 'on' : ''}">
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-orange-500 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Titular da conta de luz (UC)</p>
+          ${chave}
+        </div>
+        <div id="crm360-tuc-campos" class="space-y-3" style="${on ? '' : 'display:none'}">${campos}</div>
+      </div>`;
+}
+
+function _crm360TucAvisoTexto(nome) {
+  const n = String(nome || '').trim().toUpperCase();
+  return `Procuração sai em nome de ${n || '(preencha o nome do titular)'}. O contrato continua com o cliente.`;
+}
+
+// Chave ligada/desligada, CPF ↔ CNPJ do titular e "mesmo endereço" (pós-render e a cada mudança)
+function crm360TucAjustar() {
+  const el = (id) => document.getElementById(id);
+  const chk = el('crm360-tuc-on');
+  if (!chk) return;
+  const on = chk.checked;
+  el('crm360-tuc-card')?.classList.toggle('on', on);
+  if (el('crm360-tuc-lbl')) el('crm360-tuc-lbl').textContent = on ? 'Outra pessoa' : 'É o próprio cliente';
+  if (el('crm360-tuc-campos')) el('crm360-tuc-campos').style.display = on ? '' : 'none';
+  const pj = _crm360EhCnpj(el('crm360-tuc-cpf')?.value);
+  document.querySelectorAll('.crm360-tuc-pf').forEach((e) => { e.style.display = pj ? 'none' : ''; });
+  document.querySelectorAll('.crm360-tuc-pj').forEach((e) => { e.style.display = pj ? '' : 'none'; });
+  if (el('crm360-tuc-end')) el('crm360-tuc-end').style.display = el('crm360-tuc-mesmo')?.checked ? 'none' : '';
+  if (el('crm360-tuc-aviso')) el('crm360-tuc-aviso').textContent = _crm360TucAvisoTexto(el('crm360-tuc-nome')?.value);
+}
+
+function crm360LigarTitularUC() {
+  const el = (id) => document.getElementById(id);
+  if (!el('crm360-tuc-on')) return;
+  if (typeof ligarMascara === 'function') {
+    ligarMascara(el('crm360-tuc-cpf'), 'auto');
+    ligarMascara(el('crm360-tuc-rep-cpf'), 'cpf');
+    ligarMascara(el('crm360-tuc-end-cep'), 'cep');
+  }
+  el('crm360-tuc-cpf').addEventListener('input', crm360TucAjustar);
+  el('crm360-tuc-nome').addEventListener('input', crm360TucAjustar);
+  if (typeof ligarBuscaCep === 'function') {
+    ligarBuscaCep(el('crm360-tuc-end-cep'), (r) => {
+      const por = (id, v) => { const e = el(id); if (e && v) { e.value = v; e.classList.remove('cnpj-rf-flash'); void e.offsetWidth; e.classList.add('cnpj-rf-flash'); } };
+      por('crm360-tuc-end-logradouro', r.rua);
+      por('crm360-tuc-end-bairro', r.bairro);
+      por('crm360-tuc-end-cidade', String(r.cidade || '').toUpperCase());
+      por('crm360-tuc-end-uf', String(r.uf || '').toUpperCase());
+      if (r.rua) el('crm360-tuc-end-numero')?.focus();
+    });
+  }
+  crm360TucAjustar();
+}
+
+// Lê o cartão do titular para salvar. Devolve { titular, mudancas } ou { erro }.
+// `null` quando não há nada a gravar (chave desligada e nunca foi ligada).
+function _crm360TucLer(client, payload) {
+  const el = (id) => document.getElementById(id);
+  if (!el('crm360-tuc-on')) return null;
+  const antes = client.documentos_dados?.titular || null;
+  const on = el('crm360-tuc-on').checked;
+  if (!on && !antes) return null;
+  const t0 = antes || {};
+  const tit = { tipo_pessoa: 'PF', rg_orgao: 'SP/SSP', ...t0, outro_titular: on };
+  const mudancas = [];
+  if (Boolean(t0.outro_titular) !== on) mudancas.push({ campo: 'conta de luz em nome de outra pessoa', de: t0.outro_titular ? 'sim' : 'não', para: on ? 'sim' : 'não' });
+  if (!on) return { titular: tit, mudancas };
+
+  const rotulo = Object.fromEntries(CRM360_GENEROS.filter(([v]) => v));
+  const ler = (lista, alvo, base) => lista.forEach(([k, id, caixaAlta, nome]) => {
+    const v = (el(id)?.value || '').trim();
+    alvo[k] = caixaAlta ? v.toUpperCase() : v;
+    const de = String(base[k] ?? '').trim(), para = alvo[k];
+    if (nome && de !== para) mudancas.push({ campo: nome, de: rotulo[de] || de, para: rotulo[para] || para });
+  });
+  ler(CRM360_TUC_CAMPOS, tit, t0);
+  if (!tit.rg_orgao) tit.rg_orgao = t0.rg_orgao || 'SP/SSP'; // mesmo padrão da procuração
+  const pj = _crm360EhCnpj(tit.cpf);
+  tit.tipo_pessoa = pj ? 'PJ' : 'PF';
+  if (tit.cpf && (![11, 14].includes(digitsOnly(tit.cpf).length) || !documentoValido(tit.cpf))) return { erro: 'CPF/CNPJ do titular da UC inválido — confira os números.' };
+  if (pj) {
+    const tr0 = t0.representante || {};
+    tit.representante = { rg_orgao: 'SP/SSP', mesmo_endereco: true, ...tr0 };
+    ler(CRM360_TUC_REP, tit.representante, tr0);
+    if (tit.representante.cpf && (digitsOnly(tit.representante.cpf).length !== 11 || !documentoValido(tit.representante.cpf))) return { erro: 'CPF do responsável pela empresa titular inválido.' };
+  }
+
+  const mesmo = Boolean(el('crm360-tuc-mesmo')?.checked);
+  const te0 = t0.endereco && typeof t0.endereco === 'object' ? t0.endereco : {};
+  let end;
+  if (mesmo) {
+    end = _crm360EnderecoCliente({ ...client, ...payload });
+  } else {
+    end = {};
+    CRM360_TUC_END.forEach(([k, id, caixaAlta]) => { const v = (el(id)?.value || '').trim(); end[k] = caixaAlta ? v.toUpperCase() : v; });
+  }
+  tit.endereco = end;
+  tit.endereco_mesmo_cliente = mesmo;
+  const fmt = (e) => (typeof docFormatEndereco === 'function' ? docFormatEndereco(e) : [e.logradouro, e.numero, e.bairro, e.cidade].filter(Boolean).join(', '));
+  if (Boolean(t0.endereco_mesmo_cliente) !== mesmo && t0.endereco_mesmo_cliente != null) {
+    mudancas.push({ campo: 'endereço do titular da UC', de: t0.endereco_mesmo_cliente ? 'mesmo do cliente' : fmt(te0), para: mesmo ? 'mesmo do cliente' : fmt(end) });
+  } else if (!mesmo && fmt(te0) !== fmt(end)) {
+    mudancas.push({ campo: 'endereço do titular da UC', de: fmt(te0), para: fmt(end) });
+  }
+  return { titular: tit, mudancas };
 }
 
 // CPF ↔ CNPJ: dados pessoais do cliente só valem para PF; na PJ entra o representante.
@@ -1857,6 +2046,14 @@ async function crmSaveClient360() {
       dd.cliente = { ...(dd.cliente || {}), representante: rep };
     }
   }
+  // Titular da conta de luz (UC) → documentos_dados.titular (procuração e engenharia leem daí)
+  const tuc = _crm360TucLer(client, payload);
+  if (tuc && tuc.erro) { showToast(tuc.erro); if (btn) btn.innerText = 'SALVAR ALTERAÇÕES'; return; }
+  if (tuc && JSON.stringify(tuc.titular) !== JSON.stringify(ddAntes?.titular || null)) {
+    dd = dd || JSON.parse(JSON.stringify(ddAntes || {}));
+    dd.titular = tuc.titular;
+  }
+  if (tuc) repMudancas.push(...tuc.mudancas);
   // CPF ↔ CNPJ trocado: o rascunho do contrato acompanha (senão abre PF/PJ errado)
   if (tipoDoc && (dd || (ddAntes && ddAntes.tipo_pessoa && ddAntes.tipo_pessoa !== tipoDoc))) {
     dd = dd || JSON.parse(JSON.stringify(ddAntes));
