@@ -143,6 +143,15 @@ function pbKitDaLinha(kit) {
   return (kit?.linha || 'catalogo') === pbLinhaAtual();
 }
 
+// Aba Promocionais sem nenhum kit no ar (27/11: os promocionais saíram com o 620 W e estão
+// sendo refeitos): a lista e o "Pelo consumo" mostram o aviso no lugar de "nenhum kit".
+const PB_AVISO_PROMOCIONAIS = 'Estamos preparando novos kits promocionais. Em breve eles aparecem aqui.';
+function pbSemPromocionais() {
+  if (pbLinhaAtual() !== 'promocional') return false;
+  if (typeof pbBuscandoKits === 'function' && pbBuscandoKits()) return false;
+  return !(state.data || []).some((k) => k.linha === 'promocional' && k.ativo !== false && Number(k.price) > 0);
+}
+
 function pbLinhaRender() {
   const box = document.getElementById('pb-linha');
   if (!box) return;

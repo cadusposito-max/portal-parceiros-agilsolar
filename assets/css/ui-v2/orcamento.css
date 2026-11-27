@@ -146,7 +146,10 @@ html[data-ui="v2"] body .pbl-mais:hover { border-color: var(--v2-blue); color: v
 html[data-ui="v2"] .pbl-mais svg { width: 16px; height: 16px; }
 html[data-ui="v2"] .pbl-vazio { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 36px 18px; text-align: center; color: var(--v2-ink-2); font-size: 14px; font-weight: 600; }
 html[data-ui="v2"] .pbl-vazio svg { width: 36px; height: 36px; color: var(--v2-gray); }
-html[data-ui="v2"] .pbl-vazio.is-buscando { color: var(--v2-ink); }
+html[data-ui="v2"] .pbl-vazio.is-buscando, html[data-ui="v2"] .pbl-vazio.is-preparando { color: var(--v2-ink); }
+html[data-ui="v2"] .pbl-vazio.is-preparando p { margin: 0; max-width: 420px; font-size: 15px; font-weight: 800; }
+html[data-ui="v2"] .pbl-vazio.is-preparando small { margin-top: -6px; font-size: 12.5px; font-weight: 600; color: var(--v2-ink-2); }
+html[data-ui="v2"] .pbl-vazio.is-preparando svg { color: var(--v2-orange); }
 html[data-ui="v2"] .pbl-vazio.is-buscando p { margin: 0; font-size: 15px; font-weight: 800; }
 html[data-ui="v2"] .pbl-vazio.is-buscando small { margin-top: -6px; font-size: 12.5px; font-weight: 600; color: var(--v2-ink-2); }
 html[data-ui="v2"] .pbl-vazio.is-buscando svg { color: var(--v2-orange); animation: v2-gira 0.9s linear infinite; }

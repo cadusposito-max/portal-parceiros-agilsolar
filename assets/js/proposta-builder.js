@@ -1382,8 +1382,17 @@ function renderModalProducts() {
     pbOrdemSoNaGrade();
     return;
   }
-  if (emptyEl.classList.contains('is-buscando')) {
+  if (typeof pbSemPromocionais === 'function' && pbSemPromocionais()) {
+    container.classList.add('hidden');
     emptyEl.classList.remove('is-buscando');
+    emptyEl.classList.add('is-preparando');
+    emptyEl.innerHTML = `<i data-lucide="sparkles"></i><p>${escapeHTML(PB_AVISO_PROMOCIONAIS)}</p>${state.isParceiro ? '' : '<small>Enquanto isso, use o Catálogo completo.</small>'}`;
+    emptyEl.classList.remove('hidden');
+    lucide.createIcons();
+    return;
+  }
+  if (emptyEl.classList.contains('is-buscando') || emptyEl.classList.contains('is-preparando')) {
+    emptyEl.classList.remove('is-buscando', 'is-preparando');
     emptyEl.innerHTML = '<i data-lucide="search-x"></i><p>Nenhum kit atende a este filtro</p>';
     lucide.createIcons();
   }

@@ -249,6 +249,10 @@ function pbDimResumo() {
     r.motivo = 'Buscando os kits…';
     return r;
   }
+  if (typeof pbSemPromocionais === 'function' && pbSemPromocionais()) {
+    r.motivo = state.isParceiro ? PB_AVISO_PROMOCIONAIS : `${PB_AVISO_PROMOCIONAIS} Enquanto isso, use o Catálogo completo.`;
+    return r;
+  }
 
   let { recomendado, menorQueCobre } = _pbdRecomendar(tipo, c.media);
   // Marca/módulo escolhido sem kit pra esse consumo (e ligação), mas outras marcas têm:
