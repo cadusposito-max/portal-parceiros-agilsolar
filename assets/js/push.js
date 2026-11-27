@@ -162,20 +162,33 @@ async function pushSaveSubscriptionToServer(subscription) {
     return { ok: false, error: 'subscription malformada' };
   }
 
-  const row = {
-    user_id:      state.currentUser.id,
-    franquia_id:  state.franquiaId,
-    endpoint:     sub.endpoint,
-    p256dh:       sub.keys.p256dh,
-    auth:         sub.keys.auth,
-    user_agent:   (navigator.userAgent || '').slice(0, 200),
-    active:       true,
-    last_seen_at: new Date().toISOString(),
-  };
+  const userAgent = (navigator.userAgent || '').slice(0, 200);
 
-  const { error } = await supabaseClient
-    .from('push_subscriptions')
-    .upsert(row, { onConflict: 'endpoint' });
+  // RPC: se outra pessoa já tinha ativado o push neste navegador, o registro
+  // passa para quem está logado agora (o upsert direto esbarrava na RLS).
+  let { error } = await supabaseClient.rpc('push_registrar', {
+    p_endpoint:    sub.endpoint,
+    p_p256dh:      sub.keys.p256dh,
+    p_auth:        sub.keys.auth,
+    p_franquia_id: state.franquiaId,
+    p_user_agent:  userAgent,
+  });
+
+  // Banco sem a RPC ainda: segue pelo caminho antigo.
+  if (error && (error.code === 'PGRST202' || error.code === '42883')) {
+    ({ error } = await supabaseClient
+      .from('push_subscriptions')
+      .upsert({
+        user_id:      state.currentUser.id,
+        franquia_id:  state.franquiaId,
+        endpoint:     sub.endpoint,
+        p256dh:       sub.keys.p256dh,
+        auth:         sub.keys.auth,
+        user_agent:   userAgent,
+        active:       true,
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: 'endpoint' }));
+  }
 
   if (error) {
     console.error('[push] upsert push_subscriptions:', error);
